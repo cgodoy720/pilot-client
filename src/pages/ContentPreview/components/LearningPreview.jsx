@@ -379,8 +379,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
   // Load task conversation
   const loadTaskConversation = async (task) => {
-    const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    const isTaskSurvey = task?.feedback_slot && validSurveyTypes.includes(task.feedback_slot);
+    const isTaskSurvey = task?.feedback_slot && task.feedback_slot !== 'none';
     
     if (isTaskSurvey || task?.task_type === 'assessment' || task?.task_type === 'break') {
       setIsAiThinking(false);
@@ -927,8 +926,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   // Task type checks
   const isCurrentTaskSurvey = () => {
     const task = tasks[currentTaskIndex];
-    const validTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    return task?.feedback_slot && validTypes.includes(task.feedback_slot);
+    return task?.feedback_slot && task.feedback_slot !== 'none';
   };
 
   const isCurrentTaskAssessment = () => tasks[currentTaskIndex]?.task_type === 'assessment';

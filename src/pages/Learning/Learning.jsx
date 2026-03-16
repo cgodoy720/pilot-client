@@ -440,11 +440,10 @@ function Learning() {
             })));
             
             // Debug: Log survey tasks specifically
-            const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-            const surveyTasks = allTasks.filter(task => 
-              task.feedback_slot && 
+            const surveyTasks = allTasks.filter(task =>
+              task.feedback_slot &&
               typeof task.feedback_slot === 'string' &&
-              validSurveyTypes.includes(task.feedback_slot)
+              task.feedback_slot !== 'none'
             );
             if (surveyTasks.length > 0) {
               console.log('Valid survey tasks found:', surveyTasks.map(t => ({
@@ -519,10 +518,9 @@ function Learning() {
   // Helper function to load conversation for a task
   const loadTaskConversation = async (task) => {
     // If this is a survey task, don't load conversation - survey will handle itself
-    const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    const isTaskSurvey = task?.feedback_slot && 
+    const isTaskSurvey = task?.feedback_slot &&
                         typeof task.feedback_slot === 'string' &&
-                        validSurveyTypes.includes(task.feedback_slot);
+                        task.feedback_slot !== 'none';
                         
     if (isTaskSurvey) {
       console.log(`Task ${task.id} is a survey (${task.feedback_slot}), skipping conversation load`);
@@ -1170,12 +1168,10 @@ function Learning() {
       return false;
     }
     
-    // More specific survey detection - only true if feedback_slot is a valid survey type string
-    const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    const isSurvey = currentTask?.feedback_slot && 
+    const isSurvey = currentTask?.feedback_slot &&
                      typeof currentTask.feedback_slot === 'string' &&
-                     validSurveyTypes.includes(currentTask.feedback_slot);
-    
+                     currentTask.feedback_slot !== 'none';
+
     return isSurvey;
   };
 

@@ -114,13 +114,13 @@ const TaskEditDialog = ({
       try {
         setLoadingSurveys(true);
         const response = await axios.get(
-          `${API_URL}/api/admin/templates/surveys`,
+          `${API_URL}/api/preview/survey-templates?t=${Date.now()}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        const active = (response.data.templates || []).filter(t => t.is_active);
-        setSurveyTemplates(active);
+        setSurveyTemplates(response.data.templates || []);
       } catch (error) {
         console.error('Error fetching survey templates:', error);
+        toast.error('Failed to load survey templates');
       } finally {
         setLoadingSurveys(false);
       }

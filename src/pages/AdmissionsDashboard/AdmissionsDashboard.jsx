@@ -231,7 +231,7 @@ const AdmissionsDashboard = () => {
     capacity: 50,
     is_online: false,
     meeting_link: '',
-    cohort_name: 'December 2025 - Workshop',
+    cohort_name: 'Admissions Workshop',
     workshop_type: 'admissions',
     access_window_days: 0,
     allow_early_access: false
@@ -490,7 +490,7 @@ const AdmissionsDashboard = () => {
       setAvailableCohorts(data.workshopCohorts.map(c => c.name));
     } catch (error) {
       console.error('Error fetching workshops data:', error);
-      setAvailableCohorts(['Admissions Workshop Experience']);
+      setAvailableCohorts(['Admissions Workshop']);
     } finally {
       setLoading(false);
       setLoadingCohorts(false);

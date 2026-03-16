@@ -771,6 +771,16 @@ function SurveyTemplatesTab({ token }) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState(null);
+  const [expandedSurveys, setExpandedSurveys] = useState(new Set());
+
+  const toggleExpand = (templateId) => {
+    setExpandedSurveys(prev => {
+      const next = new Set(prev);
+      if (next.has(templateId)) next.delete(templateId);
+      else next.add(templateId);
+      return next;
+    });
+  };
 
   const fetchTemplates = async () => {
     try {
@@ -848,46 +858,58 @@ function SurveyTemplatesTab({ token }) {
       <div className="space-y-3">
         {templates.map(template => {
           const questions = typeof template.questions === 'string' ? JSON.parse(template.questions) : (template.questions || []);
+          const isExpanded = expandedSurveys.has(template.template_id);
 
           return (
-            <div key={template.template_id} className={`bg-white border rounded-lg p-4 ${!template.is_active ? 'opacity-60' : 'border-slate-200'}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="font-semibold text-slate-900 font-proxima flex items-center gap-2">
-                    {template.survey_name}
-                    {!template.is_active && (
-                      <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inactive</span>
-                    )}
-                  </div>
-                  <div className="text-xs text-slate-500 font-proxima">
-                    Type: <span className="font-mono">{template.survey_type}</span>
-                    {' | '}{questions.length} question(s)
+            <div key={template.template_id} className={`bg-white border rounded-lg overflow-hidden ${!template.is_active ? 'opacity-60' : 'border-slate-200'}`}>
+              {/* Survey Header - clickable to expand/collapse */}
+              <div
+                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50"
+                onClick={() => toggleExpand(template.template_id)}
+              >
+                <div className="flex items-center gap-3">
+                  {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                  <div>
+                    <div className="font-semibold text-slate-900 font-proxima flex items-center gap-2">
+                      {template.survey_name}
+                      {!template.is_active && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inactive</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 font-proxima">
+                      Type: <span className="font-mono">{template.survey_type}</span>
+                      {' | '}{questions.length} question(s)
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => handleEdit(template)}>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(template); }}>
                     <Edit className="h-4 w-4" />
                   </Button>
                   {template.is_active && (
-                    <Button variant="ghost" size="sm" onClick={() => { setTemplateToDelete(template); setDeleteConfirmOpen(true); }}>
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setTemplateToDelete(template); setDeleteConfirmOpen(true); }}>
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   )}
                 </div>
               </div>
 
-              {/* Questions preview */}
-              <div className="space-y-1">
-                {questions.map((q, i) => (
-                  <div key={q.id || i} className="text-sm text-slate-600 font-proxima flex items-start gap-2">
-                    <span className="text-slate-400 text-xs mt-0.5">{i + 1}.</span>
-                    <span>{q.question}</span>
-                    <span className="text-xs text-slate-400 ml-auto whitespace-nowrap">
-                      {q.type}{q.required ? ' *' : ''}
-                    </span>
+              {/* Expanded Content - Questions preview */}
+              {isExpanded && (
+                <div className="border-t border-slate-200 px-4 py-3 bg-slate-50">
+                  <div className="space-y-1">
+                    {questions.map((q, i) => (
+                      <div key={q.id || i} className="text-sm text-slate-600 font-proxima flex items-start gap-2">
+                        <span className="text-slate-400 text-xs mt-0.5">{i + 1}.</span>
+                        <span>{q.question}</span>
+                        <span className="text-xs text-slate-400 ml-auto whitespace-nowrap">
+                          {q.type}{q.required ? ' *' : ''}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           );
         })}
