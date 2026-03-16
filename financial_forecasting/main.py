@@ -843,6 +843,350 @@ async def save_and_notify_report(report: ForecastingReport, user_id: str):
         logger.error(f"Error saving/notifying report: {e}")
 
 
+# ---------------------------------------------------------------------------
+# Slack integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/slack/health")
+async def slack_health_check():
+    """Check Slack service health."""
+    client = _services.get("mcp_client")
+    if not client or "slack" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Slack service not connected"})
+    try:
+        slack_service = client.services.get("slack")
+        if slack_service and slack_service.is_authenticated:
+            info = await slack_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/slack/account-activity/{account_name}")
+async def get_slack_account_activity(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Slack messages mentioning an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    slack_service = client.services.get("slack")
+    if not slack_service:
+        raise HTTPException(status_code=503, detail="Slack service not connected")
+    try:
+        results = await slack_service.search_messages(account_name, count=limit)
+        messages = results.get("messages", {}).get("matches", []) if isinstance(results, dict) else []
+        activity = [
+            {
+                "id": msg.get("ts", ""),
+                "type": "slack_message",
+                "channel": msg.get("channel", {}).get("name", "") if isinstance(msg.get("channel"), dict) else str(msg.get("channel", "")),
+                "text": msg.get("text", ""),
+                "user": msg.get("username", msg.get("user", "")),
+                "timestamp": msg.get("ts", ""),
+                "permalink": msg.get("permalink", ""),
+                "source": "slack",
+            }
+            for msg in messages[:limit]
+        ]
+        return ApiResponse(success=True, data=activity, meta={"count": len(activity), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Slack activity for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Fireflies integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/fireflies/health")
+async def fireflies_health_check():
+    """Check Fireflies service health."""
+    client = _services.get("mcp_client")
+    if not client or "fireflies" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Fireflies service not connected"})
+    try:
+        ff_service = client.services.get("fireflies")
+        if ff_service and ff_service.is_authenticated:
+            info = await ff_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/fireflies/account-meetings/{account_name}")
+async def get_fireflies_account_meetings(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Fireflies meeting transcripts mentioning an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    ff_service = client.services.get("fireflies")
+    if not ff_service:
+        raise HTTPException(status_code=503, detail="Fireflies service not connected")
+    try:
+        meetings = await ff_service.get_account_meetings(account_name, limit=limit)
+        return ApiResponse(success=True, data=meetings, meta={"count": len(meetings), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Fireflies meetings for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Gmail integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/gmail/health")
+async def gmail_health_check():
+    """Check Gmail service health."""
+    client = _services.get("mcp_client")
+    if not client or "gmail" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Gmail service not connected"})
+    try:
+        gmail_service = client.services.get("gmail")
+        if gmail_service and gmail_service.is_authenticated:
+            info = await gmail_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/gmail/account-activity/{account_name}")
+async def get_gmail_account_activity(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Gmail emails related to an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    gmail_service = client.services.get("gmail")
+    if not gmail_service:
+        raise HTTPException(status_code=503, detail="Gmail service not connected")
+    try:
+        activity = await gmail_service.get_account_activity(account_name, limit=limit)
+        return ApiResponse(success=True, data=activity, meta={"count": len(activity), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Gmail activity for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Google Calendar integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/calendar/health")
+async def calendar_health_check():
+    """Check Google Calendar service health."""
+    client = _services.get("mcp_client")
+    if not client or "google_calendar" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Calendar service not connected"})
+    try:
+        cal_service = client.services.get("google_calendar")
+        if cal_service and cal_service.is_authenticated:
+            info = await cal_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/calendar/account-activity/{account_name}")
+async def get_calendar_account_activity(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Google Calendar events related to an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    cal_service = client.services.get("google_calendar")
+    if not cal_service:
+        raise HTTPException(status_code=503, detail="Calendar service not connected")
+    try:
+        activity = await cal_service.get_account_activity(account_name, limit=limit)
+        return ApiResponse(success=True, data=activity, meta={"count": len(activity), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Calendar activity for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Activity Intelligence — unified aggregator
+# ---------------------------------------------------------------------------
+
+@app.get("/api/activity-intelligence/{account_name}")
+async def get_activity_intelligence(
+    account_name: str,
+    force_refresh: bool = Query(False),
+    opportunity_name: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    """Aggregate activity data from all sources into a unified timeline."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+
+    activities: List[Dict[str, Any]] = []
+    errors: List[str] = []
+
+    # Fan out to all available services
+    service_calls = []
+
+    # Slack
+    slack_service = client.services.get("slack")
+    if slack_service and slack_service.is_authenticated:
+        service_calls.append(("slack", _fetch_slack_activity(slack_service, account_name)))
+
+    # Fireflies
+    ff_service = client.services.get("fireflies")
+    if ff_service and ff_service.is_authenticated:
+        service_calls.append(("fireflies", _fetch_fireflies_activity(ff_service, account_name)))
+
+    # Gmail
+    gmail_service = client.services.get("gmail")
+    if gmail_service and gmail_service.is_authenticated:
+        service_calls.append(("gmail", _fetch_gmail_activity(gmail_service, account_name)))
+
+    # Google Calendar
+    cal_service = client.services.get("google_calendar")
+    if cal_service and cal_service.is_authenticated:
+        service_calls.append(("calendar", _fetch_calendar_activity(cal_service, account_name)))
+
+    # Google Drive
+    drive_service = client.services.get("google_drive")
+    if drive_service and drive_service.is_authenticated:
+        service_calls.append(("drive", _fetch_drive_activity(drive_service, account_name, opportunity_name)))
+
+    if not service_calls:
+        return ApiResponse(
+            success=True,
+            data={"activities": [], "summary": {"total": 0, "sources": {}}},
+            meta={"account": account_name, "message": "No data sources connected"},
+        )
+
+    # Execute all calls concurrently
+    results = await asyncio.gather(
+        *[coro for _, coro in service_calls],
+        return_exceptions=True,
+    )
+
+    source_counts: Dict[str, int] = {}
+    for (source_name, _), result in zip(service_calls, results):
+        if isinstance(result, Exception):
+            errors.append(f"{source_name}: {result}")
+            source_counts[source_name] = 0
+        else:
+            activities.extend(result)
+            source_counts[source_name] = len(result)
+
+    # Sort by timestamp (most recent first)
+    activities.sort(key=lambda a: a.get("date", a.get("timestamp", "")), reverse=True)
+
+    return ApiResponse(
+        success=True,
+        data={
+            "activities": activities,
+            "summary": {"total": len(activities), "sources": source_counts},
+        },
+        meta={"account": account_name, "errors": errors if errors else None},
+    )
+
+
+# Helper coroutines for activity intelligence fan-out
+async def _fetch_slack_activity(service, account_name: str) -> List[Dict]:
+    results = await service.search_messages(account_name, count=20)
+    messages = results.get("messages", {}).get("matches", []) if isinstance(results, dict) else []
+    return [
+        {
+            "type": "slack_message",
+            "title": msg.get("text", "")[:100],
+            "date": msg.get("ts", ""),
+            "source": "slack",
+            "detail": msg.get("text", ""),
+            "channel": msg.get("channel", {}).get("name", "") if isinstance(msg.get("channel"), dict) else "",
+        }
+        for msg in messages
+    ]
+
+
+async def _fetch_fireflies_activity(service, account_name: str) -> List[Dict]:
+    meetings = await service.get_account_meetings(account_name, limit=20)
+    return [
+        {
+            "type": "meeting",
+            "title": m.get("title", ""),
+            "date": m.get("date", ""),
+            "source": "fireflies",
+            "detail": m.get("summary", ""),
+            "participants": m.get("participants", []),
+        }
+        for m in meetings
+    ]
+
+
+async def _fetch_gmail_activity(service, account_name: str) -> List[Dict]:
+    emails = await service.get_account_activity(account_name, limit=20)
+    return [
+        {
+            "type": "email",
+            "title": e.get("subject", ""),
+            "date": e.get("date", ""),
+            "source": "gmail",
+            "detail": e.get("snippet", ""),
+            "from": e.get("from", ""),
+        }
+        for e in emails
+    ]
+
+
+async def _fetch_calendar_activity(service, account_name: str) -> List[Dict]:
+    events = await service.get_account_activity(account_name, limit=20)
+    return [
+        {
+            "type": "calendar_event",
+            "title": e.get("title", ""),
+            "date": e.get("start", ""),
+            "source": "google_calendar",
+            "detail": e.get("location", ""),
+            "attendees": e.get("attendees", []),
+        }
+        for e in events
+    ]
+
+
+async def _fetch_drive_activity(service, account_name: str, opportunity_name: Optional[str] = None) -> List[Dict]:
+    query = f"name contains '{account_name}'"
+    if opportunity_name:
+        query += f" or name contains '{opportunity_name}'"
+    try:
+        result = await service.list_files(query=query, page_size=20)
+        files = result.get("files", [])
+        return [
+            {
+                "type": "document",
+                "title": f.get("name", ""),
+                "date": f.get("modifiedTime", ""),
+                "source": "google_drive",
+                "detail": f.get("mimeType", ""),
+                "file_id": f.get("id", ""),
+            }
+            for f in files
+        ]
+    except Exception:
+        return []
+
+
 # Main entry point
 if __name__ == "__main__":
     uvicorn.run(
