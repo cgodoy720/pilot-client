@@ -4,7 +4,10 @@ from typing import Any, Dict, List, Optional, Union
 import asyncio
 from .client import MCPClient
 from .transport import Transport, WebSocketTransport, StdioTransport
-from .services import SlackMCPService, SalesforceMCPService, GoogleDriveMCPService, SageIntacctMCPService
+from .services import (
+    SlackMCPService, SalesforceMCPService, GoogleDriveMCPService, SageIntacctMCPService,
+    GoogleCalendarMCPService, GmailMCPService, FirefliesMCPService,
+)
 
 
 class UnifiedMCPClient:
@@ -144,6 +147,47 @@ class UnifiedMCPClient:
         
         return service
 
+    async def connect_google_calendar(
+        self,
+        credentials_file: Optional[str] = None,
+        token_file: Optional[str] = None,
+    ) -> GoogleCalendarMCPService:
+        """Connect to Google Calendar API (direct API, no MCP transport)."""
+        service = GoogleCalendarMCPService(None, credentials_file, token_file)
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Google Calendar authentication failed — check token file")
+        self.services["google_calendar"] = service
+        self._connected_services.append("google_calendar")
+        return service
+
+    async def connect_gmail(
+        self,
+        credentials_file: Optional[str] = None,
+        token_file: Optional[str] = None,
+    ) -> GmailMCPService:
+        """Connect to Gmail API (direct API, no MCP transport)."""
+        service = GmailMCPService(None, credentials_file, token_file)
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Gmail authentication failed — check token file")
+        self.services["gmail"] = service
+        self._connected_services.append("gmail")
+        return service
+
+    async def connect_fireflies(
+        self,
+        api_key: Optional[str] = None,
+    ) -> FirefliesMCPService:
+        """Connect to Fireflies.ai meeting transcript service."""
+        service = FirefliesMCPService(None, api_key)
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Fireflies authentication failed — check API key")
+        self.services["fireflies"] = service
+        self._connected_services.append("fireflies")
+        return service
+
     async def connect_all_services(
         self,
         slack_transport: Optional[Union[Transport, str]] = None,
@@ -232,6 +276,21 @@ class UnifiedMCPClient:
     def google_drive(self) -> Optional[GoogleDriveMCPService]:
         """Typed Google Drive service accessor."""
         return self.services.get("google_drive")
+
+    @property
+    def google_calendar(self) -> Optional[GoogleCalendarMCPService]:
+        """Typed Google Calendar service accessor."""
+        return self.services.get("google_calendar")
+
+    @property
+    def gmail(self) -> Optional[GmailMCPService]:
+        """Typed Gmail service accessor."""
+        return self.services.get("gmail")
+
+    @property
+    def fireflies(self) -> Optional[FirefliesMCPService]:
+        """Typed Fireflies service accessor."""
+        return self.services.get("fireflies")
 
     # Legacy accessors (kept for backward compatibility)
     def get_slack_service(self) -> Optional[SlackMCPService]:

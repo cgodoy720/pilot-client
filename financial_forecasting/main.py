@@ -15,6 +15,8 @@ import uvicorn
 
 # Import our MCP client and models
 import sys
+# Prefer financial_forecasting/mcp_client (has Calendar, Gmail, Fireflies services)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mcp_client import UnifiedMCPClient
@@ -77,6 +79,19 @@ async def startup_event():
         _services["mcp_client"] = client
         _services["forecasting_engine"] = ForecastingEngine(client)
         _services["data_sync_service"] = DataSyncService(client)
+
+        # Connect optional activity-intelligence services (each independent)
+        for svc_name, connect_coro in [
+            ("Slack", client.connect_slack("stdio")),
+            ("Google Calendar", client.connect_google_calendar()),
+            ("Gmail", client.connect_gmail()),
+            ("Fireflies", client.connect_fireflies()),
+        ]:
+            try:
+                await connect_coro
+                logger.info(f"{svc_name} connected successfully")
+            except Exception as e:
+                logger.warning(f"{svc_name} not available: {e}")
 
         asyncio.create_task(background_sync_task())
         logger.info("Financial Forecasting API started successfully!")
@@ -418,6 +433,88 @@ async def get_users(
         
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# My Tasks / Calendar endpoints (for My Priorities page)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/salesforce/my-tasks")
+async def get_my_tasks(
+    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(200, le=500),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Get current user's Salesforce Tasks in a date range."""
+    try:
+        salesforce = client.salesforce
+
+        where_clauses = ["IsClosed = false"]
+        if start:
+            where_clauses.append(f"ActivityDate >= {start}")
+        if end:
+            where_clauses.append(f"ActivityDate <= {end}")
+
+        where_sql = " AND ".join(where_clauses)
+        query = f"""
+        SELECT Id, Subject, ActivityDate, Status, Priority, WhatId, WhoId,
+               OwnerId, Description, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE {where_sql}
+        ORDER BY ActivityDate ASC
+        LIMIT {limit}
+        """
+
+        result = await salesforce.query(query)
+        tasks = result.get("records", [])
+        return ApiResponse(success=True, data=tasks, meta={"count": len(tasks)})
+
+    except Exception as e:
+        logger.error(f"Error fetching tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/calendar/my-events")
+async def get_my_calendar_events(
+    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(100, le=200),
+    user=Depends(get_current_user),
+):
+    """Get current user's Google Calendar events in a date range."""
+    client = _services.get("mcp_client")
+    cal_service = client.services.get("google_calendar") if client else None
+    if not cal_service or not cal_service.is_authenticated:
+        return ApiResponse(
+            success=True,
+            data=[],
+            meta={"message": "Calendar not connected"},
+        )
+
+    try:
+        from datetime import datetime as dt
+
+        days_back = 0
+        days_forward = 14
+        if start:
+            delta = dt.now() - dt.strptime(start, "%Y-%m-%d")
+            days_back = max(0, delta.days)
+        if end:
+            delta = dt.strptime(end, "%Y-%m-%d") - dt.now()
+            days_forward = max(1, delta.days)
+
+        events = await cal_service.search_events(
+            query="",
+            days_back=days_back,
+            days_forward=days_forward,
+            max_results=limit,
+        )
+        return ApiResponse(success=True, data=events, meta={"count": len(events)})
+    except Exception as e:
+        logger.error(f"Error fetching calendar events: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -841,6 +938,191 @@ async def save_and_notify_report(report: ForecastingReport, user_id: str):
         logger.info(f"Saved forecasting report {report.report_id} for user {user_id}")
     except Exception as e:
         logger.error(f"Error saving/notifying report: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Automation Review — human-in-the-loop CRM update queue
+# ---------------------------------------------------------------------------
+
+# In-memory queue for pending parsed updates (production: use DB)
+import uuid as _uuid
+
+_automation_queue: Dict[str, Dict[str, Any]] = {}
+
+
+class SlackCRMUpdate(BaseModel):
+    """Parsed CRM update from a Slack message."""
+    text: str
+    channel: Optional[str] = None
+    user_name: Optional[str] = None
+
+
+def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str, Any]:
+    """Simple NLP-style parser for CRM update messages.
+
+    Extracts: opportunity reference, action type (note, stage_change, task), details.
+    """
+    text_lower = text.lower()
+    parsed: Dict[str, Any] = {
+        "action": "note",
+        "detail": text,
+        "confidence": 0.5,
+        "matched_opportunity": None,
+        "stage": None,
+    }
+
+    # Detect stage changes
+    stage_keywords = {
+        "qualifying": "Qualifying",
+        "qualified": "Qualifying",
+        "proposal": "Design / Proposal Creation",
+        "negotiat": "Proposal Negotiation",
+        "contract": "Contract Creation",
+        "closed won": "Closed / Completed",
+        "closed lost": "Closed Lost",
+        "withdrawn": "Withdrawn",
+        "collecting": "Collecting / In Effect",
+    }
+    for keyword, stage in stage_keywords.items():
+        if keyword in text_lower:
+            parsed["action"] = "stage_change"
+            parsed["stage"] = stage
+            parsed["confidence"] = 0.7
+            break
+
+    # Detect task creation
+    task_keywords = ["follow up", "schedule", "send", "call", "email", "prepare", "set up", "next step"]
+    for kw in task_keywords:
+        if kw in text_lower:
+            if parsed["action"] == "note":
+                parsed["action"] = "task"
+                parsed["confidence"] = 0.6
+            break
+
+    return parsed
+
+
+@app.post("/api/slack/webhook")
+async def slack_webhook(
+    payload: Dict[str, Any],
+    user=Depends(get_current_user),
+):
+    """Receive a Slack message and parse it as a CRM update."""
+    text = payload.get("text", "")
+    channel = payload.get("channel", "")
+    user_name = payload.get("user_name", user.get("name", "Unknown"))
+
+    if not text:
+        raise HTTPException(status_code=400, detail="Empty message text")
+
+    parsed = _parse_crm_message(text)
+
+    item_id = str(_uuid.uuid4())
+    _automation_queue[item_id] = {
+        "id": item_id,
+        "source": "slack",
+        "source_detail": {"channel": channel, "user": user_name},
+        "raw_text": text,
+        "parsed": parsed,
+        "status": "pending",
+        "created_at": datetime.now().isoformat(),
+    }
+
+    return ApiResponse(
+        success=True,
+        data={"id": item_id, "parsed": parsed},
+        meta={"message": "CRM update queued for review"},
+    )
+
+
+@app.get("/api/automation-review/pending")
+async def get_pending_reviews(user=Depends(get_current_user)):
+    """List all pending CRM updates awaiting review."""
+    pending = [
+        item for item in _automation_queue.values()
+        if item["status"] == "pending"
+    ]
+    pending.sort(key=lambda x: x["created_at"], reverse=True)
+    return ApiResponse(success=True, data=pending, meta={"count": len(pending)})
+
+
+@app.get("/api/automation-review/all")
+async def get_all_reviews(user=Depends(get_current_user)):
+    """List all CRM updates (pending, approved, rejected)."""
+    items = list(_automation_queue.values())
+    items.sort(key=lambda x: x["created_at"], reverse=True)
+    return ApiResponse(success=True, data=items, meta={"count": len(items)})
+
+
+@app.post("/api/automation-review/{item_id}/approve")
+async def approve_review(
+    item_id: str,
+    edits: Optional[Dict[str, Any]] = None,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Approve a pending CRM update and apply to Salesforce."""
+    item = _automation_queue.get(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    if item["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Item already {item['status']}")
+
+    parsed = item["parsed"]
+    if edits:
+        parsed.update(edits)
+
+    # Apply to Salesforce
+    try:
+        salesforce = client.salesforce
+        opp_id = parsed.get("matched_opportunity")
+
+        if parsed["action"] == "stage_change" and opp_id and parsed.get("stage"):
+            await salesforce.update_record("Opportunity", opp_id, {"StageName": parsed["stage"]})
+        elif parsed["action"] == "task" and opp_id:
+            await salesforce.create_record("Task", {
+                "Subject": parsed.get("detail", "Follow up")[:255],
+                "WhatId": opp_id,
+                "Status": "Not Started",
+                "Priority": "Normal",
+            })
+        elif parsed["action"] == "note" and opp_id:
+            # Append to Description
+            opp = await salesforce.query(
+                f"SELECT Description FROM Opportunity WHERE Id = '{opp_id}' LIMIT 1"
+            )
+            existing = opp.get("records", [{}])[0].get("Description", "") or ""
+            note = f"\n[{datetime.now().strftime('%Y-%m-%d')} via Slack] {parsed['detail']}"
+            await salesforce.update_record("Opportunity", opp_id, {"Description": existing + note})
+
+        item["status"] = "approved"
+        item["approved_at"] = datetime.now().isoformat()
+        item["approved_by"] = user.get("user_id", "unknown")
+        return ApiResponse(success=True, data=item)
+
+    except Exception as e:
+        logger.error(f"Failed to apply CRM update {item_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/automation-review/{item_id}/reject")
+async def reject_review(
+    item_id: str,
+    reason: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    """Reject a pending CRM update."""
+    item = _automation_queue.get(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    if item["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Item already {item['status']}")
+
+    item["status"] = "rejected"
+    item["rejected_at"] = datetime.now().isoformat()
+    item["rejected_by"] = user.get("user_id", "unknown")
+    item["rejection_reason"] = reason
+    return ApiResponse(success=True, data=item)
 
 
 # ---------------------------------------------------------------------------

@@ -26,7 +26,7 @@ import {
   Dashboard as DashboardIcon,
   TrendingUp as TrendingUpIcon,
   AttachMoney as AttachMoneyIcon,
-  CleaningServices as CleaningServicesIcon,
+  BuildCircle as ToolsIcon,
   Settings as SettingsIcon,
   Notifications as NotificationsIcon,
   AccountCircle as AccountCircleIcon,
@@ -35,8 +35,8 @@ import {
   CloudOff as CloudOffIcon,
   Home as HomeIcon,
   HolidayVillage as BedrockIcon,
-  Timeline as TimelineIcon,
-  Calculate as CalculateIcon,
+  RateReview as ReviewIcon,
+  Science as ResearchIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
@@ -53,13 +53,13 @@ interface LayoutProps {
 }
 
 const menuItems = [
-  { text: 'Home', icon: <HomeIcon />, path: '/home' },
-  { text: 'Overview', icon: <DashboardIcon />, path: '/overview' },
+  { text: 'My Priorities', icon: <HomeIcon />, path: '/home' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
-  { text: 'Network', icon: <TimelineIcon />, path: '/network' },
-  { text: 'Capacity', icon: <CalculateIcon />, path: '/giving-capacity' },
-  { text: 'Revenue', icon: <AttachMoneyIcon />, path: '/revenue' },
-  { text: 'Cleanup', icon: <CleaningServicesIcon />, path: '/cleanup' },
+  { text: 'Auto Review', icon: <ReviewIcon />, path: '/automation-review' },
+  { text: 'Research', icon: <ResearchIcon />, path: '/research' },
+  { text: 'Cashflow', icon: <AttachMoneyIcon />, path: '/cashflow' },
+  { text: 'Data Tools', icon: <ToolsIcon />, path: '/data-tools' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 

@@ -267,6 +267,29 @@ export const apiService = {
   calendarHealthCheck: () =>
     api.get('/api/calendar/health'),
 
+  // My Priorities — tasks and calendar
+  getMyTasks: (start?: string, end?: string) =>
+    api.get('/api/salesforce/my-tasks', { params: { start, end } }),
+
+  getMyCalendarEvents: (start?: string, end?: string, limit: number = 100) =>
+    api.get('/api/calendar/my-events', { params: { start, end, limit } }),
+
+  // Automation Review
+  getPendingReviews: () =>
+    api.get('/api/automation-review/pending'),
+
+  getAllReviews: () =>
+    api.get('/api/automation-review/all'),
+
+  approveReview: (id: string, edits?: any) =>
+    api.post(`/api/automation-review/${id}/approve`, edits || {}),
+
+  rejectReview: (id: string, reason?: string) =>
+    api.post(`/api/automation-review/${id}/reject`, { reason }),
+
+  submitSlackWebhook: (text: string, channel?: string) =>
+    api.post('/api/slack/webhook', { text, channel: channel || 'manual', user_name: 'Bedrock User' }),
+
   // Google Drive Integration
   getAccountDriveActivity: (accountName: string, limit: number = 20, opportunityName?: string) =>
     api.get(`/api/drive/account-activity/${encodeURIComponent(accountName)}`, {
