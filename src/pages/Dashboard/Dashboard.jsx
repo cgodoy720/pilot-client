@@ -17,13 +17,15 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { toLegacyFormat } from '../AdminDashboard/utils/cohortUtils';
+import { usePermissions } from '../../hooks/usePermissions';
 import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
-  
+  const { hasPermission } = usePermissions();
+
   // Check if user has active status
   const isActive = user?.active !== false;
   // Check if user is volunteer
@@ -59,6 +61,15 @@ function Dashboard() {
   
   // Track user-selected week to preserve it when switching cohorts
   const [pendingWeek, setPendingWeek] = useState(null);
+
+  // Participant Mode: staff/admin experiences the dashboard as a builder
+  const [participantMode, setParticipantMode] = useState(() => {
+    return localStorage.getItem('staffParticipantMode') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('staffParticipantMode', String(participantMode));
+  }, [participantMode]);
 
   // Builder View (staff/admin only)
   const [builderViewCohort, setBuilderViewCohort] = useState(null);
@@ -101,27 +112,29 @@ function Dashboard() {
   useEffect(() => {
     if (isActive && !isVolunteer && !isStaffOrAdmin) {
       fetchDashboardData();
-    } else if (isStaffOrAdmin && builderViewCohort) {
+    } else if (isStaffOrAdmin && participantMode) {
       fetchDashboardData();
+    } else if (isStaffOrAdmin && builderViewCohort) {
+      fetchDashboardData(builderViewCohort);
     } else {
-      // Dismiss loading for all other cases (volunteers, inactive users,
-      // or staff/admin still waiting for cohort auto-selection to complete)
       setIsLoading(false);
     }
-  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort]);
+  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort, participantMode]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (explicitCohort) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // NEW: Single optimized API call for ALL dashboard data
       let url = `${import.meta.env.VITE_API_URL}/api/progress/dashboard-full`;
-      
-      // Add cohort parameter for staff/admin builder view, staff/admin cohort filter, or course switcher
-      if (isStaffOrAdmin && builderViewCohort) {
+
+      // Add cohort parameter — prefer explicit argument to avoid stale closures
+      if (explicitCohort) {
+        url += `?cohort=${encodeURIComponent(explicitCohort)}`;
+      } else if (isStaffOrAdmin && !participantMode && builderViewCohort) {
         url += `?cohort=${encodeURIComponent(builderViewCohort)}`;
-      } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+      } else if ((user?.role === 'staff' || user?.role === 'admin') && !participantMode && cohortFilter) {
         url += `?cohort=${encodeURIComponent(cohortFilter)}`;
       } else if (selectedCohort) {
         // User selected a different cohort from their enrollments
@@ -204,9 +217,21 @@ function Dashboard() {
       setAllWeeksData(data.weeks || []);
       
       // Set level, week, and weekly goal
-      if (data.day) {
+      // When staff/admin views a specific cohort, data.day reflects the USER's own
+      // enrollment (not the selected cohort), so derive from data.weeks instead.
+      if (explicitCohort && data.weeks && data.weeks.length > 0) {
+        const targetWeek = pendingWeek !== null
+          ? data.weeks.find(w => w.weekNumber === pendingWeek) || data.weeks[data.weeks.length - 1]
+          : data.weeks[data.weeks.length - 1];
+        setCurrentWeek(targetWeek.weekNumber);
+        setWeeklyGoal(targetWeek.weeklyGoal || '');
+        if (targetWeek.days && targetWeek.days.length > 0) {
+          setCurrentLevel(targetWeek.days[0].level || 1);
+        }
+        if (pendingWeek !== null) setPendingWeek(null);
+      } else if (data.day) {
         setCurrentLevel(data.day.level || 1);
-        
+
         // Use pending week if user explicitly selected one, otherwise use current day's week
         if (pendingWeek !== null) {
           setCurrentWeek(pendingWeek);
@@ -217,6 +242,14 @@ function Dashboard() {
         } else {
           setCurrentWeek(data.day.week);
           setWeeklyGoal(data.day.weekly_goal || '');
+        }
+      } else if (data.weeks && data.weeks.length > 0) {
+        // Fallback: no current day data and no explicit cohort
+        const lastWeek = data.weeks[data.weeks.length - 1];
+        setCurrentWeek(lastWeek.weekNumber);
+        setWeeklyGoal(lastWeek.weeklyGoal || '');
+        if (lastWeek.days && lastWeek.days.length > 0) {
+          setCurrentLevel(lastWeek.days[0].level || 1);
         }
       }
       
@@ -502,6 +535,21 @@ function Dashboard() {
     navigate(`/learning?${params.toString()}`);
   }, [isActive, user?.role, cohortFilter, selectedCohort, navigate]);
 
+  // Render participant mode toggle for staff/admin users
+  const renderModeToggle = () => {
+    if (!isStaffOrAdmin) return null;
+    return (
+      <button
+        onClick={() => setParticipantMode(prev => !prev)}
+        className="inline-flex items-center self-center gap-2 h-9 px-3 bg-pursuit-purple font-proxima text-[14px] text-white border border-pursuit-purple transition-colors duration-200 hover:opacity-90"
+        style={{ borderRadius: '7px' }}
+      >
+        <span className={`inline-block w-2 h-2 rounded-full transition-colors ${participantMode ? 'bg-green-500' : 'bg-gray-400'}`} />
+        {participantMode ? 'Participant Mode' : 'Preview Mode'}
+      </button>
+    );
+  };
+
   // Render skeleton loading cards
   const renderSkeletonCards = () => {
     return Array(5).fill(0).map((_, index) => (
@@ -576,8 +624,8 @@ function Dashboard() {
 
   // Render the builder weekly view (reused by both renderDashboardContent and renderStaffAdminView)
   const renderBuilderWeeklyView = () => {
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
-    const isStaffBuilderView = isStaffOrAdmin;
+    const isExternalCohort = (user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin')) && !(isStaffOrAdmin && participantMode);
+    const isStaffBuilderView = isStaffOrAdmin && !participantMode;
 
     return (
       <>
@@ -630,7 +678,7 @@ function Dashboard() {
             <div className="dashboard__week-title">
               {isWorkshopParticipant ? (
                 <span className="dashboard__week-label">AI Native Workshop</span>
-              ) : isExternalCohort ? (
+              ) : (isExternalCohort && !isStaffBuilderView) ? (
                 <span className="dashboard__week-label">{user?.cohort || 'Your Program'}</span>
               ) : (
                 <span className="dashboard__week-label">
@@ -795,6 +843,13 @@ function Dashboard() {
                 style={{
                   animationDelay: `${delayIndex * 0.08}s`
                 }}
+                onClick={(e) => {
+                  // Don't double-navigate if user clicked an interactive element inside
+                  if (e.target.closest('button, a, .dashboard__day-activity--clickable')) return;
+                  if (!isStaffBuilderView) {
+                    handleNavigateToDayLearning(day.id);
+                  }
+                }}
               >
 
                 {/* Date */}
@@ -830,7 +885,19 @@ function Dashboard() {
 
                         return (
                           <div key={task.id}>
-                            <div className="dashboard__day-activity">
+                            <div
+                              className={`dashboard__day-activity${
+                                showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                  ? ' dashboard__day-activity--clickable'
+                                  : ''
+                              }`}
+                              onClick={(e) => {
+                                if (showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)) {
+                                  e.stopPropagation();
+                                  handleNavigateToTask(day.id, task.id);
+                                }
+                              }}
+                            >
                               {/* Task Checkbox - Purple (complete), Pink (incomplete with deliverable), or White circle (incomplete without deliverable) */}
                               {/* Hide checkbox for break tasks but add spacer to maintain alignment */}
                               {showTaskCheckbox && !isBreakTask && (
@@ -976,6 +1043,7 @@ function Dashboard() {
               Welcome back, {user?.firstName || 'there'}!
             </h1>
             <div className="dashboard__builder-view-toggle">
+              {renderModeToggle()}
               <div className="dashboard__builder-view-cohort">
                 <Select
                   value={builderViewCohort || ''}
@@ -1007,6 +1075,7 @@ function Dashboard() {
         <div className="dashboard__mobile block md:hidden">
           <div className="dashboard__mobile-divider-top" />
           <div className="dashboard__builder-view-toggle dashboard__builder-view-toggle--mobile">
+            {renderModeToggle()}
             <div className="dashboard__builder-view-cohort">
               <Select
                 value={builderViewCohort || ''}
@@ -1138,7 +1207,7 @@ function Dashboard() {
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
     // Check if user is in external cohort (enterprise users don't use Level/Week format)
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin';
+    const isExternalCohort = (user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin')) && !(isStaffOrAdmin && participantMode);
     
     return (
       <div className="dashboard">
@@ -1149,6 +1218,7 @@ function Dashboard() {
             <h1 className="dashboard__greeting-text">
               Hey {user?.firstName || 'there'}. Good to see you!
             </h1>
+            {renderModeToggle()}
             <button
               className={`dashboard__missed-assignments ${missedAssignmentsCount > 0 ? 'dashboard__missed-assignments--active' : ''}`}
               onClick={handleMissedAssignmentsClick}
@@ -1165,6 +1235,12 @@ function Dashboard() {
         <div className="dashboard__mobile block md:hidden">
           {/* Divider at top */}
           <div className="dashboard__mobile-divider-top" />
+
+          {isStaffOrAdmin && (
+            <div className="flex justify-center py-3">
+              {renderModeToggle()}
+            </div>
+          )}
 
           {/* Today's Goal */}
           <div className="dashboard__mobile-goal">
@@ -1370,7 +1446,7 @@ function Dashboard() {
         )}
       
       {/* Conditionally render based on user status and role */}
-      {isStaffOrAdmin ? renderStaffAdminView() :
+      {isStaffOrAdmin && !participantMode ? renderStaffAdminView() :
        !isActive ? renderHistoricalView() : 
        isVolunteer ? renderVolunteerView() : 
        !currentDay && cohortInfo ? renderPreCurriculumView() :

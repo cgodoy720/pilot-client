@@ -318,9 +318,10 @@ function ContentPreview() {
         toast.success('Task deleted successfully');
         setDeleteTaskDialogOpen(false);
         setTaskToDelete(null);
-        
-        // Refresh day content
+
+        // Refresh day content and sidebar
         await loadDayContent(selectedDay.id);
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error deleting task:', error);
@@ -340,8 +341,9 @@ function ContentPreview() {
       
       if (response.status === 200) {
         toast.success('Task moved successfully');
-        // Refresh day content
+        // Refresh day content and sidebar (task moved between days)
         await loadDayContent(selectedDay.id);
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error moving task:', error);
@@ -419,15 +421,15 @@ function ContentPreview() {
       
       if (response.status === 200) {
         toast.success(`Day ${dayToDelete.day_number} deleted successfully`);
-        
+
         // Clear selection and refresh
         setSelectedDay(null);
         setDayContent(null);
         setDeleteDayDialogOpen(false);
         setDayToDelete(null);
-        
-        // Optionally refresh cohort to update day list
-        // For now just clear the view
+
+        // Refresh sidebar to remove deleted day and update cohort day count
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error deleting day:', error);
@@ -531,8 +533,9 @@ function ContentPreview() {
       if (response.status === 201) {
         toast.success('Task created successfully');
         setCreateTaskDialogOpen(false);
-        // Refresh day content
+        // Refresh day content and sidebar
         await loadDayContent(selectedDay.id);
+        setSidebarRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error creating task:', error);
@@ -549,10 +552,12 @@ function ContentPreview() {
   };
 
   const handleUploadComplete = () => {
-    // Re-trigger day fetch by briefly clearing and re-setting selectedCohort
-    const current = selectedCohort;
-    setSelectedCohort(null);
-    setTimeout(() => setSelectedCohort(current), 0);
+    // Refresh sidebar to show new/updated days and update cohort day count
+    setSidebarRefreshKey(prev => prev + 1);
+    // If a day is currently selected, reload its content
+    if (selectedDay?.id) {
+      loadDayContent(selectedDay.id);
+    }
   };
 
   // Access denied view

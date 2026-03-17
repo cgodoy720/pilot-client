@@ -36,7 +36,7 @@ const COHORT_DATES = {
 };
 
 // Cohorts to exclude (duplicate December variations)
-const EXCLUDED_COHORTS = ['December 2025 AI Native', 'December 2025 Workshop'];
+const EXCLUDED_COHORTS = ['December 2025 AI Native', 'Admissions Workshop'];
 
 // Helper: Check if a date is during holiday break
 function isHolidayBreak(dateStr) {

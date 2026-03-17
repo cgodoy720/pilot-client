@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import BuilderDrawer from '../components/BuilderDrawer';
 import DemoRatingModal from '../components/DemoRatingModal';
-import { fetchPursuitBuilderCohorts } from '../utils/cohortUtils';
 import useAuthStore from '../../../stores/authStore';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
@@ -219,10 +218,8 @@ const SelectionDropdown = ({ value, onChange }) => {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-const L2SelectionsTab = () => {
+const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
   const token = useAuthStore((s) => s.token);
-  const [cohorts, setCohorts] = useState([]);
-  const [selectedLevel, setSelectedLevel] = useState('');
   const [builders, setBuilders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState({ key: 'attendance_percentage', dir: 'desc' });
@@ -233,41 +230,25 @@ const L2SelectionsTab = () => {
 
   const [cohortStartDate, setCohortStartDate] = useState(null);
 
-  // Human review state
   const [videoRatings, setVideoRatings] = useState({});
   const [selectionStatuses, setSelectionStatuses] = useState({});
   const [existingFeedback, setExistingFeedback] = useState({});
 
-  // Demo rating modal
   const [demoModalOpen, setDemoModalOpen] = useState(false);
   const [demoModalBuilder, setDemoModalBuilder] = useState(null);
   const [demoModalRating, setDemoModalRating] = useState(0);
 
-  // Filters
   const [nameFilter, setNameFilter] = useState([]);
   const [selectionFilter, setSelectionFilter] = useState([]);
   const [demoFilter, setDemoFilter] = useState([]);
 
   const hasFilters = nameFilter.length > 0 || selectionFilter.length > 0 || demoFilter.length > 0;
 
-  // ── Fetch cohorts ──
-  useEffect(() => {
-    if (!token) return;
-    fetchPursuitBuilderCohorts(token)
-      .then(data => {
-        const l1Cohorts = data.filter(c => c.name.includes('L1'));
-        const list = l1Cohorts.length > 0 ? l1Cohorts : data;
-        setCohorts(list);
-        if (list[0]) setSelectedLevel(list[0].legacyName);
-      })
-      .catch(console.error);
-  }, []);
-
-  // Get selected cohort object (for cohort_id)
   const selectedCohort = useMemo(
-    () => cohorts.find(c => c.legacyName === selectedLevel),
-    [cohorts, selectedLevel]
+    () => cohorts.find(c => c.cohort_id === selectedCohortId),
+    [cohorts, selectedCohortId]
   );
+  const selectedLevel = selectedCohort?.legacyName || '';
 
   // ── Fetch builders + final demos ──
   const fetchBuilders = () => {
@@ -498,23 +479,11 @@ const L2SelectionsTab = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-end gap-3">
-          <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">Cohort</label>
-            <select
-              value={selectedLevel}
-              onChange={e => setSelectedLevel(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
-            >
-              {cohorts.map(c => <option key={c.cohort_id || c.name} value={c.legacyName}>{c.name}</option>)}
-            </select>
-          </div>
-          <Badge className="bg-[#EFEFEF] text-slate-600 text-xs h-fit">
-            {hasFilters
-              ? `${filtered.length} of ${builders.length} builders`
-              : `${builders.length} builders`}
-          </Badge>
-        </div>
+        <Badge className="bg-[#EFEFEF] text-slate-600 text-xs h-fit">
+          {hasFilters
+            ? `${filtered.length} of ${builders.length} builders`
+            : `${builders.length} builders`}
+        </Badge>
         <div className="flex items-center gap-2">
           {hasFilters && (
             <Button

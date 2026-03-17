@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import useAuthStore from '../../../stores/authStore';
 import useNavStore from '../../../stores/navStore';
 import { usePermissions } from '../../../hooks/usePermissions';
+import IntegrationsStatusTab from './tabs/IntegrationsStatusTab';
 import OverviewTab from './tabs/OverviewTab';
 import UsageBreakdownTab from './tabs/UsageBreakdownTab';
 import CostBillingTab from './tabs/CostBillingTab';
@@ -58,6 +59,9 @@ const PlatformAnalytics = () => {
 
       {/* All sections rendered sequentially */}
       <div className="max-w-7xl mx-auto px-8 py-6">
+        <SectionHeader>Integrations Status</SectionHeader>
+        <IntegrationsStatusTab token={token} startDate={startDate} endDate={endDate} />
+
         <SectionHeader>Overview</SectionHeader>
         <OverviewTab token={token} startDate={startDate} endDate={endDate} />
 
