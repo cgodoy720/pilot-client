@@ -24,10 +24,13 @@ export interface UrgencyScore {
 
 /**
  * Weighted priority: Amount x (Probability / 100) x log-scale bonus for large deals.
+ *
+ * Early-stage opps often have 0% probability (Lead Gen, New Lead). A 1% floor
+ * ensures they're still differentiated by amount rather than all tying at zero.
  */
 export function computeWeightedPriority(opp: PriorityOpp): number {
   const amount = opp.Amount || 0;
-  const prob = opp.Probability || 0;
+  const prob = Math.max(opp.Probability || 0, 1);
   return amount * (prob / 100) * (1 + Math.log10(1 + amount / 1_000_000));
 }
 

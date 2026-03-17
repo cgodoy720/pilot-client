@@ -425,10 +425,30 @@ def _get_slack_workspace_info() -> Optional[Dict[str, str]]:
 # ── Automation queue helpers (ported from main.py) ──────────────────────────
 
 def _get_opp_cache() -> List[Dict[str, Any]]:
-    """Return cached opportunity list for entity resolution."""
+    """Return cached opportunity list for entity resolution.
+
+    If the cache hasn't been populated yet, attempt a one-time lazy load
+    from Salesforce so that the first call to ingest_pipeline_updates()
+    has data for fuzzy matching.
+    """
     global _opp_cache, _opp_cache_loaded
     if _opp_cache_loaded:
         return _opp_cache
+
+    try:
+        sf = get_salesforce()
+        if sf:
+            result = sf.query(
+                "SELECT Id, Name, StageName, Amount, CloseDate, OwnerId "
+                "FROM Opportunity WHERE IsClosed = false LIMIT 500"
+            )
+            records = result.get("records", [])
+            _refresh_opp_cache(records)
+            logger.info(f"Lazy-loaded {len(records)} opportunities into entity resolution cache")
+            return _opp_cache
+    except Exception as e:
+        logger.warning(f"Failed to lazy-load opp cache: {e}")
+
     return _opp_cache
 
 

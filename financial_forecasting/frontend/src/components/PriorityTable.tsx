@@ -442,7 +442,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
 
   const scored = useMemo(() => {
     return opportunities
-      .filter((opp) => (opp.Probability || 0) >= 0)
+      .filter((opp) => opp.Probability == null || opp.Probability >= 0)
       .map((opp) => {
         const tasks = localTaskOverrides[opp.Id] || opp.tasks;
         const oppWithTasks = { ...opp, tasks };

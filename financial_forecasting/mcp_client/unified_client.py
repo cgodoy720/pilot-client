@@ -37,7 +37,9 @@ class UnifiedMCPClient:
             self.clients["slack"] = mcp_client
 
         service = SlackMCPService(mcp_client, bot_token, team_id)
-        await service.authenticate()
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Slack authentication failed")
 
         self.services["slack"] = service
         self._connected_services.append("slack")
@@ -133,7 +135,9 @@ class UnifiedMCPClient:
         service = SageIntacctMCPService(
             mcp_client, company_id, user_id, user_password, sender_id, sender_password, endpoint_url
         )
-        await service.authenticate()
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Sage Intacct authentication failed")
 
         self.services["sage_intacct"] = service
         self._connected_services.append("sage_intacct")
