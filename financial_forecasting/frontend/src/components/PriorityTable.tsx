@@ -85,6 +85,8 @@ interface PriorityTableProps {
   onAddTask: (opp: PriorityOpp) => void;
   users?: Array<{ Id: string; Name: string }>;
   onOpenTaskDrawer?: (opp: PriorityOpp, taskId?: string) => void;
+  showWeighted?: boolean;
+  maxRows?: number;
 }
 
 // ── Inline editable cell ──
@@ -322,7 +324,7 @@ const AddTaskRow: React.FC<AddTaskRowProps> = ({ oppId, users, onCreated }) => {
         sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
         onClick={() => setActive(true)}
       >
-        <TableCell colSpan={8} sx={{ py: 0.5 }}>
+        <TableCell colSpan={9} sx={{ py: 0.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'primary.main' }}>
             <AddIcon sx={{ fontSize: 16 }} />
             <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>Add Task</Typography>
@@ -365,7 +367,7 @@ const AddTaskRow: React.FC<AddTaskRowProps> = ({ oppId, users, onCreated }) => {
 
 // ── Main Component ──
 
-const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer }) => {
+const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows }) => {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [expandedOppId, setExpandedOppId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState<Record<string, boolean>>({});
@@ -440,7 +442,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
 
   const scored = useMemo(() => {
     return opportunities
-      .filter((opp) => (opp.Probability || 0) >= 15)
+      .filter((opp) => (opp.Probability || 0) >= 0)
       .map((opp) => {
         const tasks = localTaskOverrides[opp.Id] || opp.tasks;
         const oppWithTasks = { ...opp, tasks };
@@ -500,11 +502,19 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
       items = items.filter((s) => (s.opp.Amount || 0) >= filters.amountMin!);
     }
 
-    // Always sort by weighted priority
-    items.sort((a, b) => b.weightedPriority - a.weightedPriority);
+    // Sort: Weighted mode uses algorithm priority score, Total mode uses raw amount
+    if (showWeighted) {
+      items.sort((a, b) => b.weightedPriority - a.weightedPriority);
+    } else {
+      items.sort((a, b) => (b.opp.Amount || 0) - (a.opp.Amount || 0));
+    }
+
+    if (maxRows != null) {
+      items = items.slice(0, maxRows);
+    }
 
     return items;
-  }, [scored, filters]);
+  }, [scored, filters, showWeighted, maxRows]);
 
   const urgencyBgColor = (score: number) => {
     if (score >= 40) return 'error.main';
@@ -706,6 +716,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
               <TableCell>Stage</TableCell>
               <TableCell align="right">Amount</TableCell>
               <TableCell>Close</TableCell>
+              <TableCell align="right">Prob</TableCell>
               <TableCell>Alerts</TableCell>
               <TableCell align="center">Tasks</TableCell>
               <TableCell align="center" sx={{ width: 80 }}>Actions</TableCell>
@@ -778,6 +789,13 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                       </Typography>
                     </TableCell>
 
+                    {/* Probability */}
+                    <TableCell align="right">
+                      <Typography variant="body2">
+                        {opp.Probability != null ? `${opp.Probability}%` : '-'}
+                      </Typography>
+                    </TableCell>
+
                     {/* Alerts */}
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
@@ -845,7 +863,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
 
                   {/* Expanded task detail row */}
                   <TableRow>
-                    <TableCell colSpan={8} sx={{ py: 0, borderBottom: isExpanded ? undefined : 'none' }}>
+                    <TableCell colSpan={9} sx={{ py: 0, borderBottom: isExpanded ? undefined : 'none' }}>
                       <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                         <Box sx={{ py: 1.5, pl: 5, pr: 2 }}>
                           {/* Pending tasks sub-table */}
@@ -918,7 +936,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                             <TableBody>
                               {pendingTasks.length === 0 && (
                                 <TableRow>
-                                  <TableCell colSpan={8}>
+                                  <TableCell colSpan={9}>
                                     <Typography variant="body2" color="text.secondary">No pending tasks.</Typography>
                                   </TableCell>
                                 </TableRow>

@@ -12,10 +12,16 @@ import {
   Collapse,
   IconButton,
   Alert,
+  Button,
   CircularProgress,
   LinearProgress,
+  TextField,
   ToggleButtonGroup,
   ToggleButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -26,6 +32,7 @@ import {
   AttachMoney as MoneyIcon,
   AccountBalance as WeightedIcon,
   Event as EventIcon,
+  FilterList as FilterIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
 import {
@@ -52,18 +59,27 @@ const OPEN_STAGES = [
   'Contract Creation', 'Negotiating Contract',
 ];
 
+type CloseDateRange = 'all' | 'next30' | 'next60' | 'next90' | 'thisQuarter' | 'thisYear';
+
 interface DashboardPrefs {
   collapsed: Record<string, boolean>;
   calendarView: CalendarViewMode;
   topN: number;
+  filterUserId: string; // 'all' or a SF user ID
+  showWeighted: boolean;
+  closeDateRange: CloseDateRange;
 }
 
 function loadPrefs(): DashboardPrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = { filterUserId: 'all', showWeighted: false, closeDateRange: 'all', ...JSON.parse(raw) };
+      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 10));
+      return parsed;
+    }
   } catch {}
-  return { collapsed: {}, calendarView: 'week', topN: 10 };
+  return { collapsed: {}, calendarView: 'week', topN: 10, filterUserId: 'all', showWeighted: false, closeDateRange: 'all' };
 }
 
 function savePrefs(prefs: DashboardPrefs) {
@@ -118,9 +134,10 @@ function Section({
   );
 }
 
-const PBD_CALENDAR_ID = 'c_f06065f4e4551cee88f8d465a6a77a24c8333c66a0077770a3e60b8d26251e98@group.calendar.google.com';
+const PBD_CALENDAR_ID_FALLBACK = 'c_f06065f4e4551cee88f8d465a6a77a24c8333c66a0077770a3e60b8d26251e98@group.calendar.google.com';
 
-// ── Mock data for layout testing (remove when SF is connected) ──
+// ── Mock data for layout testing (DEV only — not used in production paths) ──
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MOCK_PRIORITY_OPPS: PriorityOpp[] = [
   {
     Id: 'mock-001', Name: 'Goldman Sachs Foundation — AIJI Year 3', StageName: 'Proposal Negotiation',
@@ -217,6 +234,12 @@ const MyDashboard: React.FC = () => {
     };
   }, [prefs.calendarView]);
 
+  // Fetch SF users for the filter dropdown
+  const { data: usersData } = useQuery('sf-users', async () => {
+    const response = await apiService.getUsers();
+    return response.data?.data || response.data?.users || response.data || [];
+  }, { staleTime: 15 * 60 * 1000 });
+
   // Fetch opportunities
   const { data: oppsData, isLoading: oppsLoading } = useQuery('opportunities', async () => {
     const response = await apiService.getOpportunities();
@@ -233,11 +256,14 @@ const MyDashboard: React.FC = () => {
     { staleTime: 5 * 60 * 1000 }
   );
 
+  // Use PBD calendar ID from backend config, falling back to hardcoded value
+  const pbdCalendarId = user?.calendar_pbd_id || PBD_CALENDAR_ID_FALLBACK;
+
   // Fetch PBD shared calendar events
   const { data: calEventsData, isLoading: calLoading } = useQuery(
-    ['pbd-calendar-events', calStart, calEnd],
+    ['pbd-calendar-events', calStart, calEnd, pbdCalendarId],
     async () => {
-      const response = await apiService.getMyCalendarEvents(calStart, calEnd, 100, PBD_CALENDAR_ID);
+      const response = await apiService.getMyCalendarEvents(calStart, calEnd, 100, pbdCalendarId);
       return response.data?.data || response.data || [];
     },
     { staleTime: 5 * 60 * 1000, enabled: !prefs.collapsed['calendar'] }
@@ -250,17 +276,75 @@ const MyDashboard: React.FC = () => {
     return raw as any[];
   }, [oppsData]);
 
-  // User's opportunities
-  const sfUserId = user?.salesforce_user_id;
-  const myOpportunities = useMemo(() => {
-    if (!sfUserId) return allOpportunities;
-    return allOpportunities.filter((opp: any) => opp.OwnerId === sfUserId);
-  }, [allOpportunities, sfUserId]);
+  // Build user list for filter dropdown — merge SF users + opp owners
+  const sfUsers = useMemo(() => {
+    const userMap = new Map<string, string>();
+    // From users API
+    const rawUsers = Array.isArray(usersData) ? usersData : [];
+    for (const u of rawUsers) {
+      if (u.Id && u.Name) userMap.set(u.Id, u.Name);
+    }
+    // From opportunity owners (catches inactive/historical users)
+    for (const opp of allOpportunities) {
+      if (opp.OwnerId && !userMap.has(opp.OwnerId)) {
+        userMap.set(opp.OwnerId, opp.Owner?.Name || opp.OwnerId);
+      }
+    }
+    return Array.from(userMap.entries())
+      .map(([Id, Name]) => ({ Id, Name }))
+      .sort((a, b) => a.Name.localeCompare(b.Name));
+  }, [usersData, allOpportunities]);
 
-  const myOpenOpps = useMemo(
-    () => myOpportunities.filter((opp: any) => OPEN_STAGES.includes(opp.StageName)),
-    [myOpportunities]
+  // Precompute open opp counts per user for dropdown labels
+  const allOpenOpps = useMemo(
+    () => allOpportunities.filter((opp: any) => OPEN_STAGES.includes(opp.StageName)),
+    [allOpportunities]
   );
+  const openCountByUser = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const opp of allOpenOpps) {
+      counts.set(opp.OwnerId, (counts.get(opp.OwnerId) || 0) + 1);
+    }
+    return counts;
+  }, [allOpenOpps]);
+
+  // Filtered opportunities — by selected user or all
+  const sfUserId = user?.salesforce_user_id;
+  const resolvedFilterId = prefs.filterUserId === 'me' ? (sfUserId || 'all') : (prefs.filterUserId || 'all');
+  const filteredOpportunities = useMemo(() => {
+    if (resolvedFilterId === 'all') return allOpportunities;
+    return allOpportunities.filter((opp: any) => opp.OwnerId === resolvedFilterId);
+  }, [allOpportunities, resolvedFilterId]);
+
+  const myOpenOpps = useMemo(() => {
+    let opps = filteredOpportunities.filter((opp: any) => OPEN_STAGES.includes(opp.StageName));
+
+    // Apply close date range filter
+    if (prefs.closeDateRange !== 'all') {
+      const now = new Date();
+      const today = startOfDay(now);
+      let cutoff: Date;
+      switch (prefs.closeDateRange) {
+        case 'next30': cutoff = addDays(today, 30); break;
+        case 'next60': cutoff = addDays(today, 60); break;
+        case 'next90': cutoff = addDays(today, 90); break;
+        case 'thisQuarter': {
+          const qMonth = Math.floor(now.getMonth() / 3) * 3 + 3;
+          cutoff = new Date(now.getFullYear(), qMonth, 0);
+          break;
+        }
+        case 'thisYear': cutoff = new Date(now.getFullYear(), 11, 31); break;
+        default: cutoff = addDays(today, 365);
+      }
+      opps = opps.filter((opp: any) => {
+        if (!opp.CloseDate) return false;
+        const d = parseISO(opp.CloseDate);
+        return d <= endOfDay(cutoff);
+      });
+    }
+
+    return opps;
+  }, [filteredOpportunities, prefs.closeDateRange]);
 
   // Map tasks to their parent opportunities
   const sfTasks = useMemo(() => (Array.isArray(tasksData) ? tasksData : []), [tasksData]);
@@ -301,8 +385,7 @@ const MyDashboard: React.FC = () => {
 
   // Build priority opportunities with tasks attached
   const priorityOpps: PriorityOpp[] = useMemo(() => {
-    // Use mock data when SF isn't connected
-    if (myOpenOpps.length === 0) return MOCK_PRIORITY_OPPS;
+    if (myOpenOpps.length === 0) return [];
 
     // Group tasks by WhatId (opportunity ID)
     const tasksByOppId = new Map<string, any[]>();
@@ -337,7 +420,7 @@ const MyDashboard: React.FC = () => {
 
   // Pipeline summary stats
   const pipelineStats = useMemo(() => {
-    const statsOpps = myOpenOpps.length > 0 ? myOpenOpps : MOCK_PRIORITY_OPPS;
+    const statsOpps = myOpenOpps;
     const count = statsOpps.length;
     const total = statsOpps.reduce((sum: number, opp: any) => sum + (opp.Amount || 0), 0);
     const weighted = statsOpps.reduce(
@@ -368,20 +451,12 @@ const MyDashboard: React.FC = () => {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box>
-          <Typography variant="h4">Priorities</Typography>
-          <Typography variant="body2" color="textSecondary">
-            {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Your weekly priorities'}
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h4">Priorities</Typography>
+        <Typography variant="body2" color="textSecondary">
+          {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Your weekly priorities'}
+        </Typography>
       </Box>
-
-      {!sfUserId && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Connect Salesforce to filter by your ownership. Currently showing all opportunities.
-        </Alert>
-      )}
 
       {/* Section 1: Weekly Calendar */}
       <Section
@@ -417,56 +492,138 @@ const MyDashboard: React.FC = () => {
           ) : undefined
         }
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 1 }}>
-          <ToggleButtonGroup
+        {/* Controls row: User filter + Weighted toggle + top-N */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="user-filter-label">User</InputLabel>
+              <Select
+                labelId="user-filter-label"
+                label="User"
+                value={prefs.filterUserId}
+                onChange={(e) => setPrefs((p) => ({ ...p, filterUserId: e.target.value as string }))}
+              >
+                <MenuItem value="all">All Users ({allOpenOpps.length})</MenuItem>
+                {sfUserId && <MenuItem value="me">My Opportunities ({openCountByUser.get(sfUserId) || 0})</MenuItem>}
+                {sfUsers.map((u: any) => {
+                  const cnt = openCountByUser.get(u.Id) || 0;
+                  return (
+                    <MenuItem key={u.Id} value={u.Id}>
+                      {u.Name} ({cnt})
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel id="close-date-label">Close Date</InputLabel>
+              <Select
+                labelId="close-date-label"
+                label="Close Date"
+                value={prefs.closeDateRange}
+                onChange={(e) => setPrefs((p) => ({ ...p, closeDateRange: e.target.value as CloseDateRange }))}
+              >
+                <MenuItem value="all">All Dates</MenuItem>
+                <MenuItem value="next30">Next 30 days</MenuItem>
+                <MenuItem value="next60">Next 60 days</MenuItem>
+                <MenuItem value="next90">Next 90 days</MenuItem>
+                <MenuItem value="thisQuarter">This Quarter</MenuItem>
+                <MenuItem value="thisYear">This Year</MenuItem>
+              </Select>
+            </FormControl>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={prefs.showWeighted ? 'weighted' : 'total'}
+              onChange={(_, v) => v && setPrefs((p) => ({ ...p, showWeighted: v === 'weighted' }))}
+            >
+              <ToggleButton value="total">Total</ToggleButton>
+              <ToggleButton value="weighted">Weighted</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          <TextField
+            type="number"
             size="small"
-            exclusive
-            value={prefs.topN}
-            onChange={(_, v) => v && setPrefs((p) => ({ ...p, topN: v }))}
-          >
-            <ToggleButton value={5}>5</ToggleButton>
-            <ToggleButton value={10}>10</ToggleButton>
-            <ToggleButton value={25}>25</ToggleButton>
-          </ToggleButtonGroup>
+            label="Rows"
+            defaultValue={prefs.topN}
+            inputProps={{ min: 1, max: 50 }}
+            sx={{ width: 72 }}
+            onBlur={(e) => {
+              const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 10));
+              e.target.value = String(v);
+              setPrefs((p) => ({ ...p, topN: v }));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            }}
+          />
         </Box>
-        <PriorityTable
-          opportunities={priorityOpps.slice(0, prefs.topN)}
-          users={[]}
-          onAddTask={(opp) => {
-            const mapped: Opportunity = {
-              Id: opp.Id,
-              Name: opp.Name,
-              AccountId: opp.Account?.Id || '',
-              Account: opp.Account ? { Name: opp.Account.Name } : undefined,
-              StageName: opp.StageName,
-              Amount: opp.Amount,
-              Probability: opp.Probability,
-              CloseDate: opp.CloseDate,
-              CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
-              LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
-              OwnerId: opp.OwnerId || '',
-            };
-            setTaskPanelOpp(mapped);
-            setTaskPanelOpen(true);
-          }}
-          onOpenTaskDrawer={(opp, _taskId) => {
-            const mapped: Opportunity = {
-              Id: opp.Id,
-              Name: opp.Name,
-              AccountId: opp.Account?.Id || '',
-              Account: opp.Account ? { Name: opp.Account.Name } : undefined,
-              StageName: opp.StageName,
-              Amount: opp.Amount,
-              Probability: opp.Probability,
-              CloseDate: opp.CloseDate,
-              CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
-              LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
-              OwnerId: opp.OwnerId || '',
-            };
-            setTaskPanelOpp(mapped);
-            setTaskPanelOpen(true);
-          }}
-        />
+
+        {priorityOpps.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            {!user?.salesforce_connected ? (
+              <>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                  Connect Salesforce to see your priority opportunities.
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => navigate('/settings')}
+                >
+                  Go to Settings
+                </Button>
+              </>
+            ) : (
+              <Typography variant="body1" color="text.secondary">
+                No open opportunities found. New opportunities will appear here automatically.
+              </Typography>
+            )}
+          </Box>
+        ) : (
+          <>
+            <PriorityTable
+              opportunities={priorityOpps}
+              maxRows={prefs.topN}
+              users={[]}
+              showWeighted={prefs.showWeighted}
+              onAddTask={(opp) => {
+                const mapped: Opportunity = {
+                  Id: opp.Id,
+                  Name: opp.Name,
+                  AccountId: opp.Account?.Id || '',
+                  Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+                  StageName: opp.StageName,
+                  Amount: opp.Amount,
+                  Probability: opp.Probability,
+                  CloseDate: opp.CloseDate,
+                  CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  OwnerId: opp.OwnerId || '',
+                };
+                setTaskPanelOpp(mapped);
+                setTaskPanelOpen(true);
+              }}
+              onOpenTaskDrawer={(opp, _taskId) => {
+                const mapped: Opportunity = {
+                  Id: opp.Id,
+                  Name: opp.Name,
+                  AccountId: opp.Account?.Id || '',
+                  Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+                  StageName: opp.StageName,
+                  Amount: opp.Amount,
+                  Probability: opp.Probability,
+                  CloseDate: opp.CloseDate,
+                  CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  OwnerId: opp.OwnerId || '',
+                };
+                setTaskPanelOpp(mapped);
+                setTaskPanelOpen(true);
+              }}
+            />
+          </>
+        )}
       </Section>
 
       {/* Section 3: Revenue Tracker */}

@@ -21,6 +21,9 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   Refresh as RefreshIcon,
+  CalendarMonth as CalendarIcon,
+  Chat as ChatIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
@@ -231,6 +234,82 @@ const Settings: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Google Calendar Connection */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CalendarIcon color="primary" />
+            Google Calendar
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Calendar access is included with your Google login. Only the PBD shared calendar is synced.
+          </Typography>
+          <Divider sx={{ mb: 3 }} />
+          {user?.google_connected ? (
+            <Box>
+              <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircleIcon />}>
+                Connected via Google login
+              </Alert>
+              <Stack spacing={1.5}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <CalendarIcon fontSize="small" color="action" />
+                  <Typography variant="body2">
+                    <strong>Active Calendar:</strong> PBD Shared Calendar
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip label="Read-only" color="info" size="small" variant="outlined" />
+                </Stack>
+              </Stack>
+              <Alert severity="info" sx={{ mt: 2 }} icon={<InfoIcon />}>
+                Personal calendars are not synced. Calendar selection coming soon.
+              </Alert>
+            </Box>
+          ) : (
+            <Alert severity="warning" icon={<CloudOffIcon />}>
+              Google Calendar not connected. Please log in with Google to enable calendar sync.
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Slack Connection */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ChatIcon color="primary" />
+            Slack Integration
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Slack is configured at the organization level via a bot token. Messages from #pipeline-updates
+            are automatically parsed and queued for review.
+          </Typography>
+          <Divider sx={{ mb: 3 }} />
+          {user?.slack_configured ? (
+            <Box>
+              <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircleIcon />}>
+                Bot connected to workspace
+              </Alert>
+              <Stack spacing={1.5}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <ChatIcon fontSize="small" color="action" />
+                  <Typography variant="body2">
+                    <strong>Workspace:</strong> {user.slack_workspace || 'Connected'}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip label="Bot connected to #pipeline-updates" color="success" size="small" variant="outlined" />
+                </Stack>
+              </Stack>
+            </Box>
+          ) : (
+            <Alert severity="warning" icon={<CloudOffIcon />}>
+              Slack not configured — contact admin to set up the SLACK_BOT_TOKEN.
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Data Management */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -266,6 +345,26 @@ const Settings: React.FC = () => {
               )}
               <Typography variant="body2">
                 Salesforce: {sfStatus?.connected ? 'Connected (your account)' : 'Using service account'}
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              {user?.google_connected ? (
+                <CheckCircleIcon color="success" fontSize="small" />
+              ) : (
+                <ErrorIcon color="warning" fontSize="small" />
+              )}
+              <Typography variant="body2">
+                Google Calendar: {user?.google_connected ? 'Connected (PBD calendar)' : 'Not connected'}
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              {user?.slack_configured ? (
+                <CheckCircleIcon color="success" fontSize="small" />
+              ) : (
+                <ErrorIcon color="warning" fontSize="small" />
+              )}
+              <Typography variant="body2">
+                Slack: {user?.slack_configured ? `Connected (${user.slack_workspace || 'workspace'})` : 'Not configured'}
               </Typography>
             </Stack>
           </Stack>

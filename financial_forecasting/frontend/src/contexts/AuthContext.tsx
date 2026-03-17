@@ -9,6 +9,11 @@ interface User {
   salesforce_connected?: boolean;
   salesforce_user_id?: string | null;
   salesforce_user_name?: string | null;
+  google_connected?: boolean;
+  google_email?: string;
+  slack_configured?: boolean;
+  slack_workspace?: string | null;
+  calendar_pbd_id?: string;
 }
 
 interface AuthContextType {
