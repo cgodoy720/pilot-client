@@ -14,6 +14,8 @@ import {
   Alert,
   CircularProgress,
   LinearProgress,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -38,7 +40,9 @@ import {
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import WeeklyCalendar, { CalendarEvent, CalendarViewMode } from '../components/WeeklyCalendar';
-import PriorityList, { PriorityOpp } from '../components/PriorityList';
+import PriorityTable, { PriorityOpp } from '../components/PriorityTable';
+import TaskPanel from '../components/TaskPanel';
+import type { Opportunity } from './Opportunities/helpers';
 
 const PREFS_KEY = 'pursuit-priorities-prefs';
 
@@ -51,6 +55,7 @@ const OPEN_STAGES = [
 interface DashboardPrefs {
   collapsed: Record<string, boolean>;
   calendarView: CalendarViewMode;
+  topN: number;
 }
 
 function loadPrefs(): DashboardPrefs {
@@ -58,7 +63,7 @@ function loadPrefs(): DashboardPrefs {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { collapsed: {}, calendarView: 'week' };
+  return { collapsed: {}, calendarView: 'week', topN: 10 };
 }
 
 function savePrefs(prefs: DashboardPrefs) {
@@ -113,10 +118,82 @@ function Section({
   );
 }
 
+const PBD_CALENDAR_ID = 'c_f06065f4e4551cee88f8d465a6a77a24c8333c66a0077770a3e60b8d26251e98@group.calendar.google.com';
+
+// ── Mock data for layout testing (remove when SF is connected) ──
+const MOCK_PRIORITY_OPPS: PriorityOpp[] = [
+  {
+    Id: 'mock-001', Name: 'Goldman Sachs Foundation — AIJI Year 3', StageName: 'Proposal Negotiation',
+    Amount: 2500000, CloseDate: '2026-03-20', Probability: 75, OwnerId: 'u1',
+    Account: { Name: 'Goldman Sachs Foundation', Id: 'a1' }, LastModifiedDate: '2026-03-14',
+    tasks: [
+      { Id: 't1', Subject: 'Send revised budget', ActivityDate: '2026-03-15', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park', Description: 'Include updated indirect cost rate per finance team email from 3/12' },
+      { Id: 't2', Subject: 'Follow up with program officer', ActivityDate: '2026-03-18', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u2', OwnerName: 'Marcus Chen', Description: '' },
+    ],
+  },
+  {
+    Id: 'mock-002', Name: 'JPMorgan Chase — Workforce Dev Grant', StageName: 'Design / Proposal Creation',
+    Amount: 1800000, CloseDate: '2026-04-15', Probability: 60, OwnerId: 'u1',
+    Account: { Name: 'JPMorgan Chase Foundation', Id: 'a2' }, LastModifiedDate: '2026-03-10',
+    tasks: [
+      { Id: 't3', Subject: 'Draft LOI', ActivityDate: '2026-03-12', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park' },
+    ],
+  },
+  {
+    Id: 'mock-003', Name: 'Robin Hood Foundation — General Operating', StageName: 'Qualifying',
+    Amount: 750000, CloseDate: '2026-05-01', Probability: 40, OwnerId: 'u1',
+    Account: { Name: 'Robin Hood Foundation', Id: 'a3' }, LastModifiedDate: '2026-02-01',
+    tasks: [],
+  },
+  {
+    Id: 'mock-004', Name: 'Google.org — AI Skills Accelerator', StageName: 'Proposal Negotiation',
+    Amount: 3200000, CloseDate: '2026-03-28', Probability: 80, OwnerId: 'u1',
+    Account: { Name: 'Google.org', Id: 'a4' }, LastModifiedDate: '2026-03-16',
+    tasks: [
+      { Id: 't4', Subject: 'Finalize MOU', ActivityDate: '2026-03-22', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park', Description: 'Legal reviewed — waiting on Google.org redline. Check Slack #google-partnership for latest' },
+      { Id: 't5', Subject: 'Board approval package', ActivityDate: '2026-03-25', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u2', OwnerName: 'Marcus Chen', Description: 'Need: exec summary, budget, MOU draft, board resolution template' },
+      { Id: 't6', Subject: 'Schedule site visit', ActivityDate: '2026-03-10', Priority: 'Normal', Status: 'Completed', OwnerId: 'u1', OwnerName: 'Jane Park', Description: 'Completed — visit confirmed for 3/28 at LIC campus' },
+    ],
+    nextEvent: { summary: 'Google.org — Final Review Call', start: '2026-03-18' },
+  },
+  {
+    Id: 'mock-005', Name: 'Salesforce Foundation — PBC Renewal', StageName: 'Contract Creation',
+    Amount: 500000, CloseDate: '2026-03-17', Probability: 90, OwnerId: 'u1',
+    Account: { Name: 'Salesforce Foundation', Id: 'a5' }, LastModifiedDate: '2026-03-16',
+    tasks: [
+      { Id: 't7', Subject: 'Countersign agreement', ActivityDate: '2026-03-17', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park' },
+    ],
+  },
+  {
+    Id: 'mock-006', Name: 'Bloomberg Philanthropies — Career Pathways', StageName: 'New Lead',
+    Amount: 1200000, CloseDate: '2026-06-30', Probability: 25, OwnerId: 'u1',
+    Account: { Name: 'Bloomberg Philanthropies', Id: 'a6' }, LastModifiedDate: '2026-01-15',
+    tasks: [],
+  },
+  {
+    Id: 'mock-007', Name: 'Bank of America — Community Grant', StageName: 'Qualifying',
+    Amount: 350000, CloseDate: '2026-04-01', Probability: 35, OwnerId: 'u1',
+    Account: { Name: 'Bank of America Charitable Foundation', Id: 'a7' }, LastModifiedDate: '2026-03-05',
+    tasks: [
+      { Id: 't8', Subject: 'Submit capacity statement', ActivityDate: '2026-03-08', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u2', OwnerName: 'Marcus Chen' },
+    ],
+  },
+  {
+    Id: 'mock-008', Name: 'Citi Foundation — Digital Skills 2026', StageName: 'Design / Proposal Creation',
+    Amount: 900000, CloseDate: '2026-05-15', Probability: 50, OwnerId: 'u1',
+    Account: { Name: 'Citi Foundation', Id: 'a8' }, LastModifiedDate: '2026-03-13',
+    tasks: [
+      { Id: 't9', Subject: 'Complete evaluation framework', ActivityDate: '2026-03-20', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park' },
+    ],
+  },
+];
+
 const MyDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<DashboardPrefs>(loadPrefs);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
 
   useEffect(() => {
     savePrefs(prefs);
@@ -156,11 +233,11 @@ const MyDashboard: React.FC = () => {
     { staleTime: 5 * 60 * 1000 }
   );
 
-  // Fetch calendar events
+  // Fetch PBD shared calendar events
   const { data: calEventsData, isLoading: calLoading } = useQuery(
-    ['my-calendar-events', calStart, calEnd],
+    ['pbd-calendar-events', calStart, calEnd],
     async () => {
-      const response = await apiService.getMyCalendarEvents(calStart, calEnd);
+      const response = await apiService.getMyCalendarEvents(calStart, calEnd, 100, PBD_CALENDAR_ID);
       return response.data?.data || response.data || [];
     },
     { staleTime: 5 * 60 * 1000, enabled: !prefs.collapsed['calendar'] }
@@ -224,6 +301,9 @@ const MyDashboard: React.FC = () => {
 
   // Build priority opportunities with tasks attached
   const priorityOpps: PriorityOpp[] = useMemo(() => {
+    // Use mock data when SF isn't connected
+    if (myOpenOpps.length === 0) return MOCK_PRIORITY_OPPS;
+
     // Group tasks by WhatId (opportunity ID)
     const tasksByOppId = new Map<string, any[]>();
     for (const task of sfTasks) {
@@ -242,22 +322,32 @@ const MyDashboard: React.FC = () => {
       OwnerId: opp.OwnerId,
       Account: opp.Account,
       LastModifiedDate: opp.LastModifiedDate,
-      tasks: tasksByOppId.get(opp.Id) || [],
+      tasks: (tasksByOppId.get(opp.Id) || []).map((t: any) => ({
+        Id: t.Id,
+        Subject: t.Subject,
+        ActivityDate: t.ActivityDate || '',
+        Priority: t.Priority || 'Normal',
+        Status: t.Status || 'Not Started',
+        OwnerId: t.OwnerId,
+        OwnerName: t.Owner?.Name || t.OwnerName || '',
+        Description: t.Description || '',
+      })),
     }));
   }, [myOpenOpps, sfTasks]);
 
   // Pipeline summary stats
   const pipelineStats = useMemo(() => {
-    const count = myOpenOpps.length;
-    const total = myOpenOpps.reduce((sum: number, opp: any) => sum + (opp.Amount || 0), 0);
-    const weighted = myOpenOpps.reduce(
+    const statsOpps = myOpenOpps.length > 0 ? myOpenOpps : MOCK_PRIORITY_OPPS;
+    const count = statsOpps.length;
+    const total = statsOpps.reduce((sum: number, opp: any) => sum + (opp.Amount || 0), 0);
+    const weighted = statsOpps.reduce(
       (sum: number, opp: any) => sum + ((opp.Amount || 0) * (opp.Probability || 0)) / 100,
       0
     );
     // Deals closing this month
     const now = new Date();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const closingThisMonth = myOpenOpps.filter((opp: any) => {
+    const closingThisMonth = statsOpps.filter((opp: any) => {
       if (!opp.CloseDate) return false;
       const d = parseISO(opp.CloseDate);
       return d >= startOfDay(now) && d <= endOfDay(monthEnd);
@@ -280,7 +370,7 @@ const MyDashboard: React.FC = () => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Box>
-          <Typography variant="h4">My Priorities</Typography>
+          <Typography variant="h4">Priorities</Typography>
           <Typography variant="body2" color="textSecondary">
             {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Your weekly priorities'}
           </Typography>
@@ -327,12 +417,55 @@ const MyDashboard: React.FC = () => {
           ) : undefined
         }
       >
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Ranked by urgency. Drag to reorder manually.
-        </Typography>
-        <PriorityList
-          opportunities={priorityOpps}
-          onOppClick={() => navigate('/pipeline')}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mb: 1 }}>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={prefs.topN}
+            onChange={(_, v) => v && setPrefs((p) => ({ ...p, topN: v }))}
+          >
+            <ToggleButton value={5}>5</ToggleButton>
+            <ToggleButton value={10}>10</ToggleButton>
+            <ToggleButton value={25}>25</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        <PriorityTable
+          opportunities={priorityOpps.slice(0, prefs.topN)}
+          users={[]}
+          onAddTask={(opp) => {
+            const mapped: Opportunity = {
+              Id: opp.Id,
+              Name: opp.Name,
+              AccountId: opp.Account?.Id || '',
+              Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+              StageName: opp.StageName,
+              Amount: opp.Amount,
+              Probability: opp.Probability,
+              CloseDate: opp.CloseDate,
+              CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+              LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+              OwnerId: opp.OwnerId || '',
+            };
+            setTaskPanelOpp(mapped);
+            setTaskPanelOpen(true);
+          }}
+          onOpenTaskDrawer={(opp, _taskId) => {
+            const mapped: Opportunity = {
+              Id: opp.Id,
+              Name: opp.Name,
+              AccountId: opp.Account?.Id || '',
+              Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+              StageName: opp.StageName,
+              Amount: opp.Amount,
+              Probability: opp.Probability,
+              CloseDate: opp.CloseDate,
+              CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+              LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+              OwnerId: opp.OwnerId || '',
+            };
+            setTaskPanelOpp(mapped);
+            setTaskPanelOpen(true);
+          }}
         />
       </Section>
 
@@ -407,6 +540,13 @@ const MyDashboard: React.FC = () => {
           </Grid>
         </Grid>
       </Section>
+
+      {/* Task Panel drawer */}
+      <TaskPanel
+        open={taskPanelOpen}
+        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); }}
+        opportunity={taskPanelOpp}
+      />
     </Box>
   );
 };

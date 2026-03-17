@@ -63,8 +63,7 @@ function makeLinkedIn(overrides: Partial<LinkedInContact> = {}): LinkedInContact
     last_name: 'Smith',
     organization: 'Pursuit Foundation',
     title: 'Director',
-    source: 'linkedin',
-    connected_on: '2026-01-15',
+    connection_date: '2026-01-15',
     ...overrides,
   };
 }

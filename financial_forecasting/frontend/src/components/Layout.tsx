@@ -53,7 +53,7 @@ interface LayoutProps {
 }
 
 const menuItems = [
-  { text: 'My Priorities', icon: <HomeIcon />, path: '/home' },
+  { text: 'Priorities', icon: <HomeIcon />, path: '/home' },
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
   { text: 'Auto Review', icon: <ReviewIcon />, path: '/automation-review' },

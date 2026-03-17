@@ -271,8 +271,8 @@ export const apiService = {
   getMyTasks: (start?: string, end?: string) =>
     api.get('/api/salesforce/my-tasks', { params: { start, end } }),
 
-  getMyCalendarEvents: (start?: string, end?: string, limit: number = 100) =>
-    api.get('/api/calendar/my-events', { params: { start, end, limit } }),
+  getMyCalendarEvents: (start?: string, end?: string, limit: number = 100, calendar_id?: string) =>
+    api.get('/api/calendar/my-events', { params: { start, end, limit, calendar_id } }),
 
   // Automation Review
   getPendingReviews: () =>

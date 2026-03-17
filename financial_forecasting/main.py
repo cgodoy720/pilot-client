@@ -53,8 +53,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security
-security = HTTPBearer()
+# Security — auto_error=False allows unauthenticated requests (demo mode)
+security = HTTPBearer(auto_error=False)
 
 # Service singletons — initialized on startup, injected via Depends()
 _services: Dict[str, Any] = {}
@@ -67,38 +67,31 @@ async def startup_event():
     """Initialize services on startup."""
     logger.info("Starting up Financial Forecasting API...")
 
-    try:
-        client = UnifiedMCPClient()
+    client = UnifiedMCPClient()
+    _services["mcp_client"] = client
 
-        logger.info("Connecting to Salesforce...")
-        await client.connect_salesforce("stdio")
+    # Connect all services gracefully — each is independent
+    for svc_name, connect_fn in [
+        ("Salesforce", lambda: client.connect_salesforce("stdio")),
+        ("Sage Intacct", lambda: client.connect_sage_intacct("stdio")),
+        ("Slack", lambda: client.connect_slack("stdio")),
+        ("Google Calendar", lambda: client.connect_google_calendar()),
+        ("Gmail", lambda: client.connect_gmail()),
+        ("Fireflies", lambda: client.connect_fireflies()),
+    ]:
+        try:
+            await connect_fn()
+            logger.info(f"{svc_name} connected successfully")
+        except Exception as e:
+            logger.warning(f"{svc_name} not available: {e}")
 
-        logger.info("Connecting to Sage Intacct...")
-        await client.connect_sage_intacct("stdio")
-
-        _services["mcp_client"] = client
+    # Set up dependent services if Salesforce connected
+    if "salesforce" in client.connected_services:
         _services["forecasting_engine"] = ForecastingEngine(client)
         _services["data_sync_service"] = DataSyncService(client)
-
-        # Connect optional activity-intelligence services (each independent)
-        for svc_name, connect_coro in [
-            ("Slack", client.connect_slack("stdio")),
-            ("Google Calendar", client.connect_google_calendar()),
-            ("Gmail", client.connect_gmail()),
-            ("Fireflies", client.connect_fireflies()),
-        ]:
-            try:
-                await connect_coro
-                logger.info(f"{svc_name} connected successfully")
-            except Exception as e:
-                logger.warning(f"{svc_name} not available: {e}")
-
         asyncio.create_task(background_sync_task())
-        logger.info("Financial Forecasting API started successfully!")
 
-    except Exception as e:
-        logger.error(f"Failed to start services: {e}")
-        raise
+    logger.info(f"API started — connected services: {client.connected_services or ['none']}")
 
 
 @app.on_event("shutdown")
@@ -164,6 +157,33 @@ def get_data_sync_service() -> DataSyncService:
     if not svc:
         raise HTTPException(status_code=503, detail="Data sync service not available")
     return svc
+
+
+# Auth endpoints (for frontend compatibility with simple_server)
+
+@app.get("/auth/me")
+async def auth_me():
+    """Return current user info for the frontend."""
+    return {
+        "user_id": "demo_user",
+        "name": "Demo User",
+        "email": "demo@pursuit.org",
+        "picture": None,
+        "salesforce_connected": False,
+        "salesforce_user_id": None,
+        "salesforce_user_name": None,
+    }
+
+
+@app.get("/api/cashflow/summary")
+async def cashflow_summary():
+    """Placeholder cashflow summary for frontend."""
+    return ApiResponse(success=True, data={
+        "total_pipeline": 0,
+        "weighted_pipeline": 0,
+        "ytd_received": 0,
+        "outstanding": 0,
+    })
 
 
 # Health check endpoints
@@ -251,9 +271,13 @@ async def get_opportunities(
         result = await salesforce.query(query)
         
         opportunities = []
-        for record in result.get("records", []):
+        raw_records = result.get("records", [])
+        for record in raw_records:
             opportunities.append(SalesforceOpportunity(**record))
-        
+
+        # Refresh entity cache for Slack parser
+        _refresh_opp_cache(raw_records)
+
         return opportunities
         
     except Exception as e:
@@ -482,9 +506,10 @@ async def get_my_calendar_events(
     start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(100, le=200),
+    calendar_id: str = Query("primary", description="Calendar ID (default: primary)"),
     user=Depends(get_current_user),
 ):
-    """Get current user's Google Calendar events in a date range."""
+    """Get Google Calendar events in a date range. Supports shared calendars via calendar_id."""
     client = _services.get("mcp_client")
     cal_service = client.services.get("google_calendar") if client else None
     if not cal_service or not cal_service.is_authenticated:
@@ -511,6 +536,7 @@ async def get_my_calendar_events(
             days_back=days_back,
             days_forward=days_forward,
             max_results=limit,
+            calendar_id=calendar_id,
         )
         return ApiResponse(success=True, data=events, meta={"count": len(events)})
     except Exception as e:
@@ -957,10 +983,133 @@ class SlackCRMUpdate(BaseModel):
     user_name: Optional[str] = None
 
 
-def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str, Any]:
-    """Simple NLP-style parser for CRM update messages.
+import re as _re
+import difflib as _difflib
+import calendar as _calendar
 
-    Extracts: opportunity reference, action type (note, stage_change, task), details.
+# Module-level opportunity cache for entity resolution
+_opp_cache: List[Dict[str, Any]] = []
+_opp_cache_loaded: bool = False
+
+
+def _get_opp_cache(client=None) -> List[Dict[str, Any]]:
+    """Return cached opportunity list; populate from SF on first call."""
+    global _opp_cache, _opp_cache_loaded
+    if _opp_cache_loaded:
+        return _opp_cache
+    # Will be populated lazily when opportunities are fetched
+    return _opp_cache
+
+
+def _refresh_opp_cache(opportunities: List[Dict[str, Any]]) -> None:
+    """Refresh the opportunity cache from a list of opportunity dicts."""
+    global _opp_cache, _opp_cache_loaded
+    _opp_cache = opportunities
+    _opp_cache_loaded = True
+
+
+def _extract_amount(text: str) -> Optional[int]:
+    """Extract dollar amount from text like $250K, $1.2M, $100,000."""
+    match = _re.search(r'\$[\d,]+(?:\.\d+)?[KkMm]?', text)
+    if not match:
+        return None
+    raw = match.group(0).replace('$', '').replace(',', '')
+    multiplier = 1
+    if raw[-1] in ('K', 'k'):
+        multiplier = 1_000
+        raw = raw[:-1]
+    elif raw[-1] in ('M', 'm'):
+        multiplier = 1_000_000
+        raw = raw[:-1]
+    try:
+        return int(float(raw) * multiplier)
+    except ValueError:
+        return None
+
+
+def _extract_close_date(text: str) -> Optional[str]:
+    """Extract a close date from natural language text. Returns ISO date string."""
+    text_lower = text.lower()
+    today = date.today()
+
+    # "end of [month]"
+    m = _re.search(r'end of (\w+)', text_lower)
+    if m:
+        month_name = m.group(1).capitalize()
+        for i, name in enumerate(_calendar.month_name):
+            if name and name.lower().startswith(month_name.lower()):
+                year = today.year if i >= today.month else today.year + 1
+                last_day = _calendar.monthrange(year, i)[1]
+                return date(year, i, last_day).isoformat()
+
+    # "by Q[1-4]"
+    m = _re.search(r'by q([1-4])', text_lower)
+    if m:
+        q = int(m.group(1))
+        end_month = q * 3
+        year = today.year if end_month >= today.month else today.year + 1
+        last_day = _calendar.monthrange(year, end_month)[1]
+        return date(year, end_month, last_day).isoformat()
+
+    # "[month] [day]" e.g. "April 15"
+    m = _re.search(r'(\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*)\s+(\d{1,2})\b', text_lower)
+    if m:
+        month_name = m.group(1).capitalize()
+        day_num = int(m.group(2))
+        for i, name in enumerate(_calendar.month_name):
+            if name and name.lower().startswith(month_name.lower()):
+                year = today.year if i > today.month or (i == today.month and day_num >= today.day) else today.year + 1
+                try:
+                    return date(year, i, day_num).isoformat()
+                except ValueError:
+                    pass
+
+    # "next [weekday]"
+    weekdays = {'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6}
+    m = _re.search(r'next (\w+day)', text_lower)
+    if m and m.group(1) in weekdays:
+        target = weekdays[m.group(1)]
+        days_ahead = target - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        return (today + timedelta(days=days_ahead)).isoformat()
+
+    return None
+
+
+def _fuzzy_match_opportunity(text: str, opportunities: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Find the best-matching opportunity by name or account name using fuzzy matching."""
+    if not opportunities:
+        return None
+    text_lower = text.lower()
+    best_match = None
+    best_ratio = 0.0
+
+    for opp in opportunities:
+        for field in [opp.get("Name", ""), (opp.get("Account") or {}).get("Name", "")]:
+            if not field:
+                continue
+            ratio = _difflib.SequenceMatcher(None, text_lower, field.lower()).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best_match = opp
+            # Also check if the name appears as substring
+            if field.lower() in text_lower and len(field) > 3:
+                sub_ratio = max(ratio, 0.65)
+                if sub_ratio > best_ratio:
+                    best_ratio = sub_ratio
+                    best_match = opp
+
+    if best_ratio > 0.6 and best_match:
+        return best_match
+    return None
+
+
+def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str, Any]:
+    """NLP-style parser for CRM update messages.
+
+    Extracts: opportunity reference, action type (note, stage_change, task),
+    details, amount, and close date.
     """
     text_lower = text.lower()
     parsed: Dict[str, Any] = {
@@ -969,6 +1118,8 @@ def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str,
         "confidence": 0.5,
         "matched_opportunity": None,
         "stage": None,
+        "amount": None,
+        "close_date": None,
     }
 
     # Detect stage changes
@@ -999,6 +1150,23 @@ def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str,
                 parsed["confidence"] = 0.6
             break
 
+    # Entity resolution — fuzzy match against known opportunities
+    opp_list = opportunities or _get_opp_cache()
+    matched = _fuzzy_match_opportunity(text, opp_list)
+    if matched:
+        parsed["matched_opportunity"] = matched.get("Id")
+        parsed["confidence"] = min(parsed["confidence"] + 0.15, 0.95)
+
+    # Amount extraction
+    amount = _extract_amount(text)
+    if amount is not None:
+        parsed["amount"] = amount
+
+    # Date extraction
+    close_date = _extract_close_date(text)
+    if close_date:
+        parsed["close_date"] = close_date
+
     return parsed
 
 
@@ -1015,7 +1183,7 @@ async def slack_webhook(
     if not text:
         raise HTTPException(status_code=400, detail="Empty message text")
 
-    parsed = _parse_crm_message(text)
+    parsed = _parse_crm_message(text, _get_opp_cache())
 
     item_id = str(_uuid.uuid4())
     _automation_queue[item_id] = {
@@ -1078,7 +1246,12 @@ async def approve_review(
         opp_id = parsed.get("matched_opportunity")
 
         if parsed["action"] == "stage_change" and opp_id and parsed.get("stage"):
-            await salesforce.update_record("Opportunity", opp_id, {"StageName": parsed["stage"]})
+            update_fields: Dict[str, Any] = {"StageName": parsed["stage"]}
+            if parsed.get("amount"):
+                update_fields["Amount"] = parsed["amount"]
+            if parsed.get("close_date"):
+                update_fields["CloseDate"] = parsed["close_date"]
+            await salesforce.update_record("Opportunity", opp_id, update_fields)
         elif parsed["action"] == "task" and opp_id:
             await salesforce.create_record("Task", {
                 "Subject": parsed.get("detail", "Follow up")[:255],

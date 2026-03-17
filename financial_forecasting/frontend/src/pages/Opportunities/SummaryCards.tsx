@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Card, CardContent, Grid, Typography } from '@mui/material';
+import { differenceInDays, parseISO, startOfMonth, endOfMonth, startOfDay } from 'date-fns';
 import { formatDollarMillions } from '../../utils/formatters';
 import type { Opportunity } from './helpers';
 import type { ViewMode } from './useOpportunityData';
@@ -23,9 +24,23 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ viewMode, opps }) =>
       (sum, opp) => sum + ((opp.Amount || 0) * (opp.Probability || 0)) / 100,
       0,
     );
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEndDate = endOfMonth(now);
+    const closingThisMonth = opps.filter((opp) => {
+      if (!opp.CloseDate) return false;
+      const d = parseISO(opp.CloseDate);
+      return d >= monthStart && d <= monthEndDate;
+    });
+    const closingAmount = closingThisMonth.reduce((s, o) => s + (o.Amount || 0), 0);
+    const today = startOfDay(now);
+    const staleCount = opps.filter(
+      (opp) => opp.LastModifiedDate && differenceInDays(today, parseISO(opp.LastModifiedDate)) > 30,
+    ).length;
+
     return (
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={2}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom variant="body2">Open Opportunities</Typography>
@@ -34,7 +49,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ viewMode, opps }) =>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom variant="body2">Total Pipeline Value</Typography>
@@ -43,7 +58,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ viewMode, opps }) =>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2}>
           <Card sx={{ bgcolor: 'primary.50' }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom variant="body2">Weighted Pipeline</Typography>
@@ -52,12 +67,30 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ viewMode, opps }) =>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2}>
           <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom variant="body2">Avg Deal Size</Typography>
               <Typography variant="h4">{formatDollarMillions(totalAmount / (opps.length || 1))}</Typography>
               <Typography variant="body2" color="textSecondary">Per opportunity</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={2}>
+          <Card sx={{ bgcolor: 'warning.50' }}>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom variant="body2">Closing This Month</Typography>
+              <Typography variant="h4" color="warning.main">{formatDollarMillions(closingAmount)}</Typography>
+              <Typography variant="body2" color="textSecondary">{closingThisMonth.length} deal{closingThisMonth.length !== 1 ? 's' : ''}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={2}>
+          <Card sx={{ bgcolor: staleCount > 0 ? 'error.50' : undefined }}>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom variant="body2">Stale Deals</Typography>
+              <Typography variant="h4" color={staleCount > 0 ? 'error.main' : undefined}>{staleCount}</Typography>
+              <Typography variant="body2" color="textSecondary">No activity 30+ days</Typography>
             </CardContent>
           </Card>
         </Grid>

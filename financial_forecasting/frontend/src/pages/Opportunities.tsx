@@ -9,7 +9,7 @@
  *   - helpers:            pure functions + Opportunity interface
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
@@ -50,6 +50,8 @@ import { SummaryCards } from './Opportunities/SummaryCards';
 const Opportunities: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const searchFromUrl = searchParams.get('search') || '';
 
   // View & filter state
   const [viewMode, setViewMode] = useState<ViewMode>('open');
@@ -472,6 +474,9 @@ const Opportunities: React.FC = () => {
                     ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
                     : [{ field: 'CloseDate', sort: 'asc' }],
                 },
+                filter: searchFromUrl
+                  ? { filterModel: { items: [], quickFilterValues: [searchFromUrl] } }
+                  : undefined,
               }}
               filterMode="client"
               sortingMode="client"

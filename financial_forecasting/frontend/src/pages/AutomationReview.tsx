@@ -90,46 +90,40 @@ const AutomationReview: React.FC = () => {
     : (oppsData?.opportunities || oppsData?.data || []);
 
   // Approve mutation
-  const approveMutation = useMutation(
-    async ({ id, edits }: { id: string; edits?: any }) => {
+  const approveMutation = useMutation({
+    mutationFn: async ({ id, edits }: { id: string; edits?: any }) => {
       return apiService.approveReview(id, edits);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('automation-review');
-        toast.success('Update approved and applied to Salesforce');
-      },
-      onError: () => toast.error('Failed to approve'),
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries('automation-review');
+      toast.success('Update approved and applied to Salesforce');
+    },
+    onError: () => { toast.error('Failed to approve'); },
+  });
 
   // Reject mutation
-  const rejectMutation = useMutation(
-    async (id: string) => {
+  const rejectMutation = useMutation({
+    mutationFn: async (id: string) => {
       return apiService.rejectReview(id);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('automation-review');
-        toast.success('Update rejected');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries('automation-review');
+      toast.success('Update rejected');
+    },
+  });
 
   // Test message mutation (simulates Slack webhook)
-  const testMutation = useMutation(
-    async (text: string) => {
+  const testMutation = useMutation({
+    mutationFn: async (text: string) => {
       return apiService.submitSlackWebhook(text, 'test');
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('automation-review');
-        setTestDialogOpen(false);
-        setTestMessage('');
-        toast.success('Test message parsed and queued');
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries('automation-review');
+      setTestDialogOpen(false);
+      setTestMessage('');
+      toast.success('Test message parsed and queued');
+    },
+  });
 
   const items = Array.isArray(reviewData) ? reviewData : [];
 
@@ -215,6 +209,22 @@ const AutomationReview: React.FC = () => {
                           <Chip
                             label={`Opp: ${parsed.matched_opportunity}`}
                             size="small"
+                            variant="outlined"
+                          />
+                        )}
+                        {parsed.amount != null && (
+                          <Chip
+                            label={`$${Number(parsed.amount).toLocaleString()}`}
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                          />
+                        )}
+                        {parsed.close_date && (
+                          <Chip
+                            label={`Close: ${parsed.close_date}`}
+                            size="small"
+                            color="info"
                             variant="outlined"
                           />
                         )}
@@ -375,6 +385,31 @@ const AutomationReview: React.FC = () => {
                   }
                 />
               )}
+              <TextField
+                label="Amount"
+                fullWidth
+                type="number"
+                value={editItem.parsed?.amount ?? ''}
+                onChange={(e) =>
+                  setEditItem({
+                    ...editItem,
+                    parsed: { ...editItem.parsed, amount: e.target.value ? Number(e.target.value) : null },
+                  })
+                }
+              />
+              <TextField
+                label="Close Date"
+                fullWidth
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={editItem.parsed?.close_date || ''}
+                onChange={(e) =>
+                  setEditItem({
+                    ...editItem,
+                    parsed: { ...editItem.parsed, close_date: e.target.value || null },
+                  })
+                }
+              />
             </Box>
           )}
         </DialogContent>

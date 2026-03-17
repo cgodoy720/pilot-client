@@ -66,7 +66,7 @@ class UnifiedMCPClient:
         # Create MCP client
         client = MCPClient(transport, {"name": "pursuit-mcp-client-salesforce", "version": "0.1.0"})
         await client.connect()
-        
+
         # Create service
         service = SalesforceMCPService(client, username, password, security_token, domain)
         await service.authenticate()

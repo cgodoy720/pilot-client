@@ -62,7 +62,7 @@ class GoogleCalendarMCPService(BaseMCPService):
             "config": self._config,
         }
 
-    async def search_events(self, query: str, days_back: int = 90, days_forward: int = 30, max_results: int = 50) -> List[Dict[str, Any]]:
+    async def search_events(self, query: str, days_back: int = 90, days_forward: int = 30, max_results: int = 50, calendar_id: str = "primary") -> List[Dict[str, Any]]:
         """Search calendar events by query."""
         await self.ensure_authenticated()
         try:
@@ -74,7 +74,7 @@ class GoogleCalendarMCPService(BaseMCPService):
             results = await loop.run_in_executor(
                 None,
                 lambda: self._calendar_service.events().list(
-                    calendarId="primary",
+                    calendarId=calendar_id,
                     q=query,
                     timeMin=time_min,
                     timeMax=time_max,
