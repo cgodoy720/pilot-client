@@ -672,26 +672,33 @@ const ApplicationsTab = ({
     setVisibleColumns(prev => ({ ...prev, [column]: checked }));
   }, [setVisibleColumns]);
 
-  const handleFilterChange = useCallback((filterKey, value) => {
-    setApplicationFilters(prev => ({ ...prev, [filterKey]: value, offset: 0 }));
-    onPageChange(1); // Reset to first page when filter changes
+  // Toggle a value in a multi-select filter array
+  const handleFilterToggle = useCallback((filterKey, value) => {
+    setApplicationFilters(prev => {
+      const current = prev[filterKey] || [];
+      const next = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value];
+      return { ...prev, [filterKey]: next, offset: 0 };
+    });
+    onPageChange(1);
   }, [setApplicationFilters, onPageChange]);
 
   const handleClearFilter = useCallback((filterKey) => {
-    setApplicationFilters(prev => ({ ...prev, [filterKey]: '', offset: 0 }));
+    setApplicationFilters(prev => ({ ...prev, [filterKey]: [], offset: 0 }));
     onPageChange(1);
   }, [setApplicationFilters, onPageChange]);
 
   const handleClearAllFilters = useCallback(() => {
     setApplicationFilters(prev => ({
       ...prev,
-      status: '',
-      final_status: '',
-      info_session_status: '',
-      workshop_status: '',
-      program_admission_status: '',
-      structured_task_grade: '',
-      deliberation: '',
+      status: [],
+      final_status: [],
+      info_session_status: [],
+      workshop_status: [],
+      program_admission_status: [],
+      structured_task_grade: [],
+      deliberation: [],
       offset: 0
     }));
     onPageChange(1);
@@ -711,19 +718,19 @@ const ApplicationsTab = ({
     return <span className="text-[#4242ea] ml-1">{columnSort.direction === 'asc' ? '▲' : '▼'}</span>;
   };
 
-  // Render sortable + filterable column header
+  // Render sortable + filterable column header (multi-select)
   const renderSortableFilterableHeader = (column, filterKey, label, sortKey = null) => {
     const options = filterOptions[filterKey];
-    const currentValue = applicationFilters[filterKey] || '';
-    const isFiltered = currentValue !== '';
+    const currentValues = applicationFilters[filterKey] || [];
+    const isFiltered = currentValues.length > 0;
     const isSortable = sortKey !== null;
     const isSorted = columnSort.column === sortKey;
-    
+
     return (
       <div className="flex items-center gap-1">
         {/* Sortable label */}
         {isSortable ? (
-          <span 
+          <span
             className="cursor-pointer hover:text-[#4242ea] font-proxima-bold select-none flex items-center"
             onClick={() => handleColumnSort(sortKey)}
           >
@@ -737,27 +744,32 @@ const ApplicationsTab = ({
         ) : (
           <span className="font-proxima-bold">{label}</span>
         )}
-        
-        {/* Filter dropdown */}
+
+        {/* Filter dropdown (multi-select) */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <button 
-              className={`p-1 rounded hover:bg-gray-200 ${isFiltered ? 'text-[#4242ea]' : 'text-gray-400'}`}
+            <button
+              className={`relative p-1 rounded hover:bg-gray-200 ${isFiltered ? 'text-[#4242ea]' : 'text-gray-400'}`}
               onClick={(e) => e.stopPropagation()}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
               </svg>
+              {isFiltered && (
+                <span className="absolute -top-1 -right-1 bg-[#4242ea] text-white text-[9px] rounded-full w-3.5 h-3.5 flex items-center justify-center leading-none">
+                  {currentValues.length}
+                </span>
+              )}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44 font-proxima">
             <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase">Filter by {label}</div>
             <DropdownMenuSeparator />
-            {options.map((option) => (
+            {options.filter(opt => opt.value !== '').map((option) => (
               <DropdownMenuCheckboxItem
                 key={option.value}
-                checked={currentValue === option.value}
-                onCheckedChange={() => handleFilterChange(filterKey, option.value)}
+                checked={currentValues.includes(option.value)}
+                onCheckedChange={() => handleFilterToggle(filterKey, option.value)}
                 onSelect={(e) => e.preventDefault()}
               >
                 {option.label}
@@ -1073,47 +1085,42 @@ const ApplicationsTab = ({
         </Button>
 
         {/* Active Filters Indicator */}
-        {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.structured_task_grade || applicationFilters.deliberation) && (
-          <div className="flex items-center gap-2 ml-auto">
+        {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
             <span className="text-sm text-gray-500 font-proxima">Active filters:</span>
-            {applicationFilters.status && (
+            {applicationFilters.status?.length > 0 && (
               <Badge className="bg-blue-100 text-blue-700 font-proxima cursor-pointer hover:bg-blue-200" onClick={() => handleClearFilter('status')}>
-                Status: {formatStatus(applicationFilters.status)} ✕
+                Status: {applicationFilters.status.map(formatStatus).join(', ')} ✕
               </Badge>
             )}
-            {applicationFilters.final_status && (
+            {applicationFilters.final_status?.length > 0 && (
               <Badge className="bg-indigo-100 text-indigo-700 font-proxima cursor-pointer hover:bg-indigo-200" onClick={() => handleClearFilter('final_status')}>
-                Assessment: {formatStatus(applicationFilters.final_status)} ✕
+                Assessment: {applicationFilters.final_status.map(formatStatus).join(', ')} ✕
               </Badge>
             )}
-            {applicationFilters.info_session_status && (
+            {applicationFilters.info_session_status?.length > 0 && (
               <Badge className="bg-purple-100 text-purple-700 font-proxima cursor-pointer hover:bg-purple-200" onClick={() => handleClearFilter('info_session_status')}>
-                Info Session: {formatStatus(applicationFilters.info_session_status)} ✕
+                Info Session: {applicationFilters.info_session_status.map(formatStatus).join(', ')} ✕
               </Badge>
             )}
-            {applicationFilters.workshop_status && (
+            {applicationFilters.workshop_status?.length > 0 && (
               <Badge className="bg-green-100 text-green-700 font-proxima cursor-pointer hover:bg-green-200" onClick={() => handleClearFilter('workshop_status')}>
-                Workshop: {formatStatus(applicationFilters.workshop_status)} ✕
+                Workshop: {applicationFilters.workshop_status.map(formatStatus).join(', ')} ✕
               </Badge>
             )}
-            {applicationFilters.structured_task_grade && (
-              <Badge className={`font-proxima cursor-pointer ${
-                applicationFilters.structured_task_grade === 'green' ? 'bg-green-100 text-green-700 hover:bg-green-200' :
-                applicationFilters.structured_task_grade === 'yellow' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' :
-                applicationFilters.structured_task_grade === 'red' ? 'bg-red-100 text-red-700 hover:bg-red-200' :
-                'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`} onClick={() => handleClearFilter('structured_task_grade')}>
-                Workshop Grade: {applicationFilters.structured_task_grade.charAt(0).toUpperCase() + applicationFilters.structured_task_grade.slice(1)} ✕
+            {applicationFilters.structured_task_grade?.length > 0 && (
+              <Badge className="bg-gray-100 text-gray-700 font-proxima cursor-pointer hover:bg-gray-200" onClick={() => handleClearFilter('structured_task_grade')}>
+                Workshop Grade: {applicationFilters.structured_task_grade.map(v => v.charAt(0).toUpperCase() + v.slice(1)).join(', ')} ✕
               </Badge>
             )}
-            {applicationFilters.program_admission_status && (
+            {applicationFilters.program_admission_status?.length > 0 && (
               <Badge className="bg-yellow-100 text-yellow-700 font-proxima cursor-pointer hover:bg-yellow-200" onClick={() => handleClearFilter('program_admission_status')}>
-                Admission: {formatStatus(applicationFilters.program_admission_status)} ✕
+                Admission: {applicationFilters.program_admission_status.map(formatStatus).join(', ')} ✕
               </Badge>
             )}
-            {applicationFilters.deliberation && (
+            {applicationFilters.deliberation?.length > 0 && (
               <Badge className="bg-orange-100 text-orange-700 font-proxima cursor-pointer hover:bg-orange-200" onClick={() => handleClearFilter('deliberation')}>
-                Deliberation: {formatStatus(applicationFilters.deliberation)} ✕
+                Deliberation: {applicationFilters.deliberation.map(formatStatus).join(', ')} ✕
               </Badge>
             )}
             <Button
@@ -1253,7 +1260,7 @@ const ApplicationsTab = ({
           <div className="text-center">
             <p className="text-gray-500 font-proxima text-lg">No applicants found</p>
             <p className="text-gray-400 font-proxima text-sm mt-1">Try adjusting your filters</p>
-            {(applicationFilters.status || applicationFilters.final_status || applicationFilters.info_session_status || applicationFilters.workshop_status || applicationFilters.program_admission_status || applicationFilters.structured_task_grade || applicationFilters.deliberation) && (
+            {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
               <Button
                 variant="outline"
                 className="mt-4 font-proxima"
