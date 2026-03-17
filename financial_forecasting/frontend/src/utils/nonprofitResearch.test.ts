@@ -309,7 +309,8 @@ describe('batchEnrich', () => {
     const promise = batchEnrich([leadA, leadB], onProgress);
 
     // Advance past the 200ms rate-limit delay between leads
-    await jest.advanceTimersByTimeAsync(300);
+    jest.advanceTimersByTime(300);
+    await Promise.resolve();
 
     const results = await promise;
 

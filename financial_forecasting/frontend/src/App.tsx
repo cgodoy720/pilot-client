@@ -23,6 +23,9 @@ import WeeklyPriorities from './pages/WeeklyPriorities';
 import MyDashboard from './pages/MyDashboard';
 import NetworkMap from './pages/NetworkMap';
 import GivingCapacity from './pages/GivingCapacity';
+import AutomationReview from './pages/AutomationReview';
+import Research from './pages/Research';
+import DataTools from './pages/DataTools';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -124,11 +127,22 @@ function App() {
                 }
               />
               <Route
-                path="/overview"
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <Overview />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Backward compat: /overview → /dashboard */}
+              <Route
+                path="/overview"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/dashboard" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -144,27 +158,27 @@ function App() {
                 }
               />
               <Route
-                path="/network"
+                path="/automation-review"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <NetworkMap />
+                      <AutomationReview />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/giving-capacity"
+                path="/research"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <GivingCapacity />
+                      <Research />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/revenue"
+                path="/cashflow"
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -174,11 +188,52 @@ function App() {
                 }
               />
               <Route
+                path="/data-tools"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <DataTools />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Legacy routes — redirect to new paths */}
+              <Route
                 path="/cleanup"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Cleanup />
+                      <Navigate to="/data-tools" replace />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/revenue"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/cashflow" replace />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/giving-capacity"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/research" replace />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/network"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/research" replace />
                     </Layout>
                   </ProtectedRoute>
                 }

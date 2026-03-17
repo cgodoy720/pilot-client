@@ -54,7 +54,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('shows generic message when error has no message', () => {
-    function EmptyErrorThrower() {
+    function EmptyErrorThrower(): JSX.Element {
       throw new Error();
     }
 

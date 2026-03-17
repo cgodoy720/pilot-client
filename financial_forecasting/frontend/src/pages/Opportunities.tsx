@@ -9,7 +9,7 @@
  *   - helpers:            pure functions + Opportunity interface
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
@@ -40,6 +40,7 @@ import { apiService } from '../services/api';
 import PaymentScheduleModal from '../components/PaymentScheduleModal';
 import TaskPanel from '../components/TaskPanel';
 import ActivityIntelligencePanel from '../components/ActivityIntelligencePanel';
+import PipelineFilterBar, { PipelineFilters, DEFAULT_FILTERS } from '../components/PipelineFilterBar';
 import { OPPORTUNITY_STAGES, OPEN_STAGES, CLOSED_STAGES } from '../types/salesforce';
 import type { Opportunity } from './Opportunities/helpers';
 import { useOpportunityData, ViewMode } from './Opportunities/useOpportunityData';
@@ -49,6 +50,8 @@ import { SummaryCards } from './Opportunities/SummaryCards';
 const Opportunities: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const searchFromUrl = searchParams.get('search') || '';
 
   // View & filter state
   const [viewMode, setViewMode] = useState<ViewMode>('open');
@@ -56,6 +59,7 @@ const Opportunities: React.FC = () => {
   const [pbcOnly, setPbcOnly] = useState(false);
   const [aijiOnly, setAijiOnly] = useState(false);
   const [initialFilter, setInitialFilter] = useState<'atRisk' | 'stale' | null>(null);
+  const [pipelineFilters, setPipelineFilters] = useState<PipelineFilters>(DEFAULT_FILTERS);
 
   // Selection & bulk actions
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
@@ -264,10 +268,60 @@ const Opportunities: React.FC = () => {
     return opportunities.filter((opp) => (CLOSED_STAGES as readonly string[]).includes(opp.StageName));
   }, [opportunities, viewMode, recentlyChangedIds]);
 
-  let visibleOpps = aijiOnly
-    ? displayOpps.filter((opp) => (opp.Name || '').toUpperCase().includes('AIJI'))
-    : displayOpps;
+  // Apply pipeline filter bar filters
+  let visibleOpps = useMemo(() => {
+    let filtered = displayOpps;
+    const f = pipelineFilters;
 
+    // AIJI toggle
+    if (f.aijiOnly) {
+      filtered = filtered.filter((opp) => (opp.Name || '').toUpperCase().includes('AIJI'));
+    }
+
+    // Owner filter
+    if (f.owners.length > 0) {
+      filtered = filtered.filter((opp) => f.owners.includes(opp.OwnerId));
+    }
+
+    // Stage filter
+    if (f.stages.length > 0) {
+      filtered = filtered.filter((opp) => f.stages.includes(opp.StageName));
+    }
+
+    // Revenue stream (RecordType)
+    if (f.revenueStreams.length > 0) {
+      filtered = filtered.filter((opp) => opp.RecordType?.Name && f.revenueStreams.includes(opp.RecordType.Name));
+    }
+
+    // Amount range
+    if (f.amountRange[0] > 0 || f.amountRange[1] < 50000000) {
+      filtered = filtered.filter((opp) => {
+        const amt = opp.Amount || 0;
+        return amt >= f.amountRange[0] && amt <= f.amountRange[1];
+      });
+    }
+
+    // Close date range
+    if (f.closeDateStart) {
+      filtered = filtered.filter((opp) => opp.CloseDate && opp.CloseDate >= f.closeDateStart);
+    }
+    if (f.closeDateEnd) {
+      filtered = filtered.filter((opp) => opp.CloseDate && opp.CloseDate <= f.closeDateEnd);
+    }
+
+    // Stale toggle (30+ days since last activity)
+    if (f.staleOnly) {
+      const now = new Date();
+      filtered = filtered.filter((opp) => {
+        const lastMod = opp.LastModifiedDate ? parseISO(opp.LastModifiedDate) : parseISO(opp.CreatedDate);
+        return differenceInDays(now, lastMod) > 30;
+      });
+    }
+
+    return filtered;
+  }, [displayOpps, pipelineFilters]);
+
+  // Apply legacy initial filter from Dashboard navigation
   if (initialFilter === 'atRisk') {
     const now = new Date();
     const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
@@ -325,19 +379,21 @@ const Opportunities: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Filters */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-        <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 'bold' }}>Filters:</Typography>
-        <Chip label="Philanthropy Pipeline (Active Only)" onClick={() => { setPhilanthropyOnly(!philanthropyOnly); setPbcOnly(false); setAijiOnly(false); }}
-          color={philanthropyOnly ? 'primary' : 'default'} variant={philanthropyOnly ? 'filled' : 'outlined'} icon={philanthropyOnly ? <CheckIcon /> : undefined} />
-        <Chip label="PBC Pipeline (Active Only)" onClick={() => { setPbcOnly(!pbcOnly); setPhilanthropyOnly(false); setAijiOnly(false); }}
-          color={pbcOnly ? 'secondary' : 'default'} variant={pbcOnly ? 'filled' : 'outlined'} icon={pbcOnly ? <CheckIcon /> : undefined} />
-        <Chip label="AIJI" onClick={() => { setAijiOnly(!aijiOnly); setPhilanthropyOnly(false); setPbcOnly(false); }}
-          color={aijiOnly ? 'info' : 'default'} variant={aijiOnly ? 'filled' : 'outlined'} icon={aijiOnly ? <CheckIcon /> : undefined} />
-        {(philanthropyOnly || pbcOnly || aijiOnly) && (
-          <Button size="small" onClick={() => { setPhilanthropyOnly(false); setPbcOnly(false); setAijiOnly(false); }}>Clear Filters</Button>
-        )}
-      </Box>
+      {/* Pipeline Filter Bar */}
+      <PipelineFilterBar
+        filters={pipelineFilters}
+        onChange={(f) => {
+          setPipelineFilters(f);
+          // Sync legacy flags for data hook
+          setAijiOnly(f.aijiOnly);
+        }}
+        ownerOptions={users.map((u: any) => ({ id: u.Id, name: u.Name }))}
+        revenueStreamOptions={(() => {
+          const streams = new Set<string>();
+          opportunities.forEach((o) => { if (o.RecordType?.Name) streams.add(o.RecordType.Name); });
+          return Array.from(streams).sort();
+        })()}
+      />
 
       {/* Filter alerts */}
       {initialFilter && (
@@ -418,6 +474,9 @@ const Opportunities: React.FC = () => {
                     ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
                     : [{ field: 'CloseDate', sort: 'asc' }],
                 },
+                filter: searchFromUrl
+                  ? { filterModel: { items: [], quickFilterValues: [searchFromUrl] } }
+                  : undefined,
               }}
               filterMode="client"
               sortingMode="client"

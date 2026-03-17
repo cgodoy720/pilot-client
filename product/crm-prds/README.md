@@ -13,14 +13,14 @@
 |-----|-------|-------|-----------------|--------|
 | **01 — Data Model** | Full schema, all entities, all relationships, nonprofit/PBC separation, ID patterns, migration path | MVP | Foundation for all features | Draft (see `entity-map.md`) |
 | **02 — Account & Contact Management** | CRUD, search, org hierarchy, Contact↔Account many-to-many, dedup | MVP | F03, F04, F44 | Not started |
-| **03 — Opportunity Management** | Lifecycle, stages, pipeline views, stale detection, nonprofit vs. PBC | MVP | F01, F02, F05, F06, F07 | Not started |
+| **03 — Opportunity Management** | Lifecycle, stages, pipeline views, stale detection, nonprofit vs. PBC | MVP | F01, F02, F05, F06, F07 | **Draft** (`03-pipeline.md`) |
 | **04 — Payments & Revenue Tracking** | Payment recording, schedules, Opportunity linkage, status tracking, reconciliation fields | Post-MVP | F27, F28, F31 | Not started |
 | **05 — Campaign Management** | Campaign CRUD, Campaign↔Opportunity linkage, attribution reporting | Post-MVP | F32, F33, F23 | Not started |
 | **06 — Reporting & Cash Flow** | Executive dashboard, cash flow projection, revenue by stream, win rate, CSV export | MVP | F19, F20, F21, F22, F24, F25, F26 | Not started |
 | **07 — Sage Integration** | Data contract, invoice push, payment pull, reconciliation sync, error handling | Post-MVP | F29, F30, F39 | Not started |
 | **08 — User Roles & Permissions** | Role definitions, visibility rules, access control | MVP | F42, F43 | Not started |
 | **09 — Salesforce Migration & Sync** | Initial data import, field mapping, transformation rules, validation, ongoing bidirectional sync | MVP | F38, F40, F45 | Partially exists (sync code in `data_sync.py`) |
-| **10 — Weekly Priorities & Tasks** | Weekly view, task CRUD, CSV import, prospect↔grant assignment, notifications | MVP | F09, F10, F11, F12, F13 | Week 1 prototype in progress |
+| **10 — Unified Home Page** | Calendar view, tasks grouped by parent opp, top prospects, stale detection, 14-day window | MVP | F09, F12, F13, F06 | **Draft** (`10-home.md`) |
 | **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, intelligence freshness, AI enrichment | Post-MVP | F14, F15, F16, F17, F18, F47 | Not started |
 | **12 — Activity & Interaction Logging** | Manual logging, Slack ingest, timeline view, transcript pipeline | MVP (manual) / Post-MVP (Slack) | F34, F35, F36, F37 | MCP Client exists for Slack |
 | **13 — Grant Programmatic Requirements** | Grant date range, reporting schedule, program inputs/outputs/outcomes, metrics dashboard | MVP (capture) / Post-MVP (reporting) | F49, F50, F51 | Not started |
@@ -30,7 +30,8 @@
 
 ## Suggested Authoring Order
 
-**MVP first:** 01 (Data Model) → 10 (Weekly Priorities, ship first) → 03 (Opportunity) → 02 (Account/Contact) → 09 (SF Sync) → 06 (Reporting) → 08 (RBAC) → 12 (Activity) → 13 (Grant Requirements) → 14 (Decision Trail)
+**CEO demo focus:** 10 (Home Page) → 03 (Pipeline) — these two are drafted and ready for review.
+**Then MVP:** 01 (Data Model) → 02 (Account/Contact) → 09 (SF Sync) → 06 (Reporting) → 08 (RBAC) → 12 (Activity) → 13 (Grant Requirements) → 14 (Decision Trail)
 **Then Post-MVP:** 04 (Payments) → 07 (Sage) → 05 (Campaign) → 11 (Prospect Intelligence)
 
 ---

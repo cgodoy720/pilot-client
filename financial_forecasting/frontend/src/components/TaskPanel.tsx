@@ -113,6 +113,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
     ActivityDate: '',
     Description: '',
     OwnerId: '',
+    DriveLink: '',
   });
 
   // Edit task form state
@@ -123,6 +124,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
     ActivityDate: '',
     Description: '',
     OwnerId: '',
+    DriveLink: '',
   });
 
   // Fetch tasks for the selected opportunity
@@ -157,7 +159,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
         queryClient.invalidateQueries(['opportunity-tasks', opportunity?.Id]);
         toast.success('Task created!');
         setShowAddForm(false);
-        setNewTask({ Subject: '', Status: 'Not Started', Priority: 'Normal', ActivityDate: '', Description: '', OwnerId: '' });
+        setNewTask({ Subject: '', Status: 'Not Started', Priority: 'Normal', ActivityDate: '', Description: '', OwnerId: '', DriveLink: '' });
       },
       onError: (error: any) => {
         toast.error(`Failed to create task: ${error.message}`);
@@ -215,6 +217,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
       ActivityDate: task.ActivityDate || '',
       Description: task.Description || '',
       OwnerId: task.OwnerId || '',
+      DriveLink: '',
     });
   };
 
@@ -403,10 +406,21 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
               sx={{ mb: 1.5 }}
             />
 
+            <TextField
+              label="Drive Link"
+              placeholder="https://drive.google.com/..."
+              value={newTask.DriveLink}
+              onChange={(e) => setNewTask({ ...newTask, DriveLink: e.target.value })}
+              fullWidth
+              size="small"
+              type="url"
+              sx={{ mb: 1.5 }}
+            />
+
             <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-              <Button 
-                size="small" 
-                onClick={() => { setShowAddForm(false); setNewTask({ Subject: '', Status: 'Not Started', Priority: 'Normal', ActivityDate: '', Description: '', OwnerId: '' }); }}
+              <Button
+                size="small"
+                onClick={() => { setShowAddForm(false); setNewTask({ Subject: '', Status: 'Not Started', Priority: 'Normal', ActivityDate: '', Description: '', OwnerId: '', DriveLink: '' }); }}
                 startIcon={<CancelIcon />}
               >
                 Cancel
@@ -598,6 +612,17 @@ const TaskItem: React.FC<TaskItemProps> = ({
           size="small"
           multiline
           rows={2}
+          sx={{ mb: 1.5 }}
+        />
+
+        <TextField
+          label="Drive Link"
+          placeholder="https://drive.google.com/..."
+          value={editTask.DriveLink}
+          onChange={(e) => setEditTask({ ...editTask, DriveLink: e.target.value })}
+          fullWidth
+          size="small"
+          type="url"
           sx={{ mb: 1.5 }}
         />
 
