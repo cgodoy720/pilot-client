@@ -8,12 +8,10 @@ import {
   Typography,
   Grid,
   Chip,
-  Paper,
   Collapse,
   IconButton,
   Alert,
   Button,
-  CircularProgress,
   LinearProgress,
   TextField,
   ToggleButtonGroup,
@@ -32,7 +30,6 @@ import {
   AttachMoney as MoneyIcon,
   AccountBalance as WeightedIcon,
   Event as EventIcon,
-  FilterList as FilterIcon,
   Inbox as InboxIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';

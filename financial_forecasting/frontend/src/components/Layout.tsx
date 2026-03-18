@@ -36,6 +36,7 @@ import {
   RateReview as ReviewIcon,
   Science as ResearchIcon,
   AccountTree as ProjectsIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BedrockLogo from './BedrockLogo';
@@ -60,6 +61,7 @@ const ALL_MENU_ITEMS = [
   { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
   { text: 'Auto Review', icon: <ReviewIcon />, path: '/automation-review' },
   { text: 'Research', icon: <ResearchIcon />, path: '/research' },
+  { text: 'Pebble', icon: <SearchIcon />, path: '/pebble' },
   { text: 'Cashflow', icon: <AttachMoneyIcon />, path: '/cashflow' },
   { text: 'Projects', icon: <ProjectsIcon />, path: '/projects' },
   { text: 'Data Tools', icon: <ToolsIcon />, path: '/data-tools' },

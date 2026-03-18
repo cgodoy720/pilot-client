@@ -54,9 +54,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const isProduction = process.env.NODE_ENV === 'production';
       if (devBypass && isLocalhost && !isProduction) {
         setUser({
-          email: 'dev@localhost',
-          name: 'Dev User',
-          sub: 'dev-local',
+          email: 'nick.simmons@pursuit.org',
+          name: 'Nick Simmons',
+          sub: 'dev-nick-simmons',
           salesforce_connected: true,
         });
       } else {

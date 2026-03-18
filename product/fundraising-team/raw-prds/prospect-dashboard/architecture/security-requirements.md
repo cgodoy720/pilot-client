@@ -34,6 +34,11 @@ A data breach would damage donor trust, violate privacy expectations, and potent
 - Environment variables loaded at build time via Vite's `import.meta.env`
 - No secrets in client-side JavaScript bundles — Claude API calls should go through a lightweight proxy or serverless function (Phase 2)
 
+### Salesforce connection (current vs target)
+- **Settings already has a Salesforce connection:** Users can connect or disconnect their Salesforce account via OAuth in the app’s Settings page; when connected, their actions are attributed to their Salesforce identity.
+- **Current backend:** The server may still use a **server-side Salesforce config** (e.g. `config.py` / `SALESFORCE_CONFIG`) with shared credentials (username, password, client id/secret) as a fallback when the user has not connected their own Salesforce.
+- **Target:** Eventually **remove the SF config that holds shared secrets** and switch to **user-based Salesforce connection only** where possible (each user connects via OAuth in Settings; backend uses that user’s tokens for API calls). This avoids storing org credentials in config and aligns with per-user attribution. Document any remaining need for a service account (e.g. background sync) separately.
+
 ### Data files
 - LinkedIn CSVs, prospect lists, and Salesforce exports must NEVER be committed to git
 - `.gitignore` must include: `*.csv`, `data/`, `.env`, `.env.local`, `.env.production`

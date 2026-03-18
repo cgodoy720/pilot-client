@@ -18,6 +18,10 @@ Bedrock vision, **unified platform** (Bedrock lives in the learning platform eve
 | **Week 2** | This repo | Pipeline CRM features (Leads tab + enrichment with giving capacity, wealth tier), personal dashboard (Home), network relationship graph (force-directed, LinkedIn CSV import, SF data visualization). Rebrand to “Bedrock.” See `product/fundraising-team/phases/week-2-pipeline-dashboard-network.md`. |
 | **Home page (next)** | This repo | **Customizable home:** calendarized view (day/week/2 weeks) with Google Calendar + matching confirmation; top 5/10/25 prospects by weighted score; Active Comms / Inactive; automation review (weekly). See `product/fundraising-team/phases/home-page-spec.md`. |
 | **Short term** | This repo | **Slack-driven pipeline updates** (bot parses → in-thread confirm → Salesforce; unconfirmed → Automation Review queue); **custom reports** (basic prompts + pre-built filters); **Claude API intelligence** (prospect scoring, suggested actions); **Leads in Salesforce** (SF Lead as system of record; see home-page-spec §6.3). |
+| **AI-writable fields & edit history** | This repo | **Field map:** which fields each object exposes to AI tooling (Task, Chatter, Opportunity, Lead, Contact, Account, Payment); all writes human-confirmed. **Edit history:** running markdown file per object so we know edit history on every record. See `product/fundraising-team/phases/ai-writable-fields-and-edit-history.md`. |
+| **Stage-change checkpoints & rules** | This repo | **Checkpoints:** what must be true before an Opportunity stage or Lead status change (e.g. closed-won requires amount_confirmed). **Rules:** forward/backward moves, who can change, audit. See `product/fundraising-team/phases/stage-change-checkpoints-and-rules.md`. |
+| **Admin view** | This repo | **See other users' activities:** calendar, tasks, pipeline, automation review queue, and activity feed by user (admin role only). Supports oversight, coaching, and handoffs. See § Admin view below. |
+| **Transcript enrichment agent** | This repo / learning platform | **Pre-extraction:** Agent ingests raw Fireflies transcripts and improves them using the knowledge graph, MCP, Drive, and other connectors (correct names/entities, suggest speaker IDs, resolve acronyms) before the transcript is included in the extraction pipeline. See `product/fundraising-team/raw-prds/prospect-dashboard/specs/transcript-pipeline.md` § Transcript enrichment agent. |
 | **Medium term** | This repo → learning platform | Bedrock feature-complete here; begin integration: shared auth, API contracts, data model alignment. |
 | **Long term** | Learning platform | Bedrock lives in unified app; one login, one nav; fundraising and learning data coexist with clear boundaries and shared identity. |
 
@@ -56,9 +60,48 @@ Bedrock vision, **unified platform** (Bedrock lives in the learning platform eve
 
 ---
 
+## Admin view: see other users’ activities
+
+**Goal:** Allow users with an **admin** role to view another user’s home-style activity: their calendar & tasks, top prospects, action items, Active Comms / Inactive, and automation review queue (e.g. “view as Nick” or select user from a list). Supports oversight, coaching, coverage during leave, and handoffs.
+
+**Scope:** Read-only view of the selected user’s data (opportunities they own, their calendar/tasks, their suggested matches and pending automation items). No impersonation for writes; admin actions (e.g. confirming a match on behalf of someone) should be auditable (who did what, when).
+
+**Access:** Gated by role (e.g. `admin` or `fundraising_admin`); align with learning platform’s RBAC when merged. See security-requirements (least privilege, admin/team/executive view).
+
+**Placement:** Dedicated route/screen (e.g. “Team activity” or “View as…”) or admin section in nav; can reuse Home page layout with a user selector and backend filtered by `OwnerId` / user identity.
+
+**References:** `product/fundraising-team/raw-prds/prospect-dashboard/architecture/security-requirements.md`; home-page-spec for data sources (calendar, tasks, prospects, automation review).
+
+---
+
+## AI-writable fields & edit history per object
+
+**Goal:** (1) Know exactly which fields on each object (Opportunity, Lead, Contact, Account, Task, Chatter, Payment) can be **proposed or written by AI** in the app — all such writes require human confirmation. (2) Maintain a **running markdown file per object instance** so we have a clear edit history on every record (who changed what, when, and whether an AI proposal was confirmed or rejected).
+
+**Spec:** `product/fundraising-team/phases/ai-writable-fields-and-edit-history.md` — field map by object, edit-history convention (one file per record, append-only, example format), and implementation notes. Prototype can keep history in DB with markdown export; post-merge align with learning platform audit trail.
+
+---
+
+## Stage-change checkpoints & rules
+
+**Goal:** Before any **Opportunity** stage or **Lead** status change (manual or AI-confirmed), enforce **checkpoints** (e.g. closed-won only if amount_confirmed set) and **rules** (forward/backward moves, who can change, audit). Ensures pipeline hygiene and consistent reporting.
+
+**Spec:** `product/fundraising-team/phases/stage-change-checkpoints-and-rules.md` — Opportunity stage order and checkpoints per target stage; Lead status order and checkpoints; rules for who can change, skipping stages, closed = terminal; implementation checklist. Stage/status changes are always logged in the object’s edit-history file.
+
+---
+
+## Transcript enrichment agent (pre-extraction)
+
+**Goal:** Before raw Fireflies meeting transcripts are fed into the extraction pipeline, a **dedicated agent** improves them by comparing the transcript to the **knowledge graph** (contacts, accounts, opportunities, past meeting extracts) and to **MCP, Drive, and other connectors**. The agent corrects names/entities, suggests speaker IDs from contacts, resolves acronyms, and fixes obvious errors so the **improved transcript** is what gets included in extraction — raising quality of downstream structured extracts.
+
+**Placement:** Phase 4+ with the rest of the meeting transcript pipeline. Spec: `product/fundraising-team/raw-prds/prospect-dashboard/specs/transcript-pipeline.md` (§ Transcript enrichment agent). MCP/Drive connector details TBD per environment.
+
+---
+
 ## Software development standards
 
 - **Secrets:** No keys or tokens in code/git; `.env` + `.gitignore` for env and data files. See `product/fundraising-team/raw-prds/prospect-dashboard/architecture/security-requirements.md`.
+- **Salesforce auth:** A **Salesforce connection exists in Settings** (user OAuth connect/disconnect). The backend may still use a server-side SF config (e.g. `config.py`) with shared credentials as fallback. **Eventually:** remove that SF config with secrets and use **user-based Salesforce connection only** where possible (per-user OAuth from Settings). See security-requirements § Salesforce connection (current vs target).
 - **Version control:** Meaningful commits; agreed branch strategy (e.g. `main` + feature branches).
 - **Docs:** Vision in `product/`; specs in `product/fundraising-team/raw-prds/prospect-dashboard/specs/` and `phases/`; keep changelog/last-updated where relevant.
 - **Done criteria:** Each phase has clear acceptance criteria (e.g. week 1: weekly priority list driven by spreadsheet + grant dates).
@@ -107,4 +150,9 @@ Areas where the current docs are underspecified and would lead to bad or inconsi
 - `product/fundraising-team/phases/week-1-prototype.md` — week 1 spec
 - `product/fundraising-team/phases/slack-data-entry-and-review.md` — Slack + review
 - `product/fundraising-team/phases/custom-reports.md` — custom reports
+- **Admin view** — see § Admin view above (other users’ activities; admin role only)
+- `product/fundraising-team/phases/ai-writable-fields-and-edit-history.md` — AI-writable field map and edit-history markdown per object
+- `product/fundraising-team/phases/stage-change-checkpoints-and-rules.md` — checkpoints and rules for Opportunity stage and Lead status changes
+- `product/fundraising-team/phases/home-page-spec.md` — Home page (calendar, prospects, automation review)
+- `product/fundraising-team/raw-prds/prospect-dashboard/specs/transcript-pipeline.md` — meeting transcript pipeline + transcript enrichment agent (pre-extraction)
 - `product/REQUIREMENTS-GAPS-AND-STRUCTURE.md` — areas requiring more structure before build

@@ -13,6 +13,10 @@
 - For complex problems, throw more compute at it via subagents
 - One task per subagent for focused execution
 
+### 2a. Agent Teams (Claude Code)
+- When using Claude Code for development, prefer Agent Teams for complex multi-step work where parallel exploration adds value: cross-layer coordination, debugging with competing hypotheses, or research across different aspects
+- Enable with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (requires Claude Code v2.1.32+)
+
 ### 3. Self-Improvement Loop
 - After ANY correction from the user: update `tasks/lessons.md` with the pattern
 - Write rules for yourself that prevent the same mistake

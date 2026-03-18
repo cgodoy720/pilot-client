@@ -1,5 +1,6 @@
 # Phases
 
+- **Pebble MVP (1 week):** Prospect research pipeline. Spec: `pebble-mvp-1-week-sprint.md`. Build in new `pebble/` directory. Scaffolds to v2 (Ollama, full agents, Batch API).
 - **Week 1:** Spreadsheet → weekly priority list. Spec: `week-1-prototype.md`. Build in `financial_forecasting/frontend` (see “Where to build” in that spec).
 - **Phase 1 (grants platform):** Opportunity pipeline, leads, tasks. See repo root `PRD.md` and `../raw-prds/prospect-dashboard/specs/` (opportunity-pipeline, leads-tracker, calendar-tasks).
 - **Phase 2 (invoicing/payments):** Invoice creation, payment tracking, Sage. See `PRD.md` (Phase 2 / bookkeeper).

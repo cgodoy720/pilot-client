@@ -16,6 +16,7 @@ import Pipeline from './pages/Pipeline';
 import Settings from './pages/Settings';
 import SalesforceCallback from './pages/SalesforceCallback';
 import MyDashboard from './pages/MyDashboard';
+import Pebble from './pages/Pebble';
 
 // Lazy load non-MVP routes to reduce initial bundle
 const Revenue = lazy(() => import('./pages/Revenue'));
@@ -229,6 +230,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Navigate to="/data-tools" replace />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pebble"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Pebble />
                     </Layout>
                   </ProtectedRoute>
                 }
