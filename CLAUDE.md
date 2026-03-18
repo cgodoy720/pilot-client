@@ -67,6 +67,10 @@ This project will integrate into the Pursuit AI-native learning platform. Keep t
 
 ## Documentation Map
 
+- **Product docs (start here):** `product/README.md` — full hierarchy and reading order
+- **Developer setup:** `financial_forecasting/DEV_SETUP_GUIDE.md` — run locally, env vars, production checklist
+- **Doc hygiene:** `docs/DOCUMENTATION-HYGIENE.md` — where things go, when to update, avoid orphans
+- **Plan index:** `docs/PLAN-INDEX.md` — status of all Cursor plans (completed, open, superseded)
 - **Scope & boundaries:** `product/crm-scope-constitution.md`
 - **Canonical names/enums:** `product/crm-architecture/canonical-definitions.md` (this file governs)
 - **Data model:** `product/crm-architecture/entity-map.md`
@@ -76,4 +80,5 @@ This project will integrate into the Pursuit AI-native learning platform. Keep t
 - **Technical reference:** `product/reference/` (Sage, Salesforce, Slack setup)
 - **Architecture decisions:** `docs/architecture-decisions.md`
 - **Historical PRD:** `PRD.md` (Nov 2025, partially superseded by crm-architecture/)
-- **Archived session artifacts:** `docs/archive/`
+- **Archived product specs:** `product/archive/ARCHIVE-INDEX.md`
+- **Archived session artifacts:** `docs/archive/` (index in docs/archive/README.md)

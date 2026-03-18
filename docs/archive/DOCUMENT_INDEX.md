@@ -1,5 +1,7 @@
 # 📑 Document Index - Grant Lifecycle System
 
+> **Archived (Nov 2025):** This index was for a grant lifecycle discovery session. For current documentation, use **product/README.md** and **CLAUDE.md** Documentation Map. The files in `docs/archive/` are kept for historical reference.
+
 **Quick reference for all documentation**
 
 ---

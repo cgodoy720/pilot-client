@@ -92,66 +92,9 @@ This POC provides a simplified dashboard where:
 
 ## 🔧 Setup & Configuration
 
-### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- Salesforce account with API access
-- Sage Intacct account with API credentials (optional for POC)
+**→ See [DEV_SETUP_GUIDE.md](DEV_SETUP_GUIDE.md)** for step-by-step setup, env vars, and run instructions.
 
-### 1. Backend Setup
-
-```bash
-cd /Users/jacquelinereverand/pursuit-mcp-client
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Configure credentials
-# Edit financial_forecasting/config.py with your credentials
-
-# Current Salesforce config (WORKING):
-# Username: jac@pursuit.org
-# Password: Pursuit1234!
-# Domain: login
-# Org: joinpursuit.my.salesforce.com
-
-# Test Salesforce connection
-python test_simple_auth.py
-
-# Run demo with real data
-python demo_real_data.py
-
-# Start FastAPI backend (when ready)
-cd financial_forecasting
-python -m uvicorn main:app --reload --port 8000
-```
-
-### 2. Frontend Setup
-
-```bash
-cd financial_forecasting/frontend
-
-# Install dependencies
-npm install
-
-# Start development server
-npm start
-
-# Access at http://localhost:3000
-```
-
-### 3. Sage Intacct Setup (Optional)
-
-To complete the full integration, you'll need:
-- Company ID: `pursuit`
-- User ID: `Pursuit Systems`
-- User Password: `Queenstech!23`
-- Sender ID: `pursuit`
-- **Sender Password:** *Still needed*
-
-Get Sender Password from:
-- Setup → Company → Admin → Web Services
-- Or contact your Sage Intacct administrator
+**Prerequisites:** Python 3.8+, Node.js 16+, Salesforce API access, Sage Intacct credentials (optional for POC).
 
 ## 📱 User Workflows
 
