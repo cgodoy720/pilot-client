@@ -20,7 +20,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
+import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -71,6 +74,9 @@ interface DashboardPrefs {
   showWeighted: boolean;
   closeDateRange: CloseDateRange;
   snapshotMode: SnapshotMode;
+  calendarInboxSplit?: number[];
+  taskPanelWidth?: number;
+  taskInboxMaxHeight?: number;
 }
 
 function loadPrefs(): DashboardPrefs {
@@ -78,11 +84,13 @@ function loadPrefs(): DashboardPrefs {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
       const parsed = { filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all', ...JSON.parse(raw) };
-      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 10));
+      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 20));
+      if (parsed.taskPanelWidth != null) parsed.taskPanelWidth = Math.min(800, Math.max(360, parsed.taskPanelWidth));
+      if (parsed.taskInboxMaxHeight != null) parsed.taskInboxMaxHeight = Math.min(600, Math.max(200, parsed.taskInboxMaxHeight));
       return parsed;
     }
   } catch {}
-  return { collapsed: {}, calendarView: 'week', topN: 10, filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all' as SnapshotMode };
+  return { collapsed: {}, calendarView: 'week', topN: 20, filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all' as SnapshotMode };
 }
 
 function savePrefs(prefs: DashboardPrefs) {
@@ -134,6 +142,150 @@ function Section({
         <CardContent sx={{ pt: 0 }}>{children}</CardContent>
       </Collapse>
     </Card>
+  );
+}
+
+// Resizable Calendar + Inbox split (desktop only)
+function CalendarInboxSplit({
+  calNeedsReauth,
+  logout,
+  calendarEvents,
+  calLoading,
+  prefs,
+  toggleSection,
+  setPrefs,
+  priorityOpps,
+  allOpportunities,
+  setTaskPanelOpp,
+  setTaskPanelOpen,
+  inboxTasks,
+  tasksLoading,
+}: {
+  calNeedsReauth: boolean;
+  logout: () => Promise<void>;
+  calendarEvents: CalendarEvent[];
+  calLoading: boolean;
+  prefs: DashboardPrefs;
+  toggleSection: (id: string) => void;
+  setPrefs: React.Dispatch<React.SetStateAction<DashboardPrefs>>;
+  priorityOpps: PriorityOpp[];
+  allOpportunities: any[];
+  setTaskPanelOpp: (o: Opportunity | null) => void;
+  setTaskPanelOpen: (open: boolean) => void;
+  inboxTasks: InboxTask[];
+  tasksLoading: boolean;
+}) {
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: 'pursuit-calendar-inbox-split',
+    storage: typeof window !== 'undefined' ? localStorage : undefined,
+    panelIds: ['calendar', 'inbox'],
+  });
+
+  const handleTaskClick = useCallback(
+    (taskId: string, whatId: string) => {
+      const opp = priorityOpps.find((o) => o.Id === whatId) || allOpportunities.find((o: any) => o.Id === whatId);
+      if (opp) {
+        const mapped: Opportunity = {
+          Id: opp.Id,
+          Name: opp.Name,
+          AccountId: (opp as any).Account?.Id || '',
+          Account: (opp as any).Account ? { Name: (opp as any).Account.Name } : undefined,
+          StageName: opp.StageName,
+          Amount: opp.Amount,
+          Probability: opp.Probability,
+          CloseDate: opp.CloseDate,
+          CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+          LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+          OwnerId: opp.OwnerId || '',
+        };
+        setTaskPanelOpp(mapped);
+        setTaskPanelOpen(true);
+      }
+    },
+    [priorityOpps, allOpportunities, setTaskPanelOpp, setTaskPanelOpen]
+  );
+
+  return (
+    <Group
+      orientation="horizontal"
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
+      style={{ marginBottom: 16, minHeight: 400 }}
+    >
+      <Panel id="calendar" defaultSize={60} minSize={25}>
+        <Section
+          id="calendar"
+          title="Weekly Calendar"
+          icon={<CalendarIcon color="primary" />}
+          collapsed={!!prefs.collapsed['calendar']}
+          onToggle={() => toggleSection('calendar')}
+          badge={
+            calendarEvents.length > 0 ? (
+              <Chip label={`${calendarEvents.length} events`} size="small" />
+            ) : undefined
+          }
+        >
+          {calNeedsReauth && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Calendar access expired. Please{' '}
+              <Button
+                size="small"
+                color="inherit"
+                sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                onClick={() => logout().then(() => {})}
+              >
+                log out and sign in again
+              </Button>{' '}
+              to restore PBD calendar sync.
+            </Alert>
+          )}
+          <WeeklyCalendar
+            events={calendarEvents}
+            loading={calLoading}
+            viewMode={prefs.calendarView}
+            onViewModeChange={(v) => setPrefs((p) => ({ ...p, calendarView: v }))}
+            onTaskClick={handleTaskClick}
+          />
+        </Section>
+      </Panel>
+      <Separator style={{ width: 8, background: 'transparent', cursor: 'col-resize', position: 'relative' }}>
+        <Box
+          component="div"
+          sx={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 4,
+            height: 40,
+            borderRadius: 2,
+            bgcolor: 'divider',
+            '&:hover': { bgcolor: 'primary.main', opacity: 0.5 },
+          }}
+        />
+      </Separator>
+      <Panel id="inbox" defaultSize={40} minSize={25}>
+        <Section
+          id="inbox"
+          title="Task Inbox"
+          icon={<InboxIcon color="primary" />}
+          collapsed={!!prefs.collapsed['inbox']}
+          onToggle={() => toggleSection('inbox')}
+          badge={
+            inboxTasks.filter((t) => t.Status !== 'Completed').length > 0 ? (
+              <Chip label={`${inboxTasks.filter((t) => t.Status !== 'Completed').length} open`} size="small" />
+            ) : undefined
+          }
+        >
+          <TaskInbox
+            tasks={inboxTasks}
+            loading={tasksLoading}
+            maxHeight={prefs.taskInboxMaxHeight ?? 400}
+            onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
+          />
+        </Section>
+      </Panel>
+    </Group>
   );
 }
 
@@ -210,6 +362,8 @@ const MOCK_PRIORITY_OPPS: PriorityOpp[] = [
 
 const MyDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const { user, logout } = useAuth();
   const [prefs, setPrefs] = useState<DashboardPrefs>(loadPrefs);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
@@ -369,6 +523,15 @@ const MyDashboard: React.FC = () => {
   // Map tasks to their parent opportunities
   const sfTasks = useMemo(() => (Array.isArray(tasksData) ? tasksData : []), [tasksData]);
 
+  // Build opp name lookup for calendar tasks
+  const oppNameMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const opp of allOpportunities) {
+      m.set(opp.Id, opp.Name);
+    }
+    return m;
+  }, [allOpportunities]);
+
   // Build calendar events from GCal + SF Tasks
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     const events: CalendarEvent[] = [];
@@ -383,6 +546,7 @@ const MyDashboard: React.FC = () => {
         end: ev.end || '',
         attendees: ev.attendees || [],
         location: ev.location || '',
+        description: ev.description || '',
         type: 'gcal',
       });
     }
@@ -397,11 +561,14 @@ const MyDashboard: React.FC = () => {
         type: 'task',
         priority: task.Priority,
         status: task.Status,
+        description: task.Description || '',
+        opportunityName: task.WhatId ? oppNameMap.get(task.WhatId) || undefined : undefined,
+        whatId: task.WhatId || undefined,
       });
     }
 
     return events;
-  }, [calEventsData, sfTasks]);
+  }, [calEventsData, sfTasks, oppNameMap]);
 
   // Build priority opportunities with tasks attached
   const priorityOpps: PriorityOpp[] = useMemo(() => {
@@ -462,11 +629,12 @@ const MyDashboard: React.FC = () => {
   }, [sfTasks, allOpportunities]);
 
   // Pipeline summary stats — scoped by snapshot mode
+  // For 'priorities': use allFiltered (all that meet filters) so Total/Weighted toggle reflects full set
   const pipelineStats = useMemo(() => {
     let statsOpps: any[];
     switch (prefs.snapshotMode) {
       case 'filtered': statsOpps = filteredOpps.allFiltered; break;
-      case 'priorities': statsOpps = filteredOpps.visible; break;
+      case 'priorities': statsOpps = filteredOpps.allFiltered; break; // all filtered, not just visible top N
       default: statsOpps = myOpenOpps;
     }
     const count = statsOpps.length;
@@ -509,9 +677,9 @@ const MyDashboard: React.FC = () => {
         </Box>
       </Box>
 
-      {/* Row 1: Calendar + Task Inbox side-by-side */}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={prefs.collapsed['inbox'] ? 12 : 7}>
+      {/* Row 1: Calendar + Task Inbox side-by-side (resizable on desktop) */}
+      {prefs.collapsed['inbox'] ? (
+        <Box sx={{ mb: 2 }}>
           <Section
             id="calendar"
             title="Weekly Calendar"
@@ -543,11 +711,112 @@ const MyDashboard: React.FC = () => {
               loading={calLoading}
               viewMode={prefs.calendarView}
               onViewModeChange={setCalendarView}
+              onTaskClick={(taskId, whatId) => {
+                const opp = priorityOpps.find((o) => o.Id === whatId) || allOpportunities.find((o: any) => o.Id === whatId);
+                if (opp) {
+                  const mapped: Opportunity = {
+                    Id: opp.Id,
+                    Name: opp.Name,
+                    AccountId: (opp as any).Account?.Id || '',
+                    Account: (opp as any).Account ? { Name: (opp as any).Account.Name } : undefined,
+                    StageName: opp.StageName,
+                    Amount: opp.Amount,
+                    Probability: opp.Probability,
+                    CloseDate: opp.CloseDate,
+                    CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                    LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+                    OwnerId: opp.OwnerId || '',
+                  };
+                  setTaskPanelOpp(mapped);
+                  setTaskPanelOpen(true);
+                }
+              }}
             />
           </Section>
-        </Grid>
-        {!prefs.collapsed['inbox'] && (
-          <Grid item xs={12} md={5}>
+          <Section
+            id="inbox"
+            title="Task Inbox"
+            icon={<InboxIcon color="primary" />}
+            collapsed={true}
+            onToggle={() => toggleSection('inbox')}
+          >
+            <div />
+          </Section>
+        </Box>
+      ) : isDesktop ? (
+        <CalendarInboxSplit
+          calNeedsReauth={calNeedsReauth}
+          logout={logout}
+          calendarEvents={calendarEvents}
+          calLoading={calLoading}
+          prefs={prefs}
+          toggleSection={toggleSection}
+          setPrefs={setPrefs}
+          priorityOpps={priorityOpps}
+          allOpportunities={allOpportunities}
+          setTaskPanelOpp={setTaskPanelOpp}
+          setTaskPanelOpen={setTaskPanelOpen}
+          inboxTasks={inboxTasks}
+          tasksLoading={tasksLoading}
+        />
+      ) : (
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={12}>
+            <Section
+              id="calendar"
+              title="Weekly Calendar"
+              icon={<CalendarIcon color="primary" />}
+              collapsed={!!prefs.collapsed['calendar']}
+              onToggle={() => toggleSection('calendar')}
+              badge={
+                calendarEvents.length > 0 ? (
+                  <Chip label={`${calendarEvents.length} events`} size="small" />
+                ) : undefined
+              }
+            >
+              {calNeedsReauth && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  Calendar access expired. Please{' '}
+                  <Button
+                    size="small"
+                    color="inherit"
+                    sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                    onClick={() => logout().then(() => {})}
+                  >
+                    log out and sign in again
+                  </Button>{' '}
+                  to restore PBD calendar sync.
+                </Alert>
+              )}
+              <WeeklyCalendar
+                events={calendarEvents}
+                loading={calLoading}
+                viewMode={prefs.calendarView}
+                onViewModeChange={setCalendarView}
+                onTaskClick={(taskId, whatId) => {
+                  const opp = priorityOpps.find((o) => o.Id === whatId) || allOpportunities.find((o: any) => o.Id === whatId);
+                  if (opp) {
+                    const mapped: Opportunity = {
+                      Id: opp.Id,
+                      Name: opp.Name,
+                      AccountId: (opp as any).Account?.Id || '',
+                      Account: (opp as any).Account ? { Name: (opp as any).Account.Name } : undefined,
+                      StageName: opp.StageName,
+                      Amount: opp.Amount,
+                      Probability: opp.Probability,
+                      CloseDate: opp.CloseDate,
+                      CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                      LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+                      OwnerId: opp.OwnerId || '',
+                    };
+                    setTaskPanelOpp(mapped);
+                    setTaskPanelOpen(true);
+                  }
+                }}
+              />
+            </Section>
+          </Grid>
+          <Grid item xs={12}>
             <Section
               id="inbox"
               title="Task Inbox"
@@ -563,25 +832,13 @@ const MyDashboard: React.FC = () => {
               <TaskInbox
                 tasks={inboxTasks}
                 loading={tasksLoading}
-                maxHeight={400}
+                maxHeight={prefs.taskInboxMaxHeight ?? 400}
+                onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
               />
             </Section>
           </Grid>
-        )}
-        {prefs.collapsed['inbox'] && (
-          <Grid item xs={12}>
-            <Section
-              id="inbox"
-              title="Task Inbox"
-              icon={<InboxIcon color="primary" />}
-              collapsed={true}
-              onToggle={() => toggleSection('inbox')}
-            >
-              <div />
-            </Section>
-          </Grid>
-        )}
-      </Grid>
+        </Grid>
+      )}
 
       {/* Row 2: Priority Opportunities */}
       <Section
@@ -653,7 +910,7 @@ const MyDashboard: React.FC = () => {
             inputProps={{ min: 1, max: 50 }}
             sx={{ width: 72 }}
             onBlur={(e) => {
-              const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 10));
+              const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 20));
               e.target.value = String(v);
               setPrefs((p) => ({ ...p, topN: v }));
             }}

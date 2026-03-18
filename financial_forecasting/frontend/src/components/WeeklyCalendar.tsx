@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -12,12 +12,15 @@ import {
   FormControlLabel,
   Popover,
   IconButton,
+  Collapse,
+  Button,
 } from '@mui/material';
 import {
   Event as EventIcon,
   Assignment as TaskIcon,
   Tune as TuneIcon,
   CheckCircle as CheckCircleIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import {
   format,
@@ -37,13 +40,15 @@ export interface CalendarEvent {
   summary: string;
   start: string;
   end?: string;
-  attendees?: string[];
+  attendees?: Array<{ name?: string; email?: string }>;
   location?: string;
+  description?: string;
   type: 'gcal' | 'task';
   opportunityName?: string;
   accountName?: string;
   status?: string;
   priority?: string;
+  whatId?: string;
 }
 
 export interface CalendarSource {
@@ -51,6 +56,7 @@ export interface CalendarSource {
   label: string;
   type: 'gcal' | 'task';
   color: string;
+  iconKey?: 'meeting' | 'task'; // optional; defaults derived from type
 }
 
 interface WeeklyCalendarProps {
@@ -61,6 +67,7 @@ interface WeeklyCalendarProps {
   sources?: CalendarSource[];
   enabledSources?: string[];
   onToggleSource?: (sourceId: string) => void;
+  onTaskClick?: (taskId: string, whatId: string) => void;
 }
 
 const VIEW_DAYS: Record<CalendarViewMode, number> = {
@@ -75,6 +82,12 @@ const DEFAULT_SOURCES: CalendarSource[] = [
 ];
 
 const MAX_VISIBLE_ITEMS = 6;
+const TITLE_TRUNCATE_LEN = 40;
+
+function truncate(str: string, len: number): string {
+  if (!str) return '';
+  return str.length <= len ? str : str.slice(0, len) + '…';
+}
 
 function getTaskBorderColor(ev: CalendarEvent): string {
   if (ev.status === 'Completed') return '#4caf50';
@@ -104,6 +117,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   sources = DEFAULT_SOURCES,
   enabledSources: controlledEnabledSources,
   onToggleSource,
+  onTaskClick,
 }) => {
   const [internalViewMode, setInternalViewMode] = useState<CalendarViewMode>('week');
   const viewMode = controlledViewMode ?? internalViewMode;
@@ -116,6 +130,21 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     : internalEnabled;
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedEventId((prev) => (prev === id ? null : id));
+  }, []);
+
+  const handleTaskEdit = useCallback(
+    (ev: CalendarEvent) => {
+      if (ev.whatId && onTaskClick) {
+        onTaskClick(ev.id, ev.whatId);
+        setExpandedEventId(null);
+      }
+    },
+    [onTaskClick]
+  );
 
   const handleViewChange = (_: any, newMode: CalendarViewMode | null) => {
     if (!newMode) return;
@@ -257,7 +286,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                 variant="outlined"
                 sx={{
                   p: 1,
-                  minHeight: 110,
+                  minHeight: 160,
                   bgcolor: today ? 'primary.50' : 'background.paper',
                   borderColor: today ? 'primary.main' : 'divider',
                   borderWidth: today ? 2 : 1,
@@ -291,27 +320,18 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
                 {/* Meetings */}
                 {meetingsToShow.length > 0 && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: tasks.length > 0 ? 0.75 : 0 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: tasksToShow.length > 0 ? 0.75 : 0 }}>
                     {meetingsToShow.map((ev, i) => {
                       const time = formatTime(ev.start);
                       const endTime = ev.end ? formatTime(ev.end) : '';
+                      const isExpanded = expandedEventId === ev.id;
+                      const attendeeNames = (ev.attendees || [])
+                        .map((a: any) => a.name || a.email).filter(Boolean).slice(0, 5);
+                      const attendeeCount = (ev.attendees || []).length;
                       return (
-                        <Tooltip
-                          key={ev.id + i}
-                          title={
-                            <Box>
-                              <Typography variant="body2" fontWeight={600}>{ev.summary}</Typography>
-                              {time && <Typography variant="caption">{time}{endTime ? ` – ${endTime}` : ''}</Typography>}
-                              {ev.location && <Typography variant="caption" display="block">{ev.location}</Typography>}
-                              {ev.accountName && <Typography variant="caption" display="block">Account: {ev.accountName}</Typography>}
-                              {ev.attendees && ev.attendees.length > 0 && (
-                                <Typography variant="caption" display="block">{ev.attendees.length} attendee{ev.attendees.length > 1 ? 's' : ''}</Typography>
-                              )}
-                            </Box>
-                          }
-                          arrow
-                        >
+                        <Box key={ev.id + i}>
                           <Box
+                            onClick={() => toggleExpand(ev.id)}
                             sx={{
                               display: 'flex',
                               alignItems: 'center',
@@ -326,19 +346,72 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                               '&:hover': { bgcolor: `${meetingColor}22` },
                             }}
                           >
-                            <EventIcon sx={{ fontSize: 12, color: meetingColor }} />
+                            <Tooltip title="Meeting">
+                              <EventIcon sx={{ fontSize: 18, color: meetingColor }} />
+                            </Tooltip>
                             <Box sx={{ minWidth: 0, flex: 1 }}>
-                              <Typography variant="caption" noWrap sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.2, display: 'block' }}>
-                                {ev.summary}
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  lineHeight: 1.2,
+                                  display: 'block',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {truncate(ev.summary, TITLE_TRUNCATE_LEN)}
                               </Typography>
                               {time && (
-                                <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1 }}>
+                                <Typography variant="caption" noWrap sx={{ fontSize: '0.7rem', color: 'text.secondary', lineHeight: 1 }}>
                                   {time}{endTime ? ` – ${endTime}` : ''}
                                 </Typography>
                               )}
                             </Box>
                           </Box>
-                        </Tooltip>
+                          <Collapse in={isExpanded}>
+                            <Box sx={{ pl: 2, pr: 0.5, py: 0.5, mb: 0.5, borderLeft: `2px solid ${meetingColor}40` }}>
+                              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
+                                {ev.summary}
+                              </Typography>
+                              {time && (
+                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
+                                  {time}{endTime ? ` – ${endTime}` : ''}
+                                </Typography>
+                              )}
+                              {ev.location && (
+                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
+                                  {ev.location}
+                                </Typography>
+                              )}
+                              {ev.description && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontSize: '0.75rem',
+                                    lineHeight: 1.4,
+                                    mt: 0.5,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 4,
+                                    WebkitBoxOrient: 'vertical',
+                                  }}
+                                >
+                                  {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
+                                </Typography>
+                              )}
+                              {attendeeCount > 0 && (
+                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                                  {attendeeNames.join(', ')}
+                                  {attendeeCount > 5 ? ` +${attendeeCount - 5} more` : ''}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Collapse>
+                        </Box>
                       );
                     })}
                   </Box>
@@ -346,24 +419,16 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
                 {/* Tasks */}
                 {tasksToShow.length > 0 && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                     {tasksToShow.map((ev, i) => {
                       const borderColor = getTaskBorderColor(ev);
                       const isCompleted = ev.status === 'Completed';
+                      const isExpanded = expandedEventId === ev.id;
+                      const canEdit = ev.whatId && onTaskClick;
                       return (
-                        <Tooltip
-                          key={ev.id + i}
-                          title={
-                            <Box>
-                              <Typography variant="body2" fontWeight={600}>{ev.summary}</Typography>
-                              {ev.status && <Typography variant="caption">Status: {ev.status}</Typography>}
-                              {ev.priority && <Typography variant="caption" display="block">Priority: {ev.priority}</Typography>}
-                              {ev.opportunityName && <Typography variant="caption" display="block">Opp: {ev.opportunityName}</Typography>}
-                            </Box>
-                          }
-                          arrow
-                        >
+                        <Box key={ev.id + i}>
                           <Box
+                            onClick={() => toggleExpand(ev.id)}
                             sx={{
                               display: 'flex',
                               alignItems: 'center',
@@ -380,24 +445,83 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                             }}
                           >
                             {isCompleted ? (
-                              <CheckCircleIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                              <Tooltip title="Task (completed)">
+                                <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                              </Tooltip>
                             ) : (
-                              <TaskIcon sx={{ fontSize: 12, color: borderColor }} />
+                              <Tooltip title="Task">
+                                <TaskIcon sx={{ fontSize: 18, color: borderColor }} />
+                              </Tooltip>
                             )}
-                            <Typography
-                              variant="caption"
-                              noWrap
-                              sx={{
-                                fontSize: '0.7rem',
-                                lineHeight: 1.2,
-                                textDecoration: isCompleted ? 'line-through' : 'none',
-                                color: isCompleted ? 'text.secondary' : 'text.primary',
-                              }}
-                            >
-                              {ev.summary}
-                            </Typography>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  fontSize: '0.8rem',
+                                  lineHeight: 1.2,
+                                  textDecoration: isCompleted ? 'line-through' : 'none',
+                                  color: isCompleted ? 'text.secondary' : 'text.primary',
+                                  display: 'block',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {truncate(ev.summary, TITLE_TRUNCATE_LEN)}
+                              </Typography>
+                              {ev.status && (
+                                <Chip
+                                  label={ev.status}
+                                  size="small"
+                                  sx={{ height: 16, fontSize: '0.65rem', mt: 0.25 }}
+                                />
+                              )}
+                            </Box>
                           </Box>
-                        </Tooltip>
+                          <Collapse in={isExpanded}>
+                            <Box sx={{ pl: 2, pr: 0.5, py: 0.5, mb: 0.5, borderLeft: `2px solid ${borderColor}80` }}>
+                              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
+                                {ev.summary}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                                {ev.status && <Chip label={ev.status} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                                {ev.priority && <Chip label={ev.priority} size="small" sx={{ height: 20, fontSize: '0.7rem' }} variant="outlined" />}
+                              </Box>
+                              {ev.opportunityName && (
+                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
+                                  Opp: {ev.opportunityName}
+                                </Typography>
+                              )}
+                              {ev.description && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontSize: '0.75rem',
+                                    lineHeight: 1.4,
+                                    mt: 0.5,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 4,
+                                    WebkitBoxOrient: 'vertical',
+                                  }}
+                                >
+                                  {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
+                                </Typography>
+                              )}
+                              {canEdit && (
+                                <Button
+                                  size="small"
+                                  startIcon={<EditIcon sx={{ fontSize: 14 }} />}
+                                  onClick={(e) => { e.stopPropagation(); handleTaskEdit(ev); }}
+                                  sx={{ mt: 0.5, fontSize: '0.75rem', minWidth: 0, px: 1 }}
+                                >
+                                  Edit in panel
+                                </Button>
+                              )}
+                            </Box>
+                          </Collapse>
+                        </Box>
                       );
                     })}
                   </Box>
