@@ -49,7 +49,7 @@
 | F15 | **Prospect → Opportunity conversion** | Partnerships IC | Prospect, Opportunity | Both | Post-MVP | F14, F01 |
 | F16 | **Network search** (LinkedIn CSV × prospect list fuzzy match) | Partnerships IC | NetworkMatch, Contact | N/A | Post-MVP | F04, F10 |
 | F17 | **Prospect scoring** (composite score from wealth tier, network, engagement) | Partnerships IC | Contact, NetworkMatch | N/A | Post-MVP | F16 |
-| F18 | **AI prospect intelligence** (Claude API enrichment) | Partnerships IC | Contact, Prospect | N/A | Backlog | F17, Integration #7 |
+| F18 | **AI prospect intelligence** (Pebble research integration) | Partnerships IC | Contact, Prospect | N/A | Backlog | F17, Integration #9 |
 | F47 | **Intelligence freshness tracking** (auto-downgrade confidence after 90 days; flag stale scores) | Partnerships IC | Contact | N/A | Post-MVP | F17 |
 | F48 | **Decision audit trail** (log pursue/pass/deprioritize decisions with rationale and intelligence snapshot) | Partnerships IC, Executive | Decision, Prospect, Opportunity | Both | MVP | F01 |
 

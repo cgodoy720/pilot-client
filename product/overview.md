@@ -41,7 +41,7 @@ Each new feature—whether it is a grant workflow, a prospecting tool, or a repo
 The end state is **one clean platform** (we call it **Bedrock**) that combines:
 
 - **CRM** — Contacts, accounts, opportunities, pipeline stages, and relationship history in one place.
-- **Research tools** — LinkedIn network cross-reference, prospect scoring, HNWI matching, and suggested intro paths so the team knows who to focus on and how to reach them.
+- **Research tools** — Pebble powers research; Bedrock displays it. LinkedIn network cross-reference, prospect scoring, HNWI matching, and suggested intro paths so the team knows who to focus on and how to reach them. Pebble is the source of truth; Bedrock consumes via API.
 - **Reporting** — Dashboards, cash-flow projections, executive views, and board-ready outputs, all driven by the same data.
 
 **Integration strategy:** The existing build in this repo (the app that already connects to Salesforce and Sage Intacct) is the integration point. We do not maintain two separate products. We:
