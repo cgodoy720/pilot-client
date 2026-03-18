@@ -36,6 +36,7 @@ import {
   Home as HomeIcon,
   HolidayVillage as BedrockIcon,
   Timeline as TimelineIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
@@ -56,6 +57,7 @@ const menuItems = [
   { text: 'Overview', icon: <DashboardIcon />, path: '/overview' },
   { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
   { text: 'Network', icon: <TimelineIcon />, path: '/network' },
+  { text: 'Pebble', icon: <SearchIcon />, path: '/pebble' },
   { text: 'Revenue', icon: <AttachMoneyIcon />, path: '/revenue' },
   { text: 'Cleanup', icon: <CleaningServicesIcon />, path: '/cleanup' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },

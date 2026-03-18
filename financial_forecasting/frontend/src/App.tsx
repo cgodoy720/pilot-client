@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
+import { CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 
@@ -18,9 +18,9 @@ import NewOpportunity from './pages/NewOpportunity';
 import PaymentSchedule from './pages/PaymentSchedule';
 import Settings from './pages/Settings';
 import SalesforceCallback from './pages/SalesforceCallback';
-import WeeklyPriorities from './pages/WeeklyPriorities';
 import MyDashboard from './pages/MyDashboard';
 import NetworkMap from './pages/NetworkMap';
+import Pebble from './pages/Pebble';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -146,6 +146,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <NetworkMap />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pebble"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Pebble />
                     </Layout>
                   </ProtectedRoute>
                 }

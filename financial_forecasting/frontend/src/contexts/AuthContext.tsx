@@ -46,9 +46,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Dev bypass: if auth fails locally, use a mock user so we can work without Google OAuth
       if (window.location.hostname === 'localhost') {
         setUser({
-          email: 'dev@localhost',
-          name: 'Dev User',
-          sub: 'dev-local',
+          email: 'nick.simmons@pursuit.org',
+          name: 'Nick Simmons',
+          sub: 'dev-nick-simmons',
           salesforce_connected: true,
         });
       } else {

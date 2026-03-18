@@ -1,0 +1,45 @@
+"""Profile and claim schemas. Every claim must have source_url (CLAUDE.md Rule 9)."""
+
+from pydantic import BaseModel, Field
+
+
+class Claim(BaseModel):
+    """A single claim with required source URL."""
+
+    text: str
+    source_url: str = Field(..., description="Required. Every claim must have a source URL.")
+    confidence: str = Field(default="medium", pattern="^(high|medium|low)$")
+
+
+class Profile(BaseModel):
+    """Research profile for a prospect."""
+
+    claims: list[Claim] = Field(default_factory=list)
+    summary: str = ""
+    confidence_score: str = Field(default="medium", pattern="^(high|medium|low)$")
+    partial: bool = Field(default=False, description="True if some agents failed")
+    failed_agents: list[str] = Field(default_factory=list)
+
+
+class ProspectInput(BaseModel):
+    """Minimal prospect for research request."""
+
+    id: str
+    first_name: str = ""
+    last_name: str = ""
+    organization: str = ""
+    ein: str | None = None
+
+
+class ResearchRequest(BaseModel):
+    """Request body for POST /api/v1/research/request."""
+
+    contact_ids: list[str] = Field(..., min_length=1)
+    prospects: list[ProspectInput] | None = None  # Optional; if not provided, use contact_ids as stub IDs
+
+
+class ResearchFeedback(BaseModel):
+    """Request body for POST /api/v1/research/feedback."""
+
+    claim_id: str
+    correct: bool

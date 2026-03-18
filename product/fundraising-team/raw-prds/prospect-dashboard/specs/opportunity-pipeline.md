@@ -23,6 +23,7 @@ A visual Kanban board of all active fundraising opportunities across Pursuit's n
 **Kanban board:**
 - Configurable stages: Identified → Qualified → Proposal Sent → In Negotiation → Verbal Commit → Closed Won / Closed Lost
 - Drag-and-drop between stages (dnd-kit)
+- **Stage-change checkpoints:** Before applying a stage change, enforce checkpoints per `product/fundraising-team/phases/stage-change-checkpoints-and-rules.md` (e.g. Closed Won requires amount_confirmed); block or warn and log in edit history
 - Distinguish nonprofit donations from PBC contracts visually (color or badge)
 
 **Opportunity cards display:**
