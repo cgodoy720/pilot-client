@@ -14,4 +14,4 @@ Index of deferred specs (not needed for MVP — kept for later). Grep for ARCHIV
 
 **Planning docs:** `product/archive/*-plan.md` — one per feature for when to wire in.
 
-**Note:** Nav hides these when `REACT_APP_NAV_PHASE=MVP`. Routes stay. No spec files moved yet — index documents the deferred features.
+**Note:** Nav defaults to MVP (4 items). Set `REACT_APP_NAV_PHASE=FULL` to show all pages. Routes stay. No spec files moved yet — index documents the deferred features.

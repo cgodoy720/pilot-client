@@ -1621,6 +1621,65 @@ async def delete_task(task_id: str, request: Request = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/salesforce/my-tasks")
+async def get_my_tasks(
+    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(200, le=500),
+):
+    """Get Salesforce Tasks linked to Opportunities, in date range. Used by Priorities page."""
+    try:
+        if start and not _re.match(r"^\d{4}-\d{2}-\d{2}$", start):
+            raise HTTPException(status_code=400, detail="start must be YYYY-MM-DD")
+        if end and not _re.match(r"^\d{4}-\d{2}-\d{2}$", end):
+            raise HTTPException(status_code=400, detail="end must be YYYY-MM-DD")
+        # Default range when omitted: 90 days back, 180 days forward
+        today = date.today()
+        if not start:
+            start = str(today - timedelta(days=90))
+        if not end:
+            end = str(today + timedelta(days=180))
+        if start > end:
+            raise HTTPException(status_code=400, detail="start must be before or equal to end")
+        sf = get_salesforce()
+        where_clauses = ["IsClosed = false", "WhatId != null"]
+        where_clauses.append(f"ActivityDate >= {start}")
+        where_clauses.append(f"ActivityDate <= {end}")
+        where_sql = " AND ".join(where_clauses)
+        query = f"""
+        SELECT Id, Subject, Status, Priority, ActivityDate, Description, WhatId,
+               OwnerId, Owner.Name, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE {where_sql}
+        ORDER BY ActivityDate ASC NULLS LAST, CreatedDate DESC
+        LIMIT {limit}
+        """
+        result = sf.query_all(query)
+        records = result.get("records", [])
+        formatted = []
+        for task in records:
+            formatted.append({
+                "Id": task.get("Id"),
+                "Subject": task.get("Subject"),
+                "Status": task.get("Status"),
+                "Priority": task.get("Priority"),
+                "ActivityDate": task.get("ActivityDate"),
+                "Description": task.get("Description"),
+                "WhatId": task.get("WhatId"),
+                "OwnerId": task.get("OwnerId"),
+                "Owner": {"Name": task.get("Owner", {}).get("Name")} if task.get("Owner") else None,
+                "OwnerName": task.get("Owner", {}).get("Name") if task.get("Owner") else None,
+                "CreatedDate": task.get("CreatedDate"),
+                "LastModifiedDate": task.get("LastModifiedDate"),
+            })
+        return {"data": formatted, "meta": {"count": len(formatted)}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching my-tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Salesforce - Users
 @app.get("/api/salesforce/users")
 async def get_users(limit: int = 1000):
@@ -3331,9 +3390,9 @@ async def get_my_calendar_events(
                 "orderBy": "startTime",
             }
             if start:
-                params["timeMin"] = start if start.endswith("Z") else start + "Z"
+                params["timeMin"] = start if "T" in start else f"{start}T00:00:00Z"
             if end:
-                params["timeMax"] = end if end.endswith("Z") else end + "Z"
+                params["timeMax"] = end if "T" in end else f"{end}T23:59:59Z"
 
             result = service.events().list(**params).execute()
             return result.get("items", [])

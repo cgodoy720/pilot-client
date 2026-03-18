@@ -78,8 +78,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // MVP nav: show Priorities, Dashboard, Pipeline, Settings when REACT_APP_NAV_PHASE=MVP
-  const navPhase = process.env.REACT_APP_NAV_PHASE || 'FULL';
+  // MVP nav: show Priorities, Dashboard, Pipeline, Settings. Set REACT_APP_NAV_PHASE=FULL for all pages.
+  const navPhase = process.env.REACT_APP_NAV_PHASE || 'MVP';
   const menuItems = useMemo(() => {
     if (navPhase === 'MVP') {
       return ALL_MENU_ITEMS.filter((item) => MVP_PATHS.has(item.path));
