@@ -160,6 +160,7 @@ function CalendarInboxSplit({
   setTaskPanelOpen,
   inboxTasks,
   tasksLoading,
+  currentUserId,
 }: {
   calNeedsReauth: boolean;
   logout: () => Promise<void>;
@@ -174,6 +175,7 @@ function CalendarInboxSplit({
   setTaskPanelOpen: (open: boolean) => void;
   inboxTasks: InboxTask[];
   tasksLoading: boolean;
+  currentUserId?: string | null;
 }) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'pursuit-calendar-inbox-split',
@@ -281,6 +283,7 @@ function CalendarInboxSplit({
             tasks={inboxTasks}
             loading={tasksLoading}
             maxHeight={prefs.taskInboxMaxHeight ?? 400}
+            currentUserId={currentUserId}
             onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
           />
         </Section>
@@ -758,6 +761,7 @@ const MyDashboard: React.FC = () => {
           setTaskPanelOpen={setTaskPanelOpen}
           inboxTasks={inboxTasks}
           tasksLoading={tasksLoading}
+          currentUserId={user?.salesforce_user_id}
         />
       ) : (
         <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -833,6 +837,7 @@ const MyDashboard: React.FC = () => {
                 tasks={inboxTasks}
                 loading={tasksLoading}
                 maxHeight={prefs.taskInboxMaxHeight ?? 400}
+                currentUserId={user?.salesforce_user_id}
                 onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
               />
             </Section>
@@ -919,6 +924,10 @@ const MyDashboard: React.FC = () => {
             }}
           />
         </Box>
+
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+          Ranked by strategic value (Amount × Probability)
+        </Typography>
 
         {priorityOpps.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
