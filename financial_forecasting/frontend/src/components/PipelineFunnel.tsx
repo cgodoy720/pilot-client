@@ -1,0 +1,543 @@
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Collapse,
+  ToggleButton,
+  ToggleButtonGroup,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  CircularProgress,
+  Tooltip,
+  Button,
+  Link,
+} from '@mui/material';
+import {
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Warning as StagnantIcon,
+  AutoAwesome as AnalyzeIcon,
+} from '@mui/icons-material';
+import { useQuery, useQueryClient } from 'react-query';
+import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import { formatDollarMillions } from '../utils/formatters';
+import { getStageHexColor } from '../types/salesforce';
+import { apiService } from '../services/api';
+
+const ACTIVE_FUNNEL_STAGES = [
+  'Lead Gen',
+  'New Lead',
+  'Qualifying',
+  'Design / Proposal Creation',
+  'Proposal Negotiation',
+  'Contract Creation',
+  'Negotiating Contract',
+  'Collecting / In Effect',
+] as const;
+
+type DateRange = '7d' | '30d' | '90d';
+const DAYS_MAP: Record<DateRange, number> = { '7d': 7, '30d': 30, '90d': 90 };
+
+const STAGE_IDX = new Map<string, number>(ACTIVE_FUNNEL_STAGES.map((s, i) => [s, i]));
+
+interface Opportunity {
+  Id: string;
+  Name: string;
+  StageName: string;
+  Amount: number;
+  Probability: number;
+  CloseDate: string;
+}
+
+interface StageChange {
+  OpportunityId: string;
+  OpportunityName: string;
+  Amount: number;
+  CurrentStage: string;
+  OldValue: string;
+  NewValue: string;
+  CreatedDate: string;
+}
+
+interface StageMovement {
+  opportunityId: string;
+  opportunityName: string;
+  amount: number;
+  fromStage: string;
+  toStage: string;
+  direction: 'forward' | 'backward';
+  changedDate: string;
+}
+
+interface FunnelLayer {
+  stage: string;
+  count: number;
+  totalAmount: number;
+  advancedIn: StageMovement[];
+  retreatedIn: StageMovement[];
+  advancedOut: StageMovement[];
+  retreatedOut: StageMovement[];
+  throughput: number;
+  stagnation: number;
+}
+
+interface PipelineFunnelProps {
+  opportunities: Opportunity[];
+}
+
+function isForward(from: string, to: string): boolean {
+  const fi = STAGE_IDX.get(from) ?? -1;
+  const ti = STAGE_IDX.get(to) ?? -1;
+  return ti > fi;
+}
+
+function formatChangeDate(iso: string): string {
+  try {
+    return format(parseISO(iso), 'MMM d');
+  } catch {
+    return '';
+  }
+}
+
+function buildFunnelData(opps: Opportunity[], history: StageChange[]): FunnelLayer[] {
+  const stageMap = new Map<string, {
+    count: number; total: number;
+    advancedIn: StageMovement[]; retreatedIn: StageMovement[];
+    advancedOut: StageMovement[]; retreatedOut: StageMovement[];
+  }>();
+
+  for (const stage of ACTIVE_FUNNEL_STAGES) {
+    stageMap.set(stage, { count: 0, total: 0, advancedIn: [], retreatedIn: [], advancedOut: [], retreatedOut: [] });
+  }
+
+  for (const opp of opps) {
+    const entry = stageMap.get(opp.StageName);
+    if (entry) {
+      entry.count++;
+      entry.total += opp.Amount || 0;
+    }
+  }
+
+  const seen = new Set<string>();
+  for (const change of history) {
+    const key = `${change.OpportunityId}:${change.OldValue}->${change.NewValue}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const forward = isForward(change.OldValue, change.NewValue);
+    const movement: StageMovement = {
+      opportunityId: change.OpportunityId,
+      opportunityName: change.OpportunityName || 'Unknown',
+      amount: change.Amount || 0,
+      fromStage: change.OldValue,
+      toStage: change.NewValue,
+      direction: forward ? 'forward' : 'backward',
+      changedDate: change.CreatedDate || '',
+    };
+
+    const fromEntry = stageMap.get(change.OldValue);
+    const toEntry = stageMap.get(change.NewValue);
+
+    if (forward) {
+      if (fromEntry) fromEntry.advancedOut.push(movement);
+      if (toEntry) toEntry.advancedIn.push(movement);
+    } else {
+      if (fromEntry) fromEntry.retreatedOut.push(movement);
+      if (toEntry) toEntry.retreatedIn.push(movement);
+    }
+  }
+
+  return ACTIVE_FUNNEL_STAGES.map((stage) => {
+    const e = stageMap.get(stage)!;
+    const totalActivity = e.advancedIn.length + e.advancedOut.length + e.retreatedIn.length + e.retreatedOut.length;
+    return {
+      stage,
+      count: e.count,
+      totalAmount: e.total,
+      advancedIn: e.advancedIn,
+      retreatedIn: e.retreatedIn,
+      advancedOut: e.advancedOut,
+      retreatedOut: e.retreatedOut,
+      throughput: e.advancedOut.length,
+      stagnation: e.count > 0 && totalActivity === 0 ? e.count : 0,
+    };
+  });
+}
+
+interface FlowRow {
+  opportunityId: string;
+  opportunityName: string;
+  amount: number;
+  label: string;
+  stage: string;
+  changedDate: string;
+}
+
+function buildProgressingRows(layer: FunnelLayer): FlowRow[] {
+  const rows: FlowRow[] = [];
+  for (const m of layer.advancedOut) {
+    rows.push({ opportunityId: m.opportunityId, opportunityName: m.opportunityName, amount: m.amount, label: 'Advanced to', stage: m.toStage, changedDate: m.changedDate });
+  }
+  for (const m of layer.advancedIn) {
+    rows.push({ opportunityId: m.opportunityId, opportunityName: m.opportunityName, amount: m.amount, label: 'Entered from', stage: m.fromStage, changedDate: m.changedDate });
+  }
+  return rows;
+}
+
+function buildSetbackRows(layer: FunnelLayer): FlowRow[] {
+  const rows: FlowRow[] = [];
+  for (const m of layer.retreatedIn) {
+    rows.push({ opportunityId: m.opportunityId, opportunityName: m.opportunityName, amount: m.amount, label: 'Returned from', stage: m.fromStage, changedDate: m.changedDate });
+  }
+  for (const m of layer.retreatedOut) {
+    rows.push({ opportunityId: m.opportunityId, opportunityName: m.opportunityName, amount: m.amount, label: 'Fell back to', stage: m.toStage, changedDate: m.changedDate });
+  }
+  return rows;
+}
+
+const PipelineFunnel: React.FC<PipelineFunnelProps> = ({ opportunities }) => {
+  const [dateRange, setDateRange] = useState<DateRange>('30d');
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
+
+  const days = DAYS_MAP[dateRange];
+
+  const { data: historyData, isLoading: historyLoading } = useQuery(
+    ['stage-history', days],
+    async () => {
+      const response = await apiService.getStageHistory(days);
+      return (response.data || []) as StageChange[];
+    },
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  const history = useMemo(() => historyData || [], [historyData]);
+
+  const filteredOpps = useMemo(
+    () => opportunities.filter((opp) => ACTIVE_FUNNEL_STAGES.includes(opp.StageName as any)),
+    [opportunities],
+  );
+
+  const funnel = useMemo(() => buildFunnelData(filteredOpps, history), [filteredOpps, history]);
+
+  const maxCount = Math.max(...funnel.map((l) => l.count), 1);
+
+  const queryClient = useQueryClient();
+  const [analysisRequested, setAnalysisRequested] = useState(false);
+
+  const { data: analysisData, isLoading: analysisLoading, isFetching: analysisFetching } = useQuery(
+    ['pipeline-analysis', days],
+    async () => {
+      const response = await apiService.analyzePipeline(days);
+      return response.data as { analysis: string; generated_at: string; changes_count: number; days: number };
+    },
+    {
+      enabled: analysisRequested,
+      staleTime: 10 * 60 * 1000,
+      cacheTime: 30 * 60 * 1000,
+    }
+  );
+
+  const handleAnalyze = useCallback(() => {
+    setAnalysisRequested(true);
+    queryClient.invalidateQueries(['pipeline-analysis', days]);
+  }, [days, queryClient]);
+
+  const handleRegenerate = useCallback(() => {
+    queryClient.invalidateQueries(['pipeline-analysis', days]);
+  }, [days, queryClient]);
+
+  const analysisAge = useMemo(() => {
+    if (!analysisData?.generated_at) return '';
+    try {
+      return formatDistanceToNow(parseISO(analysisData.generated_at), { addSuffix: true });
+    } catch {
+      return '';
+    }
+  }, [analysisData]);
+
+  return (
+    <Card sx={{ mb: 2 }}>
+      <CardContent sx={{ pb: '16px !important' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Pipeline Flow</Typography>
+            {historyLoading && <CircularProgress size={16} />}
+          </Box>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={dateRange}
+            onChange={(_, v) => v && setDateRange(v)}
+          >
+            <ToggleButton value="7d" sx={{ textTransform: 'none', fontSize: '0.75rem', px: 1.5 }}>7d</ToggleButton>
+            <ToggleButton value="30d" sx={{ textTransform: 'none', fontSize: '0.75rem', px: 1.5 }}>30d</ToggleButton>
+            <ToggleButton value="90d" sx={{ textTransform: 'none', fontSize: '0.75rem', px: 1.5 }}>90d</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {funnel.map((layer, idx) => {
+            const widthPct = Math.max((layer.count / maxCount) * 100, 20);
+            const isExpanded = expandedStage === layer.stage;
+            const color = getStageHexColor(layer.stage);
+            const progressingCount = layer.advancedIn.length + layer.advancedOut.length;
+            const setbackCount = layer.retreatedIn.length + layer.retreatedOut.length;
+            const hasActivity = progressingCount + setbackCount > 0;
+            const net = progressingCount - setbackCount;
+
+            const progressingRows = isExpanded ? buildProgressingRows(layer) : [];
+            const setbackRows = isExpanded ? buildSetbackRows(layer) : [];
+
+            return (
+              <Box key={layer.stage}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'action.hover' },
+                    borderRadius: 1,
+                    py: 0.75,
+                    px: 1,
+                  }}
+                  onClick={() => setExpandedStage(isExpanded ? null : layer.stage)}
+                >
+                  <Box sx={{ width: '45%', pr: 2 }}>
+                    <Box
+                      sx={{
+                        width: `${widthPct}%`,
+                        minWidth: 80,
+                        height: 32,
+                        bgcolor: color,
+                        borderRadius: '4px 16px 16px 4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        px: 1.5,
+                        transition: 'width 0.3s ease',
+                        boxShadow: `0 1px 3px ${color}40`,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        noWrap
+                        sx={{ color: '#fff', fontWeight: 600, fontSize: '0.72rem' }}
+                      >
+                        {layer.stage}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, justifyContent: 'flex-end' }}>
+                    <Tooltip title={`${layer.count} opportunities currently in ${layer.stage}`} arrow>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'right', cursor: 'default' }}>
+                        {layer.count} opps
+                      </Typography>
+                    </Tooltip>
+
+                    <Tooltip title={`Sum of Amount for all ${layer.count} opps in ${layer.stage}`} arrow>
+                      <Typography variant="caption" sx={{ fontWeight: 700, textAlign: 'right', cursor: 'default' }}>
+                        {formatDollarMillions(layer.totalAmount)}
+                      </Typography>
+                    </Tooltip>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, borderLeft: '1px solid', borderColor: 'divider', pl: 1, ml: 0.5 }}>
+                      {progressingCount > 0 && (
+                        <Tooltip title={`${progressingCount} opps advanced forward or entered from an earlier stage in the last ${days}d`} arrow>
+                          <Typography variant="caption" sx={{ color: '#2e7d32', fontWeight: 600, fontSize: '0.7rem', whiteSpace: 'nowrap', cursor: 'default' }}>
+                            {progressingCount} progressing
+                          </Typography>
+                        </Tooltip>
+                      )}
+                      {progressingCount > 0 && setbackCount > 0 && (
+                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>·</Typography>
+                      )}
+                      {setbackCount > 0 && (
+                        <Tooltip title={`${setbackCount} opps regressed backward or fell back to an earlier stage in the last ${days}d`} arrow>
+                          <Typography variant="caption" sx={{ color: '#d32f2f', fontWeight: 600, fontSize: '0.7rem', whiteSpace: 'nowrap', cursor: 'default' }}>
+                            {setbackCount} setback{setbackCount !== 1 ? 's' : ''}
+                          </Typography>
+                        </Tooltip>
+                      )}
+                      {hasActivity && (
+                        <Tooltip title={`Net = ${progressingCount} progressing − ${setbackCount} setbacks`} arrow>
+                          <Box
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: 24,
+                              px: 0.75,
+                              py: 0.25,
+                              ml: 0.5,
+                              borderRadius: '10px',
+                              bgcolor: net > 0 ? '#e8f5e9' : net < 0 ? '#ffebee' : 'grey.100',
+                              cursor: 'default',
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: '0.68rem',
+                                lineHeight: 1,
+                                color: net > 0 ? '#2e7d32' : net < 0 ? '#c62828' : 'text.secondary',
+                              }}
+                            >
+                              {net > 0 ? `+${net}` : `${net}`}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      )}
+                      {!hasActivity && layer.stagnation > 0 && (
+                        <Tooltip title={`${layer.count} opps with no stage movement in the last ${days}d`} arrow>
+                          <StagnantIcon sx={{ fontSize: 15, color: '#ed6c02' }} />
+                        </Tooltip>
+                      )}
+                    </Box>
+
+                    <IconButton size="small" sx={{ p: 0, ml: 0.5 }}>
+                      {isExpanded ? <ExpandLessIcon sx={{ fontSize: 18 }} /> : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
+                    </IconButton>
+                  </Box>
+                </Box>
+
+                <Collapse in={isExpanded}>
+                  <Box sx={{ mx: 2, mb: 1.5, p: 1.5, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
+                    {progressingRows.length > 0 && (
+                      <Box>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#2e7d32' }}>
+                          Progressing ({progressingRows.length})
+                        </Typography>
+                        <FlowTable rows={progressingRows} />
+                      </Box>
+                    )}
+
+                    {setbackRows.length > 0 && (
+                      <Box sx={{ mt: progressingRows.length > 0 ? 1.5 : 0 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#d32f2f' }}>
+                          Setbacks ({setbackRows.length})
+                        </Typography>
+                        <FlowTable rows={setbackRows} />
+                      </Box>
+                    )}
+
+                    {!hasActivity && (
+                      <Typography variant="caption" color="text.secondary">
+                        No stage movements in the last {days} days.
+                      </Typography>
+                    )}
+                  </Box>
+                </Collapse>
+              </Box>
+            );
+          })}
+        </Box>
+
+        <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+          {!analysisData && !analysisLoading && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AnalyzeIcon />}
+              onClick={handleAnalyze}
+              sx={{ textTransform: 'none', fontSize: '0.8rem' }}
+            >
+              Analyze Pipeline
+            </Button>
+          )}
+
+          {(analysisLoading || analysisFetching) && !analysisData && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+              <CircularProgress size={16} />
+              <Typography variant="body2" color="text.secondary">
+                Analyzing {history.length} stage changes...
+              </Typography>
+            </Box>
+          )}
+
+          {analysisData && (
+            <Box sx={{ bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'grey.200', p: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <AnalyzeIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                    AI Analysis
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {analysisFetching && <CircularProgress size={12} />}
+                  <Typography variant="caption" color="text.secondary">
+                    Generated {analysisAge}
+                  </Typography>
+                  <Link
+                    component="button"
+                    variant="caption"
+                    onClick={handleRegenerate}
+                    sx={{ fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    Regenerate
+                  </Link>
+                </Box>
+              </Box>
+              <Typography
+                variant="body2"
+                sx={{ whiteSpace: 'pre-line', lineHeight: 1.6, color: 'text.primary', fontSize: '0.82rem' }}
+              >
+                {analysisData.analysis}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+function FlowTable({ rows }: { rows: FlowRow[] }) {
+  return (
+    <TableContainer component={Paper} variant="outlined" sx={{ mt: 0.5 }}>
+      <Table size="small" sx={{ tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '40%' }} />
+          <col style={{ width: '30%' }} />
+          <col style={{ width: '15%' }} />
+          <col style={{ width: '15%' }} />
+        </colgroup>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }}>Opportunity</TableCell>
+            <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }}>Direction</TableCell>
+            <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }}>Date</TableCell>
+            <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }} align="right">Amount</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={`${r.opportunityId}-${r.label}-${r.stage}`}>
+              <TableCell sx={{ fontSize: '0.7rem', py: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r.opportunityName}
+              </TableCell>
+              <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }}>
+                {r.label} {r.stage}
+              </TableCell>
+              <TableCell sx={{ fontSize: '0.7rem', py: 0.5, color: 'text.secondary' }}>
+                {formatChangeDate(r.changedDate)}
+              </TableCell>
+              <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }} align="right">{formatDollarMillions(r.amount)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+export default PipelineFunnel;

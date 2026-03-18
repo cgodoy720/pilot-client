@@ -19,6 +19,7 @@ import {
   TableRow,
   Paper,
   CircularProgress,
+  Tooltip as MuiTooltip,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -31,6 +32,7 @@ import {
   AccountBalance as AccountBalanceIcon,
   Timer as TimerIcon,
   Receipt as ReceiptIcon,
+  InfoOutlined as InfoIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
 import { apiService } from '../services/api';
@@ -52,6 +54,7 @@ import {
   Area,
 } from 'recharts';
 import { addQuarters, startOfQuarter, endOfQuarter, format, isWithinInterval, differenceInDays, parseISO } from 'date-fns';
+import PipelineFunnel from '../components/PipelineFunnel';
 
 interface Opportunity {
   Id: string;
@@ -64,6 +67,7 @@ interface Opportunity {
   CloseDate: string;
   CreatedDate: string;
   LastModifiedDate: string;
+  Type?: string;
   OwnerId: string;
   Owner?: { Name: string };
   First_Payment_Date__c?: string;
@@ -162,6 +166,17 @@ const Dashboard: React.FC = () => {
       (sum: number, opp: Opportunity) => sum + ((opp.Amount || 0) * (opp.Probability || 0)) / 100,
       0
     );
+
+    const weightedValue = (opp: Opportunity) => ((opp.Amount || 0) * (opp.Probability || 0)) / 100;
+    const isRenewal = (opp: Opportunity) => opp.Type === 'Renewal';
+
+    const upside = weightedPipeline;
+
+    const baseCaseOpps = openOpps.filter((opp: Opportunity) => isRenewal(opp) || (opp.Probability || 0) >= 50);
+    const baseCase = baseCaseOpps.reduce((sum: number, opp: Opportunity) => sum + weightedValue(opp), 0);
+
+    const downsideOpps = openOpps.filter((opp: Opportunity) => isRenewal(opp) || (opp.Probability || 0) >= 70);
+    const downside = downsideOpps.reduce((sum: number, opp: Opportunity) => sum + weightedValue(opp), 0);
 
     // Current quarter opportunities
     const currentQuarterOpps = openOpps.filter((opp: Opportunity) => {
@@ -327,6 +342,11 @@ const Dashboard: React.FC = () => {
     return {
       totalPipeline,
       weightedPipeline,
+      upside,
+      baseCase,
+      baseCaseCount: baseCaseOpps.length,
+      downside,
+      downsideCount: downsideOpps.length,
       averageDealSize: openOpps.length > 0 ? totalPipeline / openOpps.length : 0,
       totalDeals: openOpps.length,
       currentQuarterValue,
@@ -405,14 +425,14 @@ const Dashboard: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* Disclaimer Alert */}
-      <Alert severity="warning" sx={{ mb: 3 }}>
-        <strong>Note:</strong> Numbers shown are placeholders. Calculations have not yet been cleared with the Finance/PBD team and may be inaccurate.
-      </Alert>
+      {/* Revenue Section */}
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Revenue Pipeline</Typography>
+      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+        Based on opportunity close dates and probability weighting
+      </Typography>
 
-      {/* Hero Metrics */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -431,31 +451,144 @@ const Dashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderTop: '3px solid', borderColor: 'success.main' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <TrendingUpIcon color="success" sx={{ mr: 1 }} />
+                <TrendingUpIcon color="success" sx={{ mr: 1, fontSize: 20 }} />
                 <Typography variant="caption" color="textSecondary">
-                  Weighted Pipeline
+                  Upside
                 </Typography>
+                <MuiTooltip title="All open opportunities weighted by probability: Amount × (Probability / 100)" arrow>
+                  <InfoIcon sx={{ fontSize: 14, ml: 0.5, color: 'text.disabled', cursor: 'help' }} />
+                </MuiTooltip>
               </Box>
               <Typography variant="h4" color="success.main">
-                {formatDollarMillions(metrics.weightedPipeline)}
+                {formatDollarMillions(metrics.upside)}
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                Expected value (probability-adjusted)
+                {metrics.totalDeals} opps, probability-weighted
               </Typography>
             </CardContent>
           </Card>
         </Grid>
 
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderTop: '3px solid', borderColor: 'primary.main' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <ChartIcon color="primary" sx={{ mr: 1, fontSize: 20 }} />
+                <Typography variant="caption" color="textSecondary">
+                  Base Case
+                </Typography>
+                <MuiTooltip title="Includes opportunities where Type = Renewal OR Probability ≥ 50%. Weighted by probability." arrow>
+                  <InfoIcon sx={{ fontSize: 14, ml: 0.5, color: 'text.disabled', cursor: 'help' }} />
+                </MuiTooltip>
+              </Box>
+              <Typography variant="h4" color="primary">
+                {formatDollarMillions(metrics.baseCase)}
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                {metrics.baseCaseCount} opps (renewals + 50%+)
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderTop: '3px solid', borderColor: 'warning.main' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <WarningIcon color="warning" sx={{ mr: 1, fontSize: 20 }} />
+                <Typography variant="caption" color="textSecondary">
+                  Downside
+                </Typography>
+                <MuiTooltip title="Includes opportunities where Type = Renewal OR Probability ≥ 70%. Weighted by probability." arrow>
+                  <InfoIcon sx={{ fontSize: 14, ml: 0.5, color: 'text.disabled', cursor: 'help' }} />
+                </MuiTooltip>
+              </Box>
+              <Typography variant="h4" color="warning.main">
+                {formatDollarMillions(metrics.downside)}
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                {metrics.downsideCount} opps (renewals + 70%+)
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
-      {/* Cash Flow Metrics from Sage Intacct */}
-      <Typography variant="h6" gutterBottom sx={{ mb: 2, mt: 2 }}>
-        Financial Position
-      </Typography>
+      {/* Current Quarter Focus */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+            <ScheduleIcon sx={{ mr: 1 }} />
+            Current Quarter ({format(startOfQuarter(new Date()), 'QQQ yyyy')})
+          </Typography>
+          
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={4}>
+              <Box>
+                <Typography variant="caption" color="textSecondary">
+                  Expected to Close
+                </Typography>
+                <Typography variant="h5" color="primary">
+                  {formatDollarMillions(metrics.currentQuarterValue)}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  {metrics.currentQuarterCount} opportunities
+                </Typography>
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Box>
+                <Typography variant="caption" color="textSecondary">
+                  Weighted Value
+                </Typography>
+                <Typography variant="h5" color="success.main">
+                  {formatDollarMillions(metrics.currentQuarterWeighted)}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Probability-adjusted
+                </Typography>
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Box>
+                <Typography variant="caption" color="textSecondary">
+                  Deals at Risk
+                </Typography>
+                <Typography variant="h5" color={metrics.atRiskCount > 0 ? 'warning.main' : 'text.primary'}>
+                  {metrics.atRiskCount}
+                </Typography>
+                {metrics.atRiskCount > 0 && (
+                  <Button
+                    size="small"
+                    color="warning"
+                    onClick={() => navigate('/pipeline', { state: { filterAtRisk: true } })}
+                    sx={{ mt: 1 }}
+                  >
+                    View Details
+                  </Button>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Pipeline Health Funnel */}
+      <PipelineFunnel opportunities={opportunities} />
+
+      {/* Cash Flow Section */}
+      <Box sx={{ mt: 4, mb: 2, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Cash Flow</Typography>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          Based on payment schedules and Sage Intacct actuals
+        </Typography>
+      </Box>
       
       {/* Warning if Sage data unavailable */}
       {cashFlowData?.sage_warning && (
@@ -593,91 +726,6 @@ const Dashboard: React.FC = () => {
           </Grid>
       )}
 
-      {/* Current Quarter Focus */}
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-            <ScheduleIcon sx={{ mr: 1 }} />
-            Current Quarter ({format(startOfQuarter(new Date()), 'QQQ yyyy')})
-          </Typography>
-          
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={4}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Expected to Close
-                </Typography>
-                <Typography variant="h5" color="primary">
-                  {formatDollarMillions(metrics.currentQuarterValue)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {metrics.currentQuarterCount} opportunities
-                </Typography>
-              </Box>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Weighted Value
-                </Typography>
-                <Typography variant="h5" color="success.main">
-                  {formatDollarMillions(metrics.currentQuarterWeighted)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Probability-adjusted
-                </Typography>
-              </Box>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Deals at Risk
-                </Typography>
-                <Typography variant="h5" color={metrics.atRiskCount > 0 ? 'warning.main' : 'text.primary'}>
-                  {metrics.atRiskCount}
-                </Typography>
-                {metrics.atRiskCount > 0 && (
-                  <Button
-                    size="small"
-                    color="warning"
-                    onClick={() => navigate('/pipeline', { state: { filterAtRisk: true } })}
-                    sx={{ mt: 1 }}
-                  >
-                    View Details
-                  </Button>
-                )}
-              </Box>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Needs Attention */}
-      {metrics.staleCount > 0 && (
-        <Alert 
-          severity="warning" 
-          sx={{ mb: 4 }}
-          icon={<WarningIcon />}
-          action={
-            <Button 
-              color="inherit" 
-              size="small"
-              onClick={() => navigate('/pipeline', { state: { filterStale: true } })}
-            >
-              Review
-            </Button>
-          }
-        >
-          <Typography variant="subtitle2" gutterBottom>
-            {metrics.staleCount} Opportunit{metrics.staleCount === 1 ? 'y' : 'ies'} Need Attention
-          </Typography>
-          <Typography variant="body2">
-            These opportunities have passed their close date or haven't been updated in 30+ days
-          </Typography>
-        </Alert>
-      )}
 
       {/* Financial Charts Section */}
       <Typography variant="h6" gutterBottom sx={{ mb: 2, mt: 2 }}>

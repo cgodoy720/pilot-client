@@ -8,20 +8,26 @@ import {
   Chip,
   CircularProgress,
   Tooltip,
+  Checkbox,
+  FormControlLabel,
+  Popover,
+  IconButton,
 } from '@mui/material';
 import {
   Event as EventIcon,
   Assignment as TaskIcon,
+  Tune as TuneIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import {
   format,
   startOfWeek,
   addDays,
   isSameDay,
+  isBefore,
   parseISO,
-  isWithinInterval,
   startOfDay,
-  endOfDay,
+  differenceInDays,
 } from 'date-fns';
 
 export type CalendarViewMode = 'day' | 'week' | '2week';
@@ -40,11 +46,21 @@ export interface CalendarEvent {
   priority?: string;
 }
 
+export interface CalendarSource {
+  id: string;
+  label: string;
+  type: 'gcal' | 'task';
+  color: string;
+}
+
 interface WeeklyCalendarProps {
   events: CalendarEvent[];
   loading?: boolean;
   viewMode?: CalendarViewMode;
   onViewModeChange?: (mode: CalendarViewMode) => void;
+  sources?: CalendarSource[];
+  enabledSources?: string[];
+  onToggleSource?: (sourceId: string) => void;
 }
 
 const VIEW_DAYS: Record<CalendarViewMode, number> = {
@@ -53,14 +69,53 @@ const VIEW_DAYS: Record<CalendarViewMode, number> = {
   '2week': 14,
 };
 
+const DEFAULT_SOURCES: CalendarSource[] = [
+  { id: 'gcal-pbd', label: 'PBD Calendar', type: 'gcal', color: '#1976d2' },
+  { id: 'sf-tasks', label: 'Salesforce Tasks', type: 'task', color: '#ed6c02' },
+];
+
+const MAX_VISIBLE_ITEMS = 6;
+
+function getTaskBorderColor(ev: CalendarEvent): string {
+  if (ev.status === 'Completed') return '#4caf50';
+  const now = startOfDay(new Date());
+  if (ev.start) {
+    try {
+      const due = parseISO(ev.start);
+      const diff = differenceInDays(due, now);
+      if (isBefore(due, now)) return '#d32f2f';
+      if (diff <= 1) return '#ed6c02';
+    } catch {}
+  }
+  if (ev.priority === 'High') return '#ed6c02';
+  return '#bdbdbd';
+}
+
+function formatTime(dateStr: string): string {
+  try { return format(parseISO(dateStr), 'h:mm a'); }
+  catch { return ''; }
+}
+
 const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   events,
   loading = false,
   viewMode: controlledViewMode,
   onViewModeChange,
+  sources = DEFAULT_SOURCES,
+  enabledSources: controlledEnabledSources,
+  onToggleSource,
 }) => {
   const [internalViewMode, setInternalViewMode] = useState<CalendarViewMode>('week');
   const viewMode = controlledViewMode ?? internalViewMode;
+
+  const [internalEnabled, setInternalEnabled] = useState<Set<string>>(
+    new Set(sources.map((s) => s.id)),
+  );
+  const enabledSet = controlledEnabledSources
+    ? new Set(controlledEnabledSources)
+    : internalEnabled;
+
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   const handleViewChange = (_: any, newMode: CalendarViewMode | null) => {
     if (!newMode) return;
@@ -68,7 +123,26 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     else setInternalViewMode(newMode);
   };
 
-  // Generate day columns
+  const handleToggle = (sourceId: string) => {
+    if (onToggleSource) {
+      onToggleSource(sourceId);
+    } else {
+      setInternalEnabled((prev) => {
+        const next = new Set(prev);
+        if (next.has(sourceId)) next.delete(sourceId);
+        else next.add(sourceId);
+        return next;
+      });
+    }
+  };
+
+  const filteredEvents = useMemo(() => {
+    return events.filter((ev) => {
+      const src = sources.find((s) => s.type === ev.type);
+      return src ? enabledSet.has(src.id) : true;
+    });
+  }, [events, sources, enabledSet]);
+
   const days = useMemo(() => {
     const today = new Date();
     const start = viewMode === 'day' ? today : startOfWeek(today, { weekStartsOn: 1 });
@@ -76,42 +150,82 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     return Array.from({ length: count }, (_, i) => addDays(start, i));
   }, [viewMode]);
 
-  // Group events by day
+  // Group events by day, split into meetings (gcal) and tasks
   const eventsByDay = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>();
+    const map = new Map<string, { meetings: CalendarEvent[]; tasks: CalendarEvent[] }>();
     for (const day of days) {
-      map.set(format(day, 'yyyy-MM-dd'), []);
+      map.set(format(day, 'yyyy-MM-dd'), { meetings: [], tasks: [] });
     }
-    for (const ev of events) {
+    for (const ev of filteredEvents) {
       if (!ev.start) continue;
       try {
         const evDate = parseISO(ev.start);
         for (const day of days) {
           if (isSameDay(evDate, day)) {
-            const key = format(day, 'yyyy-MM-dd');
-            map.get(key)?.push(ev);
+            const entry = map.get(format(day, 'yyyy-MM-dd'));
+            if (entry) {
+              if (ev.type === 'task') entry.tasks.push(ev);
+              else entry.meetings.push(ev);
+            }
             break;
           }
         }
       } catch {}
     }
+    // Sort meetings by start time, tasks by due date
+    map.forEach((entry) => {
+      entry.meetings.sort((a: CalendarEvent, b: CalendarEvent) => (a.start || '').localeCompare(b.start || ''));
+      entry.tasks.sort((a: CalendarEvent, b: CalendarEvent) => (a.start || '').localeCompare(b.start || ''));
+    });
     return map;
-  }, [events, days]);
+  }, [filteredEvents, days]);
 
-  const isToday = (d: Date) => isSameDay(d, new Date());
+  const isTodayFn = (d: Date) => isSameDay(d, new Date());
+  const meetingColor = sources.find((s) => s.type === 'gcal')?.color || '#1976d2';
 
   return (
     <Box>
-      {/* View mode toggle */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      {/* Header bar */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="subtitle2" color="text.secondary">
           {format(days[0], 'MMM d')} — {format(days[days.length - 1], 'MMM d, yyyy')}
         </Typography>
-        <ToggleButtonGroup size="small" exclusive value={viewMode} onChange={handleViewChange}>
-          <ToggleButton value="day">Day</ToggleButton>
-          <ToggleButton value="week">Week</ToggleButton>
-          <ToggleButton value="2week">2 Week</ToggleButton>
-        </ToggleButtonGroup>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
+            <TuneIcon fontSize="small" />
+          </IconButton>
+          <Popover
+            open={Boolean(anchorEl)}
+            anchorEl={anchorEl}
+            onClose={() => setAnchorEl(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <Box sx={{ p: 2, minWidth: 200 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>Calendars</Typography>
+              {sources.map((src) => (
+                <FormControlLabel
+                  key={src.id}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={enabledSet.has(src.id)}
+                      onChange={() => handleToggle(src.id)}
+                      sx={{ color: src.color, '&.Mui-checked': { color: src.color } }}
+                    />
+                  }
+                  label={<Typography variant="body2">{src.label}</Typography>}
+                />
+              ))}
+            </Box>
+          </Popover>
+
+          <ToggleButtonGroup size="small" exclusive value={viewMode} onChange={handleViewChange}>
+            <ToggleButton value="day">Day</ToggleButton>
+            <ToggleButton value="week">Week</ToggleButton>
+            <ToggleButton value="2week">2 Week</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
       </Box>
 
       {loading ? (
@@ -125,13 +239,17 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             display: 'grid',
             gridTemplateColumns: `repeat(${Math.min(days.length, 7)}, 1fr)`,
             gap: 0.5,
-            ...(days.length > 7 ? { '& > *:nth-of-type(n+8)': {} } : {}),
           }}
         >
           {days.map((day) => {
             const key = format(day, 'yyyy-MM-dd');
-            const dayEvents = eventsByDay.get(key) || [];
-            const today = isToday(day);
+            const { meetings, tasks } = eventsByDay.get(key) || { meetings: [], tasks: [] };
+            const today = isTodayFn(day);
+            const totalItems = meetings.length + tasks.length;
+            const overflow = totalItems > MAX_VISIBLE_ITEMS;
+            const meetingsToShow = meetings.slice(0, MAX_VISIBLE_ITEMS);
+            const tasksSlots = Math.max(0, MAX_VISIBLE_ITEMS - meetingsToShow.length);
+            const tasksToShow = tasks.slice(0, tasksSlots);
 
             return (
               <Paper
@@ -139,7 +257,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                 variant="outlined"
                 sx={{
                   p: 1,
-                  minHeight: 120,
+                  minHeight: 110,
                   bgcolor: today ? 'primary.50' : 'background.paper',
                   borderColor: today ? 'primary.main' : 'divider',
                   borderWidth: today ? 2 : 1,
@@ -149,10 +267,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                   <Typography
                     variant="caption"
-                    sx={{
-                      fontWeight: today ? 700 : 500,
-                      color: today ? 'primary.main' : 'text.secondary',
-                    }}
+                    sx={{ fontWeight: today ? 700 : 500, color: today ? 'primary.main' : 'text.secondary' }}
                   >
                     {format(day, 'EEE')}
                   </Typography>
@@ -174,65 +289,133 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                   </Typography>
                 </Box>
 
-                {/* Events */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  {dayEvents.slice(0, 5).map((ev, i) => (
-                    <Tooltip
-                      key={ev.id + i}
-                      title={
-                        <Box>
-                          <Typography variant="body2">{ev.summary}</Typography>
-                          {ev.start && (
-                            <Typography variant="caption">
-                              {(() => {
-                                try { return format(parseISO(ev.start), 'h:mm a'); } catch { return ''; }
-                              })()}
+                {/* Meetings */}
+                {meetingsToShow.length > 0 && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: tasks.length > 0 ? 0.75 : 0 }}>
+                    {meetingsToShow.map((ev, i) => {
+                      const time = formatTime(ev.start);
+                      const endTime = ev.end ? formatTime(ev.end) : '';
+                      return (
+                        <Tooltip
+                          key={ev.id + i}
+                          title={
+                            <Box>
+                              <Typography variant="body2" fontWeight={600}>{ev.summary}</Typography>
+                              {time && <Typography variant="caption">{time}{endTime ? ` – ${endTime}` : ''}</Typography>}
+                              {ev.location && <Typography variant="caption" display="block">{ev.location}</Typography>}
+                              {ev.accountName && <Typography variant="caption" display="block">Account: {ev.accountName}</Typography>}
+                              {ev.attendees && ev.attendees.length > 0 && (
+                                <Typography variant="caption" display="block">{ev.attendees.length} attendee{ev.attendees.length > 1 ? 's' : ''}</Typography>
+                              )}
+                            </Box>
+                          }
+                          arrow
+                        >
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              px: 0.5,
+                              py: 0.25,
+                              borderRadius: 0.5,
+                              bgcolor: `${meetingColor}14`,
+                              borderLeft: `3px solid ${meetingColor}`,
+                              cursor: 'pointer',
+                              overflow: 'hidden',
+                              '&:hover': { bgcolor: `${meetingColor}22` },
+                            }}
+                          >
+                            <EventIcon sx={{ fontSize: 12, color: meetingColor }} />
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="caption" noWrap sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.2, display: 'block' }}>
+                                {ev.summary}
+                              </Typography>
+                              {time && (
+                                <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1 }}>
+                                  {time}{endTime ? ` – ${endTime}` : ''}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                )}
+
+                {/* Tasks */}
+                {tasksToShow.length > 0 && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {tasksToShow.map((ev, i) => {
+                      const borderColor = getTaskBorderColor(ev);
+                      const isCompleted = ev.status === 'Completed';
+                      return (
+                        <Tooltip
+                          key={ev.id + i}
+                          title={
+                            <Box>
+                              <Typography variant="body2" fontWeight={600}>{ev.summary}</Typography>
+                              {ev.status && <Typography variant="caption">Status: {ev.status}</Typography>}
+                              {ev.priority && <Typography variant="caption" display="block">Priority: {ev.priority}</Typography>}
+                              {ev.opportunityName && <Typography variant="caption" display="block">Opp: {ev.opportunityName}</Typography>}
+                            </Box>
+                          }
+                          arrow
+                        >
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              px: 0.5,
+                              py: 0.25,
+                              borderRadius: 0.5,
+                              bgcolor: isCompleted ? 'grey.50' : 'transparent',
+                              borderLeft: `3px solid ${borderColor}`,
+                              cursor: 'pointer',
+                              overflow: 'hidden',
+                              opacity: isCompleted ? 0.6 : 1,
+                              '&:hover': { bgcolor: 'action.hover' },
+                            }}
+                          >
+                            {isCompleted ? (
+                              <CheckCircleIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                            ) : (
+                              <TaskIcon sx={{ fontSize: 12, color: borderColor }} />
+                            )}
+                            <Typography
+                              variant="caption"
+                              noWrap
+                              sx={{
+                                fontSize: '0.7rem',
+                                lineHeight: 1.2,
+                                textDecoration: isCompleted ? 'line-through' : 'none',
+                                color: isCompleted ? 'text.secondary' : 'text.primary',
+                              }}
+                            >
+                              {ev.summary}
                             </Typography>
-                          )}
-                          {ev.accountName && (
-                            <Typography variant="caption" display="block">
-                              Account: {ev.accountName}
-                            </Typography>
-                          )}
-                        </Box>
-                      }
-                      arrow
-                    >
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                          px: 0.5,
-                          py: 0.25,
-                          borderRadius: 0.5,
-                          bgcolor: ev.type === 'task' ? 'warning.50' : 'info.50',
-                          borderLeft: `3px solid`,
-                          borderLeftColor: ev.type === 'task'
-                            ? (ev.priority === 'High' ? 'error.main' : 'warning.main')
-                            : 'info.main',
-                          cursor: 'pointer',
-                          '&:hover': { bgcolor: ev.type === 'task' ? 'warning.100' : 'info.100' },
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {ev.type === 'task' ? (
-                          <TaskIcon sx={{ fontSize: 12, color: 'warning.main' }} />
-                        ) : (
-                          <EventIcon sx={{ fontSize: 12, color: 'info.main' }} />
-                        )}
-                        <Typography variant="caption" noWrap sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                          {ev.summary}
-                        </Typography>
-                      </Box>
-                    </Tooltip>
-                  ))}
-                  {dayEvents.length > 5 && (
-                    <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
-                      +{dayEvents.length - 5} more
-                    </Typography>
-                  )}
-                </Box>
+                          </Box>
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                )}
+
+                {/* Overflow */}
+                {overflow && (
+                  <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5, mt: 0.25, display: 'block', fontSize: '0.65rem' }}>
+                    +{totalItems - MAX_VISIBLE_ITEMS} more
+                  </Typography>
+                )}
+
+                {/* Empty day */}
+                {totalItems === 0 && (
+                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
+                    No events
+                  </Typography>
+                )}
               </Paper>
             );
           })}

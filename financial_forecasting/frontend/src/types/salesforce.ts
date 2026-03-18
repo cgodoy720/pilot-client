@@ -25,6 +25,34 @@ export const OPPORTUNITY_STAGES = [
 
 export type OpportunityStage = (typeof OPPORTUNITY_STAGES)[number];
 
+/** Per-stage colors progressing from cool (early pipeline) → warm (late) → accent (closed). */
+export const STAGE_COLORS: Record<OpportunityStage, string> = {
+  '--None--':                    '#9E9E9E',
+  'Lead Gen':                    '#42A5F5',
+  'New Lead':                    '#29B6F6',
+  'Qualifying':                  '#26C6DA',
+  'Design / Proposal Creation':  '#66BB6A',
+  'Proposal Negotiation':        '#FFA726',
+  'Contract Creation':           '#FF7043',
+  'Negotiating Contract':        '#EF5350',
+  'Collecting / In Effect':      '#AB47BC',
+  'Closed / Did not Fulfill':    '#78909C',
+  'Closed / Completed':          '#4CAF50',
+  'Closed Lost':                 '#E53935',
+  'Withdrawn':                   '#BDBDBD',
+};
+
+/** Pipeline-order index for sorting stages (lower = earlier in pipeline). */
+export function stageIndex(stage: string): number {
+  const idx = OPPORTUNITY_STAGES.indexOf(stage as OpportunityStage);
+  return idx >= 0 ? idx : OPPORTUNITY_STAGES.length;
+}
+
+/** Get the hex color for a stage name; falls back to grey for unknown stages. */
+export function getStageHexColor(stage: string): string {
+  return STAGE_COLORS[stage as OpportunityStage] || '#9E9E9E';
+}
+
 export const OPEN_STAGES: readonly OpportunityStage[] = [
   'Lead Gen',
   'New Lead',
@@ -58,6 +86,7 @@ export interface SalesforceOpportunity {
   CloseDate: string | null;
   ExpectedRevenue: number | null;
   ForecastCategory: string | null;
+  Type: string | null;
   LeadSource: string | null;
   NextStep: string | null;
   Description: string | null;

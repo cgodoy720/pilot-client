@@ -6,7 +6,12 @@
  */
 import { addDays } from 'date-fns';
 import type { OpportunityStage } from '../../types/salesforce';
+import { getStageHexColor } from '../../types/salesforce';
 
+/**
+ * @deprecated Use getStageHexColor() from types/salesforce.ts for per-stage hex colors.
+ * Kept for backward compatibility with components still using MUI color names.
+ */
 export function getStageColor(stage: string): 'success' | 'error' | 'warning' | 'info' {
   if (stage.includes('Completed')) return 'success';
   if (stage.includes('Closed Lost') || stage.includes('Withdrawn') || stage.includes('Did not Fulfill'))
@@ -14,6 +19,8 @@ export function getStageColor(stage: string): 'success' | 'error' | 'warning' | 
   if (stage.includes('Proposal') || stage.includes('Negotiat')) return 'warning';
   return 'info';
 }
+
+export { getStageHexColor };
 
 export function getProbabilityColor(probability: number): 'success' | 'warning' | 'error' {
   if (probability >= 70) return 'success';

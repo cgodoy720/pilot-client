@@ -54,9 +54,13 @@ import {
   countOverdueTasks,
 } from '../utils/priorityScoring';
 import { apiService } from '../services/api';
+import { getStageHexColor, stageIndex } from '../types/salesforce';
 import toast from 'react-hot-toast';
 
 export type { PriorityOpp };
+
+type OppSortField = 'name' | 'stage' | 'amount' | 'close' | 'prob' | 'tasks' | null;
+type SortDir = 'asc' | 'desc';
 
 type TaskSortField = 'ActivityDate' | 'Status' | 'Owner' | 'Subject' | 'Priority';
 type TaskSortDir = 'asc' | 'desc';
@@ -87,6 +91,7 @@ interface PriorityTableProps {
   onOpenTaskDrawer?: (opp: PriorityOpp, taskId?: string) => void;
   showWeighted?: boolean;
   maxRows?: number;
+  onFilteredChange?: (allFiltered: PriorityOpp[], visible: PriorityOpp[]) => void;
 }
 
 // ── Inline editable cell ──
@@ -367,14 +372,25 @@ const AddTaskRow: React.FC<AddTaskRowProps> = ({ oppId, users, onCreated }) => {
 
 // ── Main Component ──
 
-const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows }) => {
+const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows, onFilteredChange }) => {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [expandedOppId, setExpandedOppId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState<Record<string, boolean>>({});
+  const [oppSort, setOppSort] = useState<{ field: OppSortField; dir: SortDir }>({ field: null, dir: 'asc' });
   const [taskSort, setTaskSort] = useState<{ field: TaskSortField; dir: TaskSortDir }>({
     field: 'ActivityDate',
     dir: 'asc',
   });
+
+  const handleOppSortClick = (field: OppSortField) => {
+    setOppSort((prev) => {
+      if (prev.field === field) {
+        if (prev.dir === 'asc') return { field, dir: 'desc' };
+        return { field: null, dir: 'asc' };
+      }
+      return { field, dir: 'asc' };
+    });
+  };
   // Local task state for optimistic updates
   const [localTaskOverrides, setLocalTaskOverrides] = useState<Record<string, TaskType[]>>({});
 
@@ -457,11 +473,12 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
   }, [opportunities, localTaskOverrides]);
 
   const stages = useMemo(
-    () => Array.from(new Set(opportunities.map((o) => o.StageName).filter(Boolean))).sort(),
+    () => Array.from(new Set(opportunities.map((o) => o.StageName).filter(Boolean)))
+      .sort((a, b) => stageIndex(a) - stageIndex(b)),
     [opportunities],
   );
 
-  const displayed = useMemo(() => {
+  const sortedFiltered = useMemo(() => {
     let items = [...scored];
     const now = startOfDay(new Date());
 
@@ -502,19 +519,51 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
       items = items.filter((s) => (s.opp.Amount || 0) >= filters.amountMin!);
     }
 
-    // Sort: Weighted mode uses algorithm priority score, Total mode uses raw amount
-    if (showWeighted) {
-      items.sort((a, b) => b.weightedPriority - a.weightedPriority);
-    } else {
-      items.sort((a, b) => (b.opp.Amount || 0) - (a.opp.Amount || 0));
-    }
+    // Sort: user-selected column, or default (weighted/total).
+    // Tiebreaker by Opportunity ID guarantees stable ranking regardless of topN.
+    const tiebreak = (a: typeof items[0], b: typeof items[0]) =>
+      (a.opp.Id || '').localeCompare(b.opp.Id || '');
 
-    if (maxRows != null) {
-      items = items.slice(0, maxRows);
+    if (oppSort.field) {
+      const dir = oppSort.dir === 'asc' ? 1 : -1;
+      items.sort((a, b) => {
+        let diff = 0;
+        switch (oppSort.field) {
+          case 'name': diff = (a.opp.Name || '').localeCompare(b.opp.Name || ''); break;
+          case 'stage': diff = stageIndex(a.opp.StageName) - stageIndex(b.opp.StageName); break;
+          case 'amount': diff = (a.opp.Amount || 0) - (b.opp.Amount || 0); break;
+          case 'close': diff = (a.opp.CloseDate || '').localeCompare(b.opp.CloseDate || ''); break;
+          case 'prob': diff = (a.opp.Probability || 0) - (b.opp.Probability || 0); break;
+          case 'tasks': diff = a.totalTasks - b.totalTasks; break;
+        }
+        return diff !== 0 ? diff * dir : tiebreak(a, b);
+      });
+    } else if (showWeighted) {
+      items.sort((a, b) => {
+        const diff = b.weightedPriority - a.weightedPriority;
+        return diff !== 0 ? diff : tiebreak(a, b);
+      });
+    } else {
+      items.sort((a, b) => {
+        const diff = (b.opp.Amount || 0) - (a.opp.Amount || 0);
+        return diff !== 0 ? diff : tiebreak(a, b);
+      });
     }
 
     return items;
-  }, [scored, filters, showWeighted, maxRows]);
+  }, [scored, filters, showWeighted, oppSort]);
+
+  const displayed = useMemo(() => {
+    if (maxRows != null) return sortedFiltered.slice(0, maxRows);
+    return sortedFiltered;
+  }, [sortedFiltered, maxRows]);
+
+  useEffect(() => {
+    onFilteredChange?.(
+      sortedFiltered.map((s) => s.opp),
+      displayed.map((s) => s.opp),
+    );
+  }, [sortedFiltered, displayed, onFilteredChange]);
 
   const urgencyBgColor = (score: number) => {
     if (score >= 40) return 'error.main';
@@ -699,7 +748,13 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
             <TableRow>
               <TableCell sx={{ width: 36, px: 1 }}>#</TableCell>
               <TableCell sx={{ position: 'relative', ...(oppNameWidth !== null ? { width: oppNameWidth } : {}) }}>
-                Opportunity
+                <TableSortLabel
+                  active={oppSort.field === 'name'}
+                  direction={oppSort.field === 'name' ? oppSort.dir : 'asc'}
+                  onClick={() => handleOppSortClick('name')}
+                >
+                  Opportunity
+                </TableSortLabel>
                 <Box
                   onMouseDown={handleOppNameResizeStart}
                   sx={{
@@ -713,12 +768,52 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   }}
                 />
               </TableCell>
-              <TableCell>Stage</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell>Close</TableCell>
-              <TableCell align="right">Prob</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={oppSort.field === 'stage'}
+                  direction={oppSort.field === 'stage' ? oppSort.dir : 'asc'}
+                  onClick={() => handleOppSortClick('stage')}
+                >
+                  Stage
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right">
+                <TableSortLabel
+                  active={oppSort.field === 'amount'}
+                  direction={oppSort.field === 'amount' ? oppSort.dir : 'asc'}
+                  onClick={() => handleOppSortClick('amount')}
+                >
+                  Amount
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={oppSort.field === 'close'}
+                  direction={oppSort.field === 'close' ? oppSort.dir : 'asc'}
+                  onClick={() => handleOppSortClick('close')}
+                >
+                  Close
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right">
+                <TableSortLabel
+                  active={oppSort.field === 'prob'}
+                  direction={oppSort.field === 'prob' ? oppSort.dir : 'asc'}
+                  onClick={() => handleOppSortClick('prob')}
+                >
+                  Prob
+                </TableSortLabel>
+              </TableCell>
               <TableCell>Alerts</TableCell>
-              <TableCell align="center">Tasks</TableCell>
+              <TableCell align="center">
+                <TableSortLabel
+                  active={oppSort.field === 'tasks'}
+                  direction={oppSort.field === 'tasks' ? oppSort.dir : 'asc'}
+                  onClick={() => handleOppSortClick('tasks')}
+                >
+                  Tasks
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="center" sx={{ width: 80 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -769,7 +864,17 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
 
                     {/* Stage */}
                     <TableCell>
-                      <Chip label={opp.StageName} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+                      <Chip
+                        label={opp.StageName}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          bgcolor: getStageHexColor(opp.StageName),
+                          color: '#fff',
+                          fontWeight: 600,
+                        }}
+                      />
                     </TableCell>
 
                     {/* Amount */}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
@@ -33,6 +33,7 @@ import {
   AccountBalance as WeightedIcon,
   Event as EventIcon,
   FilterList as FilterIcon,
+  Inbox as InboxIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
 import {
@@ -48,6 +49,7 @@ import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import WeeklyCalendar, { CalendarEvent, CalendarViewMode } from '../components/WeeklyCalendar';
 import PriorityTable, { PriorityOpp } from '../components/PriorityTable';
+import TaskInbox, { InboxTask } from '../components/TaskInbox';
 import TaskPanel from '../components/TaskPanel';
 import type { Opportunity } from './Opportunities/helpers';
 
@@ -61,6 +63,8 @@ const OPEN_STAGES = [
 
 type CloseDateRange = 'all' | 'next30' | 'next60' | 'next90' | 'thisQuarter' | 'thisYear';
 
+type SnapshotMode = 'all' | 'filtered' | 'priorities';
+
 interface DashboardPrefs {
   collapsed: Record<string, boolean>;
   calendarView: CalendarViewMode;
@@ -68,18 +72,19 @@ interface DashboardPrefs {
   filterUserId: string; // 'all' or a SF user ID
   showWeighted: boolean;
   closeDateRange: CloseDateRange;
+  snapshotMode: SnapshotMode;
 }
 
 function loadPrefs(): DashboardPrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
-      const parsed = { filterUserId: 'all', showWeighted: false, closeDateRange: 'all', ...JSON.parse(raw) };
+      const parsed = { filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all', ...JSON.parse(raw) };
       parsed.topN = Math.min(50, Math.max(1, parsed.topN || 10));
       return parsed;
     }
   } catch {}
-  return { collapsed: {}, calendarView: 'week', topN: 10, filterUserId: 'all', showWeighted: false, closeDateRange: 'all' };
+  return { collapsed: {}, calendarView: 'week', topN: 10, filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all' as SnapshotMode };
 }
 
 function savePrefs(prefs: DashboardPrefs) {
@@ -211,6 +216,7 @@ const MyDashboard: React.FC = () => {
   const [prefs, setPrefs] = useState<DashboardPrefs>(loadPrefs);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
+  const [filteredOpps, setFilteredOpps] = useState<{ allFiltered: PriorityOpp[]; visible: PriorityOpp[] }>({ allFiltered: [], visible: [] });
 
   useEffect(() => {
     savePrefs(prefs);
@@ -218,8 +224,13 @@ const MyDashboard: React.FC = () => {
 
   const toggleSection = (id: string) =>
     setPrefs((p) => ({ ...p, collapsed: { ...p.collapsed, [id]: !p.collapsed[id] } }));
+  const updatePrefs = (patch: Partial<DashboardPrefs>) =>
+    setPrefs((p) => ({ ...p, ...patch }));
   const setCalendarView = (view: CalendarViewMode) =>
     setPrefs((p) => ({ ...p, calendarView: view }));
+  const handleFilteredChange = useCallback((allFiltered: PriorityOpp[], visible: PriorityOpp[]) => {
+    setFilteredOpps({ allFiltered, visible });
+  }, []);
 
   // Compute date range for calendar
   const { calStart, calEnd, calDaysForward } = useMemo(() => {
@@ -247,7 +258,7 @@ const MyDashboard: React.FC = () => {
   });
 
   // Fetch my tasks
-  const { data: tasksData } = useQuery(
+  const { data: tasksData, isLoading: tasksLoading } = useQuery(
     ['my-tasks', calStart, calEnd],
     async () => {
       const response = await apiService.getMyTasks(calStart, calEnd);
@@ -418,16 +429,43 @@ const MyDashboard: React.FC = () => {
     }));
   }, [myOpenOpps, sfTasks]);
 
-  // Pipeline summary stats
+  // Build inbox tasks with opportunity names
+  const inboxTasks: InboxTask[] = useMemo(() => {
+    const oppNameMap = new Map<string, string>();
+    for (const opp of allOpportunities) {
+      oppNameMap.set(opp.Id, opp.Name);
+    }
+    return sfTasks.map((t: any) => ({
+      Id: t.Id,
+      Subject: t.Subject || 'Untitled Task',
+      Status: t.Status || 'Not Started',
+      Priority: t.Priority || 'Normal',
+      ActivityDate: t.ActivityDate || null,
+      Description: t.Description || null,
+      OwnerId: t.OwnerId || '',
+      OwnerName: t.Owner?.Name || t.OwnerName || null,
+      CreatedById: t.CreatedById || null,
+      CreatedByName: t.CreatedBy?.Name || null,
+      WhatId: t.WhatId || null,
+      OpportunityName: t.WhatId ? oppNameMap.get(t.WhatId) || null : null,
+      isUrgent: t.Priority === 'High',
+    }));
+  }, [sfTasks, allOpportunities]);
+
+  // Pipeline summary stats — scoped by snapshot mode
   const pipelineStats = useMemo(() => {
-    const statsOpps = myOpenOpps;
+    let statsOpps: any[];
+    switch (prefs.snapshotMode) {
+      case 'filtered': statsOpps = filteredOpps.allFiltered; break;
+      case 'priorities': statsOpps = filteredOpps.visible; break;
+      default: statsOpps = myOpenOpps;
+    }
     const count = statsOpps.length;
     const total = statsOpps.reduce((sum: number, opp: any) => sum + (opp.Amount || 0), 0);
     const weighted = statsOpps.reduce(
       (sum: number, opp: any) => sum + ((opp.Amount || 0) * (opp.Probability || 0)) / 100,
       0
     );
-    // Deals closing this month
     const now = new Date();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const closingThisMonth = statsOpps.filter((opp: any) => {
@@ -437,7 +475,7 @@ const MyDashboard: React.FC = () => {
     });
     const closingAmount = closingThisMonth.reduce((s: number, o: any) => s + (o.Amount || 0), 0);
     return { count, total, weighted, closingThisMonth: closingThisMonth.length, closingAmount };
-  }, [myOpenOpps]);
+  }, [myOpenOpps, prefs.snapshotMode, filteredOpps]);
 
   if (oppsLoading) {
     return (
@@ -451,35 +489,78 @@ const MyDashboard: React.FC = () => {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h4">Priorities</Typography>
-        <Typography variant="body2" color="textSecondary">
-          {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Your weekly priorities'}
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            {user?.name ? `Hey, ${user.name.split(' ')[0]}` : 'Home'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {format(new Date(), 'EEEE, MMMM d')} &middot; {myOpenOpps.length} open opportunit{myOpenOpps.length === 1 ? 'y' : 'ies'}
+          </Typography>
+        </Box>
       </Box>
 
-      {/* Section 1: Weekly Calendar */}
-      <Section
-        id="calendar"
-        title="Weekly Calendar"
-        icon={<CalendarIcon color="primary" />}
-        collapsed={!!prefs.collapsed['calendar']}
-        onToggle={() => toggleSection('calendar')}
-        badge={
-          calendarEvents.length > 0 ? (
-            <Chip label={`${calendarEvents.length} events`} size="small" />
-          ) : undefined
-        }
-      >
-        <WeeklyCalendar
-          events={calendarEvents}
-          loading={calLoading}
-          viewMode={prefs.calendarView}
-          onViewModeChange={setCalendarView}
-        />
-      </Section>
+      {/* Row 1: Calendar + Task Inbox side-by-side */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} md={prefs.collapsed['inbox'] ? 12 : 7}>
+          <Section
+            id="calendar"
+            title="Weekly Calendar"
+            icon={<CalendarIcon color="primary" />}
+            collapsed={!!prefs.collapsed['calendar']}
+            onToggle={() => toggleSection('calendar')}
+            badge={
+              calendarEvents.length > 0 ? (
+                <Chip label={`${calendarEvents.length} events`} size="small" />
+              ) : undefined
+            }
+          >
+            <WeeklyCalendar
+              events={calendarEvents}
+              loading={calLoading}
+              viewMode={prefs.calendarView}
+              onViewModeChange={setCalendarView}
+            />
+          </Section>
+        </Grid>
+        {!prefs.collapsed['inbox'] && (
+          <Grid item xs={12} md={5}>
+            <Section
+              id="inbox"
+              title="Task Inbox"
+              icon={<InboxIcon color="primary" />}
+              collapsed={!!prefs.collapsed['inbox']}
+              onToggle={() => toggleSection('inbox')}
+              badge={
+                inboxTasks.filter((t) => t.Status !== 'Completed').length > 0 ? (
+                  <Chip label={`${inboxTasks.filter((t) => t.Status !== 'Completed').length} open`} size="small" />
+                ) : undefined
+              }
+            >
+              <TaskInbox
+                tasks={inboxTasks}
+                loading={tasksLoading}
+                maxHeight={400}
+              />
+            </Section>
+          </Grid>
+        )}
+        {prefs.collapsed['inbox'] && (
+          <Grid item xs={12}>
+            <Section
+              id="inbox"
+              title="Task Inbox"
+              icon={<InboxIcon color="primary" />}
+              collapsed={true}
+              onToggle={() => toggleSection('inbox')}
+            >
+              <div />
+            </Section>
+          </Grid>
+        )}
+      </Grid>
 
-      {/* Section 2: Priority Opportunities */}
+      {/* Row 2: Priority Opportunities */}
       <Section
         id="priorities"
         title="Priority Opportunities"
@@ -587,6 +668,7 @@ const MyDashboard: React.FC = () => {
               maxRows={prefs.topN}
               users={[]}
               showWeighted={prefs.showWeighted}
+              onFilteredChange={handleFilteredChange}
               onAddTask={(opp) => {
                 const mapped: Opportunity = {
                   Id: opp.Id,
@@ -633,6 +715,20 @@ const MyDashboard: React.FC = () => {
         icon={<TrendingUpIcon color="primary" />}
         collapsed={!!prefs.collapsed['revenue']}
         onToggle={() => toggleSection('revenue')}
+        badge={
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={prefs.snapshotMode}
+            onChange={(_, val) => val && updatePrefs({ snapshotMode: val })}
+            onClick={(e) => e.stopPropagation()}
+            sx={{ ml: 1 }}
+          >
+            <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>All Pipeline</ToggleButton>
+            <ToggleButton value="filtered" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>All Filtered</ToggleButton>
+            <ToggleButton value="priorities" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>Just Priorities</ToggleButton>
+          </ToggleButtonGroup>
+        }
       >
         <Grid container spacing={2}>
           <Grid item xs={12} sm={4}>

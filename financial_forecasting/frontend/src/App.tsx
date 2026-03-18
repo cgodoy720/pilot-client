@@ -26,6 +26,7 @@ import GivingCapacity from './pages/GivingCapacity';
 import AutomationReview from './pages/AutomationReview';
 import Research from './pages/Research';
 import DataTools from './pages/DataTools';
+import Projects from './pages/Projects';
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -111,13 +112,13 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Navigate to="/home" replace />
+                      <Navigate to="/priorities" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/home"
+                path="/priorities"
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -193,6 +194,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <DataTools />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Projects />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -273,7 +284,7 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Navigate to="/home" replace />
+                      <Navigate to="/priorities" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
