@@ -42,6 +42,7 @@ import {
   startOfWeek,
   endOfDay,
   addDays,
+  subDays,
   startOfDay,
 } from 'date-fns';
 
@@ -245,6 +246,15 @@ const MyDashboard: React.FC = () => {
     };
   }, [prefs.calendarView]);
 
+  // Wider task date range for priorities (90 days back, 180 days forward)
+  const { taskStart, taskEnd } = useMemo(() => {
+    const today = startOfDay(new Date());
+    return {
+      taskStart: format(subDays(today, 90), 'yyyy-MM-dd'),
+      taskEnd: format(addDays(today, 180), 'yyyy-MM-dd'),
+    };
+  }, []);
+
   // Fetch SF users for the filter dropdown
   const { data: usersData } = useQuery('sf-users', async () => {
     const response = await apiService.getUsers();
@@ -257,11 +267,11 @@ const MyDashboard: React.FC = () => {
     return response.data;
   });
 
-  // Fetch my tasks
+  // Fetch my tasks (wider range for priorities; calendar filters by visible dates)
   const { data: tasksData, isLoading: tasksLoading } = useQuery(
-    ['my-tasks', calStart, calEnd],
+    ['my-tasks', taskStart, taskEnd],
     async () => {
-      const response = await apiService.getMyTasks(calStart, calEnd);
+      const response = await apiService.getMyTasks(taskStart, taskEnd);
       return response.data?.data || response.data || [];
     },
     { staleTime: 5 * 60 * 1000 }
@@ -593,10 +603,10 @@ const MyDashboard: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="user-filter-label">User</InputLabel>
+              <InputLabel id="opportunity-owner-filter-label">Opportunity Owner</InputLabel>
               <Select
-                labelId="user-filter-label"
-                label="User"
+                labelId="opportunity-owner-filter-label"
+                label="Opportunity Owner"
                 value={prefs.filterUserId}
                 onChange={(e) => setPrefs((p) => ({ ...p, filterUserId: e.target.value as string }))}
               >
