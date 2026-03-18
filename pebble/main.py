@@ -1,5 +1,6 @@
 """Pebble API: prospect research pipeline. Integration #9."""
 
+import logging
 import os
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .schemas import ResearchRequest, ResearchFeedback
 from .storage.db import init_db, save_profile, get_profile, save_feedback
+
+logger = logging.getLogger("pebble.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,7 +66,7 @@ async def research_request(body: ResearchRequest):
         ProspectBudgetTracker,
     )
     from .model_client import ModelClient
-    from .data_sources import fetch_organization, fetch_company, search_contributions
+    from .data_sources import fetch_organization, search_organizations, fetch_company, search_contributions
     from .data_sources.sec import search_cik
     from .storage.db import save_profile
 
@@ -71,45 +74,65 @@ async def research_request(body: ResearchRequest):
     results = []
 
     for cid in body.contact_ids:
-        prospect = prospect_map.get(cid, {"id": cid, "first_name": "", "last_name": "", "organization": "", "ein": None})
+        prospect = prospect_map.get(cid, {"id": cid, "first_name": "", "last_name": "", "organization": "", "ein": None, "organizations": None})
         budget = ProspectBudgetTracker(prospect_id=cid)
 
-        # Fetch raw data
-        ein = prospect.get("ein")
-        propublica_data = fetch_organization(ein) if ein else None
+        try:
+            # Collect org names: organizations list, or single organization
+            org_names = list(prospect.get("organizations") or [])
+            if prospect.get("organization") and prospect["organization"] not in org_names:
+                org_names.insert(0, prospect["organization"])
+            primary_org = org_names[0] if org_names else prospect.get("organization")
 
-        sec_data = None
-        if prospect.get("organization"):
-            cik = search_cik(prospect["organization"])
-            if cik:
-                sec_data = fetch_company(cik)
+            # Fetch raw data (990, SEC) for primary org; Pebble finds EIN when missing
+            ein = prospect.get("ein")
+            if not ein and primary_org:
+                orgs = search_organizations(primary_org)
+                if orgs and orgs[0].get("ein"):
+                    ein = str(orgs[0]["ein"])
+            propublica_data = fetch_organization(ein) if ein else None
 
-        name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip() or prospect.get("organization", "")
-        fec_data = search_contributions(name, limit=10) if name else []
+            sec_data = None
+            if primary_org:
+                cik = search_cik(primary_org)
+                if cik:
+                    sec_data = fetch_company(cik)
 
-        # Stage 1 enrichment
-        enriched = stage1_enrich_prospect(
-            prospect, propublica_data, sec_data, fec_data, client, budget
-        )
-        claims = [c for c in enriched.get("claims", []) if isinstance(c, dict) and c.get("source_url")]
+            name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip() or primary_org or ""
+            fec_data = search_contributions(name, limit=10) if name else []
 
-        # Stage 3: Fact-check + Profile Synthesizer (when we have claims)
-        if claims and not budget.exceeded():
-            profile_data = stage3_fact_check_and_synthesize(claims, prospect, client, budget)
+            # Stage 1 enrichment
+            enriched = stage1_enrich_prospect(
+                prospect, propublica_data, sec_data, fec_data, client, budget
+            )
+            claims = [c for c in enriched.get("claims", []) if isinstance(c, dict) and c.get("source_url")]
+
+            # Stage 3: Fact-check + Profile Synthesizer (when we have claims)
+            if claims and not budget.exceeded():
+                profile_data = stage3_fact_check_and_synthesize(claims, prospect, client, budget)
+                profile = {
+                    "claims": profile_data.get("claims", claims),
+                    "summary": profile_data.get("summary", ""),
+                    "confidence_score": profile_data.get("confidence_score", "medium"),
+                    "partial": profile_data.get("partial", False),
+                    "failed_agents": profile_data.get("failed_agents", []),
+                }
+            else:
+                profile = {
+                    "claims": claims,
+                    "summary": "",
+                    "confidence_score": "medium",
+                    "partial": enriched.get("partial", False),
+                    "failed_agents": enriched.get("failed_agents", []),
+                }
+        except Exception as e:
+            logger.exception("Prospect %s failed: %s", cid, e)
             profile = {
-                "claims": profile_data.get("claims", claims),
-                "summary": profile_data.get("summary", ""),
-                "confidence_score": profile_data.get("confidence_score", "medium"),
-                "partial": profile_data.get("partial", False),
-                "failed_agents": profile_data.get("failed_agents", []),
-            }
-        else:
-            profile = {
-                "claims": claims,
+                "claims": [],
                 "summary": "",
-                "confidence_score": "medium",
-                "partial": enriched.get("partial", False),
-                "failed_agents": enriched.get("failed_agents", []),
+                "confidence_score": "low",
+                "partial": True,
+                "failed_agents": ["pipeline_error"],
             }
 
         save_profile(cid, profile)
