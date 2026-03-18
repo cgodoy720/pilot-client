@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
+import { CssBaseline, Box, CircularProgress } from '@mui/material';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 
@@ -13,20 +13,24 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Overview from './pages/Overview';
 import Pipeline from './pages/Pipeline';
-import Revenue from './pages/Revenue';
-import Cleanup from './pages/Cleanup';
-import NewOpportunity from './pages/NewOpportunity';
-import PaymentSchedule from './pages/PaymentSchedule';
 import Settings from './pages/Settings';
 import SalesforceCallback from './pages/SalesforceCallback';
-import WeeklyPriorities from './pages/WeeklyPriorities';
 import MyDashboard from './pages/MyDashboard';
-import NetworkMap from './pages/NetworkMap';
-import GivingCapacity from './pages/GivingCapacity';
-import AutomationReview from './pages/AutomationReview';
-import Research from './pages/Research';
-import DataTools from './pages/DataTools';
-import Projects from './pages/Projects';
+
+// Lazy load non-MVP routes to reduce initial bundle
+const Revenue = lazy(() => import('./pages/Revenue'));
+const AutomationReview = lazy(() => import('./pages/AutomationReview'));
+const Research = lazy(() => import('./pages/Research'));
+const DataTools = lazy(() => import('./pages/DataTools'));
+const Projects = lazy(() => import('./pages/Projects'));
+const NewOpportunity = lazy(() => import('./pages/NewOpportunity'));
+const PaymentSchedule = lazy(() => import('./pages/PaymentSchedule'));
+
+const LazyFallback = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+    <CircularProgress />
+  </Box>
+);
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -163,7 +167,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <AutomationReview />
+                      <Suspense fallback={<LazyFallback />}>
+                        <AutomationReview />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -173,7 +179,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Research />
+                      <Suspense fallback={<LazyFallback />}>
+                        <Research />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -183,7 +191,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Revenue />
+                      <Suspense fallback={<LazyFallback />}>
+                        <Revenue />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -193,7 +203,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <DataTools />
+                      <Suspense fallback={<LazyFallback />}>
+                        <DataTools />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -203,7 +215,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Projects />
+                      <Suspense fallback={<LazyFallback />}>
+                        <Projects />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -254,7 +268,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <NewOpportunity />
+                      <Suspense fallback={<LazyFallback />}>
+                        <NewOpportunity />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -264,7 +280,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <PaymentSchedule />
+                      <Suspense fallback={<LazyFallback />}>
+                        <PaymentSchedule />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   AppBar,
   Box,
@@ -41,7 +41,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import BedrockLogo from './BedrockLogo';
 import NotificationDropdown from './NotificationDropdown';
 import { InboxTask } from './TaskInbox';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 
 import { apiService } from '../services/api';
@@ -54,7 +54,7 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-const menuItems = [
+const ALL_MENU_ITEMS = [
   { text: 'Priorities', icon: <HomeIcon />, path: '/priorities' },
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
@@ -66,14 +66,32 @@ const menuItems = [
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
+const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/settings']);
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, logout, connectSalesforce } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // MVP nav: show Priorities, Dashboard, Pipeline, Settings when REACT_APP_NAV_PHASE=MVP
+  const navPhase = process.env.REACT_APP_NAV_PHASE || 'FULL';
+  const menuItems = useMemo(() => {
+    if (navPhase === 'MVP') {
+      return ALL_MENU_ITEMS.filter((item) => MVP_PATHS.has(item.path));
+    }
+    return ALL_MENU_ITEMS;
+  }, [navPhase]);
+
+  // Prefetch opportunities when authenticated so Priorities/Dashboard load instantly
+  useEffect(() => {
+    if (!user) return;
+    queryClient.prefetchQuery('opportunities', () => apiService.getOpportunities());
+  }, [user, queryClient]);
   const [drawerHovered, setDrawerHovered] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [syncAnchorEl, setSyncAnchorEl] = useState<null | HTMLElement>(null);

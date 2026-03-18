@@ -43,6 +43,9 @@ import calendar as _calendar
 from dotenv import load_dotenv
 load_dotenv(override=False)
 
+# JWT secret — must be defined before get_fernet() and any auth code; shared by JWT and Fernet
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+
 # Import config
 from config import SALESFORCE_CONFIG
 from models import OpportunityStage, OPEN_STAGES, CLOSED_STAGES, COLLECTING_STAGES
@@ -98,6 +101,7 @@ cache = TTLCache()
 
 # Cache TTLs (seconds)
 CACHE_TTL_OPPORTUNITIES = 300   # 5 minutes
+CACHE_TTL_STAGE_HISTORY = 300  # 5 minutes
 CACHE_TTL_ACCOUNTS = 600        # 10 minutes
 CACHE_TTL_USERS = 900           # 15 minutes
 CACHE_TTL_CASHFLOW = 600        # 10 minutes
@@ -156,7 +160,7 @@ _fernet: Optional[Fernet] = None
 def get_fernet() -> Fernet:
     global _fernet
     if _fernet is None:
-        _fernet = Fernet(_derive_fernet_key(os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-me')))
+        _fernet = Fernet(_derive_fernet_key(JWT_SECRET_KEY))
     return _fernet
 
 def encrypt_sf_tokens(data: dict) -> str:
@@ -191,6 +195,11 @@ def get_user_salesforce(request: Request) -> Optional[Salesforce]:
     if not access_token or not instance_url:
         return None
     
+    # Validate sf_user_id to prevent SOQL injection (Salesforce IDs are 15 or 18 alphanumeric chars)
+    if not _re.match(r'^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$', sf_user_id):
+        logger.warning(f"Invalid Salesforce user_id format: {sf_user_id[:20]}...")
+        return None
+
     # Check if we already have a live client for this user
     if sf_user_id in _user_sf_clients:
         client = _user_sf_clients[sf_user_id]
@@ -279,9 +288,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Session middleware (required for OAuth)
-SESSION_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+# Production detection and secret validation
 IS_PRODUCTION = os.getenv('FRONTEND_URL', '').startswith('https')
+if IS_PRODUCTION:
+    if not JWT_SECRET_KEY or len(JWT_SECRET_KEY) < 32:
+        raise RuntimeError(
+            "Production requires JWT_SECRET_KEY (min 32 chars). "
+            "Generate with: openssl rand -hex 32"
+        )
+
+# Session middleware (required for OAuth)
+SESSION_SECRET_KEY = JWT_SECRET_KEY
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,
@@ -625,7 +642,6 @@ GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/au
 # FRONTEND_URL already defined above (line 48) - don't redefine it here
 if not FRONTEND_URL:  # If not set for CORS, set default for OAuth
     FRONTEND_URL = 'http://localhost:3000'
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 
@@ -690,8 +706,12 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 @app.get("/debug/config")
-async def debug_config():
-    """Debug endpoint to check configuration values"""
+async def debug_config(request: Request):
+    """Debug endpoint — requires auth in production; disabled when FRONTEND_URL indicates prod."""
+    if IS_PRODUCTION:
+        user = await get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
     return {
         "FRONTEND_URL": FRONTEND_URL,
         "GOOGLE_CLIENT_ID": GOOGLE_CLIENT_ID[:20] + "..." if GOOGLE_CLIENT_ID else None,
@@ -725,8 +745,17 @@ async def auth_google_callback(request: Request, response: Response):
         if not user_info:
             raise HTTPException(status_code=400, detail="Failed to get user info from Google")
         
-        # Store Google tokens for Gmail/Calendar/Drive API access
         email = user_info['email']
+        
+        # Access allowlist: if ALLOWED_EMAILS is set, reject users not in the list
+        allowed_emails_raw = os.getenv('ALLOWED_EMAILS', '').strip()
+        if allowed_emails_raw:
+            allowed = {e.strip().lower() for e in allowed_emails_raw.split(',') if e.strip()}
+            if allowed and email.lower() not in allowed:
+                logger.warning(f"Rejected login: {email} not in ALLOWED_EMAILS")
+                return RedirectResponse(url=f"{FRONTEND_URL}/login?error=access_denied")
+        
+        # Store Google tokens for Gmail/Calendar/Drive API access
         google_token_data = {
             'access_token': token.get('access_token'),
             'refresh_token': token.get('refresh_token'),
@@ -1189,7 +1218,12 @@ async def get_opportunities(
 @app.get("/api/salesforce/opportunities/stage-history")
 async def get_stage_history(days: int = Query(30, ge=1, le=365)):
     """Get StageName changes from OpportunityFieldHistory within the given window."""
+    cache_key = f"stage_history:{days}"
     try:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         sf = get_salesforce()
         query = f"""
         SELECT OpportunityId, Opportunity.Name, Opportunity.Amount,
@@ -1215,6 +1249,7 @@ async def get_stage_history(days: int = Query(30, ge=1, le=365)):
                 "CreatedDate": r.get("CreatedDate"),
             })
 
+        cache.set(cache_key, formatted, CACHE_TTL_STAGE_HISTORY)
         return formatted
     except Exception as e:
         logger.warning(f"OpportunityFieldHistory query failed: {e}")
@@ -1320,6 +1355,7 @@ async def create_opportunity(opportunity_data: Dict[str, Any], request: Request 
         
         if result.get('success'):
             cache.invalidate_prefix("opps:")  # Clear opps cache
+            cache.invalidate_prefix("stage_history")  # Stage history may change
             return {
                 "success": True,
                 "id": result.get('id'),
@@ -1364,7 +1400,8 @@ async def bulk_update_opportunities(body: dict, request: Request = None):
                 failed_ids.append(opp_id)
         
         cache.invalidate_prefix("opps:")  # Clear opps cache
-        
+        cache.invalidate_prefix("stage_history")  # Stage history may change
+
         return {
             "success": True,
             "total": len(opp_ids),
@@ -1394,6 +1431,7 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
         
         if result == 204:  # Success code
             cache.invalidate_prefix("opps:")  # Clear opps cache
+            cache.invalidate_prefix("stage_history")  # Stage history may change
             return {
                 "success": True,
                 "message": "Opportunity updated successfully",
@@ -3151,7 +3189,7 @@ async def get_account_calendar_activity(account_name: str, request: Request, lim
         time_max = (now + timedelta(days=90)).isoformat() + 'Z'
 
         events_result = service.events().list(
-            calendarId='primary',
+            calendarId=PBD_CALENDAR_ID,
             q=account_name,
             timeMin=time_min,
             timeMax=time_max,
@@ -3256,14 +3294,13 @@ async def get_my_calendar_events(
     limit: int = 100,
     calendar_id: str = None,
 ):
-    """Get calendar events for the current user from a specific calendar.
-    Scoped to shared calendars only — personal calendar access is blocked."""
-    # Block personal calendar access
-    if not calendar_id or calendar_id == "primary":
+    """Get calendar events for the current user from the PBD shared calendar only."""
+    # Restrict to PBD calendar only — block personal and arbitrary calendar IDs
+    if not calendar_id or calendar_id == "primary" or calendar_id != PBD_CALENDAR_ID:
         return {
             "data": [],
             "total": 0,
-            "message": "Personal calendar access is not enabled. Use the PBD calendar ID.",
+            "message": "Only the PBD shared calendar is supported. Use the PBD calendar ID.",
         }
 
     try:
@@ -4977,6 +5014,8 @@ def sync_invoice_payments_from_sage():
                 sf.Opportunity.update(opp_id, {
                     'StageName': OpportunityStage.CLOSED_COMPLETED.value
                 })
+                cache.invalidate_prefix("opps:")
+                cache.invalidate_prefix("stage_history")
                 opps_completed_count += 1
                 logger.info(f"   🎉 Opportunity {opp_id} COMPLETED (all payments received)")
         
@@ -6288,7 +6327,9 @@ async def update_opportunity_stage(request: dict, http_request: Request = None):
         sf.Opportunity.update(opp_id, {
             'StageName': new_stage
         })
-        
+        cache.invalidate_prefix("opps:")
+        cache.invalidate_prefix("stage_history")
+
         return {
             "success": True,
             "message": f"Opportunity stage updated to '{new_stage}'",

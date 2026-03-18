@@ -3,6 +3,15 @@
 > Master tracker for all planned PRs. Each PR has a detailed plan in `tasks/prs/`.
 > Update checkboxes as work progresses.
 
+## Production-Grade Security MVP (2026-03-18)
+
+- [x] Phase 1: Security hardening (JWT/Fernet, prod secret, dev bypass, debug, calendar, SOQL)
+- [x] Phase 2: Calendar re-auth UX, Settings Google reconnect
+- [x] Phase 3: Archived feature planning docs (5 docs)
+- [x] Phase 4: Documentation (lessons, env template, DEV_SETUP_GUIDE, hygiene)
+- [x] Phase 5: tasks/todo.md updated
+- [ ] Phase 6: Manual verification (Priorities, Dashboard, Pipeline, Settings)
+
 ## Ship Order
 
 | # | PR | Status | Size | Depends On |
