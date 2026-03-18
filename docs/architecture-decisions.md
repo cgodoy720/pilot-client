@@ -242,3 +242,51 @@ Schedule architecture review after:
 
 Then decide on simplifications or enhancements.
 
+---
+
+## 🔮 **Future Sprint: Technical Debt & Planned Work**
+
+*Documented 2026-03-17 during OAuth2 Connectivity sprint. DO NOT IMPLEMENT — for planning only.*
+
+### 6A. Server Merge: `simple_server.py` + `main.py`
+
+**Problem**: Two backends with overlapping endpoints and different auth models.
+
+**What to merge from `main.py`**:
+- `ForecastingEngine` — probability-weighted pipeline forecasting
+- `DataSyncService` — SF ↔ Sage Intacct background sync
+- `UnifiedMCPClient` — MCP transport abstraction
+- Pydantic data models
+- Background sync task
+
+**Key challenge**: `main.py`'s services assume a single shared SF client. `simple_server.py` uses per-user OAuth tokens. Resolution: forecasting and sync use a service account, while user-facing queries use per-user tokens (already how `simple_server.py` works via `get_salesforce_for_request()`).
+
+**Estimated effort**: 1–2 days
+
+### 6B. Per-User Slack OAuth
+
+**Problem**: Bot token only reads channels the bot is added to. Per-user OAuth needed for DMs, posting as user, private channels, and user preferences.
+
+**Implementation plan**:
+- `GET /auth/slack` → redirect to Slack OAuth consent
+- `GET /auth/slack/callback` → exchange code, store in encrypted cookie
+- Settings page: "Connect Slack" button
+- User preferences: channel monitoring, DM access opt-in
+
+### 6C. User Calendar Preferences
+
+**Problem**: Currently hardcoded to PBD shared calendar only.
+
+**Future feature**:
+- `GET /api/calendar/available` → list all user-accessible calendars
+- `POST /api/calendar/preferences` → save selected calendar IDs
+- Store preferences per-user (database or encrypted cookie)
+- Frontend: multi-select in Settings page
+
+### 6D. Automation Queue Persistence
+
+**Problem**: `_automation_queue` is in-memory, lost on restart.
+
+**Resolution**: PostgreSQL table `automation_queue` with columns:
+`id`, `source`, `raw_text`, `parsed_json`, `status`, `created_at`, `reviewed_by`, `reviewed_at`
+

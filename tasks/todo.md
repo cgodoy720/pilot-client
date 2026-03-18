@@ -1,0 +1,45 @@
+# Bedrock PR Roadmap
+
+> Master tracker for all planned PRs. Each PR has a detailed plan in `tasks/prs/`.
+> Update checkboxes as work progresses.
+
+## Ship Order
+
+| # | PR | Status | Size | Depends On |
+|---|-----|--------|------|------------|
+| 1 | [Ranking Stability Bug Fix](prs/pr-01-ranking-stability.md) | `todo` | S | — |
+| 2 | [Stage Colors & Ordering](prs/pr-02-stage-colors.md) | `todo` | M | — |
+| 3 | [Column Sorting](prs/pr-03-column-sorting.md) | `todo` | M | PR 1 |
+| 4 | [Revenue Snapshot Filter](prs/pr-04-revenue-snapshot-filter.md) | `todo` | S | — |
+| 5 | [Calendar Expansion + Toggles](prs/pr-05-calendar-expansion.md) | `todo` | L | — |
+| 6 | [Task Inbox](prs/pr-06-task-inbox.md) | `todo` | L | — |
+| 7 | [Home Page Layout](prs/pr-07-home-layout.md) | `todo` | M | PR 5, PR 6 |
+| 8 | [Pipeline Funnel Accountability](prs/pr-08-pipeline-funnel.md) | `todo` | L | — |
+| 9 | [Projects Page](prs/pr-09-projects-page.md) | `todo` | XL | Needs separate deep planning |
+| 10 | [Logo Redesign](prs/pr-10-logo.md) | `todo` | S | — |
+
+## Status Legend
+
+- `todo` — not started
+- `in-progress` — actively being worked
+- `in-review` — PR open, awaiting review
+- `done` — merged
+
+## Dependency Graph
+
+```
+PR 1 (ranking bug) ──► PR 3 (column sorting)
+
+PR 5 (calendar) ──┐
+                   ├──► PR 7 (home layout)
+PR 6 (task inbox) ─┘
+
+All others ship independently.
+```
+
+## Notes
+
+- PRs 1, 2, 4, 10 are quick wins — ship first for momentum.
+- PR 9 (Projects) needs its own planning session — informed by AIJI Project Tracker_v6.xlsx.
+- All work happens in `financial_forecasting/frontend/` (React + MUI stack).
+- Backend changes needed for PR 6 (task `created_by`, `is_urgent`) and PR 8 (stage history).

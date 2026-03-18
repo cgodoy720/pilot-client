@@ -290,6 +290,18 @@ export const apiService = {
   submitSlackWebhook: (text: string, channel?: string) =>
     api.post('/api/slack/webhook', { text, channel: channel || 'manual', user_name: 'Bedrock User' }),
 
+  getSlackChannelMessages: (channelName: string, limit: number = 50) =>
+    api.get(`/api/slack/channel-messages/${encodeURIComponent(channelName)}`, { params: { limit } }),
+
+  getSlackPipelineUpdates: (limit: number = 50) =>
+    api.get('/api/slack/pipeline-updates', { params: { limit } }),
+
+  ingestPipelineUpdates: (limit: number = 20) =>
+    api.post('/api/automation-review/ingest-pipeline', null, { params: { limit } }),
+
+  getCalendarConfig: () =>
+    api.get('/api/calendar/config'),
+
   // Google Drive Integration
   getAccountDriveActivity: (accountName: string, limit: number = 20, opportunityName?: string) =>
     api.get(`/api/drive/account-activity/${encodeURIComponent(accountName)}`, {

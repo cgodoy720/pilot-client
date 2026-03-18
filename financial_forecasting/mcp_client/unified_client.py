@@ -20,62 +20,60 @@ class UnifiedMCPClient:
 
     async def connect_slack(
         self,
-        transport: Union[Transport, str],
+        transport: Optional[Union[Transport, str]] = None,
         bot_token: Optional[str] = None,
         team_id: Optional[str] = None,
     ) -> SlackMCPService:
-        """Connect to Slack MCP server."""
-        # Create transport if string provided
-        if isinstance(transport, str):
-            if transport.startswith("ws://") or transport.startswith("wss://"):
-                transport = WebSocketTransport(transport)
-            else:
-                transport = StdioTransport()  # Assume stdio for other cases
+        """Connect to Slack. Uses MCP transport if provided, direct API otherwise."""
+        mcp_client = None
+        if transport is not None:
+            if isinstance(transport, str):
+                if transport.startswith("ws://") or transport.startswith("wss://"):
+                    transport = WebSocketTransport(transport)
+                else:
+                    transport = StdioTransport()
+            mcp_client = MCPClient(transport, {"name": "pursuit-mcp-client-slack", "version": "0.1.0"})
+            await mcp_client.connect()
+            self.clients["slack"] = mcp_client
 
-        # Create MCP client
-        client = MCPClient(transport, {"name": "pursuit-mcp-client-slack", "version": "0.1.0"})
-        await client.connect()
-        
-        # Create service
-        service = SlackMCPService(client, bot_token, team_id)
-        await service.authenticate()
-        
-        # Store references
-        self.clients["slack"] = client
+        service = SlackMCPService(mcp_client, bot_token, team_id)
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Slack authentication failed")
+
         self.services["slack"] = service
         self._connected_services.append("slack")
-        
+
         return service
 
     async def connect_salesforce(
         self,
-        transport: Union[Transport, str],
+        transport: Optional[Union[Transport, str]] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         security_token: Optional[str] = None,
         domain: Optional[str] = None,
     ) -> SalesforceMCPService:
-        """Connect to Salesforce MCP server."""
-        # Create transport if string provided
-        if isinstance(transport, str):
-            if transport.startswith("ws://") or transport.startswith("wss://"):
-                transport = WebSocketTransport(transport)
-            else:
-                transport = StdioTransport()
+        """Connect to Salesforce. Uses MCP transport if provided, direct API otherwise."""
+        mcp_client = None
+        if transport is not None:
+            if isinstance(transport, str):
+                if transport.startswith("ws://") or transport.startswith("wss://"):
+                    transport = WebSocketTransport(transport)
+                else:
+                    transport = StdioTransport()
+            mcp_client = MCPClient(transport, {"name": "pursuit-mcp-client-salesforce", "version": "0.1.0"})
+            await mcp_client.connect()
+            self.clients["salesforce"] = mcp_client
 
-        # Create MCP client
-        client = MCPClient(transport, {"name": "pursuit-mcp-client-salesforce", "version": "0.1.0"})
-        await client.connect()
+        service = SalesforceMCPService(mcp_client, username, password, security_token, domain)
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Salesforce authentication failed")
 
-        # Create service
-        service = SalesforceMCPService(client, username, password, security_token, domain)
-        await service.authenticate()
-        
-        # Store references
-        self.clients["salesforce"] = client
         self.services["salesforce"] = service
         self._connected_services.append("salesforce")
-        
+
         return service
 
     async def connect_google_drive(
@@ -114,7 +112,7 @@ class UnifiedMCPClient:
 
     async def connect_sage_intacct(
         self,
-        transport: Union[Transport, str],
+        transport: Optional[Union[Transport, str]] = None,
         company_id: Optional[str] = None,
         user_id: Optional[str] = None,
         user_password: Optional[str] = None,
@@ -122,29 +120,28 @@ class UnifiedMCPClient:
         sender_password: Optional[str] = None,
         endpoint_url: Optional[str] = None,
     ) -> SageIntacctMCPService:
-        """Connect to Sage Intacct MCP server."""
-        # Create transport if string provided
-        if isinstance(transport, str):
-            if transport.startswith("ws://") or transport.startswith("wss://"):
-                transport = WebSocketTransport(transport)
-            else:
-                transport = StdioTransport()
+        """Connect to Sage Intacct. Uses MCP transport if provided, direct API otherwise."""
+        mcp_client = None
+        if transport is not None:
+            if isinstance(transport, str):
+                if transport.startswith("ws://") or transport.startswith("wss://"):
+                    transport = WebSocketTransport(transport)
+                else:
+                    transport = StdioTransport()
+            mcp_client = MCPClient(transport, {"name": "pursuit-mcp-client-intacct", "version": "0.1.0"})
+            await mcp_client.connect()
+            self.clients["sage_intacct"] = mcp_client
 
-        # Create MCP client
-        client = MCPClient(transport, {"name": "pursuit-mcp-client-intacct", "version": "0.1.0"})
-        await client.connect()
-        
-        # Create service
         service = SageIntacctMCPService(
-            client, company_id, user_id, user_password, sender_id, sender_password, endpoint_url
+            mcp_client, company_id, user_id, user_password, sender_id, sender_password, endpoint_url
         )
-        await service.authenticate()
-        
-        # Store references
-        self.clients["sage_intacct"] = client
+        authenticated = await service.authenticate()
+        if not authenticated:
+            raise RuntimeError("Sage Intacct authentication failed")
+
         self.services["sage_intacct"] = service
         self._connected_services.append("sage_intacct")
-        
+
         return service
 
     async def connect_google_calendar(
