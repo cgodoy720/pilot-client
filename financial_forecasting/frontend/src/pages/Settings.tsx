@@ -266,9 +266,26 @@ const Settings: React.FC = () => {
               </Alert>
             </Box>
           ) : (
-            <Alert severity="warning" icon={<CloudOffIcon />}>
-              Google Calendar not connected. Please log in with Google to enable calendar sync.
-            </Alert>
+            <Box>
+              <Alert severity="warning" sx={{ mb: 2 }} icon={<CloudOffIcon />}>
+                Google Calendar not connected. Re-authenticate to enable PBD calendar sync.
+              </Alert>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Calendar access is tied to your Google login. Sign in again to refresh tokens.
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<LinkIcon />}
+                onClick={() => {
+                  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+                  window.location.href = `${apiUrl}/auth/google`;
+                }}
+                sx={{ textTransform: 'none' }}
+              >
+                Sign in with Google again
+              </Button>
+            </Box>
           )}
         </CardContent>
       </Card>

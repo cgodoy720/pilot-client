@@ -212,7 +212,7 @@ const MOCK_PRIORITY_OPPS: PriorityOpp[] = [
 
 const MyDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [prefs, setPrefs] = useState<DashboardPrefs>(loadPrefs);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
@@ -271,14 +271,16 @@ const MyDashboard: React.FC = () => {
   const pbdCalendarId = user?.calendar_pbd_id || PBD_CALENDAR_ID_FALLBACK;
 
   // Fetch PBD shared calendar events
-  const { data: calEventsData, isLoading: calLoading } = useQuery(
+  const { data: calResponse, isLoading: calLoading } = useQuery(
     ['pbd-calendar-events', calStart, calEnd, pbdCalendarId],
     async () => {
       const response = await apiService.getMyCalendarEvents(calStart, calEnd, 100, pbdCalendarId);
-      return response.data?.data || response.data || [];
+      return response.data;
     },
     { staleTime: 5 * 60 * 1000, enabled: !prefs.collapsed['calendar'] }
   );
+  const calEventsData = Array.isArray(calResponse?.data) ? calResponse.data : [];
+  const calNeedsReauth = calResponse?.needs_reauth === true || Boolean(calResponse?.error);
 
   const allOpportunities = useMemo(() => {
     const raw = Array.isArray(oppsData)
@@ -365,7 +367,7 @@ const MyDashboard: React.FC = () => {
     const events: CalendarEvent[] = [];
 
     // GCal events
-    const gcalEvents = Array.isArray(calEventsData) ? calEventsData : [];
+    const gcalEvents = calEventsData;
     for (const ev of gcalEvents) {
       events.push({
         id: ev.id || `gcal-${events.length}`,
@@ -515,6 +517,20 @@ const MyDashboard: React.FC = () => {
               ) : undefined
             }
           >
+            {calNeedsReauth && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Calendar access expired. Please{' '}
+                <Button
+                  size="small"
+                  color="inherit"
+                  sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                  onClick={() => logout().then(() => {})}
+                >
+                  log out and sign in again
+                </Button>{' '}
+                to restore PBD calendar sync.
+              </Alert>
+            )}
             <WeeklyCalendar
               events={calendarEvents}
               loading={calLoading}
