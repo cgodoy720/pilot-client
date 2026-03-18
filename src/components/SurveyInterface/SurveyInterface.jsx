@@ -85,12 +85,16 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
           const data = await response.json();
           if (data.feedback) {
             setExistingFeedback(data.feedback);
-            
+
             // If feedback exists, populate responses
             const existingResponses = {};
+            const genericResponses = data.feedback.survey_responses || {};
             questions.forEach(q => {
+              // Check top-level fields first (weekly/L1 surveys), then generic survey_responses
               if (data.feedback[q.id] !== undefined && data.feedback[q.id] !== null) {
                 existingResponses[q.id] = data.feedback[q.id].toString();
+              } else if (genericResponses[q.id] !== undefined && genericResponses[q.id] !== null) {
+                existingResponses[q.id] = genericResponses[q.id].toString();
               }
             });
             setResponses(existingResponses);

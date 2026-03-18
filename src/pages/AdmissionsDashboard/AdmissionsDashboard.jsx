@@ -103,17 +103,23 @@ const AdmissionsDashboard = () => {
       const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
       if (saved) {
         const parsed = JSON.parse(saved);
+        // Migrate legacy string filters to arrays
+        const toArray = (val) => {
+          if (Array.isArray(val)) return val;
+          if (typeof val === 'string' && val !== '') return [val];
+          return [];
+        };
         return {
-          status: parsed.applicationFilters?.status || '',
-          final_status: parsed.applicationFilters?.final_status || '',
-          info_session_status: parsed.applicationFilters?.info_session_status || '',
-          workshop_status: parsed.applicationFilters?.workshop_status || '',
-          program_admission_status: parsed.applicationFilters?.program_admission_status || '',
-          structured_task_grade: parsed.applicationFilters?.structured_task_grade || '',
+          status: toArray(parsed.applicationFilters?.status),
+          final_status: toArray(parsed.applicationFilters?.final_status),
+          info_session_status: toArray(parsed.applicationFilters?.info_session_status),
+          workshop_status: toArray(parsed.applicationFilters?.workshop_status),
+          program_admission_status: toArray(parsed.applicationFilters?.program_admission_status),
+          structured_task_grade: toArray(parsed.applicationFilters?.structured_task_grade),
           ready_for_workshop_invitation: false,
           name_search: '',
           cohort_id: parsed.applicationFilters?.cohort_id || '',
-          deliberation: parsed.applicationFilters?.deliberation || '',
+          deliberation: toArray(parsed.applicationFilters?.deliberation),
           limit: PAGE_SIZE,
           offset: 0
         };
@@ -122,16 +128,16 @@ const AdmissionsDashboard = () => {
       console.error('Error loading saved filters:', error);
     }
     return {
-      status: '',
-      final_status: '',
-      info_session_status: '',
-      workshop_status: '',
-      program_admission_status: '',
-      structured_task_grade: '',
+      status: [],
+      final_status: [],
+      info_session_status: [],
+      workshop_status: [],
+      program_admission_status: [],
+      structured_task_grade: [],
       ready_for_workshop_invitation: false,
       name_search: '',
       cohort_id: '',
-      deliberation: '',
+      deliberation: [],
       limit: PAGE_SIZE,
       offset: 0
     };
@@ -422,7 +428,12 @@ const AdmissionsDashboard = () => {
           // Skip - we calculate these separately based on loadAllMode
           return;
         }
-        if (value !== '' && value !== false) {
+        // Array filters: send as comma-separated values
+        if (Array.isArray(value)) {
+          if (value.length > 0) {
+            params.append(key, value.join(','));
+          }
+        } else if (value !== '' && value !== false) {
           params.append(key, value);
         }
       });
