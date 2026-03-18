@@ -184,6 +184,7 @@ const Dashboard: React.FC = () => {
       return (opp.Probability || 0) < 50 || 
              ['Lead Gen', 'New Lead', 'Qualifying'].includes(opp.StageName || '');
     });
+    const atRiskHighValueCount = atRiskDeals.filter((opp: Opportunity) => (opp.Amount || 0) >= 250000).length;
 
     // Stale opportunities
     const staleOpps = openOpps.filter((opp: Opportunity) => {
@@ -197,6 +198,13 @@ const Dashboard: React.FC = () => {
       const notUpdated = daysSinceUpdate > 30;
 
       return isPastDue || notUpdated;
+    });
+
+    // High-value stagnant: $250k+ with no activity in 30+ days
+    const highValueStagnantOpps = openOpps.filter((opp: Opportunity) => {
+      const lastModified = opp.LastModifiedDate ? parseISO(opp.LastModifiedDate) : parseISO(opp.CreatedDate);
+      const daysSinceUpdate = differenceInDays(now, lastModified);
+      return (opp.Amount || 0) >= 250000 && daysSinceUpdate > 30;
     });
 
     // Win rate (trailing 12 months)
@@ -342,6 +350,9 @@ const Dashboard: React.FC = () => {
       currentQuarterCount: currentQuarterOpps.length,
       atRiskCount: atRiskDeals.length,
       atRiskDeals,
+      atRiskHighValueCount,
+      highValueStagnantCount: highValueStagnantOpps.length,
+      highValueStagnantOpps,
       staleCount: staleOpps.length,
       staleOpps,
       winRate,
@@ -515,7 +526,7 @@ const Dashboard: React.FC = () => {
           </Typography>
           
           <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Box>
                 <Typography variant="caption" color="textSecondary">
                   Expected to Close
@@ -529,7 +540,7 @@ const Dashboard: React.FC = () => {
               </Box>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Box>
                 <Typography variant="caption" color="textSecondary">
                   Weighted Value
@@ -543,7 +554,31 @@ const Dashboard: React.FC = () => {
               </Box>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Box>
+                <Typography variant="caption" color="textSecondary">
+                  High-value stagnant
+                </Typography>
+                <Typography variant="h5" color={metrics.highValueStagnantCount > 0 ? 'warning.main' : 'text.primary'}>
+                  {metrics.highValueStagnantCount}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Deals over $250k, no activity in 30+ days
+                </Typography>
+                {metrics.highValueStagnantCount > 0 && (
+                  <Button
+                    size="small"
+                    color="warning"
+                    onClick={() => navigate('/pipeline', { state: { filterStale: true } })}
+                    sx={{ mt: 1 }}
+                  >
+                    View Details
+                  </Button>
+                )}
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
               <Box>
                 <Typography variant="caption" color="textSecondary">
                   Deals at Risk
@@ -551,6 +586,11 @@ const Dashboard: React.FC = () => {
                 <Typography variant="h5" color={metrics.atRiskCount > 0 ? 'warning.main' : 'text.primary'}>
                   {metrics.atRiskCount}
                 </Typography>
+                {metrics.atRiskHighValueCount > 0 && (
+                  <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
+                    {metrics.atRiskHighValueCount} over $250k
+                  </Typography>
+                )}
                 {metrics.atRiskCount > 0 && (
                   <Button
                     size="small"
@@ -566,6 +606,32 @@ const Dashboard: React.FC = () => {
           </Grid>
         </CardContent>
       </Card>
+
+      {/* Top 5 by strategic value (Amount × Probability) */}
+      {(() => {
+        const openOpps = opportunities.filter((o: Opportunity) => OPEN_STAGES.includes(o.StageName));
+        const topByYield = [...openOpps]
+          .map((o: Opportunity) => ({ ...o, yield: ((o.Amount || 0) * (o.Probability || 0)) / 100 }))
+          .sort((a, b) => b.yield - a.yield)
+          .slice(0, 5);
+        if (topByYield.length === 0) return null;
+        return (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="caption" color="textSecondary" gutterBottom display="block">
+                Largest by strategic value (Amount × Probability)
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                {topByYield.map((o: Opportunity & { yield: number }) => (
+                  <Typography key={o.Id} component="li" variant="body2" sx={{ py: 0.25 }}>
+                    {o.Name} — {formatDollarMillions(o.yield)}
+                  </Typography>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Pipeline Health Funnel */}
       <PipelineFunnel opportunities={opportunities} />

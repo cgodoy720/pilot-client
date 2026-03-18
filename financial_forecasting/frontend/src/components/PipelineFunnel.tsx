@@ -27,7 +27,7 @@ import {
   AutoAwesome as AnalyzeIcon,
 } from '@mui/icons-material';
 import { useQuery, useQueryClient } from 'react-query';
-import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import { format, parseISO, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { formatDollarMillions } from '../utils/formatters';
 import { getStageHexColor } from '../types/salesforce';
 import { apiService } from '../services/api';
@@ -55,6 +55,8 @@ interface Opportunity {
   Amount: number;
   Probability: number;
   CloseDate: string;
+  LastModifiedDate?: string;
+  CreatedDate?: string;
 }
 
 interface StageChange {
@@ -295,6 +297,17 @@ const PipelineFunnel: React.FC<PipelineFunnelProps> = ({ opportunities }) => {
 
             const progressingRows = isExpanded ? buildProgressingRows(layer) : [];
             const setbackRows = isExpanded ? buildSetbackRows(layer) : [];
+            const oppsInStage = isExpanded ? filteredOpps.filter((o) => o.StageName === layer.stage) : [];
+            const now = new Date();
+            const isStagnant = (opp: Opportunity) => {
+              const lastMod = opp.LastModifiedDate || opp.CreatedDate;
+              if (!lastMod) return false;
+              try {
+                return differenceInDays(now, parseISO(lastMod)) > 30;
+              } catch {
+                return false;
+              }
+            };
 
             return (
               <Box key={layer.stage}>
@@ -429,7 +442,50 @@ const PipelineFunnel: React.FC<PipelineFunnelProps> = ({ opportunities }) => {
                       </Box>
                     )}
 
-                    {!hasActivity && (
+                    {oppsInStage.length > 0 && (
+                      <Box sx={{ mt: progressingRows.length > 0 || setbackRows.length > 0 ? 1.5 : 0 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                          In this stage ({oppsInStage.length})
+                        </Typography>
+                        <TableContainer component={Paper} variant="outlined" sx={{ mt: 0.5 }}>
+                          <Table size="small" sx={{ tableLayout: 'fixed' }}>
+                            <TableHead>
+                              <TableRow>
+                                <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }}>Opportunity</TableCell>
+                                <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }} align="right">Amount</TableCell>
+                                <TableCell sx={{ fontSize: '0.7rem', py: 0.5, width: 32 }} />
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {oppsInStage.map((opp) => (
+                                <TableRow key={opp.Id}>
+                                  <TableCell sx={{ fontSize: '0.7rem', py: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {opp.Name}
+                                  </TableCell>
+                                  <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }} align="right">
+                                    {formatDollarMillions(opp.Amount || 0)}
+                                  </TableCell>
+                                  <TableCell sx={{ fontSize: '0.7rem', py: 0.5 }}>
+                                    {isStagnant(opp) && (
+                                      <Tooltip title="No activity in 30+ days" arrow>
+                                        <StagnantIcon sx={{ fontSize: 14, color: '#ed6c02' }} />
+                                      </Tooltip>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </Box>
+                    )}
+
+                    {!hasActivity && oppsInStage.length > 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                        No stage movements in the last {days} days.
+                      </Typography>
+                    )}
+                    {!hasActivity && oppsInStage.length === 0 && (
                       <Typography variant="caption" color="text.secondary">
                         No stage movements in the last {days} days.
                       </Typography>
