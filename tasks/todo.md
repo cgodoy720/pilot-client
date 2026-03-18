@@ -43,3 +43,7 @@ All others ship independently.
 - PR 9 (Projects) needs its own planning session — informed by AIJI Project Tracker_v6.xlsx.
 - All work happens in `financial_forecasting/frontend/` (React + MUI stack).
 - Backend changes needed for PR 6 (task `created_by`, `is_urgent`) and PR 8 (stage history).
+
+## Future Considerations
+
+- **Pipeline Cleanup Tool**: Build a dedicated cleanup/hygiene feature for stale opportunities (past close date or no updates in 30+ days). Removed from Overview dashboard — belongs as its own tool, not on the main dashboard.

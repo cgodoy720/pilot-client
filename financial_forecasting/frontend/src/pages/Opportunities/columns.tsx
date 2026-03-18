@@ -24,7 +24,7 @@ import {
 } from '@mui/x-data-grid';
 import { format } from 'date-fns';
 import { formatDollarMillions } from '../../utils/formatters';
-import { OPPORTUNITY_STAGES } from '../../types/salesforce';
+import { OPPORTUNITY_STAGES, getStageHexColor } from '../../types/salesforce';
 import { getStageColor, getProbabilityColor, calculatePaymentDate } from './helpers';
 import type { Opportunity } from './helpers';
 import { AccountEditCell, OwnerEditCell } from './EditCells';
@@ -337,7 +337,11 @@ function stageColumn(cb: ColumnCallbacks): GridColDef {
           '&:after': { borderBottom: 'none' },
         }}
         renderValue={(value) => (
-          <Chip label={value} color={getStageColor(value as string)} size="small" />
+          <Chip
+            label={value}
+            size="small"
+            sx={{ bgcolor: getStageHexColor(value as string), color: '#fff', fontWeight: 600 }}
+          />
         )}
       >
         {OPPORTUNITY_STAGES.map((stage) => (

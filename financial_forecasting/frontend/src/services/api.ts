@@ -68,6 +68,12 @@ export const apiService = {
       },
     }),
   
+  getStageHistory: (days: number = 30) =>
+    api.get('/api/salesforce/opportunities/stage-history', { params: { days } }),
+
+  analyzePipeline: (days: number = 30) =>
+    api.post('/api/ai/pipeline-analysis', { days }),
+
   createOpportunity: (data: OpportunityCreatePayload) =>
     api.post('/api/salesforce/opportunities', data),
 

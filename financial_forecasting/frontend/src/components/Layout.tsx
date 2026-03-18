@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AppBar,
   Box,
@@ -28,17 +28,19 @@ import {
   AttachMoney as AttachMoneyIcon,
   BuildCircle as ToolsIcon,
   Settings as SettingsIcon,
-  Notifications as NotificationsIcon,
   AccountCircle as AccountCircleIcon,
   Sync as SyncIcon,
   Cloud as CloudIcon,
   CloudOff as CloudOffIcon,
   Home as HomeIcon,
-  HolidayVillage as BedrockIcon,
   RateReview as ReviewIcon,
   Science as ResearchIcon,
+  AccountTree as ProjectsIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import BedrockLogo from './BedrockLogo';
+import NotificationDropdown from './NotificationDropdown';
+import { InboxTask } from './TaskInbox';
 import { useQuery } from 'react-query';
 import toast from 'react-hot-toast';
 
@@ -53,12 +55,13 @@ interface LayoutProps {
 }
 
 const menuItems = [
-  { text: 'Priorities', icon: <HomeIcon />, path: '/home' },
+  { text: 'Priorities', icon: <HomeIcon />, path: '/priorities' },
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
   { text: 'Auto Review', icon: <ReviewIcon />, path: '/automation-review' },
   { text: 'Research', icon: <ResearchIcon />, path: '/research' },
   { text: 'Cashflow', icon: <AttachMoneyIcon />, path: '/cashflow' },
+  { text: 'Projects', icon: <ProjectsIcon />, path: '/projects' },
   { text: 'Data Tools', icon: <ToolsIcon />, path: '/data-tools' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
@@ -76,7 +79,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [syncAnchorEl, setSyncAnchorEl] = useState<null | HTMLElement>(null);
 
   // Query for health status
-  const { data: healthData, refetch: refetchHealth } = useQuery(
+  const { refetch: refetchHealth } = useQuery(
     'health',
     () => apiService.servicesHealth(),
     {
@@ -85,6 +88,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       },
     }
   );
+
+  // Fetch tasks for notification dropdown (React Query dedupes with MyDashboard)
+  const { data: tasksData, isLoading: tasksLoading } = useQuery(
+    ['my-tasks'],
+    async () => {
+      const response = await apiService.getMyTasks();
+      return response.data?.data || response.data || [];
+    },
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  const inboxTasks: InboxTask[] = useMemo(() => {
+    const raw = Array.isArray(tasksData) ? tasksData : [];
+    return raw.map((t: any) => ({
+      Id: t.Id,
+      Subject: t.Subject || 'Untitled Task',
+      Status: t.Status || 'Not Started',
+      Priority: t.Priority || 'Normal',
+      ActivityDate: t.ActivityDate || null,
+      Description: t.Description || null,
+      OwnerId: t.OwnerId,
+      OwnerName: t.Owner?.Name || t.OwnerName || null,
+      CreatedById: t.CreatedById || null,
+      CreatedByName: t.CreatedBy?.Name || null,
+      WhatId: t.WhatId || null,
+      OpportunityName: null,
+    }));
+  }, [tasksData]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -124,32 +155,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     handleSyncMenuClose();
   };
 
-  const getHealthStatus = () => {
-    if (!healthData) return { color: 'default', count: 0 };
-    
-    const services = Object.values(healthData);
-    const unhealthyCount = services.filter((service: any) => 
-      service.status !== 'healthy'
-    ).length;
-    
-    if (unhealthyCount === 0) {
-      return { color: 'success', count: 0 };
-    } else if (unhealthyCount <= 1) {
-      return { color: 'warning', count: unhealthyCount };
-    } else {
-      return { color: 'error', count: unhealthyCount };
-    }
-  };
-
-  const healthStatus = getHealthStatus();
-
   const isExpanded = isMobile || drawerHovered;
   const currentDrawerWidth = isExpanded ? drawerWidth : collapsedDrawerWidth;
 
   const drawer = (
     <div>
       <Toolbar sx={{ justifyContent: isExpanded ? 'flex-start' : 'center', gap: 1 }}>
-        <BedrockIcon sx={{ color: theme.palette.primary.main }} />
+        <BedrockLogo sx={{ color: theme.palette.primary.main, fontSize: 28 }} />
         {isExpanded && (
           <Typography
             variant="h6"
@@ -258,16 +270,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuItem onClick={() => handleSync('intacct')}>Sync Sage Intacct</MenuItem>
           </Menu>
 
-          {/* Notifications */}
-          <IconButton color="inherit" sx={{ mr: 1 }}>
-            <Badge 
-              badgeContent={healthStatus.count} 
-              color={healthStatus.color as any}
-              variant={healthStatus.count > 0 ? 'standard' : 'dot'}
-            >
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
+          {/* Action Items Dropdown */}
+          <NotificationDropdown tasks={inboxTasks} loading={tasksLoading} />
 
           {/* SF Connection Indicator */}
           {!user?.salesforce_connected && (

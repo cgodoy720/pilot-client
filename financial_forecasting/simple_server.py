@@ -4,13 +4,13 @@ Simplified FastAPI server for Financial Forecasting POC.
 Uses direct Salesforce connection without MCP layer for simplicity.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Response, Request, Query
+from fastapi import FastAPI, HTTPException, Depends, Response, Request, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 import uvicorn
 import os
@@ -1184,6 +1184,129 @@ async def get_opportunities(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/opportunities/stage-history")
+async def get_stage_history(days: int = Query(30, ge=1, le=365)):
+    """Get StageName changes from OpportunityFieldHistory within the given window."""
+    try:
+        sf = get_salesforce()
+        query = f"""
+        SELECT OpportunityId, Opportunity.Name, Opportunity.Amount,
+               Opportunity.StageName, OldValue, NewValue, CreatedDate
+        FROM OpportunityFieldHistory
+        WHERE Field = 'StageName'
+          AND CreatedDate = LAST_N_DAYS:{days}
+        ORDER BY CreatedDate DESC
+        """
+        result = sf.query_all(query)
+        records = result.get("records", [])
+
+        formatted = []
+        for r in records:
+            opp = r.get("Opportunity") or {}
+            formatted.append({
+                "OpportunityId": r.get("OpportunityId"),
+                "OpportunityName": opp.get("Name"),
+                "Amount": opp.get("Amount") or 0,
+                "CurrentStage": opp.get("StageName"),
+                "OldValue": r.get("OldValue"),
+                "NewValue": r.get("NewValue"),
+                "CreatedDate": r.get("CreatedDate"),
+            })
+
+        return formatted
+    except Exception as e:
+        logger.warning(f"OpportunityFieldHistory query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ai/pipeline-analysis")
+async def ai_pipeline_analysis(payload: Dict[str, Any] = Body(...)):
+    """On-demand AI analysis of pipeline stage changes and funnel health."""
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(status_code=503, detail="AI analysis not configured (missing ANTHROPIC_API_KEY)")
+
+    days = payload.get("days", 30)
+    if not isinstance(days, int) or days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="days must be an integer between 1 and 365")
+
+    try:
+        import anthropic
+        sf = get_salesforce()
+
+        history_query = f"""
+        SELECT OpportunityId, Opportunity.Name, Opportunity.Amount,
+               Opportunity.StageName, OldValue, NewValue, CreatedDate
+        FROM OpportunityFieldHistory
+        WHERE Field = 'StageName'
+          AND CreatedDate = LAST_N_DAYS:{days}
+        ORDER BY CreatedDate DESC
+        """
+        history_result = sf.query_all(history_query)
+        changes = history_result.get("records", [])
+
+        snapshot_query = """
+        SELECT StageName, COUNT(Id) cnt, SUM(Amount) total
+        FROM Opportunity
+        WHERE IsClosed = false
+        GROUP BY StageName
+        ORDER BY StageName
+        """
+        snapshot_result = sf.query_all(snapshot_query)
+        stage_snapshot = [
+            {"stage": r["StageName"], "count": r["cnt"], "totalAmount": r.get("total") or 0}
+            for r in snapshot_result.get("records", [])
+        ]
+
+        formatted_changes = []
+        for r in changes:
+            opp = r.get("Opportunity") or {}
+            formatted_changes.append({
+                "opportunity": opp.get("Name"),
+                "amount": opp.get("Amount") or 0,
+                "from": r.get("OldValue"),
+                "to": r.get("NewValue"),
+                "date": r.get("CreatedDate"),
+            })
+
+        prompt = f"""You are a pipeline analyst for a nonprofit fundraising team managing grant opportunities.
+
+CURRENT PIPELINE SNAPSHOT (open opportunities by stage):
+{json.dumps(stage_snapshot, indent=1)}
+
+STAGE CHANGES IN THE LAST {days} DAYS ({len(formatted_changes)} total):
+{json.dumps(formatted_changes[:50], default=str, indent=1)}
+
+Analyze the pipeline health in 3-5 concise bullet points covering:
+- Pipeline velocity: Are opportunities moving forward through stages?
+- Stagnation risk: Any stages with many opps but little movement?
+- Stage conversion: Which transitions are happening most/least?
+- Actionable recommendations: What should the team focus on?
+
+Be specific — reference actual stage names, counts, and dollar amounts. Keep each bullet to 1-2 sentences. Use plain text, no markdown formatting."""
+
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        analysis_text = response.content[0].text.strip()
+
+        return {
+            "analysis": analysis_text,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "changes_count": len(formatted_changes),
+            "days": days,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"AI pipeline analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Salesforce - Create Opportunity
 @app.post("/api/salesforce/opportunities")
