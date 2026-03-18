@@ -54,7 +54,8 @@
 | wealth_tier | enum | `tier-1` through `tier-4`, `unknown` — populated by network search |
 | composite_score | number | 0–100, populated by prospect intelligence |
 | intelligence_updated_at | datetime | When prospect intelligence (score, tier) was last refreshed. Null = never scored. |
-| intelligence_source | string | What produced the current score (e.g., "network-search-v1", "claude-api-2026-03") |
+| intelligence_source | string | What produced the current score (e.g., "pebble-v1", "network-search-v1") |
+| pebble_profile_id | string | Optional. Pebble profile ID for fetching full research from Pebble API. |
 | intelligence_confidence | enum | `verified` (human-reviewed), `high` (multiple signals), `low` (single source or stale >90 days) |
 
 **Intelligence reliability:** Prospect scores decay. If `intelligence_updated_at` is >90 days old, `intelligence_confidence` should auto-downgrade to `low`. Decisions based on stale intelligence must note this in the Decision record.

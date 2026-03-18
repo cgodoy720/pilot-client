@@ -16,8 +16,9 @@
 | 4 | LinkedIn CSV | Import only | Phase 1 | In-browser parsing (no API) |
 | 5 | Prospect Lists (CSV) | Import only | Phase 1 | In-browser parsing |
 | 6 | Google Calendar | Read only | Phase 2+ | Not started |
-| 7 | Claude API | Bedrock → Claude | Phase 2+ | Not started |
+| 7 | Claude API | Pebble uses Claude; Bedrock does not call Claude directly for research | Phase 2+ | Not started |
 | 8 | Learning Platform | Shared identity | Long-term | Architecture defined |
+| 9 | Pebble | Bedrock → Pebble (research requests, profiles, feedback) | Phase 2+ | Not started |
 
 ---
 
@@ -192,7 +193,7 @@ Read-only. Meeting events → Task/Activity suggestions in Bedrock. Not started.
 
 ### 7. Claude API (Phase 2+)
 
-Bedrock → Claude. Sends Contact/Account context, receives prospect scores and research summaries. Also processes Fireflies meeting transcripts into structured Activity records. On-demand or nightly batch. **PII constraint:** minimize data sent; no donor financial details; cache results locally.
+Pebble uses Claude; Bedrock does not call Claude directly for research. Claude is used by Pebble for enrichment, scoring, and deep research. Bedrock consumes research via Pebble API (Integration #9). Fireflies meeting transcripts may still flow through Bedrock → Claude for Activity records; scope TBD.
 
 ---
 
@@ -217,6 +218,30 @@ Bedrock → Claude. Sends Contact/Account context, receives prospect scores and 
 **Current state:** Architecture defined in `product/learning-platform-integration.md`. No code yet. Long-term phase.
 
 **Key constraint:** Fundraising prospects stay in Salesforce (system of record via `Fundraising_Lead` record type), not in the learning platform's `lead` table. Optional `fundraising_prospect` table in PostgreSQL for cross-platform joins post-merge. See entity-map.md for the Lead→Prospect rename rationale.
+
+---
+
+### 9. Pebble (Phase 2+)
+
+**Direction:** Bedrock → Pebble (research requests, profiles, feedback)
+
+**What flows:**
+
+| Data | Source | Target | Processing |
+|------|--------|--------|------------|
+| Research requests | Bedrock (contact IDs) | Pebble `POST /api/v1/research/request` | Bedrock sends contact IDs; Pebble enriches, scores, generates profiles |
+| Research profiles | Pebble `GET /api/v1/research/profiles/{contact_id}` | Bedrock (display, store summary) | Profile JSON with claims, sources, confidence |
+| Human feedback | Bedrock (review UI) | Pebble `POST /api/v1/research/feedback` | claim_id, correct: bool — powers Pebble feedback loop |
+
+**Trigger:** User requests research for a contact; Bedrock calls Pebble. Feedback on user confirm/deny of claims.
+
+**Frequency:** On-demand (research request); real-time (feedback).
+
+**Owner:** Engineering (Bedrock client); Pebble team (API).
+
+**Current state:** Not started. Contract defined in Pebble–Bedrock Integration Architecture plan. Env vars: `PEBBLE_API_URL`, `PEBBLE_API_KEY`.
+
+**PII constraint:** Bedrock sends minimal context (contact_id, name, org). Pebble pulls 990/SEC/FEC etc. itself. PII never through OpenRouter or prompt-logging APIs; Pebble uses Anthropic direct + local Ollama.
 
 ---
 

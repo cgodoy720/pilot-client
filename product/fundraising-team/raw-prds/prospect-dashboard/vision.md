@@ -64,14 +64,14 @@ Each feature has a self-contained spec in the `specs/` directory:
 Working prototype within ~1 month. Architecture designed for where agents will be in 6 months.
 
 - **Phase 1** (Days 1-7): All four views functional, data persistence, deployed. [[phase-1]]
-- **Phase 2** (Days 8-14): Polish, Claude API integration, activity logging. [[phase-2]]
-- **Phase 3** (Days 15-21): Production hardening, executive view, migration prep. [[phase-3]]
+- **Phase 2** (Days 8-14): Polish, Pebble integration, activity logging. [[phase-2]]
+- **Phase 3** (Days 15-21): Production hardening, executive view, migration prep, Pebble integration. [[phase-3]]
 
 ## Success metrics
 
 **Quantitative:**
 - 50+ actionable prospects surfaced from LinkedIn cross-reference in first run
-- Prospect research brief in < 30 seconds (Claude API) vs. 15-30 minutes manually
+- Prospect research brief in < 30 seconds (Pebble API call) vs. 15-30 minutes manually
 - 100% of active opportunities tracked in dashboard within 2 weeks of launch
 
 **Qualitative:**
@@ -84,7 +84,7 @@ Working prototype within ~1 month. Architecture designed for where agents will b
 | Risk | Mitigation |
 |------|------------|
 | LinkedIn CSV format incomplete or inconsistent | Flexible parser that handles missing fields. Document expected format. |
-| Fuzzy matching too many false positives | Conservative thresholds, tune with feedback. Claude API disambiguation in Phase 2. |
+| Fuzzy matching too many false positives | Conservative thresholds, tune with feedback. Pebble API disambiguation in Phase 2. |
 | Timeline aggressive for one builder | Prioritize ruthlessly. Phase 1 ships even if minimal. Cut Phase 2/3 scope before cutting Phase 1 quality. |
 | PII/wealth data privacy | Local storage only, no third-party sharing. See [[security-requirements]]. |
 | Low team adoption | Build for existing workflows. Minimize data entry friction. Team feedback in Phase 2. |
