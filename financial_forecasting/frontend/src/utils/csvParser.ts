@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import type { ImportResult, Lead } from '../types/weeklyPriorities';
+import type { ImportResult, Lead, ProspectType, TimelineFit } from '../types/weeklyPriorities';
 
 // ---------------------------------------------------------------------------
 // Column alias table: raw CSV header → canonical field name
@@ -17,7 +17,26 @@ export type LeadField =
   | 'avg_comparable_grant'
   | 'estimated_ask'
   | 'likelihood'
-  | 'wealth_tier';
+  | 'wealth_tier'
+  // Giving capacity fields
+  | 'prospect_type'
+  | 'net_worth_estimate'
+  | 'annual_giving_history'
+  | 'asset_holdings'
+  | 'institutional_role'
+  | 'institution_name'
+  | 'institution_annual_budget'
+  | 'board_memberships'
+  | 'government_office'
+  | 'discretionary_budget'
+  | 'degrees_of_separation'
+  | 'relationship_strength'
+  | 'affinity_tags'
+  | 'timeline_fit'
+  | 'ein';
+
+const VALID_PROSPECT_TYPES: ProspectType[] = ['hnwi', 'elected_official', 'institutional_grantmaker', 'board_member', 'connector', 'unknown'];
+const VALID_TIMELINE_FITS: TimelineFit[] = ['immediate', '6mo', '12mo', '18mo', 'long_term'];
 
 export const COLUMN_ALIASES: Record<string, LeadField> = {
   name: 'name',
@@ -54,6 +73,40 @@ export const COLUMN_ALIASES: Record<string, LeadField> = {
   probability: 'likelihood',
   wealth_tier: 'wealth_tier',
   tier: 'wealth_tier',
+  // Giving capacity fields
+  prospect_type: 'prospect_type',
+  type_of_prospect: 'prospect_type',
+  net_worth: 'net_worth_estimate',
+  net_worth_estimate: 'net_worth_estimate',
+  annual_giving: 'annual_giving_history',
+  giving_history: 'annual_giving_history',
+  annual_giving_history: 'annual_giving_history',
+  assets: 'asset_holdings',
+  asset_holdings: 'asset_holdings',
+  role: 'institutional_role',
+  institutional_role: 'institutional_role',
+  institution: 'institution_name',
+  institution_name: 'institution_name',
+  inst_budget: 'institution_annual_budget',
+  institution_annual_budget: 'institution_annual_budget',
+  institution_budget: 'institution_annual_budget',
+  boards: 'board_memberships',
+  board_memberships: 'board_memberships',
+  office: 'government_office',
+  government_office: 'government_office',
+  disc_budget: 'discretionary_budget',
+  discretionary_budget: 'discretionary_budget',
+  hops: 'degrees_of_separation',
+  degrees_separation: 'degrees_of_separation',
+  degrees_of_separation: 'degrees_of_separation',
+  rel_strength: 'relationship_strength',
+  relationship_strength: 'relationship_strength',
+  affinity: 'affinity_tags',
+  affinity_tags: 'affinity_tags',
+  timeline: 'timeline_fit',
+  timeline_fit: 'timeline_fit',
+  ein: 'ein',
+  tax_id: 'ein',
 };
 
 export function normalizeKey(raw: string): string {
@@ -122,6 +175,12 @@ export function parseCSV(file: File): Promise<ImportResult & { leads: Lead[] }> 
             return isNaN(n) ? undefined : n;
           };
 
+          // Parse affinity_tags from comma-separated string
+          const affinityRaw = fields['affinity_tags'];
+          const affinityTags = affinityRaw
+            ? affinityRaw.split(',').map((t) => t.trim()).filter(Boolean)
+            : undefined;
+
           leads.push({
             id: `lead-${timestamp}-${index}`,
             first_name: fields['first_name'] || '',
@@ -143,6 +202,26 @@ export function parseCSV(file: File): Promise<ImportResult & { leads: Lead[] }> 
             wealth_tier: (['tier-1', 'tier-2', 'tier-3', 'tier-4', 'unknown'].includes(fields['wealth_tier'] || '')
               ? fields['wealth_tier'] as any
               : undefined),
+            // Giving capacity fields
+            prospect_type: (VALID_PROSPECT_TYPES.includes(fields['prospect_type'] as ProspectType)
+              ? fields['prospect_type'] as ProspectType
+              : undefined),
+            net_worth_estimate: parseNum(fields['net_worth_estimate']),
+            annual_giving_history: parseNum(fields['annual_giving_history']),
+            asset_holdings: parseNum(fields['asset_holdings']),
+            institutional_role: fields['institutional_role'],
+            institution_name: fields['institution_name'],
+            institution_annual_budget: parseNum(fields['institution_annual_budget']),
+            board_memberships: fields['board_memberships'],
+            government_office: fields['government_office'],
+            discretionary_budget: parseNum(fields['discretionary_budget']),
+            degrees_of_separation: parseNum(fields['degrees_of_separation']),
+            relationship_strength: parseNum(fields['relationship_strength']),
+            affinity_tags: affinityTags,
+            timeline_fit: (VALID_TIMELINE_FITS.includes(fields['timeline_fit'] as TimelineFit)
+              ? fields['timeline_fit'] as TimelineFit
+              : undefined),
+            ein: fields['ein'],
           });
         });
 

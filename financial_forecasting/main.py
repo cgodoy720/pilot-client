@@ -15,6 +15,8 @@ import uvicorn
 
 # Import our MCP client and models
 import sys
+# Prefer financial_forecasting/mcp_client (has Calendar, Gmail, Fireflies services)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mcp_client import UnifiedMCPClient
@@ -22,7 +24,9 @@ from models import (
     SalesforceOpportunity, SalesforceAccount, IntacctInvoice, IntacctPayment,
     PaymentForecast, CashFlowProjection, ForecastingMetrics, ForecastingReport,
     OpportunityUpdateRequest, InvoiceCreationRequest, ForecastingDashboardData,
-    OpportunityStage, PaymentTerms, InvoiceStatus
+    OpportunityStage, PaymentTerms, InvoiceStatus,
+    OPEN_STAGES, CLOSED_STAGES,
+    ApiResponse,
 )
 from forecasting_engine import ForecastingEngine
 from data_sync import DataSyncService
@@ -49,13 +53,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security
-security = HTTPBearer()
+# Security — auto_error=False allows unauthenticated requests (demo mode)
+security = HTTPBearer(auto_error=False)
 
-# Global variables for services
-mcp_client: Optional[UnifiedMCPClient] = None
-forecasting_engine: Optional[ForecastingEngine] = None
-data_sync_service: Optional[DataSyncService] = None
+# Service singletons — initialized on startup, injected via Depends()
+_services: Dict[str, Any] = {}
 _sync_lock = asyncio.Lock()
 
 # Startup and shutdown events
@@ -63,51 +65,42 @@ _sync_lock = asyncio.Lock()
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
-    global mcp_client, forecasting_engine, data_sync_service
-    
     logger.info("Starting up Financial Forecasting API...")
-    
-    try:
-        # Initialize MCP client
-        mcp_client = UnifiedMCPClient()
-        
-        # Connect to Salesforce
-        logger.info("Connecting to Salesforce...")
-        await mcp_client.connect_salesforce("stdio")
-        
-        # Connect to Sage Intacct
-        logger.info("Connecting to Sage Intacct...")
-        await mcp_client.connect_sage_intacct("stdio")
-        
-        # Initialize forecasting engine
-        forecasting_engine = ForecastingEngine(mcp_client)
-        
-        # Initialize data sync service
-        data_sync_service = DataSyncService(mcp_client)
-        
-        # Start background sync task
+
+    client = UnifiedMCPClient()
+    _services["mcp_client"] = client
+
+    # Connect all services gracefully — each is independent
+    for svc_name, connect_fn in [
+        ("Salesforce", lambda: client.connect_salesforce("stdio")),
+        ("Sage Intacct", lambda: client.connect_sage_intacct("stdio")),
+        ("Slack", lambda: client.connect_slack("stdio")),
+        ("Google Calendar", lambda: client.connect_google_calendar()),
+        ("Gmail", lambda: client.connect_gmail()),
+        ("Fireflies", lambda: client.connect_fireflies()),
+    ]:
+        try:
+            await connect_fn()
+            logger.info(f"{svc_name} connected successfully")
+        except Exception as e:
+            logger.warning(f"{svc_name} not available: {e}")
+
+    # Set up dependent services if Salesforce connected
+    if "salesforce" in client.connected_services:
+        _services["forecasting_engine"] = ForecastingEngine(client)
+        _services["data_sync_service"] = DataSyncService(client)
         asyncio.create_task(background_sync_task())
-        
-        logger.info("Financial Forecasting API started successfully!")
-        
-    except Exception as e:
-        logger.error(f"Failed to start services: {e}")
-        raise
+
+    logger.info(f"API started — connected services: {client.connected_services or ['none']}")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
-    global mcp_client
-
     logger.info("Shutting down Financial Forecasting API...")
-
-    if mcp_client:
-        sage_service = mcp_client.services.get("sage_intacct")
-        if sage_service:
-            await sage_service.disconnect()
-        await mcp_client.disconnect_all()
-
+    client = _services.get("mcp_client")
+    if client:
+        await client.disconnect_all()
     logger.info("Shutdown complete.")
 
 
@@ -117,7 +110,9 @@ async def background_sync_task():
     """Background task to sync data periodically."""
     while True:
         try:
+            data_sync_service = _services.get("data_sync_service")
             if data_sync_service:
+                        # Non-blocking acquire — skip cycle if lock held
                 if _sync_lock.locked():
                     logger.warning("Sync already in progress, skipping cycle.")
                 else:
@@ -140,18 +135,55 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return {"user_id": "demo_user", "name": "Demo User", "role": "admin"}
 
 
-def get_mcp_client():
+def get_mcp_client() -> UnifiedMCPClient:
     """Get MCP client dependency."""
-    if not mcp_client:
+    client = _services.get("mcp_client")
+    if not client:
         raise HTTPException(status_code=503, detail="MCP client not initialized")
-    return mcp_client
+    return client
 
 
-def get_forecasting_engine():
+def get_forecasting_engine() -> ForecastingEngine:
     """Get forecasting engine dependency."""
-    if not forecasting_engine:
+    engine = _services.get("forecasting_engine")
+    if not engine:
         raise HTTPException(status_code=503, detail="Forecasting engine not initialized")
-    return forecasting_engine
+    return engine
+
+
+def get_data_sync_service() -> DataSyncService:
+    """Get data sync service dependency."""
+    svc = _services.get("data_sync_service")
+    if not svc:
+        raise HTTPException(status_code=503, detail="Data sync service not available")
+    return svc
+
+
+# Auth endpoints (for frontend compatibility with simple_server)
+
+@app.get("/auth/me")
+async def auth_me():
+    """Return current user info for the frontend."""
+    return {
+        "user_id": "demo_user",
+        "name": "Demo User",
+        "email": "demo@pursuit.org",
+        "picture": None,
+        "salesforce_connected": False,
+        "salesforce_user_id": None,
+        "salesforce_user_name": None,
+    }
+
+
+@app.get("/api/cashflow/summary")
+async def cashflow_summary():
+    """Placeholder cashflow summary for frontend."""
+    return ApiResponse(success=True, data={
+        "total_pipeline": 0,
+        "weighted_pipeline": 0,
+        "ytd_received": 0,
+        "outstanding": 0,
+    })
 
 
 # Health check endpoints
@@ -159,22 +191,25 @@ def get_forecasting_engine():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow(),
-        "services": {
-            "mcp_client": mcp_client is not None,
-            "forecasting_engine": forecasting_engine is not None,
-            "data_sync_service": data_sync_service is not None,
-        }
-    }
+    return ApiResponse(
+        success=True,
+        data={"status": "healthy"},
+        meta={
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "mcp_client": "mcp_client" in _services,
+                "forecasting_engine": "forecasting_engine" in _services,
+                "data_sync_service": "data_sync_service" in _services,
+            },
+        },
+    )
 
 
 @app.get("/health/services")
 async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_client)):
     """Check health of connected services."""
     health_status = {}
-    
+
     for service_name in client._connected_services:
         try:
             service = client.services[service_name]
@@ -189,18 +224,14 @@ async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_clien
                 "status": "error",
                 "error": str(e)
             }
-    
-    return health_status
+
+    return ApiResponse(success=True, data=health_status)
 
 
 # Salesforce endpoints
 
-VALID_STAGES = {
-    'Lead Gen', 'New Lead', 'Qualifying', 'Design / Proposal Creation',
-    'Proposal Negotiation', 'Contract Creation', 'Negotiating Contract',
-    'Collecting / In Effect', 'Closed / Did not Fulfill',
-    'Closed / Completed', 'Closed Lost', 'Withdrawn', '--None--'
-}
+# Valid stages derived from the OpportunityStage enum — single source of truth
+VALID_STAGES = {s.value for s in OpportunityStage}
 
 
 @app.get("/api/salesforce/opportunities", response_model=List[SalesforceOpportunity])
@@ -213,7 +244,7 @@ async def get_opportunities(
 ):
     """Get Salesforce opportunities."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
 
         # Build SOQL query
         query = """
@@ -240,9 +271,13 @@ async def get_opportunities(
         result = await salesforce.query(query)
         
         opportunities = []
-        for record in result.get("records", []):
+        raw_records = result.get("records", [])
+        for record in raw_records:
             opportunities.append(SalesforceOpportunity(**record))
-        
+
+        # Refresh entity cache for Slack parser
+        _refresh_opp_cache(raw_records)
+
         return opportunities
         
     except Exception as e:
@@ -259,7 +294,7 @@ async def update_opportunity(
 ):
     """Update a Salesforce opportunity."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         # Update the opportunity
         success = await salesforce.update_record(
@@ -269,9 +304,8 @@ async def update_opportunity(
         )
         
         if success:
-            # Log the update
             logger.info(f"Opportunity {opportunity_id} updated by {user['user_id']}")
-            return {"success": True, "message": "Opportunity updated successfully"}
+            return ApiResponse(success=True, data={"id": opportunity_id, "message": "Opportunity updated successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to update opportunity")
             
@@ -288,7 +322,7 @@ async def get_accounts(
 ):
     """Get Salesforce accounts."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         query = f"""
         SELECT Id, Name, Type, Industry, AnnualRevenue, NumberOfEmployees,
@@ -320,18 +354,14 @@ async def create_account(
 ):
     """Create a new Salesforce account."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         # Create the account
         result = await salesforce.create_record("Account", account_data)
         
         if result and result.get("id"):
             logger.info(f"Account created with ID: {result['id']} by {user['user_id']}")
-            return {
-                "success": True,
-                "id": result["id"],
-                "message": "Account created successfully"
-            }
+            return ApiResponse(success=True, data={"id": result["id"], "message": "Account created successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to create account")
             
@@ -349,7 +379,7 @@ async def get_contacts(
 ):
     """Get Salesforce contacts, optionally filtered by account."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         query = f"""
         SELECT Id, FirstName, LastName, Name, AccountId, Title, Email, Phone,
@@ -383,18 +413,14 @@ async def create_contact(
 ):
     """Create a new Salesforce contact."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         # Create the contact
         result = await salesforce.create_record("Contact", contact_data)
         
         if result and result.get("id"):
             logger.info(f"Contact created with ID: {result['id']} by {user['user_id']}")
-            return {
-                "success": True,
-                "id": result["id"],
-                "message": "Contact created successfully"
-            }
+            return ApiResponse(success=True, data={"id": result["id"], "message": "Contact created successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to create contact")
             
@@ -411,7 +437,7 @@ async def get_users(
 ):
     """Get Salesforce users."""
     try:
-        salesforce = client.services["salesforce"]
+        salesforce = client.salesforce
         
         query = f"""
         SELECT Id, Name, Email, IsActive
@@ -434,6 +460,90 @@ async def get_users(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ---------------------------------------------------------------------------
+# My Tasks / Calendar endpoints (for My Priorities page)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/salesforce/my-tasks")
+async def get_my_tasks(
+    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(200, le=500),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Get current user's Salesforce Tasks in a date range."""
+    try:
+        salesforce = client.salesforce
+
+        where_clauses = ["IsClosed = false"]
+        if start:
+            where_clauses.append(f"ActivityDate >= {start}")
+        if end:
+            where_clauses.append(f"ActivityDate <= {end}")
+
+        where_sql = " AND ".join(where_clauses)
+        query = f"""
+        SELECT Id, Subject, ActivityDate, Status, Priority, WhatId, WhoId,
+               OwnerId, Description, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE {where_sql}
+        ORDER BY ActivityDate ASC
+        LIMIT {limit}
+        """
+
+        result = await salesforce.query(query)
+        tasks = result.get("records", [])
+        return ApiResponse(success=True, data=tasks, meta={"count": len(tasks)})
+
+    except Exception as e:
+        logger.error(f"Error fetching tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/calendar/my-events")
+async def get_my_calendar_events(
+    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(100, le=200),
+    calendar_id: str = Query("primary", description="Calendar ID (default: primary)"),
+    user=Depends(get_current_user),
+):
+    """Get Google Calendar events in a date range. Supports shared calendars via calendar_id."""
+    client = _services.get("mcp_client")
+    cal_service = client.services.get("google_calendar") if client else None
+    if not cal_service or not cal_service.is_authenticated:
+        return ApiResponse(
+            success=True,
+            data=[],
+            meta={"message": "Calendar not connected"},
+        )
+
+    try:
+        from datetime import datetime as dt
+
+        days_back = 0
+        days_forward = 14
+        if start:
+            delta = dt.now() - dt.strptime(start, "%Y-%m-%d")
+            days_back = max(0, delta.days)
+        if end:
+            delta = dt.strptime(end, "%Y-%m-%d") - dt.now()
+            days_forward = max(1, delta.days)
+
+        events = await cal_service.search_events(
+            query="",
+            days_back=days_back,
+            days_forward=days_forward,
+            max_results=limit,
+            calendar_id=calendar_id,
+        )
+        return ApiResponse(success=True, data=events, meta={"count": len(events)})
+    except Exception as e:
+        logger.error(f"Error fetching calendar events: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Sage Intacct endpoints
 
 @app.get("/api/intacct/invoices", response_model=List[IntacctInvoice])
@@ -445,7 +555,7 @@ async def get_invoices(
 ):
     """Get Sage Intacct invoices."""
     try:
-        intacct = client.services["sage_intacct"]
+        intacct = client.sage_intacct
         
         result = await intacct.get_invoices(customer_id=customer_id, limit=limit)
         
@@ -471,7 +581,7 @@ async def create_invoice(
 ):
     """Create a new invoice in Sage Intacct."""
     try:
-        intacct = client.services["sage_intacct"]
+        intacct = client.sage_intacct
         
         # Prepare invoice data
         invoice_data = {
@@ -491,11 +601,10 @@ async def create_invoice(
                 user["user_id"]
             )
             
-            return {
-                "success": True,
-                "invoice_id": result.get("data", {}).get("RECORDNO"),
-                "message": "Invoice created successfully"
-            }
+            return ApiResponse(
+                success=True,
+                data={"invoice_id": result.get("data", {}).get("RECORDNO"), "message": "Invoice created successfully"},
+            )
         else:
             raise HTTPException(
                 status_code=400, 
@@ -516,7 +625,7 @@ async def get_payments(
 ):
     """Get Sage Intacct payments."""
     try:
-        intacct = client.services["sage_intacct"]
+        intacct = client.sage_intacct
         
         result = await intacct.get_payments(customer_id=customer_id, limit=limit)
         
@@ -653,12 +762,11 @@ async def generate_forecasting_report(
 async def trigger_data_sync(
     background_tasks: BackgroundTasks,
     sync_type: str = Query("all", regex="^(all|salesforce|intacct)$"),
+    sync_service: DataSyncService = Depends(get_data_sync_service),
     user = Depends(get_current_user)
 ):
     """Trigger manual data synchronization."""
     try:
-        if not data_sync_service:
-            raise HTTPException(status_code=503, detail="Data sync service not available")
 
         if _sync_lock.locked():
             raise HTTPException(status_code=409, detail="Sync already in progress")
@@ -667,19 +775,18 @@ async def trigger_data_sync(
             async with _sync_lock:
                 await sync_fn()
 
-        # Run sync in background
         if sync_type == "all":
-            background_tasks.add_task(_locked_sync, data_sync_service.sync_all_data)
+            background_tasks.add_task(_locked_sync, sync_service.sync_all_data)
         elif sync_type == "salesforce":
-            background_tasks.add_task(_locked_sync, data_sync_service.sync_salesforce_data)
+            background_tasks.add_task(_locked_sync, sync_service.sync_salesforce_data)
         elif sync_type == "intacct":
-            background_tasks.add_task(_locked_sync, data_sync_service.sync_intacct_data)
+            background_tasks.add_task(_locked_sync, sync_service.sync_intacct_data)
 
-        return {
-            "success": True,
-            "message": f"Data sync ({sync_type}) triggered successfully",
-            "triggered_by": user["user_id"]
-        }
+        return ApiResponse(
+            success=True,
+            data={"message": f"Data sync ({sync_type}) triggered successfully"},
+            meta={"triggered_by": user["user_id"]},
+        )
 
     except HTTPException:
         raise
@@ -720,11 +827,7 @@ async def get_grant_invoices(
         # Convert to list of dicts
         invoices = df.to_dict('records')
         
-        return {
-            "success": True,
-            "count": len(invoices),
-            "invoices": invoices
-        }
+        return ApiResponse(success=True, data=invoices, meta={"count": len(invoices)})
         
     except Exception as e:
         logger.error(f"Error loading grant invoices: {e}")
@@ -748,11 +851,7 @@ async def get_invoice_matches(
         else:
             matches = {}
         
-        return {
-            "success": True,
-            "count": len(matches),
-            "matches": matches
-        }
+        return ApiResponse(success=True, data=matches, meta={"count": len(matches)})
         
     except Exception as e:
         logger.error(f"Error loading matches: {e}")
@@ -799,12 +898,10 @@ async def save_invoice_match(
         
         logger.info(f"Saved match: Invoice {match_request.invoice_id} -> Opportunity {match_request.opportunity_id}")
         
-        return {
-            "success": True,
-            "message": "Match saved successfully",
-            "invoice_id": match_request.invoice_id,
-            "opportunity_id": match_request.opportunity_id
-        }
+        return ApiResponse(
+            success=True,
+            data={"message": "Match saved successfully", "invoice_id": match_request.invoice_id, "opportunity_id": match_request.opportunity_id},
+        )
         
     except Exception as e:
         logger.error(f"Error saving match: {e}")
@@ -840,10 +937,7 @@ async def delete_invoice_match(
             
             logger.info(f"Deleted match for invoice {invoice_id}")
             
-            return {
-                "success": True,
-                "message": "Match deleted successfully"
-            }
+            return ApiResponse(success=True, data={"message": "Match deleted successfully"})
         else:
             raise HTTPException(status_code=404, detail="Match not found")
         
@@ -870,6 +964,682 @@ async def save_and_notify_report(report: ForecastingReport, user_id: str):
         logger.info(f"Saved forecasting report {report.report_id} for user {user_id}")
     except Exception as e:
         logger.error(f"Error saving/notifying report: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Automation Review — human-in-the-loop CRM update queue
+# ---------------------------------------------------------------------------
+
+# In-memory queue for pending parsed updates (production: use DB)
+import uuid as _uuid
+
+_automation_queue: Dict[str, Dict[str, Any]] = {}
+
+
+class SlackCRMUpdate(BaseModel):
+    """Parsed CRM update from a Slack message."""
+    text: str
+    channel: Optional[str] = None
+    user_name: Optional[str] = None
+
+
+import re as _re
+import difflib as _difflib
+import calendar as _calendar
+
+# Module-level opportunity cache for entity resolution
+_opp_cache: List[Dict[str, Any]] = []
+_opp_cache_loaded: bool = False
+
+
+def _get_opp_cache(client=None) -> List[Dict[str, Any]]:
+    """Return cached opportunity list; populate from SF on first call."""
+    global _opp_cache, _opp_cache_loaded
+    if _opp_cache_loaded:
+        return _opp_cache
+    # Will be populated lazily when opportunities are fetched
+    return _opp_cache
+
+
+def _refresh_opp_cache(opportunities: List[Dict[str, Any]]) -> None:
+    """Refresh the opportunity cache from a list of opportunity dicts."""
+    global _opp_cache, _opp_cache_loaded
+    _opp_cache = opportunities
+    _opp_cache_loaded = True
+
+
+def _extract_amount(text: str) -> Optional[int]:
+    """Extract dollar amount from text like $250K, $1.2M, $100,000."""
+    match = _re.search(r'\$[\d,]+(?:\.\d+)?[KkMm]?', text)
+    if not match:
+        return None
+    raw = match.group(0).replace('$', '').replace(',', '')
+    multiplier = 1
+    if raw[-1] in ('K', 'k'):
+        multiplier = 1_000
+        raw = raw[:-1]
+    elif raw[-1] in ('M', 'm'):
+        multiplier = 1_000_000
+        raw = raw[:-1]
+    try:
+        return int(float(raw) * multiplier)
+    except ValueError:
+        return None
+
+
+def _extract_close_date(text: str) -> Optional[str]:
+    """Extract a close date from natural language text. Returns ISO date string."""
+    text_lower = text.lower()
+    today = date.today()
+
+    # "end of [month]"
+    m = _re.search(r'end of (\w+)', text_lower)
+    if m:
+        month_name = m.group(1).capitalize()
+        for i, name in enumerate(_calendar.month_name):
+            if name and name.lower().startswith(month_name.lower()):
+                year = today.year if i >= today.month else today.year + 1
+                last_day = _calendar.monthrange(year, i)[1]
+                return date(year, i, last_day).isoformat()
+
+    # "by Q[1-4]"
+    m = _re.search(r'by q([1-4])', text_lower)
+    if m:
+        q = int(m.group(1))
+        end_month = q * 3
+        year = today.year if end_month >= today.month else today.year + 1
+        last_day = _calendar.monthrange(year, end_month)[1]
+        return date(year, end_month, last_day).isoformat()
+
+    # "[month] [day]" e.g. "April 15"
+    m = _re.search(r'(\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*)\s+(\d{1,2})\b', text_lower)
+    if m:
+        month_name = m.group(1).capitalize()
+        day_num = int(m.group(2))
+        for i, name in enumerate(_calendar.month_name):
+            if name and name.lower().startswith(month_name.lower()):
+                year = today.year if i > today.month or (i == today.month and day_num >= today.day) else today.year + 1
+                try:
+                    return date(year, i, day_num).isoformat()
+                except ValueError:
+                    pass
+
+    # "next [weekday]"
+    weekdays = {'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6}
+    m = _re.search(r'next (\w+day)', text_lower)
+    if m and m.group(1) in weekdays:
+        target = weekdays[m.group(1)]
+        days_ahead = target - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        return (today + timedelta(days=days_ahead)).isoformat()
+
+    return None
+
+
+def _fuzzy_match_opportunity(text: str, opportunities: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Find the best-matching opportunity by name or account name using fuzzy matching."""
+    if not opportunities:
+        return None
+    text_lower = text.lower()
+    best_match = None
+    best_ratio = 0.0
+
+    for opp in opportunities:
+        for field in [opp.get("Name", ""), (opp.get("Account") or {}).get("Name", "")]:
+            if not field:
+                continue
+            ratio = _difflib.SequenceMatcher(None, text_lower, field.lower()).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best_match = opp
+            # Also check if the name appears as substring
+            if field.lower() in text_lower and len(field) > 3:
+                sub_ratio = max(ratio, 0.65)
+                if sub_ratio > best_ratio:
+                    best_ratio = sub_ratio
+                    best_match = opp
+
+    if best_ratio > 0.6 and best_match:
+        return best_match
+    return None
+
+
+def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str, Any]:
+    """NLP-style parser for CRM update messages.
+
+    Extracts: opportunity reference, action type (note, stage_change, task),
+    details, amount, and close date.
+    """
+    text_lower = text.lower()
+    parsed: Dict[str, Any] = {
+        "action": "note",
+        "detail": text,
+        "confidence": 0.5,
+        "matched_opportunity": None,
+        "stage": None,
+        "amount": None,
+        "close_date": None,
+    }
+
+    # Detect stage changes
+    stage_keywords = {
+        "qualifying": "Qualifying",
+        "qualified": "Qualifying",
+        "proposal": "Design / Proposal Creation",
+        "negotiat": "Proposal Negotiation",
+        "contract": "Contract Creation",
+        "closed won": "Closed / Completed",
+        "closed lost": "Closed Lost",
+        "withdrawn": "Withdrawn",
+        "collecting": "Collecting / In Effect",
+    }
+    for keyword, stage in stage_keywords.items():
+        if keyword in text_lower:
+            parsed["action"] = "stage_change"
+            parsed["stage"] = stage
+            parsed["confidence"] = 0.7
+            break
+
+    # Detect task creation
+    task_keywords = ["follow up", "schedule", "send", "call", "email", "prepare", "set up", "next step"]
+    for kw in task_keywords:
+        if kw in text_lower:
+            if parsed["action"] == "note":
+                parsed["action"] = "task"
+                parsed["confidence"] = 0.6
+            break
+
+    # Entity resolution — fuzzy match against known opportunities
+    opp_list = opportunities or _get_opp_cache()
+    matched = _fuzzy_match_opportunity(text, opp_list)
+    if matched:
+        parsed["matched_opportunity"] = matched.get("Id")
+        parsed["confidence"] = min(parsed["confidence"] + 0.15, 0.95)
+
+    # Amount extraction
+    amount = _extract_amount(text)
+    if amount is not None:
+        parsed["amount"] = amount
+
+    # Date extraction
+    close_date = _extract_close_date(text)
+    if close_date:
+        parsed["close_date"] = close_date
+
+    return parsed
+
+
+@app.post("/api/slack/webhook")
+async def slack_webhook(
+    payload: Dict[str, Any],
+    user=Depends(get_current_user),
+):
+    """Receive a Slack message and parse it as a CRM update."""
+    text = payload.get("text", "")
+    channel = payload.get("channel", "")
+    user_name = payload.get("user_name", user.get("name", "Unknown"))
+
+    if not text:
+        raise HTTPException(status_code=400, detail="Empty message text")
+
+    parsed = _parse_crm_message(text, _get_opp_cache())
+
+    item_id = str(_uuid.uuid4())
+    _automation_queue[item_id] = {
+        "id": item_id,
+        "source": "slack",
+        "source_detail": {"channel": channel, "user": user_name},
+        "raw_text": text,
+        "parsed": parsed,
+        "status": "pending",
+        "created_at": datetime.now().isoformat(),
+    }
+
+    return ApiResponse(
+        success=True,
+        data={"id": item_id, "parsed": parsed},
+        meta={"message": "CRM update queued for review"},
+    )
+
+
+@app.get("/api/automation-review/pending")
+async def get_pending_reviews(user=Depends(get_current_user)):
+    """List all pending CRM updates awaiting review."""
+    pending = [
+        item for item in _automation_queue.values()
+        if item["status"] == "pending"
+    ]
+    pending.sort(key=lambda x: x["created_at"], reverse=True)
+    return ApiResponse(success=True, data=pending, meta={"count": len(pending)})
+
+
+@app.get("/api/automation-review/all")
+async def get_all_reviews(user=Depends(get_current_user)):
+    """List all CRM updates (pending, approved, rejected)."""
+    items = list(_automation_queue.values())
+    items.sort(key=lambda x: x["created_at"], reverse=True)
+    return ApiResponse(success=True, data=items, meta={"count": len(items)})
+
+
+@app.post("/api/automation-review/{item_id}/approve")
+async def approve_review(
+    item_id: str,
+    edits: Optional[Dict[str, Any]] = None,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Approve a pending CRM update and apply to Salesforce."""
+    item = _automation_queue.get(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    if item["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Item already {item['status']}")
+
+    parsed = item["parsed"]
+    if edits:
+        parsed.update(edits)
+
+    # Apply to Salesforce
+    try:
+        salesforce = client.salesforce
+        opp_id = parsed.get("matched_opportunity")
+
+        if parsed["action"] == "stage_change" and opp_id and parsed.get("stage"):
+            update_fields: Dict[str, Any] = {"StageName": parsed["stage"]}
+            if parsed.get("amount"):
+                update_fields["Amount"] = parsed["amount"]
+            if parsed.get("close_date"):
+                update_fields["CloseDate"] = parsed["close_date"]
+            await salesforce.update_record("Opportunity", opp_id, update_fields)
+        elif parsed["action"] == "task" and opp_id:
+            await salesforce.create_record("Task", {
+                "Subject": parsed.get("detail", "Follow up")[:255],
+                "WhatId": opp_id,
+                "Status": "Not Started",
+                "Priority": "Normal",
+            })
+        elif parsed["action"] == "note" and opp_id:
+            # Append to Description
+            opp = await salesforce.query(
+                f"SELECT Description FROM Opportunity WHERE Id = '{opp_id}' LIMIT 1"
+            )
+            existing = opp.get("records", [{}])[0].get("Description", "") or ""
+            note = f"\n[{datetime.now().strftime('%Y-%m-%d')} via Slack] {parsed['detail']}"
+            await salesforce.update_record("Opportunity", opp_id, {"Description": existing + note})
+
+        item["status"] = "approved"
+        item["approved_at"] = datetime.now().isoformat()
+        item["approved_by"] = user.get("user_id", "unknown")
+        return ApiResponse(success=True, data=item)
+
+    except Exception as e:
+        logger.error(f"Failed to apply CRM update {item_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/automation-review/{item_id}/reject")
+async def reject_review(
+    item_id: str,
+    reason: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    """Reject a pending CRM update."""
+    item = _automation_queue.get(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    if item["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Item already {item['status']}")
+
+    item["status"] = "rejected"
+    item["rejected_at"] = datetime.now().isoformat()
+    item["rejected_by"] = user.get("user_id", "unknown")
+    item["rejection_reason"] = reason
+    return ApiResponse(success=True, data=item)
+
+
+# ---------------------------------------------------------------------------
+# Slack integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/slack/health")
+async def slack_health_check():
+    """Check Slack service health."""
+    client = _services.get("mcp_client")
+    if not client or "slack" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Slack service not connected"})
+    try:
+        slack_service = client.services.get("slack")
+        if slack_service and slack_service.is_authenticated:
+            info = await slack_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/slack/account-activity/{account_name}")
+async def get_slack_account_activity(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Slack messages mentioning an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    slack_service = client.services.get("slack")
+    if not slack_service:
+        raise HTTPException(status_code=503, detail="Slack service not connected")
+    try:
+        results = await slack_service.search_messages(account_name, count=limit)
+        messages = results.get("messages", {}).get("matches", []) if isinstance(results, dict) else []
+        activity = [
+            {
+                "id": msg.get("ts", ""),
+                "type": "slack_message",
+                "channel": msg.get("channel", {}).get("name", "") if isinstance(msg.get("channel"), dict) else str(msg.get("channel", "")),
+                "text": msg.get("text", ""),
+                "user": msg.get("username", msg.get("user", "")),
+                "timestamp": msg.get("ts", ""),
+                "permalink": msg.get("permalink", ""),
+                "source": "slack",
+            }
+            for msg in messages[:limit]
+        ]
+        return ApiResponse(success=True, data=activity, meta={"count": len(activity), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Slack activity for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Fireflies integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/fireflies/health")
+async def fireflies_health_check():
+    """Check Fireflies service health."""
+    client = _services.get("mcp_client")
+    if not client or "fireflies" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Fireflies service not connected"})
+    try:
+        ff_service = client.services.get("fireflies")
+        if ff_service and ff_service.is_authenticated:
+            info = await ff_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/fireflies/account-meetings/{account_name}")
+async def get_fireflies_account_meetings(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Fireflies meeting transcripts mentioning an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    ff_service = client.services.get("fireflies")
+    if not ff_service:
+        raise HTTPException(status_code=503, detail="Fireflies service not connected")
+    try:
+        meetings = await ff_service.get_account_meetings(account_name, limit=limit)
+        return ApiResponse(success=True, data=meetings, meta={"count": len(meetings), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Fireflies meetings for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Gmail integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/gmail/health")
+async def gmail_health_check():
+    """Check Gmail service health."""
+    client = _services.get("mcp_client")
+    if not client or "gmail" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Gmail service not connected"})
+    try:
+        gmail_service = client.services.get("gmail")
+        if gmail_service and gmail_service.is_authenticated:
+            info = await gmail_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/gmail/account-activity/{account_name}")
+async def get_gmail_account_activity(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Gmail emails related to an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    gmail_service = client.services.get("gmail")
+    if not gmail_service:
+        raise HTTPException(status_code=503, detail="Gmail service not connected")
+    try:
+        activity = await gmail_service.get_account_activity(account_name, limit=limit)
+        return ApiResponse(success=True, data=activity, meta={"count": len(activity), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Gmail activity for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Google Calendar integration endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/calendar/health")
+async def calendar_health_check():
+    """Check Google Calendar service health."""
+    client = _services.get("mcp_client")
+    if not client or "google_calendar" not in getattr(client, '_connected_services', set()):
+        return ApiResponse(success=True, data={"status": "not_configured", "message": "Calendar service not connected"})
+    try:
+        cal_service = client.services.get("google_calendar")
+        if cal_service and cal_service.is_authenticated:
+            info = await cal_service.get_service_info()
+            return ApiResponse(success=True, data={"status": "healthy", "config": info.get("config", {})})
+        return ApiResponse(success=True, data={"status": "unhealthy", "message": "Not authenticated"})
+    except Exception as e:
+        return ApiResponse(success=True, data={"status": "error", "message": str(e)})
+
+
+@app.get("/api/calendar/account-activity/{account_name}")
+async def get_calendar_account_activity(
+    account_name: str,
+    limit: int = Query(20, le=100),
+    user=Depends(get_current_user),
+):
+    """Get Google Calendar events related to an account."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+    cal_service = client.services.get("google_calendar")
+    if not cal_service:
+        raise HTTPException(status_code=503, detail="Calendar service not connected")
+    try:
+        activity = await cal_service.get_account_activity(account_name, limit=limit)
+        return ApiResponse(success=True, data=activity, meta={"count": len(activity), "account": account_name})
+    except Exception as e:
+        logger.error(f"Error fetching Calendar activity for {account_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Activity Intelligence — unified aggregator
+# ---------------------------------------------------------------------------
+
+@app.get("/api/activity-intelligence/{account_name}")
+async def get_activity_intelligence(
+    account_name: str,
+    force_refresh: bool = Query(False),
+    opportunity_name: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    """Aggregate activity data from all sources into a unified timeline."""
+    client = _services.get("mcp_client")
+    if not client:
+        raise HTTPException(status_code=503, detail="MCP client not initialized")
+
+    activities: List[Dict[str, Any]] = []
+    errors: List[str] = []
+
+    # Fan out to all available services
+    service_calls = []
+
+    # Slack
+    slack_service = client.services.get("slack")
+    if slack_service and slack_service.is_authenticated:
+        service_calls.append(("slack", _fetch_slack_activity(slack_service, account_name)))
+
+    # Fireflies
+    ff_service = client.services.get("fireflies")
+    if ff_service and ff_service.is_authenticated:
+        service_calls.append(("fireflies", _fetch_fireflies_activity(ff_service, account_name)))
+
+    # Gmail
+    gmail_service = client.services.get("gmail")
+    if gmail_service and gmail_service.is_authenticated:
+        service_calls.append(("gmail", _fetch_gmail_activity(gmail_service, account_name)))
+
+    # Google Calendar
+    cal_service = client.services.get("google_calendar")
+    if cal_service and cal_service.is_authenticated:
+        service_calls.append(("calendar", _fetch_calendar_activity(cal_service, account_name)))
+
+    # Google Drive
+    drive_service = client.services.get("google_drive")
+    if drive_service and drive_service.is_authenticated:
+        service_calls.append(("drive", _fetch_drive_activity(drive_service, account_name, opportunity_name)))
+
+    if not service_calls:
+        return ApiResponse(
+            success=True,
+            data={"activities": [], "summary": {"total": 0, "sources": {}}},
+            meta={"account": account_name, "message": "No data sources connected"},
+        )
+
+    # Execute all calls concurrently
+    results = await asyncio.gather(
+        *[coro for _, coro in service_calls],
+        return_exceptions=True,
+    )
+
+    source_counts: Dict[str, int] = {}
+    for (source_name, _), result in zip(service_calls, results):
+        if isinstance(result, Exception):
+            errors.append(f"{source_name}: {result}")
+            source_counts[source_name] = 0
+        else:
+            activities.extend(result)
+            source_counts[source_name] = len(result)
+
+    # Sort by timestamp (most recent first)
+    activities.sort(key=lambda a: a.get("date", a.get("timestamp", "")), reverse=True)
+
+    return ApiResponse(
+        success=True,
+        data={
+            "activities": activities,
+            "summary": {"total": len(activities), "sources": source_counts},
+        },
+        meta={"account": account_name, "errors": errors if errors else None},
+    )
+
+
+# Helper coroutines for activity intelligence fan-out
+async def _fetch_slack_activity(service, account_name: str) -> List[Dict]:
+    results = await service.search_messages(account_name, count=20)
+    messages = results.get("messages", {}).get("matches", []) if isinstance(results, dict) else []
+    return [
+        {
+            "type": "slack_message",
+            "title": msg.get("text", "")[:100],
+            "date": msg.get("ts", ""),
+            "source": "slack",
+            "detail": msg.get("text", ""),
+            "channel": msg.get("channel", {}).get("name", "") if isinstance(msg.get("channel"), dict) else "",
+        }
+        for msg in messages
+    ]
+
+
+async def _fetch_fireflies_activity(service, account_name: str) -> List[Dict]:
+    meetings = await service.get_account_meetings(account_name, limit=20)
+    return [
+        {
+            "type": "meeting",
+            "title": m.get("title", ""),
+            "date": m.get("date", ""),
+            "source": "fireflies",
+            "detail": m.get("summary", ""),
+            "participants": m.get("participants", []),
+        }
+        for m in meetings
+    ]
+
+
+async def _fetch_gmail_activity(service, account_name: str) -> List[Dict]:
+    emails = await service.get_account_activity(account_name, limit=20)
+    return [
+        {
+            "type": "email",
+            "title": e.get("subject", ""),
+            "date": e.get("date", ""),
+            "source": "gmail",
+            "detail": e.get("snippet", ""),
+            "from": e.get("from", ""),
+        }
+        for e in emails
+    ]
+
+
+async def _fetch_calendar_activity(service, account_name: str) -> List[Dict]:
+    events = await service.get_account_activity(account_name, limit=20)
+    return [
+        {
+            "type": "calendar_event",
+            "title": e.get("title", ""),
+            "date": e.get("start", ""),
+            "source": "google_calendar",
+            "detail": e.get("location", ""),
+            "attendees": e.get("attendees", []),
+        }
+        for e in events
+    ]
+
+
+async def _fetch_drive_activity(service, account_name: str, opportunity_name: Optional[str] = None) -> List[Dict]:
+    query = f"name contains '{account_name}'"
+    if opportunity_name:
+        query += f" or name contains '{opportunity_name}'"
+    try:
+        result = await service.list_files(query=query, page_size=20)
+        files = result.get("files", [])
+        return [
+            {
+                "type": "document",
+                "title": f.get("name", ""),
+                "date": f.get("modifiedTime", ""),
+                "source": "google_drive",
+                "detail": f.get("mimeType", ""),
+                "file_id": f.get("id", ""),
+            }
+            for f in files
+        ]
+    except Exception:
+        return []
 
 
 # Main entry point

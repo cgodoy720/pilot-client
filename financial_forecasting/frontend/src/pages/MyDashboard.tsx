@@ -1,58 +1,57 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
   Card,
   CardContent,
-  CardActionArea,
   Typography,
   Grid,
   Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Collapse,
   IconButton,
-  ToggleButton,
-  ToggleButtonGroup,
   Alert,
-  CircularProgress,
+  Button,
   LinearProgress,
+  TextField,
+  ToggleButtonGroup,
+  ToggleButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   CalendarToday as CalendarIcon,
-  Assignment as AssignmentIcon,
+  Star as PriorityIcon,
   TrendingUp as TrendingUpIcon,
-  Business as BusinessIcon,
-  Timeline as TimelineIcon,
-  Email as EmailIcon,
-  Chat as ChatIcon,
-  Videocam as VideocamIcon,
+  AttachMoney as MoneyIcon,
+  AccountBalance as WeightedIcon,
   Event as EventIcon,
+  Inbox as InboxIcon,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { useQuery, useQueries } from 'react-query';
-import { format, parseISO, isWithinInterval, addDays, startOfDay, endOfDay, startOfWeek, setHours, setMinutes } from 'date-fns';
+import { useQuery } from 'react-query';
+import {
+  format,
+  parseISO,
+  startOfWeek,
+  endOfDay,
+  addDays,
+  subDays,
+  startOfDay,
+} from 'date-fns';
 
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import WeeklyCalendar, { CalendarEvent, CalendarViewMode } from '../components/WeeklyCalendar';
+import PriorityTable, { PriorityOpp } from '../components/PriorityTable';
+import TaskInbox, { InboxTask } from '../components/TaskInbox';
+import TaskPanel from '../components/TaskPanel';
+import type { Opportunity } from './Opportunities/helpers';
 
-const PREFS_KEY = 'pursuit-dashboard-prefs';
-
-type TimeWindow = 'day' | 'week' | '2weeks';
-
-interface DashboardPrefs {
-  timeWindow: TimeWindow;
-  topN: 5 | 10 | 25;
-  collapsed: Record<string, boolean>;
-}
+const PREFS_KEY = 'pursuit-priorities-prefs';
 
 const OPEN_STAGES = [
   'Lead Gen', 'New Lead', 'Qualifying',
@@ -60,37 +59,30 @@ const OPEN_STAGES = [
   'Contract Creation', 'Negotiating Contract',
 ];
 
-// Dummy orange calendar items for Nick Simmons (from screenshot); dayOffset 0 = Monday
-const DUMMY_ORANGE_EVENTS: { summary: string; dayOffset: number; hour: number; minute: number; endHour?: number; endMinute?: number }[] = [
-  { summary: 'Delta Flight to Austin (DELTA 2323) JFK', dayOffset: 0, hour: 13, minute: 10, endHour: 17, endMinute: 45 },
-  { summary: 'HF + Nick @ Pursuit C', dayOffset: 0, hour: 15, minute: 30 },
-  { summary: 'Laura / Nick', dayOffset: 0, hour: 17, minute: 30, endHour: 18, endMinute: 15 },
-  { summary: 'Travel, 9:30am', dayOffset: 1, hour: 9, minute: 30 },
-  { summary: 'Travel, 10:45am', dayOffset: 1, hour: 10, minute: 45 },
-  { summary: 'Focused work time', dayOffset: 1, hour: 12, minute: 0, endHour: 13, endMinute: 30 },
-  { summary: '[Hold] Dinner w/ Cliff + Team', dayOffset: 1, hour: 18, minute: 30, endHour: 21, endMinute: 0 },
-  { summary: 'PBD Stand Up', dayOffset: 2, hour: 10, minute: 0 },
-  { summary: 'Rundown Live:', dayOffset: 2, hour: 12, minute: 0, endHour: 13, endMinute: 30 },
-  { summary: '[In-Person]', dayOffset: 3, hour: 10, minute: 0 },
-  { summary: 'HF + Weekly Pursu', dayOffset: 3, hour: 11, minute: 30 },
-  { summary: 'Pursuit <> McKinsey:', dayOffset: 3, hour: 14, minute: 0 },
-  { summary: 'PBD Stand Up, 10am', dayOffset: 4, hour: 10, minute: 0 },
-  { summary: 'PBD: High Targets & High Meeting', dayOffset: 4, hour: 10, minute: 30 },
-  { summary: 'busy', dayOffset: 4, hour: 16, minute: 0, endHour: 17, endMinute: 30 },
-  { summary: 'DNS', dayOffset: 4, hour: 17, minute: 30, endHour: 19, endMinute: 0 },
-];
+type CloseDateRange = 'all' | 'next30' | 'next60' | 'next90' | 'thisQuarter' | 'thisYear';
+
+type SnapshotMode = 'all' | 'filtered' | 'priorities';
+
+interface DashboardPrefs {
+  collapsed: Record<string, boolean>;
+  calendarView: CalendarViewMode;
+  topN: number;
+  filterUserId: string; // 'all' or a SF user ID
+  showWeighted: boolean;
+  closeDateRange: CloseDateRange;
+  snapshotMode: SnapshotMode;
+}
 
 function loadPrefs(): DashboardPrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
-      const p = JSON.parse(raw);
-      // Migrate old timeWindow values
-      const tw = p.timeWindow === 'today' ? 'day' : p.timeWindow === 'month' || p.timeWindow === 'quarter' ? '2weeks' : (p.timeWindow === '2weeks' ? '2weeks' : 'week');
-      return { timeWindow: tw, topN: p.topN || 10, collapsed: p.collapsed || {} };
+      const parsed = { filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all', ...JSON.parse(raw) };
+      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 10));
+      return parsed;
     }
   } catch {}
-  return { timeWindow: 'week', topN: 10, collapsed: {} };
+  return { collapsed: {}, calendarView: 'week', topN: 10, filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all' as SnapshotMode };
 }
 
 function savePrefs(prefs: DashboardPrefs) {
@@ -145,42 +137,157 @@ function Section({
   );
 }
 
+const PBD_CALENDAR_ID_FALLBACK = 'c_f06065f4e4551cee88f8d465a6a77a24c8333c66a0077770a3e60b8d26251e98@group.calendar.google.com';
+
+// ── Mock data for layout testing (DEV only — not used in production paths) ──
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const MOCK_PRIORITY_OPPS: PriorityOpp[] = [
+  {
+    Id: 'mock-001', Name: 'Goldman Sachs Foundation — AIJI Year 3', StageName: 'Proposal Negotiation',
+    Amount: 2500000, CloseDate: '2026-03-20', Probability: 75, OwnerId: 'u1',
+    Account: { Name: 'Goldman Sachs Foundation', Id: 'a1' }, LastModifiedDate: '2026-03-14',
+    tasks: [
+      { Id: 't1', Subject: 'Send revised budget', ActivityDate: '2026-03-15', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park', Description: 'Include updated indirect cost rate per finance team email from 3/12' },
+      { Id: 't2', Subject: 'Follow up with program officer', ActivityDate: '2026-03-18', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u2', OwnerName: 'Marcus Chen', Description: '' },
+    ],
+  },
+  {
+    Id: 'mock-002', Name: 'JPMorgan Chase — Workforce Dev Grant', StageName: 'Design / Proposal Creation',
+    Amount: 1800000, CloseDate: '2026-04-15', Probability: 60, OwnerId: 'u1',
+    Account: { Name: 'JPMorgan Chase Foundation', Id: 'a2' }, LastModifiedDate: '2026-03-10',
+    tasks: [
+      { Id: 't3', Subject: 'Draft LOI', ActivityDate: '2026-03-12', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park' },
+    ],
+  },
+  {
+    Id: 'mock-003', Name: 'Robin Hood Foundation — General Operating', StageName: 'Qualifying',
+    Amount: 750000, CloseDate: '2026-05-01', Probability: 40, OwnerId: 'u1',
+    Account: { Name: 'Robin Hood Foundation', Id: 'a3' }, LastModifiedDate: '2026-02-01',
+    tasks: [],
+  },
+  {
+    Id: 'mock-004', Name: 'Google.org — AI Skills Accelerator', StageName: 'Proposal Negotiation',
+    Amount: 3200000, CloseDate: '2026-03-28', Probability: 80, OwnerId: 'u1',
+    Account: { Name: 'Google.org', Id: 'a4' }, LastModifiedDate: '2026-03-16',
+    tasks: [
+      { Id: 't4', Subject: 'Finalize MOU', ActivityDate: '2026-03-22', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park', Description: 'Legal reviewed — waiting on Google.org redline. Check Slack #google-partnership for latest' },
+      { Id: 't5', Subject: 'Board approval package', ActivityDate: '2026-03-25', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u2', OwnerName: 'Marcus Chen', Description: 'Need: exec summary, budget, MOU draft, board resolution template' },
+      { Id: 't6', Subject: 'Schedule site visit', ActivityDate: '2026-03-10', Priority: 'Normal', Status: 'Completed', OwnerId: 'u1', OwnerName: 'Jane Park', Description: 'Completed — visit confirmed for 3/28 at LIC campus' },
+    ],
+    nextEvent: { summary: 'Google.org — Final Review Call', start: '2026-03-18' },
+  },
+  {
+    Id: 'mock-005', Name: 'Salesforce Foundation — PBC Renewal', StageName: 'Contract Creation',
+    Amount: 500000, CloseDate: '2026-03-17', Probability: 90, OwnerId: 'u1',
+    Account: { Name: 'Salesforce Foundation', Id: 'a5' }, LastModifiedDate: '2026-03-16',
+    tasks: [
+      { Id: 't7', Subject: 'Countersign agreement', ActivityDate: '2026-03-17', Priority: 'High', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park' },
+    ],
+  },
+  {
+    Id: 'mock-006', Name: 'Bloomberg Philanthropies — Career Pathways', StageName: 'New Lead',
+    Amount: 1200000, CloseDate: '2026-06-30', Probability: 25, OwnerId: 'u1',
+    Account: { Name: 'Bloomberg Philanthropies', Id: 'a6' }, LastModifiedDate: '2026-01-15',
+    tasks: [],
+  },
+  {
+    Id: 'mock-007', Name: 'Bank of America — Community Grant', StageName: 'Qualifying',
+    Amount: 350000, CloseDate: '2026-04-01', Probability: 35, OwnerId: 'u1',
+    Account: { Name: 'Bank of America Charitable Foundation', Id: 'a7' }, LastModifiedDate: '2026-03-05',
+    tasks: [
+      { Id: 't8', Subject: 'Submit capacity statement', ActivityDate: '2026-03-08', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u2', OwnerName: 'Marcus Chen' },
+    ],
+  },
+  {
+    Id: 'mock-008', Name: 'Citi Foundation — Digital Skills 2026', StageName: 'Design / Proposal Creation',
+    Amount: 900000, CloseDate: '2026-05-15', Probability: 50, OwnerId: 'u1',
+    Account: { Name: 'Citi Foundation', Id: 'a8' }, LastModifiedDate: '2026-03-13',
+    tasks: [
+      { Id: 't9', Subject: 'Complete evaluation framework', ActivityDate: '2026-03-20', Priority: 'Normal', Status: 'Not Started', OwnerId: 'u1', OwnerName: 'Jane Park' },
+    ],
+  },
+];
+
 const MyDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [prefs, setPrefs] = useState<DashboardPrefs>(loadPrefs);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
+  const [filteredOpps, setFilteredOpps] = useState<{ allFiltered: PriorityOpp[]; visible: PriorityOpp[] }>({ allFiltered: [], visible: [] });
 
-  // Persist prefs
   useEffect(() => {
     savePrefs(prefs);
   }, [prefs]);
 
-  const setTimeWindow = (tw: TimeWindow) => setPrefs((p) => ({ ...p, timeWindow: tw }));
-  const setTopN = (n: 5 | 10 | 25) => setPrefs((p) => ({ ...p, topN: n }));
   const toggleSection = (id: string) =>
     setPrefs((p) => ({ ...p, collapsed: { ...p.collapsed, [id]: !p.collapsed[id] } }));
+  const updatePrefs = (patch: Partial<DashboardPrefs>) =>
+    setPrefs((p) => ({ ...p, ...patch }));
+  const setCalendarView = (view: CalendarViewMode) =>
+    setPrefs((p) => ({ ...p, calendarView: view }));
+  const handleFilteredChange = useCallback((allFiltered: PriorityOpp[], visible: PriorityOpp[]) => {
+    setFilteredOpps({ allFiltered, visible });
+  }, []);
 
-  // Compute time window bounds (spec: day / week / 2 weeks max)
-  const { windowStart, windowEnd } = useMemo(() => {
-    const now = new Date();
-    const start = startOfDay(now);
-    switch (prefs.timeWindow) {
-      case 'day':
-        return { windowStart: start, windowEnd: endOfDay(now) };
-      case 'week':
-        return { windowStart: start, windowEnd: endOfDay(addDays(now, 7)) };
-      case '2weeks':
-        return { windowStart: start, windowEnd: endOfDay(addDays(now, 14)) };
-      default:
-        return { windowStart: start, windowEnd: endOfDay(addDays(now, 7)) };
-    }
-  }, [prefs.timeWindow]);
+  // Compute date range for calendar
+  const { calStart, calEnd, calDaysForward } = useMemo(() => {
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const daysForward = prefs.calendarView === 'day' ? 1 : prefs.calendarView === 'week' ? 7 : 14;
+    const end = addDays(weekStart, daysForward);
+    return {
+      calStart: format(weekStart, 'yyyy-MM-dd'),
+      calEnd: format(end, 'yyyy-MM-dd'),
+      calDaysForward: daysForward,
+    };
+  }, [prefs.calendarView]);
+
+  // Wider task date range for priorities (90 days back, 180 days forward)
+  const { taskStart, taskEnd } = useMemo(() => {
+    const today = startOfDay(new Date());
+    return {
+      taskStart: format(subDays(today, 90), 'yyyy-MM-dd'),
+      taskEnd: format(addDays(today, 180), 'yyyy-MM-dd'),
+    };
+  }, []);
+
+  // Fetch SF users for the filter dropdown
+  const { data: usersData } = useQuery('sf-users', async () => {
+    const response = await apiService.getUsers();
+    return response.data?.data || response.data?.users || response.data || [];
+  }, { staleTime: 15 * 60 * 1000 });
 
   // Fetch opportunities
   const { data: oppsData, isLoading: oppsLoading } = useQuery('opportunities', async () => {
     const response = await apiService.getOpportunities();
     return response.data;
   });
+
+  // Fetch my tasks (wider range for priorities; calendar filters by visible dates)
+  const { data: tasksData, isLoading: tasksLoading } = useQuery(
+    ['my-tasks', taskStart, taskEnd],
+    async () => {
+      const response = await apiService.getMyTasks(taskStart, taskEnd);
+      return response.data?.data || response.data || [];
+    },
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  // Use PBD calendar ID from backend config, falling back to hardcoded value
+  const pbdCalendarId = user?.calendar_pbd_id || PBD_CALENDAR_ID_FALLBACK;
+
+  // Fetch PBD shared calendar events
+  const { data: calResponse, isLoading: calLoading } = useQuery(
+    ['pbd-calendar-events', calStart, calEnd, pbdCalendarId],
+    async () => {
+      const response = await apiService.getMyCalendarEvents(calStart, calEnd, 100, pbdCalendarId);
+      return response.data;
+    },
+    { staleTime: 5 * 60 * 1000, enabled: !prefs.collapsed['calendar'] }
+  );
+  const calEventsData = Array.isArray(calResponse?.data) ? calResponse.data : [];
+  const calNeedsReauth = calResponse?.needs_reauth === true || Boolean(calResponse?.error);
 
   const allOpportunities = useMemo(() => {
     const raw = Array.isArray(oppsData)
@@ -189,737 +296,533 @@ const MyDashboard: React.FC = () => {
     return raw as any[];
   }, [oppsData]);
 
-  // User's opportunities (filter by OwnerId if SF connected)
+  // Build user list for filter dropdown — merge SF users + opp owners
+  const sfUsers = useMemo(() => {
+    const userMap = new Map<string, string>();
+    // From users API
+    const rawUsers = Array.isArray(usersData) ? usersData : [];
+    for (const u of rawUsers) {
+      if (u.Id && u.Name) userMap.set(u.Id, u.Name);
+    }
+    // From opportunity owners (catches inactive/historical users)
+    for (const opp of allOpportunities) {
+      if (opp.OwnerId && !userMap.has(opp.OwnerId)) {
+        userMap.set(opp.OwnerId, opp.Owner?.Name || opp.OwnerId);
+      }
+    }
+    return Array.from(userMap.entries())
+      .map(([Id, Name]) => ({ Id, Name }))
+      .sort((a, b) => a.Name.localeCompare(b.Name));
+  }, [usersData, allOpportunities]);
+
+  // Precompute open opp counts per user for dropdown labels
+  const allOpenOpps = useMemo(
+    () => allOpportunities.filter((opp: any) => OPEN_STAGES.includes(opp.StageName)),
+    [allOpportunities]
+  );
+  const openCountByUser = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const opp of allOpenOpps) {
+      counts.set(opp.OwnerId, (counts.get(opp.OwnerId) || 0) + 1);
+    }
+    return counts;
+  }, [allOpenOpps]);
+
+  // Filtered opportunities — by selected user or all
   const sfUserId = user?.salesforce_user_id;
-  const myOpportunities = useMemo(() => {
-    if (!sfUserId) return allOpportunities;
-    return allOpportunities.filter((opp: any) => opp.OwnerId === sfUserId);
-  }, [allOpportunities, sfUserId]);
+  const resolvedFilterId = prefs.filterUserId === 'me' ? (sfUserId || 'all') : (prefs.filterUserId || 'all');
+  const filteredOpportunities = useMemo(() => {
+    if (resolvedFilterId === 'all') return allOpportunities;
+    return allOpportunities.filter((opp: any) => opp.OwnerId === resolvedFilterId);
+  }, [allOpportunities, resolvedFilterId]);
 
-  // Open opps for pipeline section
-  const myOpenOpps = useMemo(
-    () => myOpportunities.filter((opp: any) => OPEN_STAGES.includes(opp.StageName)),
-    [myOpportunities]
-  );
+  const myOpenOpps = useMemo(() => {
+    let opps = filteredOpportunities.filter((opp: any) => OPEN_STAGES.includes(opp.StageName));
 
-  // Top prospects: spec formula score = Amount * (Probability/100) * (1 + log10(1 + Amount/1e6)); exclude Probability < 15%
-  const topProspects = useMemo(() => {
-    const PROB_FLOOR = 15;
-    const withScore = myOpenOpps
-      .filter((o: any) => (o.Probability ?? 0) >= PROB_FLOOR)
-      .map((o: any) => {
-        const amount = Number(o.Amount) || 0;
-        const prob = Number(o.Probability) ?? 0;
-        const w = amount * (prob / 100);
-        const sizeFactor = 1 + Math.log10(1 + amount / 1_000_000);
-        const score = w * sizeFactor;
-        return { ...o, _priorityScore: score };
-      });
-    return withScore.sort((a: any, b: any) => (b._priorityScore ?? 0) - (a._priorityScore ?? 0)).slice(0, prefs.topN);
-  }, [myOpenOpps, prefs.topN]);
-
-  // Action items — open opps within time window, grouped by urgency
-  const actionItems = useMemo(() => {
-    const now = new Date();
-    const overdue: any[] = [];
-    const dueSoon: any[] = [];
-    const comingUp: any[] = [];
-
-    for (const opp of myOpenOpps) {
-      if (!opp.CloseDate) continue;
-      const closeDate = parseISO(opp.CloseDate);
-
-      if (closeDate < startOfDay(now)) {
-        overdue.push(opp);
-      } else if (isWithinInterval(closeDate, { start: startOfDay(now), end: endOfDay(addDays(now, 7)) })) {
-        dueSoon.push(opp);
-      } else if (isWithinInterval(closeDate, { start: startOfDay(now), end: windowEnd })) {
-        comingUp.push(opp);
-      }
-    }
-
-    return { overdue, dueSoon, comingUp };
-  }, [myOpenOpps, windowEnd]);
-
-  const totalActionItems = actionItems.overdue.length + actionItems.dueSoon.length + actionItems.comingUp.length;
-
-  // Top 10 accounts by soonest close date (for calendar + activity)
-  const topAccounts = useMemo(() => {
-    const accountMap = new Map<string, { name: string; soonestClose: Date }>();
-    for (const opp of myOpenOpps) {
-      const accName = opp.Account?.Name;
-      if (!accName || !opp.CloseDate) continue;
-      const close = parseISO(opp.CloseDate);
-      const existing = accountMap.get(accName);
-      if (!existing || close < existing.soonestClose) {
-        accountMap.set(accName, { name: accName, soonestClose: close });
-      }
-    }
-    return Array.from(accountMap.values())
-      .sort((a, b) => a.soonestClose.getTime() - b.soonestClose.getTime())
-      .slice(0, 10);
-  }, [myOpenOpps]);
-
-  // Calendar queries for top accounts
-  const calendarQueries = useQueries(
-    topAccounts.map((acc) => ({
-      queryKey: ['calendar', acc.name],
-      queryFn: async () => {
-        const response = await apiService.getAccountCalendarActivity(acc.name, 20);
-        return { accountName: acc.name, events: response.data?.events || response.data || [] };
-      },
-      staleTime: 5 * 60 * 1000,
-      enabled: !prefs.collapsed['calendar'],
-    }))
-  );
-
-  // Flatten and filter calendar events within time window
-  const calendarEvents = useMemo(() => {
-    const events: any[] = [];
-    for (const q of calendarQueries) {
-      if (!q.data) continue;
-      const accountEvents = Array.isArray(q.data.events) ? q.data.events : [];
-      for (const ev of accountEvents) {
-        const start = ev.start?.dateTime || ev.start?.date || ev.date;
-        if (!start) continue;
-        try {
-          const d = parseISO(start);
-          if (isWithinInterval(d, { start: windowStart, end: windowEnd })) {
-            events.push({ type: 'event' as const, ...ev, accountName: q.data!.accountName, dateTime: d });
-          }
-        } catch {}
-      }
-    }
-    return events.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-  }, [calendarQueries, windowStart, windowEnd]);
-
-  // Tasks for top 5 prospects (for merged Calendar & tasks block)
-  const taskQueries = useQueries(
-    (topProspects.slice(0, 5).map((opp: any) => ({
-      queryKey: ['opportunity-tasks', opp.Id],
-      queryFn: async () => {
-        const res = await apiService.getOpportunityTasks(opp.Id);
-        const data = res.data as { tasks?: any[] };
-        const tasks = data?.tasks || [];
-        return { oppName: opp.Name, accountName: opp.Account?.Name || opp.Name, tasks };
-      },
-      staleTime: 2 * 60 * 1000,
-      enabled: !prefs.collapsed['calendar'],
-    })) as { queryKey: (string | number)[]; queryFn: () => Promise<{ oppName: string; accountName: string; tasks: any[] }>; staleTime: number; enabled: boolean }[])
-  );
-
-  // Merge tasks into calendar feed (same time window), sorted by date
-  const calendarAndTasks = useMemo(() => {
-    const items: { type: 'event' | 'task'; dateTime: Date; summary: string; accountName: string; status?: string }[] = [];
-    for (const ev of calendarEvents) {
-      items.push({
-        type: 'event',
-        dateTime: ev.dateTime,
-        summary: ev.summary || 'Untitled event',
-        accountName: ev.accountName,
-      });
-    }
-    for (const q of taskQueries) {
-      if (!q.data?.tasks) continue;
-      const accountName = q.data.accountName || q.data.oppName;
-      for (const t of q.data.tasks) {
-        const ad = t.ActivityDate;
-        if (!ad) continue;
-        try {
-          const d = parseISO(ad);
-          if (isWithinInterval(d, { start: windowStart, end: windowEnd })) {
-            items.push({
-              type: 'task',
-              dateTime: d,
-              summary: t.Subject || 'Task',
-              accountName,
-              status: t.Status,
-            });
-          }
-        } catch {}
-      }
-    }
-    return items.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()).slice(0, 20);
-  }, [calendarEvents, taskQueries, windowStart, windowEnd]);
-
-  const calendarLoading = calendarQueries.some((q) => q.isLoading) || taskQueries.some((q) => q.isLoading);
-
-  // Activity intelligence for top 5 accounts
-  const activityQueries = useQueries(
-    topAccounts.slice(0, 5).map((acc) => ({
-      queryKey: ['activity-intelligence', acc.name],
-      queryFn: async () => {
-        const response = await apiService.getActivityIntelligence(acc.name);
-        return { accountName: acc.name, data: response.data };
-      },
-      staleTime: 5 * 60 * 1000,
-      enabled: !prefs.collapsed['activity'],
-    }))
-  );
-
-  // Flatten activity items
-  const activityItems = useMemo(() => {
-    const items: any[] = [];
-    for (const q of activityQueries) {
-      if (!q.data?.data) continue;
-      const intel = q.data.data;
-      // Extract recent activities from the intelligence response
-      const sources = [
-        ...(intel.slack?.recent_messages || []).map((m: any) => ({
-          type: 'slack',
-          date: m.timestamp || m.date,
-          summary: m.text || m.summary || 'Slack message',
-          account: q.data!.accountName,
-        })),
-        ...(intel.gmail?.recent_emails || []).map((e: any) => ({
-          type: 'gmail',
-          date: e.date || e.timestamp,
-          summary: e.subject || e.summary || 'Email',
-          account: q.data!.accountName,
-        })),
-        ...(intel.calendar?.upcoming_events || []).map((e: any) => ({
-          type: 'calendar',
-          date: e.start?.dateTime || e.start?.date || e.date,
-          summary: e.summary || e.title || 'Calendar event',
-          account: q.data!.accountName,
-        })),
-        ...(intel.fireflies?.recent_meetings || []).map((m: any) => ({
-          type: 'fireflies',
-          date: m.date || m.timestamp,
-          summary: m.title || m.summary || 'Meeting',
-          account: q.data!.accountName,
-        })),
-      ];
-      items.push(...sources);
-    }
-    return items
-      .filter((i) => i.date)
-      .sort((a, b) => {
-        try {
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
-        } catch {
-          return 0;
+    // Apply close date range filter
+    if (prefs.closeDateRange !== 'all') {
+      const now = new Date();
+      const today = startOfDay(now);
+      let cutoff: Date;
+      switch (prefs.closeDateRange) {
+        case 'next30': cutoff = addDays(today, 30); break;
+        case 'next60': cutoff = addDays(today, 60); break;
+        case 'next90': cutoff = addDays(today, 90); break;
+        case 'thisQuarter': {
+          const qMonth = Math.floor(now.getMonth() / 3) * 3 + 3;
+          cutoff = new Date(now.getFullYear(), qMonth, 0);
+          break;
         }
-      })
-      .slice(0, 20);
-  }, [activityQueries]);
+        case 'thisYear': cutoff = new Date(now.getFullYear(), 11, 31); break;
+        default: cutoff = addDays(today, 365);
+      }
+      opps = opps.filter((opp: any) => {
+        if (!opp.CloseDate) return false;
+        const d = parseISO(opp.CloseDate);
+        return d <= endOfDay(cutoff);
+      });
+    }
 
-  const activityLoading = activityQueries.some((q) => q.isLoading);
+    return opps;
+  }, [filteredOpportunities, prefs.closeDateRange]);
 
-  // Pipeline summary stats
+  // Map tasks to their parent opportunities
+  const sfTasks = useMemo(() => (Array.isArray(tasksData) ? tasksData : []), [tasksData]);
+
+  // Build calendar events from GCal + SF Tasks
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    const events: CalendarEvent[] = [];
+
+    // GCal events
+    const gcalEvents = calEventsData;
+    for (const ev of gcalEvents) {
+      events.push({
+        id: ev.id || `gcal-${events.length}`,
+        summary: ev.summary || 'Untitled',
+        start: ev.start || '',
+        end: ev.end || '',
+        attendees: ev.attendees || [],
+        location: ev.location || '',
+        type: 'gcal',
+      });
+    }
+
+    // SF Tasks
+    for (const task of sfTasks) {
+      if (!task.ActivityDate) continue;
+      events.push({
+        id: task.Id || `task-${events.length}`,
+        summary: task.Subject || 'Untitled Task',
+        start: task.ActivityDate,
+        type: 'task',
+        priority: task.Priority,
+        status: task.Status,
+      });
+    }
+
+    return events;
+  }, [calEventsData, sfTasks]);
+
+  // Build priority opportunities with tasks attached
+  const priorityOpps: PriorityOpp[] = useMemo(() => {
+    if (myOpenOpps.length === 0) return [];
+
+    // Group tasks by WhatId (opportunity ID)
+    const tasksByOppId = new Map<string, any[]>();
+    for (const task of sfTasks) {
+      if (!task.WhatId) continue;
+      if (!tasksByOppId.has(task.WhatId)) tasksByOppId.set(task.WhatId, []);
+      tasksByOppId.get(task.WhatId)!.push(task);
+    }
+
+    return myOpenOpps.map((opp: any) => ({
+      Id: opp.Id,
+      Name: opp.Name,
+      StageName: opp.StageName,
+      Amount: opp.Amount || 0,
+      CloseDate: opp.CloseDate || '',
+      Probability: opp.Probability || 0,
+      OwnerId: opp.OwnerId,
+      Account: opp.Account,
+      LastModifiedDate: opp.LastModifiedDate,
+      tasks: (tasksByOppId.get(opp.Id) || []).map((t: any) => ({
+        Id: t.Id,
+        Subject: t.Subject,
+        ActivityDate: t.ActivityDate || '',
+        Priority: t.Priority || 'Normal',
+        Status: t.Status || 'Not Started',
+        OwnerId: t.OwnerId,
+        OwnerName: t.Owner?.Name || t.OwnerName || '',
+        Description: t.Description || '',
+      })),
+    }));
+  }, [myOpenOpps, sfTasks]);
+
+  // Build inbox tasks with opportunity names
+  const inboxTasks: InboxTask[] = useMemo(() => {
+    const oppNameMap = new Map<string, string>();
+    for (const opp of allOpportunities) {
+      oppNameMap.set(opp.Id, opp.Name);
+    }
+    return sfTasks.map((t: any) => ({
+      Id: t.Id,
+      Subject: t.Subject || 'Untitled Task',
+      Status: t.Status || 'Not Started',
+      Priority: t.Priority || 'Normal',
+      ActivityDate: t.ActivityDate || null,
+      Description: t.Description || null,
+      OwnerId: t.OwnerId || '',
+      OwnerName: t.Owner?.Name || t.OwnerName || null,
+      CreatedById: t.CreatedById || null,
+      CreatedByName: t.CreatedBy?.Name || null,
+      WhatId: t.WhatId || null,
+      OpportunityName: t.WhatId ? oppNameMap.get(t.WhatId) || null : null,
+      isUrgent: t.Priority === 'High',
+    }));
+  }, [sfTasks, allOpportunities]);
+
+  // Pipeline summary stats — scoped by snapshot mode
   const pipelineStats = useMemo(() => {
-    const count = myOpenOpps.length;
-    const total = myOpenOpps.reduce((sum: number, opp: any) => sum + (opp.Amount || 0), 0);
-    const weighted = myOpenOpps.reduce(
+    let statsOpps: any[];
+    switch (prefs.snapshotMode) {
+      case 'filtered': statsOpps = filteredOpps.allFiltered; break;
+      case 'priorities': statsOpps = filteredOpps.visible; break;
+      default: statsOpps = myOpenOpps;
+    }
+    const count = statsOpps.length;
+    const total = statsOpps.reduce((sum: number, opp: any) => sum + (opp.Amount || 0), 0);
+    const weighted = statsOpps.reduce(
       (sum: number, opp: any) => sum + ((opp.Amount || 0) * (opp.Probability || 0)) / 100,
       0
     );
-    return { count, total, weighted };
-  }, [myOpenOpps]);
-
-  // My accounts derived from opportunities
-  const myAccounts = useMemo(() => {
-    const map = new Map<string, { name: string; id: string; oppCount: number; totalPipeline: number }>();
-    for (const opp of myOpenOpps) {
-      const accName = opp.Account?.Name || 'Unknown';
-      const accId = opp.AccountId || '';
-      const existing = map.get(accId);
-      if (existing) {
-        existing.oppCount++;
-        existing.totalPipeline += opp.Amount || 0;
-      } else {
-        map.set(accId, { name: accName, id: accId, oppCount: 1, totalPipeline: opp.Amount || 0 });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => b.totalPipeline - a.totalPipeline);
-  }, [myOpenOpps]);
-
-  // Dummy orange events for Nick Simmons on localhost: build dates, run matching protocol, merge into feed
-  const isNickSimmonsDev =
-    typeof window !== 'undefined' &&
-    window.location.hostname === 'localhost' &&
-    user?.name?.includes('Nick');
-
-  const displayCalendarAndTasks = useMemo(() => {
-    type CalendarItem = {
-      type: 'event' | 'task';
-      dateTime: Date;
-      summary: string;
-      accountName: string;
-      status?: string;
-      suggestedAccountName?: string;
-      matchReason?: string;
-      isDummy?: boolean;
-    };
-    let items: CalendarItem[] = calendarAndTasks.map((item) => ({
-      ...item,
-      suggestedAccountName: undefined,
-      matchReason: undefined,
-      isDummy: false,
-    }));
-
-    if (isNickSimmonsDev) {
-      const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
-      const accountNames = myAccounts.map((a) => a.name);
-      const oppNames = myOpenOpps.map((o: any) => o.Name || '').filter(Boolean);
-      const matchEvent = (summary: string): { name: string; reason: string } | null => {
-        const s = summary.toLowerCase();
-        for (const name of accountNames) {
-          if (name && s.includes(name.toLowerCase())) return { name, reason: 'account_name' };
-        }
-        for (const name of oppNames) {
-          if (name && s.includes(name.toLowerCase())) return { name, reason: 'opportunity_name' };
-        }
-        if (s.includes('pursuit')) return { name: 'Pursuit', reason: 'account_name' };
-        if (s.includes('mckinsey')) return { name: 'McKinsey', reason: 'account_name' };
-        if (s.includes('pbd')) return { name: 'PBD', reason: 'account_name' };
-        if (s.includes('hf')) return { name: 'HF', reason: 'account_name' };
-        return null;
-      };
-
-      const dummyItems: CalendarItem[] = [];
-      for (const ev of DUMMY_ORANGE_EVENTS) {
-        const date = addDays(monday, ev.dayOffset);
-        const dateTime = setMinutes(setHours(date, ev.hour), ev.minute);
-        if (!isWithinInterval(dateTime, { start: windowStart, end: windowEnd })) continue;
-        const match = matchEvent(ev.summary);
-        dummyItems.push({
-          type: 'event',
-          dateTime,
-          summary: ev.summary,
-          accountName: match?.name || '—',
-          suggestedAccountName: match?.name,
-          matchReason: match?.reason,
-          isDummy: true,
-        });
-      }
-      items = [...dummyItems, ...items].sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()).slice(0, 30);
-    }
-
-    return items;
-  }, [
-    isNickSimmonsDev,
-    calendarAndTasks,
-    windowStart,
-    windowEnd,
-    myAccounts,
-    myOpenOpps,
-  ]);
-
-  // Pipeline columns
-  const pipelineColumns: GridColDef[] = useMemo(
-    () => [
-      { field: 'Name', headerName: 'Opportunity', flex: 2, minWidth: 200 },
-      {
-        field: 'AccountId',
-        headerName: 'Account',
-        flex: 1.5,
-        minWidth: 150,
-        valueGetter: (params: any) => params.row.Account?.Name || '',
-      },
-      { field: 'StageName', headerName: 'Stage', flex: 1, minWidth: 130 },
-      {
-        field: 'Amount',
-        headerName: 'Amount',
-        width: 120,
-        valueFormatter: (params: any) => params.value ? formatDollarMillions(params.value) : '$0',
-      },
-      { field: 'CloseDate', headerName: 'Close Date', width: 120 },
-      {
-        field: 'Probability',
-        headerName: 'Prob.',
-        width: 80,
-        valueFormatter: (params: any) => params.value ? `${params.value}%` : '-',
-      },
-    ],
-    []
-  );
-
-  // Helper to render an action item table row group
-  const renderActionGroup = (label: string, items: any[], color: string) => {
-    if (items.length === 0) return null;
-    return (
-      <>
-        <TableRow>
-          <TableCell
-            colSpan={5}
-            sx={{ bgcolor: color, fontWeight: 600, py: 0.5, fontSize: '0.8rem', border: 'none' }}
-          >
-            {label} ({items.length})
-          </TableCell>
-        </TableRow>
-        {items.map((opp: any) => (
-          <TableRow
-            key={opp.Id}
-            hover
-            sx={{ cursor: 'pointer' }}
-            onClick={() => navigate('/pipeline')}
-          >
-            <TableCell>
-              <Typography variant="body2" fontWeight={500}>
-                {opp.Name}
-              </Typography>
-            </TableCell>
-            <TableCell>
-              <Typography variant="body2">{opp.Account?.Name || '-'}</Typography>
-            </TableCell>
-            <TableCell>
-              <Chip label={opp.StageName} size="small" variant="outlined" />
-            </TableCell>
-            <TableCell>
-              <Typography variant="body2">
-                {opp.CloseDate || '-'}
-              </Typography>
-            </TableCell>
-            <TableCell align="right">
-              <Typography variant="body2" fontWeight={500}>
-                {opp.Amount ? formatDollarMillions(opp.Amount) : '-'}
-              </Typography>
-            </TableCell>
-          </TableRow>
-        ))}
-      </>
-    );
-  };
-
-  const activityIcon = (type: string) => {
-    switch (type) {
-      case 'slack': return <ChatIcon fontSize="small" color="info" />;
-      case 'gmail': return <EmailIcon fontSize="small" color="error" />;
-      case 'calendar': return <EventIcon fontSize="small" color="primary" />;
-      case 'fireflies': return <VideocamIcon fontSize="small" color="secondary" />;
-      default: return <TimelineIcon fontSize="small" />;
-    }
-  };
+    const now = new Date();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const closingThisMonth = statsOpps.filter((opp: any) => {
+      if (!opp.CloseDate) return false;
+      const d = parseISO(opp.CloseDate);
+      return d >= startOfDay(now) && d <= endOfDay(monthEnd);
+    });
+    const closingAmount = closingThisMonth.reduce((s: number, o: any) => s + (o.Amount || 0), 0);
+    return { count, total, weighted, closingThisMonth: closingThisMonth.length, closingAmount };
+  }, [myOpenOpps, prefs.snapshotMode, filteredOpps]);
 
   if (oppsLoading) {
     return (
       <Box sx={{ width: '100%', mt: 4 }}>
         <LinearProgress />
-        <Typography align="center" sx={{ mt: 2 }}>Loading dashboard...</Typography>
+        <Typography align="center" sx={{ mt: 2 }}>Loading your priorities...</Typography>
       </Box>
     );
   }
 
   return (
     <Box>
-      {/* Header + global filter */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Box>
-          <Typography variant="h4">Home</Typography>
-          <Typography variant="body2" color="textSecondary">
-            {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Your dashboard'}
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            {user?.name ? `Hey, ${user.name.split(' ')[0]}` : 'Home'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {format(new Date(), 'EEEE, MMMM d')} &middot; {myOpenOpps.length} open opportunit{myOpenOpps.length === 1 ? 'y' : 'ies'}
           </Typography>
         </Box>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={prefs.timeWindow}
-          onChange={(_, v) => v && setTimeWindow(v)}
-        >
-          <ToggleButton value="day">Day</ToggleButton>
-          <ToggleButton value="week">Week</ToggleButton>
-          <ToggleButton value="2weeks">2 weeks</ToggleButton>
-        </ToggleButtonGroup>
       </Box>
 
-      {!sfUserId && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Connect Salesforce to filter by your ownership. Currently showing all opportunities.
-        </Alert>
-      )}
-
-      {/* 1. Calendar & tasks (single block) */}
-      <Section
-        id="calendar"
-        title="Calendar & tasks"
-        icon={<CalendarIcon color="primary" />}
-        collapsed={!!prefs.collapsed['calendar']}
-        onToggle={() => toggleSection('calendar')}
-        badge={displayCalendarAndTasks.length > 0 ? <Chip label={displayCalendarAndTasks.length} size="small" /> : undefined}
-      >
-        {calendarLoading && !isNickSimmonsDev ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CircularProgress size={20} />
-            <Typography variant="body2">Loading calendar & tasks...</Typography>
-          </Box>
-        ) : displayCalendarAndTasks.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No calendar events or tasks in this range.
-          </Typography>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {displayCalendarAndTasks.map((item, i) => (
-              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.5, borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
-                {item.type === 'event' ? (
-                  <EventIcon fontSize="small" color="primary" />
-                ) : (
-                  <AssignmentIcon fontSize="small" color="secondary" />
-                )}
-                <Typography variant="caption" color="text.secondary" sx={{ minWidth: 110 }}>
-                  {format(item.dateTime, 'MMM d, h:mm a')}
-                </Typography>
-                <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
-                  {item.summary}
-                </Typography>
-                {item.suggestedAccountName ? (
-                  <>
-                    <Chip label={`Suggested: ${item.suggestedAccountName}`} size="small" color="primary" variant="outlined" />
-                    <Chip label="Confirm" size="small" onClick={() => {}} sx={{ cursor: 'pointer' }} />
-                    <Chip label="Change" size="small" variant="outlined" onClick={() => {}} sx={{ cursor: 'pointer' }} />
-                  </>
-                ) : (
-                  <Chip label={item.accountName} size="small" variant="outlined" />
-                )}
-              </Box>
-            ))}
-          </Box>
-        )}
-      </Section>
-
-      {/* 2. Top prospects (5/10/25 by weighted score) */}
-      <Section
-        id="prospects"
-        title="Top prospects"
-        icon={<TrendingUpIcon color="primary" />}
-        collapsed={!!prefs.collapsed['prospects']}
-        onToggle={() => toggleSection('prospects')}
-        badge={<Chip label={`Top ${prefs.topN}`} size="small" variant="outlined" />}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-          <Typography variant="caption" color="text.secondary">Show</Typography>
-          <ToggleButtonGroup size="small" exclusive value={String(prefs.topN)} onChange={(_, v) => v && setTopN(Number(v) as 5 | 10 | 25)}>
-            <ToggleButton value="5">5</ToggleButton>
-            <ToggleButton value="10">10</ToggleButton>
-            <ToggleButton value="25">25</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        {topProspects.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No open opportunities with probability ≥ 15%. Add pipeline data to see top prospects.
-          </Typography>
-        ) : (
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Opportunity</TableCell>
-                  <TableCell>Account</TableCell>
-                  <TableCell>Stage</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell>Prob.</TableCell>
-                  <TableCell>Close</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {topProspects.map((opp: any) => (
-                  <TableRow key={opp.Id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate('/pipeline')}>
-                    <TableCell><Typography variant="body2" fontWeight={500}>{opp.Name}</Typography></TableCell>
-                    <TableCell><Typography variant="body2">{opp.Account?.Name || '-'}</Typography></TableCell>
-                    <TableCell><Chip label={opp.StageName} size="small" variant="outlined" /></TableCell>
-                    <TableCell align="right"><Typography variant="body2">{opp.Amount ? formatDollarMillions(opp.Amount) : '-'}</Typography></TableCell>
-                    <TableCell><Typography variant="body2">{opp.Probability != null ? `${opp.Probability}%` : '-'}</Typography></TableCell>
-                    <TableCell><Typography variant="body2">{opp.CloseDate || '-'}</Typography></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Section>
-
-      {/* 3. Action items */}
-      <Section
-        id="actions"
-        title="Action items"
-        icon={<AssignmentIcon color="primary" />}
-        collapsed={!!prefs.collapsed['actions']}
-        onToggle={() => toggleSection('actions')}
-        badge={totalActionItems > 0 ? <Chip label={totalActionItems} size="small" color="error" /> : undefined}
-      >
-        {totalActionItems === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No action items in this time window.
-          </Typography>
-        ) : (
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Opportunity</TableCell>
-                  <TableCell>Account</TableCell>
-                  <TableCell>Stage</TableCell>
-                  <TableCell>Close Date</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {renderActionGroup('Overdue', actionItems.overdue, '#fee2e2')}
-                {renderActionGroup('Due Soon', actionItems.dueSoon, '#ffedd5')}
-                {renderActionGroup('Coming Up', actionItems.comingUp, '#f3f4f6')}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Section>
-
-      {/* 4. Active Comms (placeholder until Gmail/Slack → Activity) */}
-      <Section
-        id="activeComms"
-        title="Active Comms"
-        icon={<EmailIcon color="primary" />}
-        collapsed={!!prefs.collapsed['activeComms']}
-        onToggle={() => toggleSection('activeComms')}
-      >
-        <Typography variant="body2" color="text.secondary">
-          Contacts and leads with activity in the last 60 days. Coming soon when email and Slack are connected.
-        </Typography>
-      </Section>
-
-      {/* 5. Inactive (placeholder) */}
-      <Section
-        id="inactive"
-        title="Inactive"
-        icon={<ChatIcon color="primary" />}
-        collapsed={!!prefs.collapsed['inactive']}
-        onToggle={() => toggleSection('inactive')}
-      >
-        <Typography variant="body2" color="text.secondary">
-          Relationships with activity in the last year but not the last 60 days. Coming soon.
-        </Typography>
-      </Section>
-
-      {/* 6. Automation review (placeholder) */}
-      <Section
-        id="automationReview"
-        title="Automation review"
-        icon={<AssignmentIcon color="primary" />}
-        collapsed={!!prefs.collapsed['automationReview']}
-        onToggle={() => toggleSection('automationReview')}
-      >
-        <Typography variant="body2" color="text.secondary">
-          Weekly review of suggested matches and tasks. Confirm or edit before they’re applied. Coming soon.
-        </Typography>
-      </Section>
-
-      {/* My Pipeline */}
-      <Section
-        id="pipeline"
-        title="My Pipeline"
-        icon={<TrendingUpIcon color="primary" />}
-        collapsed={!!prefs.collapsed['pipeline']}
-        onToggle={() => toggleSection('pipeline')}
-      >
-        {/* Summary stats */}
-        <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary">Open Opportunities</Typography>
-            <Typography variant="h6">{pipelineStats.count}</Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="text.secondary">Total Pipeline</Typography>
-            <Typography variant="h6">{formatDollarMillions(pipelineStats.total)}</Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="text.secondary">Weighted Pipeline</Typography>
-            <Typography variant="h6">{formatDollarMillions(pipelineStats.weighted)}</Typography>
-          </Box>
-        </Box>
-        <Box sx={{ height: 400, width: '100%' }}>
-          <DataGrid
-            rows={myOpenOpps}
-            columns={pipelineColumns}
-            getRowId={(row) => row.Id}
-            density="compact"
-            pagination
-            pageSizeOptions={[25, 50]}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 25 } },
-              sorting: { sortModel: [{ field: 'CloseDate', sort: 'asc' }] },
-            }}
-            disableRowSelectionOnClick
-            onRowClick={() => navigate('/pipeline')}
-            sx={{ cursor: 'pointer' }}
-          />
-        </Box>
-      </Section>
-
-      {/* Section 4: My Accounts */}
-      <Section
-        id="accounts"
-        title="My Accounts"
-        icon={<BusinessIcon color="primary" />}
-        collapsed={!!prefs.collapsed['accounts']}
-        onToggle={() => toggleSection('accounts')}
-        badge={myAccounts.length > 0 ? <Chip label={myAccounts.length} size="small" /> : undefined}
-      >
-        {myAccounts.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">No accounts found.</Typography>
-        ) : (
-          <Grid container spacing={2}>
-            {myAccounts.map((acc) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={acc.id}>
-                <Card variant="outlined">
-                  <CardActionArea onClick={() => navigate('/pipeline')}>
-                    <CardContent sx={{ py: 1.5, px: 2 }}>
-                      <Typography variant="subtitle2" noWrap>{acc.name}</Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {acc.oppCount} opp{acc.oppCount !== 1 ? 's' : ''}
-                        </Typography>
-                        <Typography variant="caption" fontWeight={600}>
-                          {formatDollarMillions(acc.totalPipeline)}
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
-              </Grid>
-            ))}
+      {/* Row 1: Calendar + Task Inbox side-by-side */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} md={prefs.collapsed['inbox'] ? 12 : 7}>
+          <Section
+            id="calendar"
+            title="Weekly Calendar"
+            icon={<CalendarIcon color="primary" />}
+            collapsed={!!prefs.collapsed['calendar']}
+            onToggle={() => toggleSection('calendar')}
+            badge={
+              calendarEvents.length > 0 ? (
+                <Chip label={`${calendarEvents.length} events`} size="small" />
+              ) : undefined
+            }
+          >
+            {calNeedsReauth && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                Calendar access expired. Please{' '}
+                <Button
+                  size="small"
+                  color="inherit"
+                  sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                  onClick={() => logout().then(() => {})}
+                >
+                  log out and sign in again
+                </Button>{' '}
+                to restore PBD calendar sync.
+              </Alert>
+            )}
+            <WeeklyCalendar
+              events={calendarEvents}
+              loading={calLoading}
+              viewMode={prefs.calendarView}
+              onViewModeChange={setCalendarView}
+            />
+          </Section>
+        </Grid>
+        {!prefs.collapsed['inbox'] && (
+          <Grid item xs={12} md={5}>
+            <Section
+              id="inbox"
+              title="Task Inbox"
+              icon={<InboxIcon color="primary" />}
+              collapsed={!!prefs.collapsed['inbox']}
+              onToggle={() => toggleSection('inbox')}
+              badge={
+                inboxTasks.filter((t) => t.Status !== 'Completed').length > 0 ? (
+                  <Chip label={`${inboxTasks.filter((t) => t.Status !== 'Completed').length} open`} size="small" />
+                ) : undefined
+              }
+            >
+              <TaskInbox
+                tasks={inboxTasks}
+                loading={tasksLoading}
+                maxHeight={400}
+              />
+            </Section>
           </Grid>
         )}
-      </Section>
+        {prefs.collapsed['inbox'] && (
+          <Grid item xs={12}>
+            <Section
+              id="inbox"
+              title="Task Inbox"
+              icon={<InboxIcon color="primary" />}
+              collapsed={true}
+              onToggle={() => toggleSection('inbox')}
+            >
+              <div />
+            </Section>
+          </Grid>
+        )}
+      </Grid>
 
-      {/* Section 5: Recent Activity */}
+      {/* Row 2: Priority Opportunities */}
       <Section
-        id="activity"
-        title="Recent Activity"
-        icon={<TimelineIcon color="primary" />}
-        collapsed={!!prefs.collapsed['activity']}
-        onToggle={() => toggleSection('activity')}
+        id="priorities"
+        title="Priority Opportunities"
+        icon={<PriorityIcon color="primary" />}
+        collapsed={!!prefs.collapsed['priorities']}
+        onToggle={() => toggleSection('priorities')}
+        badge={
+          myOpenOpps.length > 0 ? (
+            <Chip label={`${myOpenOpps.length} open`} size="small" />
+          ) : undefined
+        }
       >
-        {activityLoading ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CircularProgress size={20} />
-            <Typography variant="body2">Loading activity intelligence...</Typography>
+        {/* Controls row: User filter + Weighted toggle + top-N */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="opportunity-owner-filter-label">Opportunity Owner</InputLabel>
+              <Select
+                labelId="opportunity-owner-filter-label"
+                label="Opportunity Owner"
+                value={prefs.filterUserId}
+                onChange={(e) => setPrefs((p) => ({ ...p, filterUserId: e.target.value as string }))}
+              >
+                <MenuItem value="all">All Users ({allOpenOpps.length})</MenuItem>
+                {sfUserId && <MenuItem value="me">My Opportunities ({openCountByUser.get(sfUserId) || 0})</MenuItem>}
+                {sfUsers.map((u: any) => {
+                  const cnt = openCountByUser.get(u.Id) || 0;
+                  return (
+                    <MenuItem key={u.Id} value={u.Id}>
+                      {u.Name} ({cnt})
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel id="close-date-label">Close Date</InputLabel>
+              <Select
+                labelId="close-date-label"
+                label="Close Date"
+                value={prefs.closeDateRange}
+                onChange={(e) => setPrefs((p) => ({ ...p, closeDateRange: e.target.value as CloseDateRange }))}
+              >
+                <MenuItem value="all">All Dates</MenuItem>
+                <MenuItem value="next30">Next 30 days</MenuItem>
+                <MenuItem value="next60">Next 60 days</MenuItem>
+                <MenuItem value="next90">Next 90 days</MenuItem>
+                <MenuItem value="thisQuarter">This Quarter</MenuItem>
+                <MenuItem value="thisYear">This Year</MenuItem>
+              </Select>
+            </FormControl>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={prefs.showWeighted ? 'weighted' : 'total'}
+              onChange={(_, v) => v && setPrefs((p) => ({ ...p, showWeighted: v === 'weighted' }))}
+            >
+              <ToggleButton value="total">Total</ToggleButton>
+              <ToggleButton value="weighted">Weighted</ToggleButton>
+            </ToggleButtonGroup>
           </Box>
-        ) : activityItems.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No recent activity found for your accounts.
-          </Typography>
+          <TextField
+            type="number"
+            size="small"
+            label="Rows"
+            defaultValue={prefs.topN}
+            inputProps={{ min: 1, max: 50 }}
+            sx={{ width: 72 }}
+            onBlur={(e) => {
+              const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 10));
+              e.target.value = String(v);
+              setPrefs((p) => ({ ...p, topN: v }));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            }}
+          />
+        </Box>
+
+        {priorityOpps.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            {!user?.salesforce_connected ? (
+              <>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                  Connect Salesforce to see your priority opportunities.
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => navigate('/settings')}
+                >
+                  Go to Settings
+                </Button>
+              </>
+            ) : (
+              <Typography variant="body1" color="text.secondary">
+                No open opportunities found. New opportunities will appear here automatically.
+              </Typography>
+            )}
+          </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {activityItems.map((item, i) => (
-              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.5, borderBottom: '1px solid #f0f0f0' }}>
-                {activityIcon(item.type)}
-                <Typography variant="caption" color="text.secondary" sx={{ minWidth: 90 }}>
-                  {(() => {
-                    try {
-                      return format(new Date(item.date), 'MMM d');
-                    } catch {
-                      return item.date;
-                    }
-                  })()}
-                </Typography>
-                <Typography variant="body2" sx={{ flex: 1 }} noWrap>
-                  {item.summary}
-                </Typography>
-                <Chip label={item.account} size="small" variant="outlined" />
-              </Box>
-            ))}
-          </Box>
+          <>
+            <PriorityTable
+              opportunities={priorityOpps}
+              maxRows={prefs.topN}
+              users={[]}
+              showWeighted={prefs.showWeighted}
+              onFilteredChange={handleFilteredChange}
+              onAddTask={(opp) => {
+                const mapped: Opportunity = {
+                  Id: opp.Id,
+                  Name: opp.Name,
+                  AccountId: opp.Account?.Id || '',
+                  Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+                  StageName: opp.StageName,
+                  Amount: opp.Amount,
+                  Probability: opp.Probability,
+                  CloseDate: opp.CloseDate,
+                  CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  OwnerId: opp.OwnerId || '',
+                };
+                setTaskPanelOpp(mapped);
+                setTaskPanelOpen(true);
+              }}
+              onOpenTaskDrawer={(opp, _taskId) => {
+                const mapped: Opportunity = {
+                  Id: opp.Id,
+                  Name: opp.Name,
+                  AccountId: opp.Account?.Id || '',
+                  Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+                  StageName: opp.StageName,
+                  Amount: opp.Amount,
+                  Probability: opp.Probability,
+                  CloseDate: opp.CloseDate,
+                  CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(),
+                  OwnerId: opp.OwnerId || '',
+                };
+                setTaskPanelOpp(mapped);
+                setTaskPanelOpen(true);
+              }}
+            />
+          </>
         )}
       </Section>
+
+      {/* Section 3: Revenue Tracker */}
+      <Section
+        id="revenue"
+        title="Revenue Snapshot"
+        icon={<TrendingUpIcon color="primary" />}
+        collapsed={!!prefs.collapsed['revenue']}
+        onToggle={() => toggleSection('revenue')}
+        badge={
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={prefs.snapshotMode}
+            onChange={(_, val) => val && updatePrefs({ snapshotMode: val })}
+            onClick={(e) => e.stopPropagation()}
+            sx={{ ml: 1 }}
+          >
+            <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>All Pipeline</ToggleButton>
+            <ToggleButton value="filtered" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>All Filtered</ToggleButton>
+            <ToggleButton value="priorities" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>Just Priorities</ToggleButton>
+          </ToggleButtonGroup>
+        }
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={4}>
+            <Card
+              variant="outlined"
+              sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+              onClick={() => navigate('/dashboard')}
+            >
+              <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
+                <MoneyIcon color="primary" />
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Total Pipeline
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  {formatDollarMillions(pipelineStats.total)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {pipelineStats.count} open opportunities
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card
+              variant="outlined"
+              sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+              onClick={() => navigate('/dashboard')}
+            >
+              <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
+                <WeightedIcon color="primary" />
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Weighted Pipeline
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  {formatDollarMillions(pipelineStats.weighted)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Probability-weighted
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card
+              variant="outlined"
+              sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+              onClick={() => navigate('/dashboard')}
+            >
+              <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
+                <EventIcon color="primary" />
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Closing This Month
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  {formatDollarMillions(pipelineStats.closingAmount)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {pipelineStats.closingThisMonth} deal{pipelineStats.closingThisMonth !== 1 ? 's' : ''}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Section>
+
+      {/* Task Panel drawer */}
+      <TaskPanel
+        open={taskPanelOpen}
+        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); }}
+        opportunity={taskPanelOpp}
+      />
     </Box>
   );
 };

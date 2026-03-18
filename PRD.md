@@ -1,8 +1,21 @@
 # Pursuit Grants Management Platform PRD
 
-**Project:** Grants Management Platform (Phase 1: Partnerships Pipeline)  
-**Owner:** Jac  
-**Date:** November 9, 2025  
+> **⚠ HISTORICAL CONTEXT — Partially Superseded (March 2026)**
+>
+> This PRD was the original spec for Phase 1 (Nov 2025). It remains valuable for:
+> - Problem statement, user needs, and success metrics (still accurate)
+> - Implementation checklist status (reflects what shipped)
+>
+> **The following sections have been superseded by the CRM architecture docs:**
+> - **Stage names:** This doc uses old Salesforce stages (Lead Gen, Qualifying, etc.). The canonical stages are in `product/crm-architecture/canonical-definitions.md` Section 1, with a full legacy-to-canonical mapping.
+> - **Data model:** Entity definitions, field names, and relationships are now canonical in `product/crm-architecture/entity-map.md`.
+> - **Payment fields:** NPSP field references here are mapped to Bedrock fields in `product/crm-architecture/integration-register.md` (Salesforce Field Mapping section).
+>
+> When in doubt, the `product/crm-architecture/` docs govern.
+
+**Project:** Grants Management Platform (Phase 1: Partnerships Pipeline)
+**Owner:** Jac
+**Date:** November 9, 2025
 **Last Updated:** November 9, 2025
 
 ---

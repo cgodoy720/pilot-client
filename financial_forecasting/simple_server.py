@@ -4,13 +4,13 @@ Simplified FastAPI server for Financial Forecasting POC.
 Uses direct Salesforce connection without MCP layer for simplicity.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Response, Request, Query
+from fastapi import FastAPI, HTTPException, Depends, Response, Request, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 import uvicorn
 import os
@@ -33,13 +33,24 @@ import time
 import threading
 import base64
 import hashlib
+import asyncio
+import uuid as _uuid
+import re as _re
+import difflib as _difflib
+import calendar as _calendar
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
 load_dotenv(override=False)
 
+# JWT secret — must be defined before get_fernet() and any auth code; shared by JWT and Fernet
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+
 # Import config
 from config import SALESFORCE_CONFIG
+from models import OpportunityStage, OPEN_STAGES, CLOSED_STAGES, COLLECTING_STAGES
+
+VALID_STAGES = {s.value for s in OpportunityStage}
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -90,6 +101,7 @@ cache = TTLCache()
 
 # Cache TTLs (seconds)
 CACHE_TTL_OPPORTUNITIES = 300   # 5 minutes
+CACHE_TTL_STAGE_HISTORY = 300  # 5 minutes
 CACHE_TTL_ACCOUNTS = 600        # 10 minutes
 CACHE_TTL_USERS = 900           # 15 minutes
 CACHE_TTL_CASHFLOW = 600        # 10 minutes
@@ -148,7 +160,7 @@ _fernet: Optional[Fernet] = None
 def get_fernet() -> Fernet:
     global _fernet
     if _fernet is None:
-        _fernet = Fernet(_derive_fernet_key(os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-me')))
+        _fernet = Fernet(_derive_fernet_key(JWT_SECRET_KEY))
     return _fernet
 
 def encrypt_sf_tokens(data: dict) -> str:
@@ -183,6 +195,11 @@ def get_user_salesforce(request: Request) -> Optional[Salesforce]:
     if not access_token or not instance_url:
         return None
     
+    # Validate sf_user_id to prevent SOQL injection (Salesforce IDs are 15 or 18 alphanumeric chars)
+    if not _re.match(r'^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$', sf_user_id):
+        logger.warning(f"Invalid Salesforce user_id format: {sf_user_id[:20]}...")
+        return None
+
     # Check if we already have a live client for this user
     if sf_user_id in _user_sf_clients:
         client = _user_sf_clients[sf_user_id]
@@ -271,9 +288,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Session middleware (required for OAuth)
-SESSION_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+# Production detection and secret validation
 IS_PRODUCTION = os.getenv('FRONTEND_URL', '').startswith('https')
+if IS_PRODUCTION:
+    if not JWT_SECRET_KEY or len(JWT_SECRET_KEY) < 32:
+        raise RuntimeError(
+            "Production requires JWT_SECRET_KEY (min 32 chars). "
+            "Generate with: openssl rand -hex 32"
+        )
+
+# Session middleware (required for OAuth)
+SESSION_SECRET_KEY = JWT_SECRET_KEY
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,
@@ -286,6 +311,15 @@ app.add_middleware(
 # Global connections
 sf_client: Optional[Salesforce] = None
 slack_client: Optional[WebClient] = None
+
+# PBD Shared Calendar (the only calendar we expose — no personal calendars)
+PBD_CALENDAR_ID = os.getenv(
+    'PBD_CALENDAR_ID',
+    'c_f06065f4e4551cee88f8d465a6a77a24c8333c66a0077770a3e60b8d26251e98@group.calendar.google.com'
+)
+
+# Slack channel for pipeline updates (used by automation review poller)
+SLACK_PIPELINE_CHANNEL = os.getenv('SLACK_PIPELINE_CHANNEL', 'pipeline-updates')
 
 # Fireflies API configuration
 # Loaded from .env file
@@ -382,6 +416,225 @@ def get_slack():
         slack_client = WebClient(token=slack_token)
     return slack_client
 
+
+def _get_slack_workspace_info() -> Optional[Dict[str, str]]:
+    """Get cached Slack workspace info. Populates on first call."""
+    global _slack_workspace_info
+    if _slack_workspace_info is not None:
+        return _slack_workspace_info
+    try:
+        slack_token = os.getenv('SLACK_BOT_TOKEN')
+        if not slack_token:
+            return None
+        slack = get_slack()
+        response = slack.auth_test()
+        if response["ok"]:
+            _slack_workspace_info = {
+                "team": response.get("team", ""),
+                "user": response.get("user", ""),
+            }
+            return _slack_workspace_info
+    except Exception as e:
+        logger.warning(f"Slack auth_test failed: {e}")
+    return None
+
+
+# ── Automation queue helpers (ported from main.py) ──────────────────────────
+
+def _get_opp_cache() -> List[Dict[str, Any]]:
+    """Return cached opportunity list for entity resolution.
+
+    If the cache hasn't been populated yet, attempt a one-time lazy load
+    from Salesforce so that the first call to ingest_pipeline_updates()
+    has data for fuzzy matching.
+    """
+    global _opp_cache, _opp_cache_loaded
+    if _opp_cache_loaded:
+        return _opp_cache
+
+    try:
+        sf = get_salesforce()
+        if sf:
+            result = sf.query(
+                "SELECT Id, Name, StageName, Amount, CloseDate, OwnerId "
+                "FROM Opportunity WHERE IsClosed = false LIMIT 500"
+            )
+            records = result.get("records", [])
+            _refresh_opp_cache(records)
+            logger.info(f"Lazy-loaded {len(records)} opportunities into entity resolution cache")
+            return _opp_cache
+    except Exception as e:
+        logger.warning(f"Failed to lazy-load opp cache: {e}")
+
+    return _opp_cache
+
+
+def _refresh_opp_cache(opportunities: List[Dict[str, Any]]) -> None:
+    """Refresh the opportunity cache from a list of opportunity dicts."""
+    global _opp_cache, _opp_cache_loaded
+    _opp_cache = opportunities
+    _opp_cache_loaded = True
+
+
+def _extract_amount(text: str) -> Optional[int]:
+    """Extract dollar amount from text like $250K, $1.2M, $100,000."""
+    match = _re.search(r'\$[\d,]+(?:\.\d+)?[KkMm]?', text)
+    if not match:
+        return None
+    raw = match.group(0).replace('$', '').replace(',', '')
+    multiplier = 1
+    if raw[-1] in ('K', 'k'):
+        multiplier = 1_000
+        raw = raw[:-1]
+    elif raw[-1] in ('M', 'm'):
+        multiplier = 1_000_000
+        raw = raw[:-1]
+    try:
+        return int(float(raw) * multiplier)
+    except ValueError:
+        return None
+
+
+def _extract_close_date(text: str) -> Optional[str]:
+    """Extract a close date from natural language text. Returns ISO date string."""
+    text_lower = text.lower()
+    today = date.today()
+
+    # "end of [month]"
+    m = _re.search(r'end of (\w+)', text_lower)
+    if m:
+        month_name = m.group(1).capitalize()
+        for i, name in enumerate(_calendar.month_name):
+            if name and name.lower().startswith(month_name.lower()):
+                year = today.year if i >= today.month else today.year + 1
+                last_day = _calendar.monthrange(year, i)[1]
+                return date(year, i, last_day).isoformat()
+
+    # "by Q[1-4]"
+    m = _re.search(r'by q([1-4])', text_lower)
+    if m:
+        q = int(m.group(1))
+        end_month = q * 3
+        year = today.year if end_month >= today.month else today.year + 1
+        last_day = _calendar.monthrange(year, end_month)[1]
+        return date(year, end_month, last_day).isoformat()
+
+    # "[month] [day]" e.g. "April 15"
+    m = _re.search(r'(\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*)\s+(\d{1,2})\b', text_lower)
+    if m:
+        month_name = m.group(1).capitalize()
+        day_num = int(m.group(2))
+        for i, name in enumerate(_calendar.month_name):
+            if name and name.lower().startswith(month_name.lower()):
+                year = today.year if i > today.month or (i == today.month and day_num >= today.day) else today.year + 1
+                try:
+                    return date(year, i, day_num).isoformat()
+                except ValueError:
+                    pass
+
+    # "next [weekday]"
+    weekdays = {'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6}
+    m = _re.search(r'next (\w+day)', text_lower)
+    if m and m.group(1) in weekdays:
+        target = weekdays[m.group(1)]
+        days_ahead = target - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        return (today + timedelta(days=days_ahead)).isoformat()
+
+    return None
+
+
+def _fuzzy_match_opportunity(text: str, opportunities: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Find the best-matching opportunity by name or account name using fuzzy matching."""
+    if not opportunities:
+        return None
+    text_lower = text.lower()
+    best_match = None
+    best_ratio = 0.0
+
+    for opp in opportunities:
+        for field in [opp.get("Name", ""), (opp.get("Account") or {}).get("Name", "")]:
+            if not field:
+                continue
+            ratio = _difflib.SequenceMatcher(None, text_lower, field.lower()).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best_match = opp
+            if field.lower() in text_lower and len(field) > 3:
+                sub_ratio = max(ratio, 0.65)
+                if sub_ratio > best_ratio:
+                    best_ratio = sub_ratio
+                    best_match = opp
+
+    if best_ratio > 0.6 and best_match:
+        return best_match
+    return None
+
+
+def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str, Any]:
+    """NLP-style parser for CRM update messages.
+    Extracts: opportunity reference, action type, details, amount, close date.
+    """
+    text_lower = text.lower()
+    parsed: Dict[str, Any] = {
+        "action": "note",
+        "detail": text,
+        "confidence": 0.5,
+        "matched_opportunity": None,
+        "stage": None,
+        "amount": None,
+        "close_date": None,
+    }
+
+    # Detect stage changes
+    stage_keywords = {
+        "qualifying": "Qualifying",
+        "qualified": "Qualifying",
+        "proposal": "Design / Proposal Creation",
+        "negotiat": "Proposal Negotiation",
+        "contract": "Contract Creation",
+        "closed won": "Closed / Completed",
+        "closed lost": "Closed Lost",
+        "withdrawn": "Withdrawn",
+        "collecting": "Collecting / In Effect",
+    }
+    for keyword, stage in stage_keywords.items():
+        if keyword in text_lower:
+            parsed["action"] = "stage_change"
+            parsed["stage"] = stage
+            parsed["confidence"] = 0.7
+            break
+
+    # Detect task creation
+    task_keywords = ["follow up", "schedule", "send", "call", "email", "prepare", "set up", "next step"]
+    for kw in task_keywords:
+        if kw in text_lower:
+            if parsed["action"] == "note":
+                parsed["action"] = "task"
+                parsed["confidence"] = 0.6
+            break
+
+    # Entity resolution — fuzzy match against known opportunities
+    opp_list = opportunities or _get_opp_cache()
+    matched = _fuzzy_match_opportunity(text, opp_list)
+    if matched:
+        parsed["matched_opportunity"] = matched.get("Id")
+        parsed["confidence"] = min(parsed["confidence"] + 0.15, 0.95)
+
+    # Amount extraction
+    amount = _extract_amount(text)
+    if amount is not None:
+        parsed["amount"] = amount
+
+    # Date extraction
+    close_date = _extract_close_date(text)
+    if close_date:
+        parsed["close_date"] = close_date
+
+    return parsed
+
+
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
@@ -389,7 +642,6 @@ GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/au
 # FRONTEND_URL already defined above (line 48) - don't redefine it here
 if not FRONTEND_URL:  # If not set for CORS, set default for OAuth
     FRONTEND_URL = 'http://localhost:3000'
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 
@@ -408,6 +660,16 @@ oauth.register(
 
 # In-memory Google token store: email -> { access_token, refresh_token, expires_at }
 _google_tokens: Dict[str, Dict] = {}
+
+# Cached Slack workspace info (populated once at first /auth/me call)
+_slack_workspace_info: Optional[Dict[str, str]] = None  # {team, user, ok}
+
+# Automation Review — human-in-the-loop CRM update queue (ported from main.py)
+_automation_queue: Dict[str, Dict[str, Any]] = {}
+
+# Module-level opportunity cache for entity resolution
+_opp_cache: List[Dict[str, Any]] = []
+_opp_cache_loaded: bool = False
 
 def create_access_token(data: dict) -> str:
     """Create JWT access token."""
@@ -444,8 +706,12 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 @app.get("/debug/config")
-async def debug_config():
-    """Debug endpoint to check configuration values"""
+async def debug_config(request: Request):
+    """Debug endpoint — requires auth in production; disabled when FRONTEND_URL indicates prod."""
+    if IS_PRODUCTION:
+        user = await get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
     return {
         "FRONTEND_URL": FRONTEND_URL,
         "GOOGLE_CLIENT_ID": GOOGLE_CLIENT_ID[:20] + "..." if GOOGLE_CLIENT_ID else None,
@@ -479,8 +745,17 @@ async def auth_google_callback(request: Request, response: Response):
         if not user_info:
             raise HTTPException(status_code=400, detail="Failed to get user info from Google")
         
-        # Store Google tokens for Gmail/Calendar/Drive API access
         email = user_info['email']
+        
+        # Access allowlist: if ALLOWED_EMAILS is set, reject users not in the list
+        allowed_emails_raw = os.getenv('ALLOWED_EMAILS', '').strip()
+        if allowed_emails_raw:
+            allowed = {e.strip().lower() for e in allowed_emails_raw.split(',') if e.strip()}
+            if allowed and email.lower() not in allowed:
+                logger.warning(f"Rejected login: {email} not in ALLOWED_EMAILS")
+                return RedirectResponse(url=f"{FRONTEND_URL}/login?error=access_denied")
+        
+        # Store Google tokens for Gmail/Calendar/Drive API access
         google_token_data = {
             'access_token': token.get('access_token'),
             'refresh_token': token.get('refresh_token'),
@@ -752,7 +1027,25 @@ async def get_me(request: Request):
         else:
             user["salesforce_user_id"] = None
             user["salesforce_user_name"] = None
-    
+
+    # Google Calendar — connected if user has valid google_tokens
+    email = user.get("email")
+    google_tokens = _google_tokens.get(email) if email else None
+    google_cookie = request.cookies.get("google_tokens") if not google_tokens else None
+    user["google_connected"] = bool(
+        (google_tokens and google_tokens.get("access_token"))
+        or (google_cookie and decrypt_sf_tokens(google_cookie))
+    )
+    user["google_email"] = email
+
+    # Slack — bot-level, not per-user
+    ws_info = _get_slack_workspace_info()
+    user["slack_configured"] = ws_info is not None
+    user["slack_workspace"] = ws_info.get("team") if ws_info else None
+
+    # PBD calendar ID
+    user["calendar_pbd_id"] = PBD_CALENDAR_ID
+
     return user
 
 @app.post("/api/cache/clear")
@@ -921,6 +1214,135 @@ async def get_opportunities(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/api/salesforce/opportunities/stage-history")
+async def get_stage_history(days: int = Query(30, ge=1, le=365)):
+    """Get StageName changes from OpportunityFieldHistory within the given window."""
+    cache_key = f"stage_history:{days}"
+    try:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        sf = get_salesforce()
+        query = f"""
+        SELECT OpportunityId, Opportunity.Name, Opportunity.Amount,
+               Opportunity.StageName, OldValue, NewValue, CreatedDate
+        FROM OpportunityFieldHistory
+        WHERE Field = 'StageName'
+          AND CreatedDate = LAST_N_DAYS:{days}
+        ORDER BY CreatedDate DESC
+        """
+        result = sf.query_all(query)
+        records = result.get("records", [])
+
+        formatted = []
+        for r in records:
+            opp = r.get("Opportunity") or {}
+            formatted.append({
+                "OpportunityId": r.get("OpportunityId"),
+                "OpportunityName": opp.get("Name"),
+                "Amount": opp.get("Amount") or 0,
+                "CurrentStage": opp.get("StageName"),
+                "OldValue": r.get("OldValue"),
+                "NewValue": r.get("NewValue"),
+                "CreatedDate": r.get("CreatedDate"),
+            })
+
+        cache.set(cache_key, formatted, CACHE_TTL_STAGE_HISTORY)
+        return formatted
+    except Exception as e:
+        logger.warning(f"OpportunityFieldHistory query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ai/pipeline-analysis")
+async def ai_pipeline_analysis(payload: Dict[str, Any] = Body(...)):
+    """On-demand AI analysis of pipeline stage changes and funnel health."""
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(status_code=503, detail="AI analysis not configured (missing ANTHROPIC_API_KEY)")
+
+    days = payload.get("days", 30)
+    if not isinstance(days, int) or days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="days must be an integer between 1 and 365")
+
+    try:
+        import anthropic
+        sf = get_salesforce()
+
+        history_query = f"""
+        SELECT OpportunityId, Opportunity.Name, Opportunity.Amount,
+               Opportunity.StageName, OldValue, NewValue, CreatedDate
+        FROM OpportunityFieldHistory
+        WHERE Field = 'StageName'
+          AND CreatedDate = LAST_N_DAYS:{days}
+        ORDER BY CreatedDate DESC
+        """
+        history_result = sf.query_all(history_query)
+        changes = history_result.get("records", [])
+
+        snapshot_query = """
+        SELECT StageName, COUNT(Id) cnt, SUM(Amount) total
+        FROM Opportunity
+        WHERE IsClosed = false
+        GROUP BY StageName
+        ORDER BY StageName
+        """
+        snapshot_result = sf.query_all(snapshot_query)
+        stage_snapshot = [
+            {"stage": r["StageName"], "count": r["cnt"], "totalAmount": r.get("total") or 0}
+            for r in snapshot_result.get("records", [])
+        ]
+
+        formatted_changes = []
+        for r in changes:
+            opp = r.get("Opportunity") or {}
+            formatted_changes.append({
+                "opportunity": opp.get("Name"),
+                "amount": opp.get("Amount") or 0,
+                "from": r.get("OldValue"),
+                "to": r.get("NewValue"),
+                "date": r.get("CreatedDate"),
+            })
+
+        prompt = f"""You are a pipeline analyst for a nonprofit fundraising team managing grant opportunities.
+
+CURRENT PIPELINE SNAPSHOT (open opportunities by stage):
+{json.dumps(stage_snapshot, indent=1)}
+
+STAGE CHANGES IN THE LAST {days} DAYS ({len(formatted_changes)} total):
+{json.dumps(formatted_changes[:50], default=str, indent=1)}
+
+Analyze the pipeline health in 3-5 concise bullet points covering:
+- Pipeline velocity: Are opportunities moving forward through stages?
+- Stagnation risk: Any stages with many opps but little movement?
+- Stage conversion: Which transitions are happening most/least?
+- Actionable recommendations: What should the team focus on?
+
+Be specific — reference actual stage names, counts, and dollar amounts. Keep each bullet to 1-2 sentences. Use plain text, no markdown formatting."""
+
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        analysis_text = response.content[0].text.strip()
+
+        return {
+            "analysis": analysis_text,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "changes_count": len(formatted_changes),
+            "days": days,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"AI pipeline analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Salesforce - Create Opportunity
 @app.post("/api/salesforce/opportunities")
 async def create_opportunity(opportunity_data: Dict[str, Any], request: Request = None):
@@ -933,6 +1355,7 @@ async def create_opportunity(opportunity_data: Dict[str, Any], request: Request 
         
         if result.get('success'):
             cache.invalidate_prefix("opps:")  # Clear opps cache
+            cache.invalidate_prefix("stage_history")  # Stage history may change
             return {
                 "success": True,
                 "id": result.get('id'),
@@ -977,7 +1400,8 @@ async def bulk_update_opportunities(body: dict, request: Request = None):
                 failed_ids.append(opp_id)
         
         cache.invalidate_prefix("opps:")  # Clear opps cache
-        
+        cache.invalidate_prefix("stage_history")  # Stage history may change
+
         return {
             "success": True,
             "total": len(opp_ids),
@@ -1007,6 +1431,7 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
         
         if result == 204:  # Success code
             cache.invalidate_prefix("opps:")  # Clear opps cache
+            cache.invalidate_prefix("stage_history")  # Stage history may change
             return {
                 "success": True,
                 "message": "Opportunity updated successfully",
@@ -1196,6 +1621,65 @@ async def delete_task(task_id: str, request: Request = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/salesforce/my-tasks")
+async def get_my_tasks(
+    start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(200, le=500),
+):
+    """Get Salesforce Tasks linked to Opportunities, in date range. Used by Priorities page."""
+    try:
+        if start and not _re.match(r"^\d{4}-\d{2}-\d{2}$", start):
+            raise HTTPException(status_code=400, detail="start must be YYYY-MM-DD")
+        if end and not _re.match(r"^\d{4}-\d{2}-\d{2}$", end):
+            raise HTTPException(status_code=400, detail="end must be YYYY-MM-DD")
+        # Default range when omitted: 90 days back, 180 days forward
+        today = date.today()
+        if not start:
+            start = str(today - timedelta(days=90))
+        if not end:
+            end = str(today + timedelta(days=180))
+        if start > end:
+            raise HTTPException(status_code=400, detail="start must be before or equal to end")
+        sf = get_salesforce()
+        where_clauses = ["IsClosed = false", "WhatId != null"]
+        where_clauses.append(f"ActivityDate >= {start}")
+        where_clauses.append(f"ActivityDate <= {end}")
+        where_sql = " AND ".join(where_clauses)
+        query = f"""
+        SELECT Id, Subject, Status, Priority, ActivityDate, Description, WhatId,
+               OwnerId, Owner.Name, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE {where_sql}
+        ORDER BY ActivityDate ASC NULLS LAST, CreatedDate DESC
+        LIMIT {limit}
+        """
+        result = sf.query_all(query)
+        records = result.get("records", [])
+        formatted = []
+        for task in records:
+            formatted.append({
+                "Id": task.get("Id"),
+                "Subject": task.get("Subject"),
+                "Status": task.get("Status"),
+                "Priority": task.get("Priority"),
+                "ActivityDate": task.get("ActivityDate"),
+                "Description": task.get("Description"),
+                "WhatId": task.get("WhatId"),
+                "OwnerId": task.get("OwnerId"),
+                "Owner": {"Name": task.get("Owner", {}).get("Name")} if task.get("Owner") else None,
+                "OwnerName": task.get("Owner", {}).get("Name") if task.get("Owner") else None,
+                "CreatedDate": task.get("CreatedDate"),
+                "LastModifiedDate": task.get("LastModifiedDate"),
+            })
+        return {"data": formatted, "meta": {"count": len(formatted)}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching my-tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Salesforce - Users
 @app.get("/api/salesforce/users")
 async def get_users(limit: int = 1000):
@@ -1345,18 +1829,19 @@ async def get_dashboard(date_range_days: int = 90, scenario: str = "realistic"):
         # Calculate metrics
         total_pipeline = sum(float(opp.get('Amount') or 0) for opp in opportunities)
         
-        open_opps = [opp for opp in opportunities 
-                     if 'Closed' not in opp.get('StageName', '') 
-                     and 'Withdrawn' not in opp.get('StageName', '')]
+        _closed_values = {s.value for s in CLOSED_STAGES}
+        open_opps = [opp for opp in opportunities
+                     if opp.get('StageName', '') not in _closed_values]
         
         weighted_pipeline = sum(
             float(opp.get('Amount') or 0) * (float(opp.get('Probability') or 0) / 100)
             for opp in open_opps
         )
         
-        closed_won = [opp for opp in opportunities 
-                      if 'Closed Won' in opp.get('StageName', '') 
-                      or 'Completed' in opp.get('StageName', '')]
+        closed_won = [opp for opp in opportunities
+                      if opp.get('StageName', '') in (
+                          OpportunityStage.CLOSED_COMPLETED.value,
+                          OpportunityStage.COLLECTING.value)]
         
         avg_deal_size = sum(float(opp.get('Amount') or 0) for opp in closed_won) / max(len(closed_won), 1)
         win_rate = len(closed_won) / max(len(opportunities), 1)
@@ -1630,6 +2115,340 @@ async def slack_health_check():
             
     except Exception as e:
         return {"configured": True, "connected": False, "error": str(e)}
+
+
+@app.get("/api/slack/channel-messages/{channel_name}")
+async def get_slack_channel_messages(channel_name: str, limit: int = 50):
+    """Fetch recent messages from a named Slack channel."""
+    try:
+        slack = get_slack()
+
+        # Find the channel by name
+        channels_response = slack.conversations_list(
+            types="public_channel", exclude_archived=True, limit=200
+        )
+        if not channels_response["ok"]:
+            raise HTTPException(status_code=500, detail="Failed to list channels")
+
+        target_channel = None
+        # Strip leading # if present
+        clean_name = channel_name.lstrip("#")
+        for ch in channels_response.get("channels", []):
+            if ch["name"] == clean_name:
+                target_channel = ch
+                break
+
+        if not target_channel:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Channel #{clean_name} not found or bot is not a member",
+            )
+
+        channel_id = target_channel["id"]
+
+        # Fetch message history
+        history = slack.conversations_history(channel=channel_id, limit=limit)
+        if not history["ok"]:
+            raise HTTPException(status_code=500, detail="Failed to fetch channel history")
+
+        # Build a user cache for name resolution
+        user_cache: Dict[str, str] = {}
+        try:
+            users_resp = slack.users_list(limit=200)
+            if users_resp["ok"]:
+                for u in users_resp.get("members", []):
+                    user_cache[u["id"]] = u.get("real_name") or u.get("name", u["id"])
+        except Exception:
+            pass
+
+        messages = []
+        for msg in history.get("messages", []):
+            uid = msg.get("user", "")
+            ts = msg.get("ts", "")
+            messages.append(
+                {
+                    "text": msg.get("text", ""),
+                    "user_name": user_cache.get(uid, uid),
+                    "user_id": uid,
+                    "timestamp": ts,
+                    "permalink": f"https://slack.com/archives/{channel_id}/p{ts.replace('.', '')}"
+                    if ts
+                    else "",
+                    "thread_ts": msg.get("thread_ts"),
+                }
+            )
+
+        return {"channel": clean_name, "messages": messages, "total": len(messages)}
+
+    except HTTPException:
+        raise
+    except SlackApiError as e:
+        if e.response["error"] == "ratelimited":
+            raise HTTPException(
+                status_code=429, detail="Slack rate limit exceeded. Try again later."
+            )
+        raise HTTPException(
+            status_code=500, detail=f"Slack API error: {e.response['error']}"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/slack/pipeline-updates")
+async def get_slack_pipeline_updates(limit: int = 50):
+    """Dedicated endpoint for #pipeline-updates channel messages (cached 60s)."""
+    cache_key = f"slack:pipeline-updates:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        slack = get_slack()
+
+        # Find the pipeline-updates channel
+        channels_response = slack.conversations_list(
+            types="public_channel", exclude_archived=True, limit=200
+        )
+        if not channels_response["ok"]:
+            raise HTTPException(status_code=500, detail="Failed to list channels")
+
+        target_channel = None
+        for ch in channels_response.get("channels", []):
+            if ch["name"] == SLACK_PIPELINE_CHANNEL:
+                target_channel = ch
+                break
+
+        if not target_channel:
+            return {
+                "channel": SLACK_PIPELINE_CHANNEL,
+                "messages": [],
+                "total": 0,
+                "error": f"Channel #{SLACK_PIPELINE_CHANNEL} not found",
+            }
+
+        channel_id = target_channel["id"]
+        history = slack.conversations_history(channel=channel_id, limit=limit)
+        if not history["ok"]:
+            raise HTTPException(status_code=500, detail="Failed to fetch channel history")
+
+        # Resolve user names
+        user_cache: Dict[str, str] = {}
+        try:
+            users_resp = slack.users_list(limit=200)
+            if users_resp["ok"]:
+                for u in users_resp.get("members", []):
+                    user_cache[u["id"]] = u.get("real_name") or u.get("name", u["id"])
+        except Exception:
+            pass
+
+        messages = []
+        for msg in history.get("messages", []):
+            uid = msg.get("user", "")
+            ts = msg.get("ts", "")
+            messages.append(
+                {
+                    "text": msg.get("text", ""),
+                    "user_name": user_cache.get(uid, uid),
+                    "user_id": uid,
+                    "timestamp": ts,
+                    "permalink": f"https://slack.com/archives/{channel_id}/p{ts.replace('.', '')}"
+                    if ts
+                    else "",
+                    "thread_ts": msg.get("thread_ts"),
+                }
+            )
+
+        result = {
+            "channel": SLACK_PIPELINE_CHANNEL,
+            "messages": messages,
+            "total": len(messages),
+        }
+        cache.set(cache_key, result, ttl_seconds=60)
+        return result
+
+    except HTTPException:
+        raise
+    except SlackApiError as e:
+        if e.response["error"] == "ratelimited":
+            raise HTTPException(
+                status_code=429, detail="Slack rate limit exceeded. Try again later."
+            )
+        raise HTTPException(
+            status_code=500, detail=f"Slack API error: {e.response['error']}"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Automation Review — Slack webhook + human-in-the-loop CRM queue
+# ============================================================================
+
+class SlackWebhookPayload(BaseModel):
+    text: str
+    channel: Optional[str] = "manual"
+    user_name: Optional[str] = "Bedrock User"
+
+
+@app.post("/api/slack/webhook")
+async def slack_webhook(payload: SlackWebhookPayload):
+    """Receive a CRM update message (from Slack or manual entry),
+    parse it, and queue it for human review."""
+    parsed = _parse_crm_message(payload.text)
+    item_id = str(_uuid.uuid4())
+    _automation_queue[item_id] = {
+        "id": item_id,
+        "source": payload.channel,
+        "user_name": payload.user_name,
+        "raw_text": payload.text,
+        "parsed": parsed,
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat(),
+        "reviewed_by": None,
+        "reviewed_at": None,
+    }
+    return {"id": item_id, "parsed": parsed, "status": "pending"}
+
+
+@app.get("/api/automation-review/pending")
+async def get_pending_reviews():
+    """Return all pending automation review items."""
+    pending = [
+        item for item in _automation_queue.values() if item["status"] == "pending"
+    ]
+    pending.sort(key=lambda x: x["created_at"], reverse=True)
+    return {"items": pending, "total": len(pending)}
+
+
+@app.get("/api/automation-review/all")
+async def get_all_reviews():
+    """Return all automation review items (pending + reviewed)."""
+    items = list(_automation_queue.values())
+    items.sort(key=lambda x: x["created_at"], reverse=True)
+    return {"items": items, "total": len(items)}
+
+
+@app.post("/api/automation-review/{item_id}/approve")
+async def approve_review(item_id: str, edits: Dict[str, Any] = {}):
+    """Approve an automation review item and apply the CRM change."""
+    if item_id not in _automation_queue:
+        raise HTTPException(status_code=404, detail="Review item not found")
+
+    item = _automation_queue[item_id]
+    if item["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Item already {item['status']}")
+
+    # Merge any user edits into the parsed data
+    if edits:
+        item["parsed"].update(edits)
+
+    item["status"] = "approved"
+    item["reviewed_at"] = datetime.utcnow().isoformat()
+
+    # TODO: Apply the actual CRM change (stage update, task creation, etc.)
+    # For now, just mark as approved — the UI will show the result.
+
+    return {"id": item_id, "status": "approved", "parsed": item["parsed"]}
+
+
+@app.post("/api/automation-review/{item_id}/reject")
+async def reject_review(item_id: str, body: Dict[str, Any] = {}):
+    """Reject an automation review item."""
+    if item_id not in _automation_queue:
+        raise HTTPException(status_code=404, detail="Review item not found")
+
+    item = _automation_queue[item_id]
+    if item["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Item already {item['status']}")
+
+    item["status"] = "rejected"
+    item["reviewed_at"] = datetime.utcnow().isoformat()
+    item["reject_reason"] = body.get("reason", "")
+
+    return {"id": item_id, "status": "rejected"}
+
+
+# Track which Slack message timestamps we've already ingested
+_ingested_slack_ts: set = set()
+
+
+@app.post("/api/automation-review/ingest-pipeline")
+async def ingest_pipeline_updates(limit: int = 20):
+    """Fetch new messages from #pipeline-updates and feed them through
+    _parse_crm_message → _automation_queue. Deduplicates by Slack timestamp."""
+    try:
+        slack = get_slack()
+
+        # Find the channel
+        channels_response = slack.conversations_list(
+            types="public_channel", exclude_archived=True, limit=200
+        )
+        if not channels_response["ok"]:
+            raise HTTPException(status_code=500, detail="Failed to list channels")
+
+        target_channel = None
+        for ch in channels_response.get("channels", []):
+            if ch["name"] == SLACK_PIPELINE_CHANNEL:
+                target_channel = ch
+                break
+
+        if not target_channel:
+            return {"ingested": 0, "error": f"Channel #{SLACK_PIPELINE_CHANNEL} not found"}
+
+        channel_id = target_channel["id"]
+        history = slack.conversations_history(channel=channel_id, limit=limit)
+        if not history["ok"]:
+            return {"ingested": 0, "error": "Failed to fetch channel history"}
+
+        # Resolve user names
+        user_cache_local: Dict[str, str] = {}
+        try:
+            users_resp = slack.users_list(limit=200)
+            if users_resp["ok"]:
+                for u in users_resp.get("members", []):
+                    user_cache_local[u["id"]] = u.get("real_name") or u.get("name", u["id"])
+        except Exception:
+            pass
+
+        ingested = 0
+        for msg in history.get("messages", []):
+            ts = msg.get("ts", "")
+            if not ts or ts in _ingested_slack_ts:
+                continue
+
+            text = msg.get("text", "").strip()
+            if not text:
+                continue
+
+            _ingested_slack_ts.add(ts)
+
+            uid = msg.get("user", "")
+            user_name = user_cache_local.get(uid, uid)
+            parsed = _parse_crm_message(text)
+
+            item_id = str(_uuid.uuid4())
+            _automation_queue[item_id] = {
+                "id": item_id,
+                "source": f"slack:#{SLACK_PIPELINE_CHANNEL}",
+                "user_name": user_name,
+                "raw_text": text,
+                "parsed": parsed,
+                "status": "pending",
+                "created_at": datetime.utcnow().isoformat(),
+                "slack_ts": ts,
+                "reviewed_by": None,
+                "reviewed_at": None,
+            }
+            ingested += 1
+
+        return {"ingested": ingested, "total_queued": len(_automation_queue)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Pipeline ingest error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Fireflies Integration
 def query_fireflies(query: str, variables: dict = None):
@@ -2429,7 +3248,7 @@ async def get_account_calendar_activity(account_name: str, request: Request, lim
         time_max = (now + timedelta(days=90)).isoformat() + 'Z'
 
         events_result = service.events().list(
-            calendarId='primary',
+            calendarId=PBD_CALENDAR_ID,
             q=account_name,
             timeMin=time_min,
             timeMax=time_max,
@@ -2516,6 +3335,109 @@ async def get_account_calendar_activity(account_name: str, request: Request, lim
                 'needs_reauth': True,
             }
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/calendar/config")
+async def get_calendar_config():
+    """Return calendar configuration (PBD calendar ID and available calendars)."""
+    return {
+        "pbd_calendar_id": PBD_CALENDAR_ID,
+        "available_calendars": [],  # Placeholder for future user calendar selection
+    }
+
+
+@app.get("/api/calendar/my-events")
+async def get_my_calendar_events(
+    request: Request,
+    start: str = None,
+    end: str = None,
+    limit: int = 100,
+    calendar_id: str = None,
+):
+    """Get calendar events for the current user from the PBD shared calendar only."""
+    # Restrict to PBD calendar only — block personal and arbitrary calendar IDs
+    if not calendar_id or calendar_id == "primary" or calendar_id != PBD_CALENDAR_ID:
+        return {
+            "data": [],
+            "total": 0,
+            "message": "Only the PBD shared calendar is supported. Use the PBD calendar ID.",
+        }
+
+    try:
+        user = await get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        email = user.get("email")
+        creds = _get_google_credentials(email, request)
+        if not creds:
+            return {
+                "data": [],
+                "total": 0,
+                "error": "Google tokens not available. Please re-login to grant Calendar access.",
+                "needs_reauth": True,
+            }
+
+        from googleapiclient.discovery import build
+
+        loop = asyncio.get_event_loop()
+
+        def _fetch_events():
+            service = build("calendar", "v3", credentials=creds)
+            params = {
+                "calendarId": calendar_id,
+                "maxResults": limit,
+                "singleEvents": True,
+                "orderBy": "startTime",
+            }
+            if start:
+                params["timeMin"] = start if "T" in start else f"{start}T00:00:00Z"
+            if end:
+                params["timeMax"] = end if "T" in end else f"{end}T23:59:59Z"
+
+            result = service.events().list(**params).execute()
+            return result.get("items", [])
+
+        raw_events = await loop.run_in_executor(None, _fetch_events)
+
+        events = []
+        for ev in raw_events:
+            s = ev.get("start", {})
+            e = ev.get("end", {})
+            events.append(
+                {
+                    "id": ev.get("id"),
+                    "summary": ev.get("summary", "(No title)"),
+                    "start": s.get("dateTime") or s.get("date"),
+                    "end": e.get("dateTime") or e.get("date"),
+                    "attendees": [
+                        {
+                            "email": a.get("email"),
+                            "name": a.get("displayName"),
+                            "status": a.get("responseStatus"),
+                        }
+                        for a in ev.get("attendees", [])
+                    ],
+                    "location": ev.get("location"),
+                    "description": (ev.get("description") or "")[:300],
+                    "status": ev.get("status"),
+                }
+            )
+
+        return {"data": events, "total": len(events)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Calendar my-events error: {e}")
+        if "invalid_grant" in str(e).lower() or "token" in str(e).lower():
+            return {
+                "data": [],
+                "total": 0,
+                "error": "Calendar token expired. Please re-login.",
+                "needs_reauth": True,
+            }
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/calendar/health")
 async def calendar_health_check(request: Request):
@@ -3689,22 +4611,27 @@ async def search_opportunities(
             
             # Stage weighting (30% weight) - heavily favor won/collecting but allow others
             stage = opp.get('StageName', '')
-            if 'Collecting' in stage or 'In Effect' in stage:
+            _collecting_values = {s.value for s in COLLECTING_STAGES}
+            _closed_values = {s.value for s in CLOSED_STAGES}
+            _open_values = {s.value for s in OPEN_STAGES}
+            if stage in _collecting_values:
                 score += 30  # Maximum bonus for active collection
                 explanation['stage_bonus'] = '🟢 Active collection'
-            elif 'Closed / Completed' in stage:
-                score += 20
-                explanation['stage_bonus'] = '✓ Completed'
-            elif 'Closed Won' in stage:
+            elif stage == OpportunityStage.CLOSED_COMPLETED.value:
                 score += 25
-                explanation['stage_bonus'] = '✓ Won (not yet collecting)'
-            elif 'Closed Lost' in stage or 'Withdrawn' in stage:
+                explanation['stage_bonus'] = '✓ Completed'
+            elif stage in (OpportunityStage.CLOSED_LOST.value,
+                           OpportunityStage.CLOSED_DID_NOT_FULFILL.value,
+                           OpportunityStage.WITHDRAWN.value):
                 score -= 20  # Penalty for closed/lost
                 explanation['stage_bonus'] = '❌ Closed/Lost'
-            else:
+            elif stage in _open_values:
                 # Open pipeline stages - show but don't recommend
                 score -= 10  # Slight penalty
                 explanation['stage_bonus'] = '⚠️ Open pipeline (not yet won)'
+            else:
+                score -= 10
+                explanation['stage_bonus'] = '⚠️ Unknown stage'
             
             return score, explanation
         
@@ -3868,14 +4795,14 @@ async def get_awaiting_invoices():
         sf = get_salesforce()
         
         # Query for payments that need invoices
-        query = """
+        query = f"""
         SELECT Id, npe01__Payment_Amount__c, npe01__Scheduled_Date__c, npe01__Paid__c,
-               npe01__Opportunity__c, npe01__Opportunity__r.Name, 
+               npe01__Opportunity__c, npe01__Opportunity__r.Name,
                npe01__Opportunity__r.Account.Name, npe01__Opportunity__r.CloseDate,
                npe01__Opportunity__r.Owner.Name, npe01__Opportunity__r.StageName,
                Invoice__c
         FROM npe01__OppPayment__c
-        WHERE npe01__Opportunity__r.StageName = 'Collecting / In Effect'
+        WHERE npe01__Opportunity__r.StageName = '{OpportunityStage.COLLECTING.value}'
         AND Invoice__c = null
         AND npe01__Paid__c = false
         ORDER BY npe01__Scheduled_Date__c ASC
@@ -4144,8 +5071,10 @@ def sync_invoice_payments_from_sage():
             if all_payments and all(p.get('npe01__Paid__c') for p in all_payments):
                 # All payments paid! Complete the opportunity
                 sf.Opportunity.update(opp_id, {
-                    'StageName': 'Closed / Completed'
+                    'StageName': OpportunityStage.CLOSED_COMPLETED.value
                 })
+                cache.invalidate_prefix("opps:")
+                cache.invalidate_prefix("stage_history")
                 opps_completed_count += 1
                 logger.info(f"   🎉 Opportunity {opp_id} COMPLETED (all payments received)")
         
@@ -5215,7 +6144,7 @@ async def validate_stage_change(request: dict, http_request: Request = None):
         opp_id = request.get('opportunity_id')
         new_stage = request.get('new_stage')
         
-        if new_stage != 'Collecting / In Effect':
+        if new_stage != OpportunityStage.COLLECTING.value:
             return {"success": True, "can_proceed": True}
         
         # Get opportunity
@@ -5247,7 +6176,7 @@ async def validate_stage_change(request: dict, http_request: Request = None):
                 "success": False,
                 "can_proceed": False,
                 "error": "Payment schedule required",
-                "message": f"Cannot move to 'Collecting / In Effect' without a payment schedule.\n\nPlease create a payment schedule for this ${opp_amount:,.0f} opportunity first.\n\nGo to Salesforce → Opportunity → Related → Payments → New",
+                "message": f"Cannot move to '{OpportunityStage.COLLECTING.value}' without a payment schedule.\n\nPlease create a payment schedule for this ${opp_amount:,.0f} opportunity first.\n\nGo to Salesforce \u2192 Opportunity \u2192 Related \u2192 Payments \u2192 New",
                 "action_required": "create_payment_schedule"
             }
         
@@ -5457,7 +6386,9 @@ async def update_opportunity_stage(request: dict, http_request: Request = None):
         sf.Opportunity.update(opp_id, {
             'StageName': new_stage
         })
-        
+        cache.invalidate_prefix("opps:")
+        cache.invalidate_prefix("stage_history")
+
         return {
             "success": True,
             "message": f"Opportunity stage updated to '{new_stage}'",

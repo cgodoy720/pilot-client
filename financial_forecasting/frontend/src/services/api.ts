@@ -3,6 +3,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import type { OpportunityCreatePayload, OpportunityUpdatePayload } from '../types/api';
 
 // Create axios instance with default config
 const api: AxiosInstance = axios.create({
@@ -54,10 +55,10 @@ export const apiService = {
   servicesHealth: () => api.get('/health/services'),
 
   // Salesforce - Opportunities
-  getOpportunities: (params?: { stage?: string; stages?: string[]; limit?: number; record_type?: string; opp_type?: string; active_only?: boolean }) =>
+  getOpportunities: (params?: { stage?: string; stages?: readonly string[]; limit?: number; record_type?: string; opp_type?: string; active_only?: boolean }) =>
     api.get('/api/salesforce/opportunities', {
       params,
-      paramsSerializer: (p: Record<string, any>) => {
+      paramsSerializer: (p: Record<string, string | string[] | number | boolean | undefined | null>) => {
         const sp = new URLSearchParams();
         Object.entries(p).forEach(([k, v]) => {
           if (Array.isArray(v)) v.forEach(i => sp.append(k, i));
@@ -67,17 +68,23 @@ export const apiService = {
       },
     }),
   
-  createOpportunity: (data: any) =>
+  getStageHistory: (days: number = 30) =>
+    api.get('/api/salesforce/opportunities/stage-history', { params: { days } }),
+
+  analyzePipeline: (days: number = 30) =>
+    api.post('/api/ai/pipeline-analysis', { days }),
+
+  createOpportunity: (data: OpportunityCreatePayload) =>
     api.post('/api/salesforce/opportunities', data),
-  
-  updateOpportunity: (opportunityId: string, updates: any) =>
+
+  updateOpportunity: (opportunityId: string, updates: Record<string, string | number | boolean | null>) =>
     api.put(`/api/salesforce/opportunities/${opportunityId}`, {
       opportunity_id: opportunityId,
       updates,
       reason: 'Updated via Revenue Hub'
-    }),
+    } satisfies OpportunityUpdatePayload),
 
-  bulkUpdateOpportunities: (opportunityIds: string[], updates: any) =>
+  bulkUpdateOpportunities: (opportunityIds: string[], updates: Record<string, string | number | boolean | null>) =>
     api.put('/api/salesforce/opportunities/bulk-update', {
       opportunity_ids: opportunityIds,
       updates
@@ -265,6 +272,41 @@ export const apiService = {
 
   calendarHealthCheck: () =>
     api.get('/api/calendar/health'),
+
+  // My Priorities — tasks and calendar
+  getMyTasks: (start?: string, end?: string) =>
+    api.get('/api/salesforce/my-tasks', { params: { start, end } }),
+
+  getMyCalendarEvents: (start?: string, end?: string, limit: number = 100, calendar_id?: string) =>
+    api.get('/api/calendar/my-events', { params: { start, end, limit, calendar_id } }),
+
+  // Automation Review
+  getPendingReviews: () =>
+    api.get('/api/automation-review/pending'),
+
+  getAllReviews: () =>
+    api.get('/api/automation-review/all'),
+
+  approveReview: (id: string, edits?: any) =>
+    api.post(`/api/automation-review/${id}/approve`, edits || {}),
+
+  rejectReview: (id: string, reason?: string) =>
+    api.post(`/api/automation-review/${id}/reject`, { reason }),
+
+  submitSlackWebhook: (text: string, channel?: string) =>
+    api.post('/api/slack/webhook', { text, channel: channel || 'manual', user_name: 'Bedrock User' }),
+
+  getSlackChannelMessages: (channelName: string, limit: number = 50) =>
+    api.get(`/api/slack/channel-messages/${encodeURIComponent(channelName)}`, { params: { limit } }),
+
+  getSlackPipelineUpdates: (limit: number = 50) =>
+    api.get('/api/slack/pipeline-updates', { params: { limit } }),
+
+  ingestPipelineUpdates: (limit: number = 20) =>
+    api.post('/api/automation-review/ingest-pipeline', null, { params: { limit } }),
+
+  getCalendarConfig: () =>
+    api.get('/api/calendar/config'),
 
   // Google Drive Integration
   getAccountDriveActivity: (accountName: string, limit: number = 20, opportunityName?: string) =>

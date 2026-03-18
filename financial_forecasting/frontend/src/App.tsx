@@ -1,26 +1,37 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline } from '@mui/material';
+import { CssBaseline, Box, CircularProgress } from '@mui/material';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 
 import { AuthProvider } from './contexts/AuthContext';
 import { LeadsProvider } from './contexts/LeadsContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Overview from './pages/Overview';
 import Pipeline from './pages/Pipeline';
-import Revenue from './pages/Revenue';
-import Cleanup from './pages/Cleanup';
-import NewOpportunity from './pages/NewOpportunity';
-import PaymentSchedule from './pages/PaymentSchedule';
 import Settings from './pages/Settings';
 import SalesforceCallback from './pages/SalesforceCallback';
 import MyDashboard from './pages/MyDashboard';
-import NetworkMap from './pages/NetworkMap';
 import Pebble from './pages/Pebble';
+
+// Lazy load non-MVP routes to reduce initial bundle
+const Revenue = lazy(() => import('./pages/Revenue'));
+const AutomationReview = lazy(() => import('./pages/AutomationReview'));
+const Research = lazy(() => import('./pages/Research'));
+const DataTools = lazy(() => import('./pages/DataTools'));
+const Projects = lazy(() => import('./pages/Projects'));
+const NewOpportunity = lazy(() => import('./pages/NewOpportunity'));
+const PaymentSchedule = lazy(() => import('./pages/PaymentSchedule'));
+
+const LazyFallback = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+    <CircularProgress />
+  </Box>
+);
 
 // Create Material-UI theme
 const theme = createTheme({
@@ -91,6 +102,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <ErrorBoundary>
         <AuthProvider>
           <LeadsProvider>
           <Router>
@@ -105,13 +117,13 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Navigate to="/home" replace />
+                      <Navigate to="/priorities" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/home"
+                path="/priorities"
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -121,11 +133,22 @@ function App() {
                 }
               />
               <Route
-                path="/overview"
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <Overview />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Backward compat: /overview → /dashboard */}
+              <Route
+                path="/overview"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/dashboard" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -141,11 +164,72 @@ function App() {
                 }
               />
               <Route
-                path="/network"
+                path="/automation-review"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <NetworkMap />
+                      <Suspense fallback={<LazyFallback />}>
+                        <AutomationReview />
+                      </Suspense>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/research"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Suspense fallback={<LazyFallback />}>
+                        <Research />
+                      </Suspense>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cashflow"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Suspense fallback={<LazyFallback />}>
+                        <Revenue />
+                      </Suspense>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/data-tools"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Suspense fallback={<LazyFallback />}>
+                        <DataTools />
+                      </Suspense>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Suspense fallback={<LazyFallback />}>
+                        <Projects />
+                      </Suspense>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Legacy routes — redirect to new paths */}
+              <Route
+                path="/cleanup"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/data-tools" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -165,17 +249,27 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Revenue />
+                      <Navigate to="/cashflow" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="/cleanup"
+                path="/giving-capacity"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Cleanup />
+                      <Navigate to="/research" replace />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/network"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Navigate to="/research" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -185,7 +279,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <NewOpportunity />
+                      <Suspense fallback={<LazyFallback />}>
+                        <NewOpportunity />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -195,7 +291,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <PaymentSchedule />
+                      <Suspense fallback={<LazyFallback />}>
+                        <PaymentSchedule />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -215,7 +313,7 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Navigate to="/home" replace />
+                      <Navigate to="/priorities" replace />
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -248,6 +346,7 @@ function App() {
             }}
           />
         </AuthProvider>
+        </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
   );

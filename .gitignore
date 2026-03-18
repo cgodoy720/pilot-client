@@ -140,8 +140,8 @@ tokens/
 # Financial Forecasting - Credentials (DO NOT COMMIT)
 financial_forecasting/config.py
 
-# Test scripts (temporary)
-test_*.py
+# Test scripts (temporary, root-level only)
+/test_*.py
 demo_*.py
 diagnose_*.py
 detailed_*.py

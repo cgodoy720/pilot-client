@@ -102,10 +102,11 @@ function GrantEditCell(props: GridRenderEditCellParams) {
   );
 }
 
-// Custom edit cell for status
+// Custom edit cell for status — disables "converted" if no capacity score
 function StatusEditCell(props: GridRenderEditCellParams) {
-  const { id, value, field } = props;
+  const { id, value, field, row } = props;
   const apiRef = useGridApiContext();
+  const hasCapacityScore = row.capacity_score != null;
 
   return (
     <TextField
@@ -116,7 +117,9 @@ function StatusEditCell(props: GridRenderEditCellParams) {
       variant="standard"
     >
       {STATUS_OPTIONS.map((s) => (
-        <MenuItem key={s} value={s}>{s}</MenuItem>
+        <MenuItem key={s} value={s} disabled={s === 'converted' && !hasCapacityScore}>
+          {s}{s === 'converted' && !hasCapacityScore ? ' (score first)' : ''}
+        </MenuItem>
       ))}
     </TextField>
   );
@@ -277,8 +280,16 @@ const Leads: React.FC = () => {
         }
       }
       if (Object.keys(updates).length > 0) {
-        updateLead(newRow.id, updates);
-        toast.success('Lead updated');
+        try {
+          updateLead(newRow.id, updates);
+          toast.success('Lead updated');
+        } catch (error) {
+          if (error instanceof Error && error.message.startsWith('CAPACITY_GATE')) {
+            toast.error('Score this prospect\'s giving capacity before converting. Go to Capacity page.');
+            return oldRow; // Revert the change
+          }
+          throw error;
+        }
       }
       return newRow;
     },

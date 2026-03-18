@@ -2,6 +2,7 @@
 
 ### 1. Plan Mode Default
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- This includes UI changes — plan and ask clarifying questions before building
 - If something goes sideways, STOP and re-plan immediately - don't keep pushing
 - Use plan mode for verification steps, not just building
 - Write detailed specs upfront to reduce ambiguity
@@ -67,3 +68,21 @@ This project will integrate into the Pursuit AI-native learning platform. Keep t
 - **Infra**: Google Cloud (Storage, BigQuery, Cloud Run), OpenRouter for LLM calls
 - **User roles to anticipate**: `builder`, `staff`, `admin`, `applicant`, `volunteer`, `enterprise_admin`
 - When making architectural choices, prefer patterns that port cleanly to this stack
+
+## Documentation Map
+
+- **Product docs (start here):** `product/README.md` — full hierarchy and reading order
+- **Developer setup:** `financial_forecasting/DEV_SETUP_GUIDE.md` — run locally, env vars, production checklist
+- **Doc hygiene:** `docs/DOCUMENTATION-HYGIENE.md` — where things go, when to update, avoid orphans
+- **Plan index:** `docs/PLAN-INDEX.md` — status of all Cursor plans (completed, open, superseded)
+- **Scope & boundaries:** `product/crm-scope-constitution.md`
+- **Canonical names/enums:** `product/crm-architecture/canonical-definitions.md` (this file governs)
+- **Data model:** `product/crm-architecture/entity-map.md`
+- **Feature inventory:** `product/crm-architecture/feature-register.md`
+- **PRD index:** `product/crm-prds/README.md` (14 PRDs, one per component)
+- **Phase specs:** `product/fundraising-team/phases/`
+- **Technical reference:** `product/reference/` (Sage, Salesforce, Slack setup)
+- **Architecture decisions:** `docs/architecture-decisions.md`
+- **Historical PRD:** `PRD.md` (Nov 2025, partially superseded by crm-architecture/)
+- **Archived product specs:** `product/archive/ARCHIVE-INDEX.md`
+- **Archived session artifacts:** `docs/archive/` (index in docs/archive/README.md)

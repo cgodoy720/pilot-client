@@ -1,6 +1,9 @@
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted';
 export type LeadPriority = 'high' | 'medium' | 'low';
 export type WealthTier = 'tier-1' | 'tier-2' | 'tier-3' | 'tier-4' | 'unknown';
+export type ProspectType = 'hnwi' | 'elected_official' | 'institutional_grantmaker' | 'board_member' | 'connector' | 'unknown';
+export type TimelineFit = 'immediate' | '6mo' | '12mo' | '18mo' | 'long_term';
+export type EnrichmentStatus = 'pending' | 'enriched' | 'partial' | 'not_found';
 
 export interface Lead {
   id: string; // lead-{timestamp}-{index}
@@ -28,6 +31,31 @@ export interface Lead {
   connection_date?: string;
   wealth_tier?: WealthTier;
   tags?: string[];
+  // Giving capacity calculator fields
+  prospect_type?: ProspectType;
+  net_worth_estimate?: number;
+  annual_giving_history?: number;
+  asset_holdings?: number;
+  institutional_role?: string;
+  institution_name?: string;
+  institution_annual_budget?: number;
+  board_memberships?: string;
+  government_office?: string;
+  discretionary_budget?: number;
+  degrees_of_separation?: number;
+  relationship_strength?: number; // 1-5
+  affinity_tags?: string[];
+  timeline_fit?: TimelineFit;
+  capacity_score?: number; // 0-100 composite score
+  capacity_computed_at?: string; // ISO timestamp
+  // 990 enrichment fields
+  ein?: string;
+  enrichment_status?: EnrichmentStatus;
+  enrichment_source?: string;
+  enriched_at?: string;
+  comparable_grants_to_similar_orgs?: number;
+  total_990_assets?: number;
+  total_990_grants_paid?: number;
 }
 
 export interface Grant {

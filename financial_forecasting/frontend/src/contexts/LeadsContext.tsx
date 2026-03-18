@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode } from 'react';
+import { useLocalCollection } from '../hooks/useLocalCollection';
 import type { Lead } from '../types/weeklyPriorities';
 
 const STORAGE_KEY = 'pursuit-leads';
@@ -26,85 +27,57 @@ function dedupeKey(lead: Pick<Lead, 'first_name' | 'last_name' | 'source'>): str
   return `${lead.first_name.toLowerCase().trim()}|${lead.last_name.toLowerCase().trim()}|${lead.source.toLowerCase().trim()}`;
 }
 
-function loadLeads(): Lead[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as Lead[];
-  } catch {
-    return [];
-  }
-}
-
-function persistLeads(leads: Lead[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
-}
-
 export const LeadsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [leads, setLeads] = useState<Lead[]>(loadLeads);
+  const { items: leads, importItems, updateItem, removeItems, clear } =
+    useLocalCollection<Lead>(STORAGE_KEY, dedupeKey);
 
-  // Sync to localStorage on every change
-  useEffect(() => {
-    persistLeads(leads);
-  }, [leads]);
+  const importLeads = useCallback(
+    (newLeads: Lead[]) => {
+      const now = new Date().toISOString();
+      return importItems(newLeads, (lead) => ({
+        ...lead,
+        status: lead.status || 'new',
+        priority: lead.priority || 'medium',
+        created_at: lead.created_at || now,
+        updated_at: lead.updated_at || now,
+      }));
+    },
+    [importItems],
+  );
 
-  const importLeads = useCallback((newLeads: Lead[]): { added: number; duplicates: number } => {
-    const now = new Date().toISOString();
-    let added = 0;
-    let duplicates = 0;
-
-    setLeads((prev) => {
-      const existingKeys = new Set(prev.map(dedupeKey));
-      const toAdd: Lead[] = [];
-
-      for (const lead of newLeads) {
-        const key = dedupeKey(lead);
-        if (existingKeys.has(key)) {
-          duplicates++;
-        } else {
-          existingKeys.add(key);
-          toAdd.push({
-            ...lead,
-            status: lead.status || 'new',
-            priority: lead.priority || 'medium',
-            created_at: lead.created_at || now,
-            updated_at: lead.updated_at || now,
-          });
-          added++;
+  const updateLead = useCallback(
+    (id: string, updates: Partial<Lead>) => {
+      // Capacity gate: block conversion without capacity score
+      if (updates.status === 'converted') {
+        const existingLead = leads.find((l) => l.id === id);
+        const score = updates.capacity_score ?? existingLead?.capacity_score;
+        if (score == null) {
+          throw new Error('CAPACITY_GATE: Cannot convert prospect without a capacity score. Score them first in Giving Capacity.');
         }
       }
+      updateItem(
+        (lead) => lead.id === id,
+        { ...updates, updated_at: new Date().toISOString() },
+      );
+    },
+    [updateItem, leads],
+  );
 
-      return [...prev, ...toAdd];
-    });
+  const deleteLead = useCallback(
+    (id: string) => removeItems((lead) => lead.id === id),
+    [removeItems],
+  );
 
-    return { added, duplicates };
-  }, []);
-
-  const updateLead = useCallback((id: string, updates: Partial<Lead>) => {
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === id
-          ? { ...lead, ...updates, updated_at: new Date().toISOString() }
-          : lead
-      )
-    );
-  }, []);
-
-  const deleteLead = useCallback((id: string) => {
-    setLeads((prev) => prev.filter((lead) => lead.id !== id));
-  }, []);
-
-  const deleteLeads = useCallback((ids: string[]) => {
-    const idSet = new Set(ids);
-    setLeads((prev) => prev.filter((lead) => !idSet.has(lead.id)));
-  }, []);
-
-  const clearLeads = useCallback(() => {
-    setLeads([]);
-  }, []);
+  const deleteLeads = useCallback(
+    (ids: string[]) => {
+      const idSet = new Set(ids);
+      removeItems((lead) => idSet.has(lead.id));
+    },
+    [removeItems],
+  );
 
   return (
-    <LeadsContext.Provider value={{ leads, importLeads, updateLead, deleteLead, deleteLeads, clearLeads }}>
+    <LeadsContext.Provider value={{ leads, importLeads, updateLead, deleteLead, deleteLeads, clearLeads: clear }}>
       {children}
     </LeadsContext.Provider>
   );

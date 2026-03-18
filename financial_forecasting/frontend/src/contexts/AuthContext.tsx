@@ -9,6 +9,11 @@ interface User {
   salesforce_connected?: boolean;
   salesforce_user_id?: string | null;
   salesforce_user_name?: string | null;
+  google_connected?: boolean;
+  google_email?: string;
+  slack_configured?: boolean;
+  slack_workspace?: string | null;
+  calendar_pbd_id?: string;
 }
 
 interface AuthContextType {
@@ -43,8 +48,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await apiService.getCurrentUser();
       setUser(response.data);
     } catch (error) {
-      // Dev bypass: if auth fails locally, use a mock user so we can work without Google OAuth
-      if (window.location.hostname === 'localhost') {
+      // Dev bypass: only when REACT_APP_DEV_BYPASS=true AND hostname is localhost AND not production build
+      const devBypass = process.env.REACT_APP_DEV_BYPASS === 'true';
+      const isLocalhost = window.location.hostname === 'localhost';
+      const isProduction = process.env.NODE_ENV === 'production';
+      if (devBypass && isLocalhost && !isProduction) {
         setUser({
           email: 'nick.simmons@pursuit.org',
           name: 'Nick Simmons',

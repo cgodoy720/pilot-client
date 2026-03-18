@@ -10,7 +10,7 @@ depends_on: ["[[data-model]]", "[[leads-tracker]]"]
 
 ## What it does
 
-The core differentiator. An AI-assisted search tool that cross-references Nick Simmons' LinkedIn connections export against external prospect lists to surface the highest-value outreach targets. Phase 1 uses rule-based fuzzy matching; Phase 2 adds Claude API for intelligent disambiguation and prospect summaries.
+The core differentiator. An AI-assisted search tool that cross-references Nick Simmons' LinkedIn connections export against external prospect lists to surface the highest-value outreach targets. Phase 1 uses rule-based fuzzy matching; Phase 2 adds Pebble API for intelligent disambiguation and prospect summaries.
 
 ## User stories
 
@@ -92,17 +92,17 @@ Weights and tier mappings should be calibrated against real data in Phase 2.
 - "Add to Leads" — one click, pushes to [[leads-tracker]] with pre-filled data, source = "network search hit"
 - Batch operations: multi-select, bulk add to leads, export to CSV
 
-## Phase 2 additions (Claude API)
+## Phase 2 additions (Pebble API)
 
-- Natural-language prospect summary generation per match
-- Intelligent name disambiguation for low-confidence matches
+- Natural-language prospect summary generation per match (Pebble API)
+- Intelligent name disambiguation for low-confidence matches (Pebble API)
 - Duplicate detection against existing pipeline contacts
 
 ## Phase 3 additions
 
 - Saved searches and search history
 - Watchlist: flag contacts to monitor
-- Batch prospect research via Claude API (select N contacts → generate research briefs)
+- Batch prospect research via Pebble API (Bedrock sends contact IDs to Pebble → Pebble generates research briefs)
 - Export as formatted report (PDF or structured CSV) for Nick's review
 
 ## Data privacy and compliance
