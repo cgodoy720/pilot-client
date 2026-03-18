@@ -212,8 +212,11 @@ const Opportunities: React.FC = () => {
       return;
     }
 
-    // Optimistic update
-    const currentQueryKey = ['opportunities', philanthropyOnly, pbcOnly, viewMode];
+    // Optimistic update (align with useOpportunityData query key)
+    const currentQueryKey =
+      !philanthropyOnly && !pbcOnly && viewMode === 'open'
+        ? 'opportunities'
+        : ['opportunities', philanthropyOnly, pbcOnly, viewMode];
     const oldData = queryClient.getQueryData(currentQueryKey);
     queryClient.setQueryData(currentQueryKey, (old: any) =>
       old?.map((opp: any) => (opp.Id === params.row.Id ? { ...opp, StageName: newStage } : opp)),

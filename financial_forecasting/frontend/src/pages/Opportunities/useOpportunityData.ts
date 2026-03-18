@@ -31,9 +31,17 @@ export function useOpportunityData(
   const stagesForView = viewMode === 'open' ? OPEN_STAGES
     : viewMode === 'collecting' ? COLLECTING_STAGES : CLOSED_STAGES;
 
+  // Share cache with Priorities/Dashboard when no filters: use key 'opportunities' + no params
+  const useSharedCache = !philanthropyOnly && !pbcOnly && viewMode === 'open';
+  const queryKey = useSharedCache ? 'opportunities' : ['opportunities', philanthropyOnly, pbcOnly, viewMode];
+
   const { data: opportunitiesData, isLoading, error } = useQuery(
-    ['opportunities', philanthropyOnly, pbcOnly, viewMode],
+    queryKey,
     async () => {
+      if (useSharedCache) {
+        const response = await apiService.getOpportunities();
+        return response.data;
+      }
       const params: any = { stages: stagesForView };
       if (philanthropyOnly) {
         params.record_type = 'Philanthropy';
@@ -48,12 +56,22 @@ export function useOpportunityData(
     },
   );
 
-  const opportunities: Opportunity[] = useMemo(() => {
+  const rawOpportunities = useMemo(() => {
     if (Array.isArray(opportunitiesData)) return opportunitiesData;
     return (opportunitiesData as any)?.opportunities
       ?? (opportunitiesData as any)?.data
       ?? [];
   }, [opportunitiesData]);
+
+  // When using shared cache, filter client-side by stagesForView
+  const opportunities: Opportunity[] = useMemo(() => {
+    if (useSharedCache) {
+      return rawOpportunities.filter((opp: Opportunity) =>
+        (stagesForView as readonly string[]).includes(opp.StageName),
+      );
+    }
+    return rawOpportunities;
+  }, [rawOpportunities, useSharedCache, stagesForView]);
 
   const { data: usersData } = useQuery(
     'users',
