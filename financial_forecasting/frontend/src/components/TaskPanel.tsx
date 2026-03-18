@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Drawer,
   Box,
@@ -99,8 +99,61 @@ const isOverdue = (dateStr: string | null, status: string) => {
   return new Date(dateStr) < new Date();
 };
 
+const TASK_PANEL_PREFS_KEY = 'pursuit-task-panel-prefs';
+const DEFAULT_WIDTH = 520;
+const MIN_WIDTH = 360;
+const MAX_WIDTH = 800;
+
+function loadTaskPanelWidth(): number {
+  try {
+    const raw = localStorage.getItem(TASK_PANEL_PREFS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const w = parsed?.width ?? DEFAULT_WIDTH;
+      return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w));
+    }
+  } catch {}
+  return DEFAULT_WIDTH;
+}
+
+function saveTaskPanelWidth(width: number) {
+  localStorage.setItem(TASK_PANEL_PREFS_KEY, JSON.stringify({ width }));
+}
+
 const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users }) => {
   const queryClient = useQueryClient();
+  const [width, setWidth] = useState(loadTaskPanelWidth);
+  const widthRef = useRef(width);
+  const resizeRef = useRef<{ active: boolean; startX: number; startWidth: number }>({ active: false, startX: 0, startWidth: 0 });
+
+  widthRef.current = width;
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeRef.current = { active: true, startX: e.clientX, startWidth: widthRef.current };
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (e: globalThis.MouseEvent) => {
+      if (!resizeRef.current.active) return;
+      const dx = e.clientX - resizeRef.current.startX; // drag right = wider, drag left = narrower
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, resizeRef.current.startWidth + dx));
+      setWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      if (resizeRef.current.active) {
+        saveTaskPanelWidth(widthRef.current);
+        resizeRef.current.active = false;
+      }
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -246,9 +299,39 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 520 }, p: 0 },
+        sx: {
+          width: { xs: '100%', sm: width },
+          p: 0,
+          position: 'relative',
+        },
       }}
     >
+      {/* Resize handle on left edge (sm+ only) */}
+      <Box
+        onMouseDown={handleResizeStart}
+        sx={{
+          display: { xs: 'none', sm: 'block' },
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 8,
+          cursor: 'col-resize',
+          zIndex: 20,
+          '&:hover::after': {
+            content: '""',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 4,
+            height: 48,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+            opacity: 0.4,
+          },
+        }}
+      />
       {/* Header - Opportunity Summary */}
       <Box sx={{ 
         p: 2.5, 

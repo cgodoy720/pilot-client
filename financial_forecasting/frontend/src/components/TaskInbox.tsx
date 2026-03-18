@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -48,6 +48,7 @@ interface TaskInboxProps {
   maxHeight?: number;
   onTaskClick?: (task: InboxTask) => void;
   onToggleUrgent?: (taskId: string, urgent: boolean) => void;
+  onHeightChange?: (height: number) => void;
 }
 
 type SortField = 'ActivityDate' | 'Subject' | 'Status' | 'Priority' | 'OpportunityName';
@@ -79,6 +80,9 @@ export function getDueBadge(task: InboxTask): { label: string; color: string } |
   return null;
 }
 
+const MIN_INBOX_HEIGHT = 200;
+const MAX_INBOX_HEIGHT = 600;
+
 const TaskInbox: React.FC<TaskInboxProps> = ({
   tasks,
   loading = false,
@@ -86,8 +90,38 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   maxHeight = 400,
   onTaskClick,
   onToggleUrgent,
+  onHeightChange,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const resizeRef = useRef<{ active: boolean; startY: number; startHeight: number }>({ active: false, startY: 0, startHeight: 0 });
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (!onHeightChange) return;
+      resizeRef.current = { active: true, startY: e.clientY, startHeight: maxHeight };
+    },
+    [onHeightChange, maxHeight]
+  );
+
+  useEffect(() => {
+    if (!onHeightChange) return;
+    const onMouseMove = (e: globalThis.MouseEvent) => {
+      if (!resizeRef.current.active) return;
+      const dy = e.clientY - resizeRef.current.startY;
+      const newHeight = Math.min(MAX_INBOX_HEIGHT, Math.max(MIN_INBOX_HEIGHT, resizeRef.current.startHeight + dy));
+      onHeightChange(newHeight);
+    };
+    const onMouseUp = () => {
+      resizeRef.current.active = false;
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [onHeightChange]);
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'ActivityDate', dir: 'asc' });
   const [filterStatus, setFilterStatus] = useState<string>('open');
   const [filterPriority, setFilterPriority] = useState<string>('all');
@@ -304,6 +338,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
         </Box>
       )}
 
+      <Box sx={{ position: 'relative' }}>
       <Box sx={{ overflowY: 'auto', maxHeight }}>
         {/* Urgent section */}
         {urgent.length > 0 && (
@@ -340,6 +375,22 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           </Typography>
         )}
       </Box>
+      {onHeightChange && (
+        <Box
+          onMouseDown={handleResizeStart}
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 8,
+            cursor: 'row-resize',
+            zIndex: 1,
+            '&:hover': { bgcolor: 'action.hover' },
+          }}
+        />
+      )}
+    </Box>
     </Box>
   );
 };
