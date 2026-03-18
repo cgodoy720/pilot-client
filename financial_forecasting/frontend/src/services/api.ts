@@ -423,6 +423,23 @@ export const apiService = {
   
   disconnectSalesforce: () =>
     api.post('/auth/salesforce/disconnect'),
+
+  // Prospect Import
+  prospectImportPreview: (csvText: string) =>
+    api.post('/api/prospect-import/preview', { csv_text: csvText }),
+
+  prospectImportParse: (csvText: string, columnMapping: Record<string, string | string[] | undefined>, filename?: string) =>
+    api.post('/api/prospect-import/parse', {
+      csv_text: csvText,
+      column_mapping: columnMapping,
+      filename: filename || 'import.csv',
+    }),
+
+  prospectImportGetPersons: (sessionId?: string) =>
+    api.get('/api/prospect-import/persons', { params: sessionId ? { session_id: sessionId } : {} }),
+
+  prospectImportWriteToCrm: (sessionId?: string) =>
+    api.post('/api/prospect-import/write-to-crm', { session_id: sessionId }),
 };
 
 // Export axios instance for custom requests
