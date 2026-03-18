@@ -12,6 +12,8 @@ import {
   Select,
   MenuItem,
   Divider,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Flag as FlagIcon,
@@ -46,6 +48,7 @@ interface TaskInboxProps {
   loading?: boolean;
   compact?: boolean;
   maxHeight?: number;
+  currentUserId?: string | null;
   onTaskClick?: (task: InboxTask) => void;
   onToggleUrgent?: (taskId: string, urgent: boolean) => void;
   onHeightChange?: (height: number) => void;
@@ -88,11 +91,14 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   loading = false,
   compact = false,
   maxHeight = 400,
+  currentUserId,
   onTaskClick,
   onToggleUrgent,
   onHeightChange,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filterMyTasks, setFilterMyTasks] = useState(false);
+  const [filterNext14Days, setFilterNext14Days] = useState(false);
   const resizeRef = useRef<{ active: boolean; startY: number; startHeight: number }>({ active: false, startY: 0, startHeight: 0 });
 
   const handleResizeStart = useCallback(
@@ -139,8 +145,22 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
       items = items.filter((t) => t.Priority === filterPriority);
     }
 
+    if (filterMyTasks && currentUserId) {
+      items = items.filter((t) => t.OwnerId === currentUserId);
+    }
+
+    if (filterNext14Days) {
+      const now = startOfDay(new Date());
+      const cutoff = addDays(now, 14);
+      items = items.filter((t) => {
+        if (!t.ActivityDate) return false;
+        const d = parseISO(t.ActivityDate);
+        return d >= now && d <= cutoff;
+      });
+    }
+
     return items;
-  }, [tasks, filterStatus, filterPriority]);
+  }, [tasks, filterStatus, filterPriority, filterMyTasks, filterNext14Days, currentUserId]);
 
   const { urgent, assigned } = useMemo(() => {
     const u: InboxTask[] = [];
@@ -335,6 +355,26 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
               <MenuItem value="Low">Low</MenuItem>
             </Select>
           </FormControl>
+          {currentUserId && (
+            <ToggleButtonGroup
+              size="small"
+              value={filterMyTasks ? 'my' : ''}
+              exclusive
+              onChange={(_, v) => setFilterMyTasks(v === 'my')}
+              sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.5, fontSize: '0.75rem' } }}
+            >
+              <ToggleButton value="my">My tasks</ToggleButton>
+            </ToggleButtonGroup>
+          )}
+          <ToggleButtonGroup
+            size="small"
+            value={filterNext14Days ? '14d' : ''}
+            exclusive
+            onChange={(_, v) => setFilterNext14Days(v === '14d')}
+            sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.5, fontSize: '0.75rem' } }}
+          >
+            <ToggleButton value="14d">Next 14 days</ToggleButton>
+          </ToggleButtonGroup>
         </Box>
       )}
 

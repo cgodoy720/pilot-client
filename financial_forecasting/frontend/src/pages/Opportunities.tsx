@@ -475,7 +475,7 @@ const Opportunities: React.FC = () => {
                 sorting: {
                   sortModel: viewMode === 'collecting'
                     ? [{ field: 'Most_Recent_Payment_Date__c', sort: 'desc' }]
-                    : [{ field: 'CloseDate', sort: 'asc' }],
+                    : [{ field: 'expectedValue', sort: 'desc' }],
                 },
                 filter: searchFromUrl
                   ? { filterModel: { items: [], quickFilterValues: [searchFromUrl] } }
