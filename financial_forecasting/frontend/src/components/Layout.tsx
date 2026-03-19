@@ -68,7 +68,7 @@ const ALL_MENU_ITEMS = [
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
-const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', '/settings']);
+const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', '/projects', '/settings']);
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();

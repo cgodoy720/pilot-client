@@ -665,6 +665,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
             {stages.map((s) => (
               <MenuItem key={s} value={s} dense>
                 <Checkbox size="small" checked={filters.stage.includes(s)} />
+                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: getStageHexColor(s), mr: 0.5, flexShrink: 0 }} />
                 <ListItemText primary={s} primaryTypographyProps={{ variant: 'body2' }} />
               </MenuItem>
             ))}

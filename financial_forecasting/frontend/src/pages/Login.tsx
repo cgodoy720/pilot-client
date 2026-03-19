@@ -23,7 +23,7 @@ const Login: React.FC = () => {
           <CardContent sx={{ p: 4 }}>
             <Box sx={{ textAlign: 'center', mb: 4 }}>
               <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
-                Financial Forecasting
+                Bedrock
               </Typography>
               <Typography variant="body1" color="textSecondary">
                 Sign in to access your dashboard

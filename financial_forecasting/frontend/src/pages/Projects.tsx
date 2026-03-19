@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -19,6 +19,16 @@ import {
   LinearProgress,
   Tooltip,
   Grid,
+  Button,
+  TextField,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -27,8 +37,11 @@ import {
   Warning as WarningIcon,
   Error as ErrorIcon,
   RadioButtonUnchecked as PendingIcon,
-  Link as LinkIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { apiService } from '../services/api';
 
 // ── Types ──
 
@@ -37,7 +50,7 @@ interface ProjectTask {
   title: string;
   status: 'Not Started' | 'In Progress' | 'Completed' | 'Blocked' | 'On Hold';
   owner: string;
-  deadline?: string;
+  deadline?: string | null;
   description?: string;
   updates?: string;
   links?: string[];
@@ -62,131 +75,25 @@ interface Workstream {
   milestones: Milestone[];
 }
 
-// ── Sample Data (to be replaced by API/DB) ──
-
-const WORKSTREAMS: Workstream[] = [
-  {
-    id: 'strategy-design',
-    name: 'Strategy and Design',
-    description: 'Core strategic framework and positioning for AIJI',
-    milestones: [
-      {
-        id: 'sd-1',
-        title: 'Finalize AIJI Operational Charter',
-        status: 'On Track',
-        priority: 'Now',
-        owner: 'Leadership',
-        description: 'Draft and approve the AIJI charter with governance structure',
-        tasks: [
-          { id: 'sd-1-1', title: 'Draft charter document', status: 'Completed', owner: 'Leadership', deadline: '2026-03-15' },
-          { id: 'sd-1-2', title: 'Review with advisory board', status: 'In Progress', owner: 'Leadership', deadline: '2026-03-28' },
-          { id: 'sd-1-3', title: 'Incorporate feedback and finalize', status: 'Not Started', owner: 'Leadership', deadline: '2026-04-05', dependsOn: ['sd-1-2'] },
-        ],
-      },
-      {
-        id: 'sd-2',
-        title: 'Revenue Model Design',
-        status: 'At Risk',
-        priority: 'Now',
-        owner: 'Finance',
-        description: 'Define revenue streams, pricing, and sustainability model',
-        tasks: [
-          { id: 'sd-2-1', title: 'Research comparable models', status: 'Completed', owner: 'Finance' },
-          { id: 'sd-2-2', title: 'Draft revenue projections', status: 'In Progress', owner: 'Finance', deadline: '2026-04-01' },
-          { id: 'sd-2-3', title: 'Validate with key stakeholders', status: 'Not Started', owner: 'Finance', deadline: '2026-04-15', dependsOn: ['sd-2-2'] },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'partnerships',
-    name: 'Partnerships and Development',
-    description: 'Building strategic partnerships and fundraising pipeline',
-    milestones: [
-      {
-        id: 'pd-1',
-        title: 'Anchor Investor Commitment',
-        status: 'On Track',
-        priority: 'Now',
-        owner: 'Development',
-        tasks: [
-          { id: 'pd-1-1', title: 'Identify top 10 anchor prospects', status: 'Completed', owner: 'Development' },
-          { id: 'pd-1-2', title: 'Secure meetings with prospects', status: 'In Progress', owner: 'Development', deadline: '2026-04-01' },
-          { id: 'pd-1-3', title: 'Negotiate and close first anchor', status: 'Not Started', owner: 'Development', deadline: '2026-05-01', dependsOn: ['pd-1-2'] },
-        ],
-      },
-      {
-        id: 'pd-2',
-        title: 'Corporate Partnership Pipeline',
-        status: 'Needs Attention',
-        priority: 'On-going',
-        owner: 'Development',
-        tasks: [
-          { id: 'pd-2-1', title: 'Build target list of 50 corporates', status: 'In Progress', owner: 'Development' },
-          { id: 'pd-2-2', title: 'Create partnership deck', status: 'Not Started', owner: 'Communications', deadline: '2026-04-15' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'communications',
-    name: 'Communications and Narrative',
-    description: 'Brand, messaging, and public communications',
-    milestones: [
-      {
-        id: 'cn-1',
-        title: 'Brand Launch Materials',
-        status: 'At Risk',
-        priority: 'Now',
-        owner: 'Communications',
-        tasks: [
-          { id: 'cn-1-1', title: 'Design brand identity package', status: 'In Progress', owner: 'Design', deadline: '2026-03-30' },
-          { id: 'cn-1-2', title: 'Create launch website content', status: 'Not Started', owner: 'Communications', deadline: '2026-04-10', dependsOn: ['cn-1-1'] },
-          { id: 'cn-1-3', title: 'Produce launch video', status: 'Not Started', owner: 'Communications', deadline: '2026-04-20' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'launch-activation',
-    name: 'Launch and Activation',
-    description: 'Execution of launch plan and initial activation',
-    milestones: [
-      {
-        id: 'la-1',
-        title: 'Soft Launch Event',
-        status: 'On Track',
-        priority: 'Later',
-        owner: 'Events',
-        tasks: [
-          { id: 'la-1-1', title: 'Secure venue', status: 'Not Started', owner: 'Events', deadline: '2026-05-01' },
-          { id: 'la-1-2', title: 'Create invite list', status: 'Not Started', owner: 'Events', deadline: '2026-05-10' },
-          { id: 'la-1-3', title: 'Coordinate speakers', status: 'Not Started', owner: 'Events', deadline: '2026-05-15' },
-        ],
-      },
-    ],
-  },
-];
+// Deterministic AIJI project ID (matches seed.sql)
+const AIJI_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';
 
 // ── View types ──
 
 type ViewType = 'full' | 'construction' | 'campaign' | 'executive';
 
-const VIEW_LABELS: Record<ViewType, string> = {
-  full: 'Full Project View',
-  construction: 'AIJI Construction Plan',
-  campaign: 'AIJI Campaign Plan',
-  executive: 'Executive Snapshot',
+// Filter by workstream name (UUIDs from DB, so can't use hardcoded IDs)
+const VIEW_NAME_FILTER: Record<ViewType, string[] | null> = {
+  full: null, // show all
+  construction: ['Launch and Activation'],
+  campaign: ['Partnerships and Development', 'Communications and Narrative'],
+  executive: null, // show all
 };
 
-const VIEW_FILTER: Record<ViewType, string[]> = {
-  full: WORKSTREAMS.map((w) => w.id),
-  construction: ['launch-activation'],
-  campaign: ['partnerships', 'communications'],
-  executive: WORKSTREAMS.map((w) => w.id),
-};
+// ── Status constants ──
 
-// ── Helpers ──
+const TASK_STATUSES: ProjectTask['status'][] = ['Not Started', 'In Progress', 'Completed', 'Blocked', 'On Hold'];
+const MILESTONE_STATUSES: Milestone['status'][] = ['On Track', 'At Risk', 'Needs Attention', 'Completed'];
 
 const STATUS_CHIP: Record<string, { color: 'success' | 'warning' | 'error' | 'default'; icon: React.ReactNode }> = {
   'On Track': { color: 'success', icon: <CheckIcon sx={{ fontSize: 14 }} /> },
@@ -202,6 +109,8 @@ const TASK_STATUS_COLOR: Record<string, string> = {
   'Blocked': '#d32f2f',
   'On Hold': '#ed6c02',
 };
+
+// ── Helpers ──
 
 function getWorkstreamProgress(ws: Workstream): number {
   let total = 0;
@@ -246,7 +155,6 @@ const ExecutiveSnapshot: React.FC<{ workstreams: Workstream[] }> = ({ workstream
 
   return (
     <Box>
-      {/* Key metrics */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} sm={3}>
           <Card variant="outlined">
@@ -284,7 +192,6 @@ const ExecutiveSnapshot: React.FC<{ workstreams: Workstream[] }> = ({ workstream
         </Grid>
       </Grid>
 
-      {/* Workstream summaries */}
       {workstreams.map((ws) => {
         const progress = getWorkstreamProgress(ws);
         return (
@@ -320,136 +227,283 @@ const ExecutiveSnapshot: React.FC<{ workstreams: Workstream[] }> = ({ workstream
 
 // ── Workstream Detail View ──
 
-const WorkstreamView: React.FC<{ workstream: Workstream }> = ({ workstream }) => {
+const WorkstreamView: React.FC<{
+  workstream: Workstream;
+  onTaskStatusChange: (taskId: string, newStatus: string) => void;
+  onMilestoneStatusChange: (milestoneId: string, newStatus: string) => void;
+  onAddTask: (milestoneId: string, title: string) => void;
+  onAddMilestone: (workstreamId: string, title: string) => void;
+  onDeleteTask: (taskId: string) => void;
+  onDeleteMilestone: (milestoneId: string) => void;
+}> = ({ workstream, onTaskStatusChange, onMilestoneStatusChange, onAddTask, onAddMilestone, onDeleteTask, onDeleteMilestone }) => {
   const [expandedMilestone, setExpandedMilestone] = useState<string | null>(null);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [addingToMilestone, setAddingToMilestone] = useState<string | null>(null);
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'task' | 'milestone'; id: string; title: string } | null>(null);
   const progress = getWorkstreamProgress(workstream);
 
+  const handleAddTask = (milestoneId: string) => {
+    if (!newTaskTitle.trim()) return;
+    onAddTask(milestoneId, newTaskTitle.trim());
+    setNewTaskTitle('');
+    setAddingToMilestone(null);
+  };
+
+  const handleAddMilestone = () => {
+    if (!newMilestoneTitle.trim()) return;
+    onAddMilestone(workstream.id, newMilestoneTitle.trim());
+    setNewMilestoneTitle('');
+    setShowAddMilestone(false);
+  };
+
+  const cycleTaskStatus = (task: ProjectTask) => {
+    const idx = TASK_STATUSES.indexOf(task.status);
+    const next = TASK_STATUSES[(idx + 1) % TASK_STATUSES.length];
+    onTaskStatusChange(task.id, next);
+  };
+
   return (
-    <Card variant="outlined" sx={{ mb: 2 }}>
-      <CardContent sx={{ pb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Box>
-            <Typography variant="h6">{workstream.name}</Typography>
-            <Typography variant="caption" color="text.secondary">{workstream.description}</Typography>
-          </Box>
-          <Box sx={{ textAlign: 'right', minWidth: 80 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>{progress}%</Typography>
-            <LinearProgress variant="determinate" value={progress} sx={{ height: 6, borderRadius: 3, mt: 0.5 }} />
-          </Box>
-        </Box>
-      </CardContent>
-
-      {/* Milestones */}
-      {workstream.milestones.map((milestone) => {
-        const isExpanded = expandedMilestone === milestone.id;
-        const sc = STATUS_CHIP[milestone.status] || { color: 'default' as const, icon: null };
-        const mProgress = getMilestoneProgress(milestone);
-
-        return (
-          <Box key={milestone.id}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                px: 2,
-                py: 1,
-                cursor: 'pointer',
-                '&:hover': { bgcolor: 'action.hover' },
-                borderTop: '1px solid',
-                borderColor: 'divider',
-              }}
-              onClick={() => setExpandedMilestone(isExpanded ? null : milestone.id)}
-            >
-              <IconButton size="small" sx={{ p: 0 }}>
-                {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-              </IconButton>
-              <Chip
-                size="small"
-                label={milestone.status}
-                color={sc.color}
-                icon={sc.icon as any}
-                sx={{ fontSize: '0.7rem' }}
-              />
-              <Chip size="small" label={milestone.priority} variant="outlined" sx={{ fontSize: '0.7rem' }} />
-              <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }}>{milestone.title}</Typography>
-              <Typography variant="caption" color="text.secondary">{milestone.owner}</Typography>
-              <Typography variant="caption" sx={{ fontWeight: 600, minWidth: 35, textAlign: 'right' }}>{mProgress}%</Typography>
+    <>
+      <Card variant="outlined" sx={{ mb: 2 }}>
+        <CardContent sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Box>
+              <Typography variant="h6">{workstream.name}</Typography>
+              <Typography variant="caption" color="text.secondary">{workstream.description}</Typography>
             </Box>
-
-            <Collapse in={isExpanded}>
-              <Box sx={{ px: 2, pb: 1.5 }}>
-                {milestone.description && (
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                    {milestone.description}
-                  </Typography>
-                )}
-                <TableContainer component={Paper} variant="outlined">
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Task</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Status</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Owner</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Deadline</TableCell>
-                        <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Depends On</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {milestone.tasks.map((task) => (
-                        <TableRow key={task.id}>
-                          <TableCell sx={{ fontSize: '0.75rem' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              {task.status === 'Completed' ? (
-                                <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} />
-                              ) : (
-                                <PendingIcon sx={{ fontSize: 14, color: TASK_STATUS_COLOR[task.status] || '#9e9e9e' }} />
-                              )}
-                              {task.title}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              label={task.status}
-                              sx={{
-                                fontSize: '0.65rem',
-                                height: 20,
-                                bgcolor: TASK_STATUS_COLOR[task.status] || '#9e9e9e',
-                                color: '#fff',
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem' }}>{task.owner}</TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem' }}>{task.deadline || '—'}</TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem' }}>
-                            {task.dependsOn?.length
-                              ? task.dependsOn.map((dep) => {
-                                  const depTask = milestone.tasks.find((t) => t.id === dep);
-                                  return (
-                                    <Tooltip key={dep} title={depTask?.title || dep}>
-                                      <Chip
-                                        size="small"
-                                        label={depTask?.title?.substring(0, 20) || dep}
-                                        variant="outlined"
-                                        sx={{ fontSize: '0.6rem', height: 18, mr: 0.25 }}
-                                      />
-                                    </Tooltip>
-                                  );
-                                })
-                              : '—'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            </Collapse>
+            <Box sx={{ textAlign: 'right', minWidth: 80 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600 }}>{progress}%</Typography>
+              <LinearProgress variant="determinate" value={progress} sx={{ height: 6, borderRadius: 3, mt: 0.5 }} />
+            </Box>
           </Box>
-        );
-      })}
-    </Card>
+        </CardContent>
+
+        {workstream.milestones.map((milestone) => {
+          const isExpanded = expandedMilestone === milestone.id;
+          const sc = STATUS_CHIP[milestone.status] || { color: 'default' as const, icon: null };
+          const mProgress = getMilestoneProgress(milestone);
+
+          return (
+            <Box key={milestone.id}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 1,
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'action.hover' },
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                }}
+                onClick={() => setExpandedMilestone(isExpanded ? null : milestone.id)}
+              >
+                <IconButton size="small" sx={{ p: 0 }}>
+                  {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                </IconButton>
+                <Select
+                  size="small"
+                  value={milestone.status}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onMilestoneStatusChange(milestone.id, e.target.value);
+                  }}
+                  sx={{ minWidth: 130, '& .MuiSelect-select': { py: 0.25, fontSize: '0.75rem' } }}
+                  renderValue={(val) => {
+                    const s = STATUS_CHIP[val] || { color: 'default' as const, icon: null };
+                    return <Chip size="small" label={val} color={s.color} icon={s.icon as any} sx={{ fontSize: '0.7rem' }} />;
+                  }}
+                >
+                  {MILESTONE_STATUSES.map((s) => (
+                    <MenuItem key={s} value={s} sx={{ fontSize: '0.8rem' }}>{s}</MenuItem>
+                  ))}
+                </Select>
+                <Chip size="small" label={milestone.priority} variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }}>{milestone.title}</Typography>
+                <Typography variant="caption" color="text.secondary">{milestone.owner}</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 600, minWidth: 35, textAlign: 'right' }}>{mProgress}%</Typography>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirm({ type: 'milestone', id: milestone.id, title: milestone.title });
+                  }}
+                  sx={{ opacity: 0.4, '&:hover': { opacity: 1, color: 'error.main' } }}
+                >
+                  <DeleteIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Box>
+
+              <Collapse in={isExpanded}>
+                <Box sx={{ px: 2, pb: 1.5 }}>
+                  {milestone.description && (
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                      {milestone.description}
+                    </Typography>
+                  )}
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Task</TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Status</TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Owner</TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Deadline</TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>Depends On</TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600, width: 40 }} />
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {milestone.tasks.map((task) => (
+                          <TableRow key={task.id}>
+                            <TableCell sx={{ fontSize: '0.75rem' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {task.status === 'Completed' ? (
+                                  <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                                ) : (
+                                  <PendingIcon sx={{ fontSize: 14, color: TASK_STATUS_COLOR[task.status] || '#9e9e9e' }} />
+                                )}
+                                {task.title}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={task.status}
+                                onClick={() => cycleTaskStatus(task)}
+                                sx={{
+                                  fontSize: '0.65rem',
+                                  height: 20,
+                                  bgcolor: TASK_STATUS_COLOR[task.status] || '#9e9e9e',
+                                  color: '#fff',
+                                  cursor: 'pointer',
+                                  '&:hover': { opacity: 0.85 },
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.75rem' }}>{task.owner}</TableCell>
+                            <TableCell sx={{ fontSize: '0.75rem' }}>{task.deadline || '—'}</TableCell>
+                            <TableCell sx={{ fontSize: '0.75rem' }}>
+                              {task.dependsOn?.length
+                                ? task.dependsOn.map((dep) => {
+                                    const depTask = milestone.tasks.find((t) => t.id === dep);
+                                    return (
+                                      <Tooltip key={dep} title={depTask?.title || dep}>
+                                        <Chip
+                                          size="small"
+                                          label={depTask?.title?.substring(0, 20) || dep.substring(0, 8)}
+                                          variant="outlined"
+                                          sx={{ fontSize: '0.6rem', height: 18, mr: 0.25 }}
+                                        />
+                                      </Tooltip>
+                                    );
+                                  })
+                                : '—'}
+                            </TableCell>
+                            <TableCell>
+                              <IconButton
+                                size="small"
+                                onClick={() => setDeleteConfirm({ type: 'task', id: task.id, title: task.title })}
+                                sx={{ opacity: 0.3, '&:hover': { opacity: 1, color: 'error.main' }, p: 0.25 }}
+                              >
+                                <DeleteIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  {/* Add task */}
+                  {addingToMilestone === milestone.id ? (
+                    <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                      <TextField
+                        size="small"
+                        placeholder="Task title"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddTask(milestone.id)}
+                        autoFocus
+                        sx={{ flex: 1, '& input': { fontSize: '0.8rem' } }}
+                      />
+                      <Button size="small" variant="contained" onClick={() => handleAddTask(milestone.id)}>Add</Button>
+                      <Button size="small" onClick={() => { setAddingToMilestone(null); setNewTaskTitle(''); }}>Cancel</Button>
+                    </Box>
+                  ) : (
+                    <Button
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={() => setAddingToMilestone(milestone.id)}
+                      sx={{ mt: 1, textTransform: 'none', fontSize: '0.75rem' }}
+                    >
+                      Add Task
+                    </Button>
+                  )}
+                </Box>
+              </Collapse>
+            </Box>
+          );
+        })}
+
+        {/* Add milestone */}
+        <Box sx={{ px: 2, py: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+          {showAddMilestone ? (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField
+                size="small"
+                placeholder="Milestone title"
+                value={newMilestoneTitle}
+                onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddMilestone()}
+                autoFocus
+                sx={{ flex: 1, '& input': { fontSize: '0.8rem' } }}
+              />
+              <Button size="small" variant="contained" onClick={handleAddMilestone}>Add</Button>
+              <Button size="small" onClick={() => { setShowAddMilestone(false); setNewMilestoneTitle(''); }}>Cancel</Button>
+            </Box>
+          ) : (
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => setShowAddMilestone(true)}
+              sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+            >
+              Add Milestone
+            </Button>
+          )}
+        </Box>
+      </Card>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
+        <DialogTitle>Delete {deleteConfirm?.type}?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete "{deleteConfirm?.title}"?
+            {deleteConfirm?.type === 'milestone' && ' All tasks in this milestone will also be deleted.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (deleteConfirm?.type === 'task') onDeleteTask(deleteConfirm.id);
+              else if (deleteConfirm?.type === 'milestone') onDeleteMilestone(deleteConfirm.id);
+              setDeleteConfirm(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 
@@ -457,11 +511,79 @@ const WorkstreamView: React.FC<{ workstream: Workstream }> = ({ workstream }) =>
 
 const Projects: React.FC = () => {
   const [view, setView] = useState<ViewType>('full');
+  const queryClient = useQueryClient();
+
+  const { data: projectData, isLoading, error } = useQuery(
+    ['project', AIJI_PROJECT_ID],
+    async () => {
+      const res = await apiService.getProject(AIJI_PROJECT_ID);
+      return res.data?.data || res.data;
+    },
+    { staleTime: 30_000 }
+  );
+
+  const workstreams: Workstream[] = projectData?.workstreams || [];
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries(['project', AIJI_PROJECT_ID]);
+  }, [queryClient]);
+
+  // Mutations
+  const updateTaskStatus = useMutation(
+    ({ taskId, status }: { taskId: string; status: string }) =>
+      apiService.updateProjectTask(taskId, { status }),
+    { onSuccess: invalidate }
+  );
+
+  const updateMilestoneStatus = useMutation(
+    ({ milestoneId, status }: { milestoneId: string; status: string }) =>
+      apiService.updateMilestone(milestoneId, { status }),
+    { onSuccess: invalidate }
+  );
+
+  const addTask = useMutation(
+    ({ milestoneId, title }: { milestoneId: string; title: string }) =>
+      apiService.createProjectTask(milestoneId, { title }),
+    { onSuccess: invalidate }
+  );
+
+  const addMilestone = useMutation(
+    ({ workstreamId, title }: { workstreamId: string; title: string }) =>
+      apiService.createMilestone(workstreamId, { title }),
+    { onSuccess: invalidate }
+  );
+
+  const removeTask = useMutation(
+    (taskId: string) => apiService.deleteProjectTask(taskId),
+    { onSuccess: invalidate }
+  );
+
+  const removeMilestone = useMutation(
+    (milestoneId: string) => apiService.deleteMilestone(milestoneId),
+    { onSuccess: invalidate }
+  );
 
   const visibleWorkstreams = useMemo(() => {
-    const allowedIds = VIEW_FILTER[view];
-    return WORKSTREAMS.filter((ws) => allowedIds.includes(ws.id));
-  }, [view]);
+    const names = VIEW_NAME_FILTER[view];
+    if (!names) return workstreams;
+    return workstreams.filter((ws) => names.includes(ws.name));
+  }, [view, workstreams]);
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        Failed to load project data. Make sure PostgreSQL is running.
+      </Alert>
+    );
+  }
 
   return (
     <Box>
@@ -487,7 +609,16 @@ const Projects: React.FC = () => {
         <ExecutiveSnapshot workstreams={visibleWorkstreams} />
       ) : (
         visibleWorkstreams.map((ws) => (
-          <WorkstreamView key={ws.id} workstream={ws} />
+          <WorkstreamView
+            key={ws.id}
+            workstream={ws}
+            onTaskStatusChange={(taskId, status) => updateTaskStatus.mutate({ taskId, status })}
+            onMilestoneStatusChange={(milestoneId, status) => updateMilestoneStatus.mutate({ milestoneId, status })}
+            onAddTask={(milestoneId, title) => addTask.mutate({ milestoneId, title })}
+            onAddMilestone={(workstreamId, title) => addMilestone.mutate({ workstreamId, title })}
+            onDeleteTask={(taskId) => removeTask.mutate(taskId)}
+            onDeleteMilestone={(milestoneId) => removeMilestone.mutate(milestoneId)}
+          />
         ))
       )}
 

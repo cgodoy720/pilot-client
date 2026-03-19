@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -109,6 +109,34 @@ function formatTime(dateStr: string): string {
   catch { return ''; }
 }
 
+// Time-axis constants
+const DAY_START = 7;  // 7 AM
+const DAY_END = 20;   // 8 PM
+const HOURS = Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => DAY_START + i);
+
+function getTimeTop(dateStr: string): number {
+  try {
+    const d = parseISO(dateStr);
+    const hours = d.getHours() + d.getMinutes() / 60;
+    const clamped = Math.max(DAY_START, Math.min(DAY_END, hours));
+    return ((clamped - DAY_START) / (DAY_END - DAY_START)) * 100;
+  } catch { return 0; }
+}
+
+function getEventHeight(startStr: string, endStr?: string): number {
+  if (!endStr) return (0.5 / (DAY_END - DAY_START)) * 100; // 30min default
+  const startPct = getTimeTop(startStr);
+  const endPct = getTimeTop(endStr);
+  return Math.max(endPct - startPct, (0.25 / (DAY_END - DAY_START)) * 100); // min 15min
+}
+
+function formatHourLabel(hour: number): string {
+  if (hour === 0) return '12 AM';
+  if (hour < 12) return `${hour} AM`;
+  if (hour === 12) return '12 PM';
+  return `${hour - 12} PM`;
+}
+
 const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   events,
   loading = false,
@@ -211,6 +239,15 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
   const isTodayFn = (d: Date) => isSameDay(d, new Date());
   const meetingColor = sources.find((s) => s.type === 'gcal')?.color || '#1976d2';
+  const taskColor = sources.find((s) => s.type === 'task')?.color || '#ed6c02';
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!loading && gridRef.current) {
+      const nowLine = gridRef.current.querySelector('[data-now-line]');
+      if (nowLine) nowLine.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [loading, viewMode]);
 
   return (
     <Box>
@@ -263,286 +300,329 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
           <Typography variant="body2">Loading events...</Typography>
         </Box>
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(days.length, 7)}, 1fr)`,
-            gap: 0.5,
-          }}
-        >
-          {days.map((day) => {
-            const key = format(day, 'yyyy-MM-dd');
-            const { meetings, tasks } = eventsByDay.get(key) || { meetings: [], tasks: [] };
-            const today = isTodayFn(day);
-            const totalItems = meetings.length + tasks.length;
-            const overflow = totalItems > MAX_VISIBLE_ITEMS;
-            const meetingsToShow = meetings.slice(0, MAX_VISIBLE_ITEMS);
-            const tasksSlots = Math.max(0, MAX_VISIBLE_ITEMS - meetingsToShow.length);
-            const tasksToShow = tasks.slice(0, tasksSlots);
-
+        <Box ref={gridRef}>
+          {/* All-day row: tasks (no specific time) */}
+          {(() => {
+            const allDayTasks = days.map((day) => {
+              const key = format(day, 'yyyy-MM-dd');
+              return eventsByDay.get(key)?.tasks || [];
+            });
+            const hasAnyTasks = allDayTasks.some((t) => t.length > 0);
+            if (!hasAnyTasks) return null;
             return (
-              <Paper
-                key={key}
-                variant="outlined"
+              <Box
                 sx={{
-                  p: 1,
-                  minHeight: 160,
-                  bgcolor: today ? 'primary.50' : 'background.paper',
-                  borderColor: today ? 'primary.main' : 'divider',
-                  borderWidth: today ? 2 : 1,
+                  display: 'grid',
+                  gridTemplateColumns: `50px repeat(${days.length}, 1fr)`,
+                  mb: 0.5,
                 }}
               >
-                {/* Day header */}
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TaskIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                </Box>
+                {days.map((day, di) => {
+                  const key = format(day, 'yyyy-MM-dd');
+                  const tasks = eventsByDay.get(key)?.tasks || [];
+                  return (
+                    <Box key={key} sx={{ px: 0.25, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                      {tasks.map((ev, i) => {
+                        const borderColor = getTaskBorderColor(ev);
+                        const isCompleted = ev.status === 'Completed';
+                        const isExpanded = expandedEventId === ev.id;
+                        const canEdit = ev.whatId && onTaskClick;
+                        return (
+                          <Box key={ev.id + i}>
+                            <Box
+                              onClick={() => toggleExpand(ev.id)}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                px: 0.5,
+                                py: 0.25,
+                                borderRadius: 0.5,
+                                bgcolor: isCompleted ? 'grey.50' : 'transparent',
+                                borderLeft: `3px solid ${borderColor}`,
+                                cursor: 'pointer',
+                                overflow: 'hidden',
+                                opacity: isCompleted ? 0.6 : 1,
+                                '&:hover': { bgcolor: 'action.hover' },
+                              }}
+                            >
+                              {isCompleted ? (
+                                <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                              ) : (
+                                <TaskIcon sx={{ fontSize: 14, color: borderColor }} />
+                              )}
+                              <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{
+                                  fontSize: '0.7rem',
+                                  lineHeight: 1.2,
+                                  textDecoration: isCompleted ? 'line-through' : 'none',
+                                  color: isCompleted ? 'text.secondary' : 'text.primary',
+                                }}
+                              >
+                                {truncate(ev.summary, viewMode === 'day' ? 60 : 20)}
+                              </Typography>
+                            </Box>
+                            <Collapse in={isExpanded}>
+                              <Box sx={{ pl: 2, pr: 0.5, py: 0.5, mb: 0.5, borderLeft: `2px solid ${borderColor}80` }}>
+                                <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
+                                  {ev.summary}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                                  {ev.status && <Chip label={ev.status} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                                  {ev.priority && <Chip label={ev.priority} size="small" sx={{ height: 20, fontSize: '0.7rem' }} variant="outlined" />}
+                                </Box>
+                                {ev.opportunityName && (
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
+                                    Opp: {ev.opportunityName}
+                                  </Typography>
+                                )}
+                                {ev.description && (
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem', lineHeight: 1.4, mt: 0.5, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
+                                  </Typography>
+                                )}
+                                {canEdit && (
+                                  <Button
+                                    size="small"
+                                    startIcon={<EditIcon sx={{ fontSize: 14 }} />}
+                                    onClick={(e) => { e.stopPropagation(); handleTaskEdit(ev); }}
+                                    sx={{ mt: 0.5, fontSize: '0.75rem', minWidth: 0, px: 1 }}
+                                  >
+                                    Edit in panel
+                                  </Button>
+                                )}
+                              </Box>
+                            </Collapse>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  );
+                })}
+              </Box>
+            );
+          })()}
+
+          {/* Day headers */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: `50px repeat(${days.length}, 1fr)`,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              pb: 0.5,
+              mb: 0,
+            }}
+          >
+            <Box /> {/* spacer for time column */}
+            {days.map((day) => {
+              const today = isTodayFn(day);
+              return (
+                <Box key={format(day, 'yyyy-MM-dd')} sx={{ textAlign: 'center' }}>
                   <Typography
                     variant="caption"
-                    sx={{ fontWeight: today ? 700 : 500, color: today ? 'primary.main' : 'text.secondary' }}
+                    sx={{ fontWeight: today ? 700 : 500, color: today ? 'primary.main' : 'text.secondary', fontSize: '0.75rem' }}
                   >
                     {format(day, 'EEE')}
                   </Typography>
                   <Typography
                     variant="caption"
                     sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       fontWeight: today ? 700 : 400,
                       bgcolor: today ? 'primary.main' : 'transparent',
                       color: today ? 'white' : 'text.primary',
                       borderRadius: '50%',
-                      width: 22,
-                      height: 22,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      width: 24,
+                      height: 24,
+                      mx: 'auto',
+                      fontSize: '0.8rem',
                     }}
                   >
                     {format(day, 'd')}
                   </Typography>
                 </Box>
+              );
+            })}
+          </Box>
 
-                {/* Meetings */}
-                {meetingsToShow.length > 0 && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: tasksToShow.length > 0 ? 0.75 : 0 }}>
-                    {meetingsToShow.map((ev, i) => {
-                      const time = formatTime(ev.start);
-                      const endTime = ev.end ? formatTime(ev.end) : '';
-                      const isExpanded = expandedEventId === ev.id;
-                      const attendeeNames = (ev.attendees || [])
-                        .map((a: any) => a.name || a.email).filter(Boolean).slice(0, 5);
-                      const attendeeCount = (ev.attendees || []).length;
-                      return (
-                        <Box key={ev.id + i}>
-                          <Box
-                            onClick={() => toggleExpand(ev.id)}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                              px: 0.5,
-                              py: 0.25,
-                              borderRadius: 0.5,
-                              bgcolor: `${meetingColor}14`,
-                              borderLeft: `3px solid ${meetingColor}`,
-                              cursor: 'pointer',
-                              overflow: 'hidden',
-                              '&:hover': { bgcolor: `${meetingColor}22` },
-                            }}
+          {/* Time grid */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: `50px repeat(${days.length}, 1fr)`,
+              maxHeight: 520,
+              overflowY: 'auto',
+              position: 'relative',
+            }}
+          >
+            {/* Hour labels column */}
+            <Box sx={{ position: 'relative' }}>
+              {HOURS.map((hour) => (
+                <Box
+                  key={hour}
+                  sx={{
+                    height: 40,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-end',
+                    pr: 0.5,
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.disabled', lineHeight: 1, mt: '-4px' }}>
+                    {formatHourLabel(hour)}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+
+            {/* Day columns */}
+            {days.map((day) => {
+              const key = format(day, 'yyyy-MM-dd');
+              const { meetings } = eventsByDay.get(key) || { meetings: [], tasks: [] };
+              const today = isTodayFn(day);
+
+              return (
+                <Box
+                  key={key}
+                  sx={{
+                    position: 'relative',
+                    borderLeft: '1px solid',
+                    borderColor: 'divider',
+                    height: HOURS.length * 40,
+                  }}
+                >
+                  {/* Horizontal grid lines */}
+                  {HOURS.map((hour) => (
+                    <Box
+                      key={hour}
+                      sx={{
+                        position: 'absolute',
+                        top: `${((hour - DAY_START) / (DAY_END - DAY_START)) * 100}%`,
+                        left: 0,
+                        right: 0,
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                        opacity: 0.5,
+                      }}
+                    />
+                  ))}
+
+                  {/* Current time indicator */}
+                  {today && (
+                    <Box
+                      data-now-line
+                      sx={{
+                        position: 'absolute',
+                        top: `${getTimeTop(new Date().toISOString())}%`,
+                        left: 0,
+                        right: 0,
+                        height: 2,
+                        bgcolor: '#d32f2f',
+                        zIndex: 3,
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          left: -3,
+                          top: -3,
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: '#d32f2f',
+                        },
+                      }}
+                    />
+                  )}
+
+                  {/* Meeting blocks */}
+                  {meetings.map((ev, i) => {
+                    const top = getTimeTop(ev.start);
+                    const height = getEventHeight(ev.start, ev.end);
+                    const time = formatTime(ev.start);
+                    const endTime = ev.end ? formatTime(ev.end) : '';
+                    const isExpanded = expandedEventId === ev.id;
+                    const attendeeNames = (ev.attendees || [])
+                      .map((a: any) => a.name || a.email).filter(Boolean).slice(0, 5);
+                    const attendeeCount = (ev.attendees || []).length;
+
+                    return (
+                      <Box key={ev.id + i}>
+                        <Box
+                          onClick={() => toggleExpand(ev.id)}
+                          sx={{
+                            position: 'absolute',
+                            top: `${top}%`,
+                            height: `${height}%`,
+                            left: 2,
+                            right: 2,
+                            bgcolor: `${meetingColor}18`,
+                            borderLeft: `3px solid ${meetingColor}`,
+                            borderRadius: 0.5,
+                            px: 0.5,
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            zIndex: 1,
+                            '&:hover': { bgcolor: `${meetingColor}28`, zIndex: 2 },
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            noWrap
+                            sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.3, display: 'block' }}
                           >
-                            <Tooltip title="Meeting">
-                              <EventIcon sx={{ fontSize: 18, color: meetingColor }} />
-                            </Tooltip>
-                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600,
-                                  lineHeight: 1.2,
-                                  display: 'block',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {truncate(ev.summary, TITLE_TRUNCATE_LEN)}
-                              </Typography>
-                              {time && (
-                                <Typography variant="caption" noWrap sx={{ fontSize: '0.7rem', color: 'text.secondary', lineHeight: 1 }}>
-                                  {time}{endTime ? ` – ${endTime}` : ''}
-                                </Typography>
-                              )}
-                            </Box>
-                          </Box>
-                          <Collapse in={isExpanded}>
-                            <Box sx={{ pl: 2, pr: 0.5, py: 0.5, mb: 0.5, borderLeft: `2px solid ${meetingColor}40` }}>
-                              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
-                                {ev.summary}
-                              </Typography>
-                              {time && (
-                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
-                                  {time}{endTime ? ` – ${endTime}` : ''}
-                                </Typography>
-                              )}
-                              {ev.location && (
-                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
-                                  {ev.location}
-                                </Typography>
-                              )}
-                              {ev.description && (
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontSize: '0.75rem',
-                                    lineHeight: 1.4,
-                                    mt: 0.5,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: 4,
-                                    WebkitBoxOrient: 'vertical',
-                                  }}
-                                >
-                                  {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
-                                </Typography>
-                              )}
-                              {attendeeCount > 0 && (
-                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                                  {attendeeNames.join(', ')}
-                                  {attendeeCount > 5 ? ` +${attendeeCount - 5} more` : ''}
-                                </Typography>
-                              )}
-                            </Box>
-                          </Collapse>
+                            {truncate(ev.summary, viewMode === 'day' ? 60 : TITLE_TRUNCATE_LEN)}
+                          </Typography>
+                          <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1 }}>
+                            {time}{endTime ? ` – ${endTime}` : ''}
+                          </Typography>
+                          {viewMode === 'day' && attendeeCount > 0 && (
+                            <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
+                              {attendeeNames.slice(0, 3).join(', ')}{attendeeCount > 3 ? ` +${attendeeCount - 3}` : ''}
+                            </Typography>
+                          )}
                         </Box>
-                      );
-                    })}
-                  </Box>
-                )}
-
-                {/* Tasks */}
-                {tasksToShow.length > 0 && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                    {tasksToShow.map((ev, i) => {
-                      const borderColor = getTaskBorderColor(ev);
-                      const isCompleted = ev.status === 'Completed';
-                      const isExpanded = expandedEventId === ev.id;
-                      const canEdit = ev.whatId && onTaskClick;
-                      return (
-                        <Box key={ev.id + i}>
-                          <Box
-                            onClick={() => toggleExpand(ev.id)}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                              px: 0.5,
-                              py: 0.25,
-                              borderRadius: 0.5,
-                              bgcolor: isCompleted ? 'grey.50' : 'transparent',
-                              borderLeft: `3px solid ${borderColor}`,
-                              cursor: 'pointer',
-                              overflow: 'hidden',
-                              opacity: isCompleted ? 0.6 : 1,
-                              '&:hover': { bgcolor: 'action.hover' },
-                            }}
-                          >
-                            {isCompleted ? (
-                              <Tooltip title="Task (completed)">
-                                <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main' }} />
-                              </Tooltip>
-                            ) : (
-                              <Tooltip title="Task">
-                                <TaskIcon sx={{ fontSize: 18, color: borderColor }} />
-                              </Tooltip>
+                        <Collapse in={isExpanded} sx={{ position: 'relative', zIndex: 10 }}>
+                          <Paper elevation={4} sx={{ p: 1, mx: 0.5, mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
+                              {ev.summary}
+                            </Typography>
+                            {time && (
+                              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
+                                {time}{endTime ? ` – ${endTime}` : ''}
+                              </Typography>
                             )}
-                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  fontSize: '0.8rem',
-                                  lineHeight: 1.2,
-                                  textDecoration: isCompleted ? 'line-through' : 'none',
-                                  color: isCompleted ? 'text.secondary' : 'text.primary',
-                                  display: 'block',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {truncate(ev.summary, TITLE_TRUNCATE_LEN)}
+                            {ev.location && (
+                              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
+                                {ev.location}
                               </Typography>
-                              {ev.status && (
-                                <Chip
-                                  label={ev.status}
-                                  size="small"
-                                  sx={{ height: 16, fontSize: '0.65rem', mt: 0.25 }}
-                                />
-                              )}
-                            </Box>
-                          </Box>
-                          <Collapse in={isExpanded}>
-                            <Box sx={{ pl: 2, pr: 0.5, py: 0.5, mb: 0.5, borderLeft: `2px solid ${borderColor}80` }}>
-                              <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
-                                {ev.summary}
+                            )}
+                            {ev.description && (
+                              <Typography variant="caption" sx={{ fontSize: '0.75rem', lineHeight: 1.4, mt: 0.5, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
                               </Typography>
-                              <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
-                                {ev.status && <Chip label={ev.status} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
-                                {ev.priority && <Chip label={ev.priority} size="small" sx={{ height: 20, fontSize: '0.7rem' }} variant="outlined" />}
-                              </Box>
-                              {ev.opportunityName && (
-                                <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
-                                  Opp: {ev.opportunityName}
-                                </Typography>
-                              )}
-                              {ev.description && (
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontSize: '0.75rem',
-                                    lineHeight: 1.4,
-                                    mt: 0.5,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: 4,
-                                    WebkitBoxOrient: 'vertical',
-                                  }}
-                                >
-                                  {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
-                                </Typography>
-                              )}
-                              {canEdit && (
-                                <Button
-                                  size="small"
-                                  startIcon={<EditIcon sx={{ fontSize: 14 }} />}
-                                  onClick={(e) => { e.stopPropagation(); handleTaskEdit(ev); }}
-                                  sx={{ mt: 0.5, fontSize: '0.75rem', minWidth: 0, px: 1 }}
-                                >
-                                  Edit in panel
-                                </Button>
-                              )}
-                            </Box>
-                          </Collapse>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                )}
-
-                {/* Overflow */}
-                {overflow && (
-                  <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5, mt: 0.25, display: 'block', fontSize: '0.65rem' }}>
-                    +{totalItems - MAX_VISIBLE_ITEMS} more
-                  </Typography>
-                )}
-
-                {/* Empty day */}
-                {totalItems === 0 && (
-                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
-                    No events
-                  </Typography>
-                )}
-              </Paper>
-            );
-          })}
+                            )}
+                            {attendeeCount > 0 && (
+                              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                                {attendeeNames.join(', ')}
+                                {attendeeCount > 5 ? ` +${attendeeCount - 5} more` : ''}
+                              </Typography>
+                            )}
+                          </Paper>
+                        </Collapse>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
       )}
     </Box>

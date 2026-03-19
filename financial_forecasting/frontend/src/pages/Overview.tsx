@@ -32,8 +32,10 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { addQuarters, startOfQuarter, endOfQuarter, format, isWithinInterval, differenceInDays, parseISO } from 'date-fns';
 import PipelineFunnel from '../components/PipelineFunnel';
+import ConnectPrompt from '../components/ConnectPrompt';
 
 const DashboardBelowFoldCharts = lazy(() => import('../components/DashboardBelowFoldCharts'));
 
@@ -76,6 +78,7 @@ const CLOSED_LOST_STAGES = ['Closed Lost', 'Withdrawn', 'Did not Fulfill', 'Clos
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [showBelowFold, setShowBelowFold] = useState(false);
 
   // Defer below-fold content so Hero/Quarterly/Funnel paint first
@@ -123,15 +126,6 @@ const Dashboard: React.FC = () => {
   };
   const monthlyBreakdown = cashFlowData?.monthly_breakdown || [];
 
-  // Debug logging
-  React.useEffect(() => {
-    if (cashFlowData) {
-      console.log('💰 Cash Flow Data:', cashFlowData);
-      console.log('⚠️ Sage Warning:', cashFlowData?.sage_warning);
-      console.log('📊 Summary:', cashFlowSummary);
-      console.log('📅 Monthly Breakdown:', monthlyBreakdown);
-    }
-  }, [cashFlowData, cashFlowSummary, monthlyBreakdown]);
 
   // Calculate metrics
   const metrics = useMemo(() => {
@@ -369,13 +363,24 @@ const Dashboard: React.FC = () => {
     return `${value.toFixed(1)}%`;
   };
 
-  if (isLoading || !metrics) {
+  if (isLoading) {
     return (
       <Box sx={{ width: '100%', mt: 4 }}>
         <LinearProgress />
         <Typography align="center" sx={{ mt: 2 }}>
           Loading dashboard...
         </Typography>
+      </Box>
+    );
+  }
+
+  if (!metrics || (!user?.salesforce_connected && opportunities.length === 0)) {
+    return (
+      <Box>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" gutterBottom>Overview</Typography>
+        </Box>
+        <ConnectPrompt service="Salesforce" message="Connect Salesforce in Settings to see your pipeline overview." />
       </Box>
     );
   }
