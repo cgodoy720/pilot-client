@@ -267,7 +267,7 @@ async def verify_urls(claims: list[dict], timeout: float = 5.0) -> tuple[list[di
                 r = await client.head(url, timeout=timeout)
                 if r.status_code == 405:  # HEAD not allowed, try GET
                     r = await client.get(url, timeout=timeout)
-                return claim, r.status_code < 400
+                return claim, r.status_code != 404
         except httpx.HTTPError:
             return claim, True  # Network error — keep claim, let Opus decide
 

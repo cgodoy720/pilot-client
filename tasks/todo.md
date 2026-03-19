@@ -69,6 +69,15 @@ PRs 2, 4✓, 8✓, 9, 10✓ ship independently.
 - [x] Orchestrator updated: `execute_task()` + `TaskSpec` for sub-Queen, `harness_config_for_agent()` for all
 - [ ] Manual verification: startup + curl tests
 
+## Pebble: Known Issues for Follow-up
+
+- [ ] **SEC CIK caching** — Downloads 5MB JSON on every call. Add file-based cache with TTL. *Address after live test confirms SEC source is useful.*
+- [ ] **Sync LLM calls block event loop** — `harness.execute()` / `execute_task()` are synchronous; server freezes for concurrent users. Wrap in `asyncio.to_thread()` or switch to async Anthropic client. *Address before multi-user testing.*
+- [ ] **OpenCorporates needs API key** — `search_officers()` returns empty without credentials. Missing data source for officer/director info. *Address when credentials are available.*
+- [ ] **Google OAuth not configured** — Frontend requires `REACT_APP_DEV_BYPASS=true` for auth. See `financial_forecasting/OAUTH_SETUP.md` for setup steps. *Address when Google Cloud credentials are set up.*
+- [ ] **No unit/integration tests** — Zero test coverage for pipeline, data sources, harness. *Address after pipeline behavior is validated and stable — shape tests around real failure modes.*
+- [ ] **Frontend UX gaps** — No research history, minimal error details, no cost display, no failed_agents visibility. *Address after pipeline is working, informed by real usage.*
+
 ## Future Considerations
 
 - **Pipeline Cleanup Tool**: Build a dedicated cleanup/hygiene feature for stale opportunities (past close date or no updates in 30+ days). Removed from Overview dashboard — belongs as its own tool, not on the main dashboard.
