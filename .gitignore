@@ -160,3 +160,6 @@ financial_forecasting/frontend/.env.local
 playwright-report/
 test-results/
 financial_forecasting/frontend/test-results/
+
+# Claude Code local config (agents, settings, plans)
+.claude/
