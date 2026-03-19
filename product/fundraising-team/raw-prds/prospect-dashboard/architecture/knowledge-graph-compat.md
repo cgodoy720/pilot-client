@@ -12,7 +12,7 @@ updated: 2026-03-13
 
 The Prospect Dashboard is the first concrete project in a larger vision: a structured Pursuit knowledge graph that captures institutional knowledge as traversable, composable markdown files. This document defines the conventions that make the dashboard forward-compatible with that future graph.
 
-Full architecture: see `pursuit-knowledge-graph-architecture.md` (in the parent outputs directory).
+The knowledge graph architecture initiative is deferred — it requires cross-team collaboration outside the scope of the current fundraising CRM build. When that work begins, a dedicated architecture document should be created. For now, the conventions below ensure forward compatibility.
 
 ## How dashboard entities map to graph nodes
 
