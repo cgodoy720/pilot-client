@@ -10,7 +10,7 @@
 - [x] Phase 3: Archived feature planning docs (5 docs)
 - [x] Phase 4: Documentation (lessons, env template, DEV_SETUP_GUIDE, hygiene)
 - [x] Phase 5: tasks/todo.md updated
-- [ ] Phase 6: Manual verification (Priorities, Dashboard, Pipeline, Settings)
+- [x] Phase 6: Manual verification (Priorities, Dashboard, Pipeline, Settings)
 
 ## Ship Order
 
@@ -52,6 +52,21 @@ All others ship independently.
 - PR 9 (Projects) needs its own planning session — informed by AIJI Project Tracker_v6.xlsx.
 - All work happens in `financial_forecasting/frontend/` (React + MUI stack).
 - Backend changes needed for PR 6 (task `created_by`, `is_urgent`) and PR 8 (stage history).
+
+## Pebble: Task Guardrails (2026-03-19)
+
+- [x] `TaskSpec` dataclass + `PROMPT_TEMPLATES` registry in `harness.py`
+- [x] `register_template()` decorator + templates for `api_response_extractor` and `batch_summarizer`
+- [x] `execute_task()` method — required path for sub-Queen tiers
+- [x] Block raw `execute()` for WORKER/DRONE/FORAGER (returns SKIPPED)
+- [x] Tier-aware system prompt prefix ("ONE task, JSON only")
+- [x] `max_input_tokens` enforcement (safety net)
+- [x] `TIER_HARNESS_DEFAULTS` + `harness_config_for_agent()` — tier-appropriate limits
+- [x] `origin` field: `"template"` on all claim_templates, `"llm_extracted"` on orchestrator LLM claims
+- [x] `verify_urls()` — HTTP HEAD pre-filter for dead URLs before Opus fact-check
+- [x] Wire URL pre-filter into `main.py` before stage 3
+- [x] Orchestrator updated: `execute_task()` + `TaskSpec` for sub-Queen, `harness_config_for_agent()` for all
+- [ ] Manual verification: startup + curl tests
 
 ## Future Considerations
 
