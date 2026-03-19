@@ -155,3 +155,8 @@ financial_forecasting/frontend/node_modules/
 financial_forecasting/frontend/build/
 financial_forecasting/frontend/.env
 financial_forecasting/frontend/.env.local
+
+# Playwright / test artifacts
+playwright-report/
+test-results/
+financial_forecasting/frontend/test-results/

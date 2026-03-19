@@ -66,7 +66,7 @@ const Pebble: React.FC = () => {
         Pebble — Prospect Research
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Request research for a prospect. Pebble enriches from ProPublica 990, SEC, FEC.
+        Pebble enriches from ProPublica 990, SEC EDGAR, FEC, USAspending, OpenCorporates, and Wikipedia.
       </Typography>
 
       <Card sx={{ mb: 2 }}>

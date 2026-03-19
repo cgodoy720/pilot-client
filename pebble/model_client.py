@@ -1,13 +1,17 @@
-"""ModelClient: routes to Anthropic API. Worker tier → Haiku for MVP (no Ollama)."""
+"""ModelClient: hybrid router — OpenRouter free models for workers, Anthropic direct for queens."""
 
+import logging
+import os
 from dataclasses import dataclass
 from enum import Enum
 
 from anthropic import Anthropic
 
+logger = logging.getLogger("pebble.model_client")
+
 
 class ModelTier(Enum):
-    WORKER = "worker"  # MVP: routes to Haiku
+    WORKER = "worker"
     DRONE = "drone"
     FORAGER = "forager"
     QUEEN = "queen"
@@ -75,6 +79,14 @@ AGENT_TIERS = {
     "profile_synthesizer": ModelTier.QUEEN,
 }
 
+# OpenRouter free model fallback chain for worker/drone tiers
+FREE_MODEL_CHAIN = [
+    "nvidia/nemotron-3-super-120b-a12b:free",  # Primary: 120B MoE, structured output
+    "openrouter/free",                           # Backup: auto-route to any free model
+]
+
+OPENROUTER_TIERS = {ModelTier.WORKER, ModelTier.DRONE}
+
 
 def get_model_config(agent_name: str) -> ModelConfig:
     tier = AGENT_TIERS.get(agent_name)
@@ -86,15 +98,93 @@ def get_model_config(agent_name: str) -> ModelConfig:
     return config
 
 
+def get_model_config_by_tier(tier: ModelTier) -> ModelConfig:
+    config = TIER_CONFIGS.get(tier)
+    if config is None:
+        raise ValueError(f"No config for tier: {tier}")
+    return config
+
+
+# Escalation chain: worker → forager (skip drone, same model)
+ESCALATION_CHAIN = {
+    ModelTier.WORKER: ModelTier.FORAGER,
+    ModelTier.DRONE: ModelTier.FORAGER,
+}
+
+
 class ModelClient:
-    """Routes to Anthropic API. Worker tier uses Haiku for MVP."""
+    """Hybrid router: OpenRouter free models for workers, Anthropic direct for queens."""
 
     def __init__(self):
         self._client = Anthropic()
         self._last_usage = {"input": 0, "output": 0}
+        self._last_provider = "anthropic"
+
+        # Initialize OpenRouter client if key is available
+        or_key = os.getenv("OPENROUTER_API_KEY")
+        self._openrouter = None
+        if or_key:
+            try:
+                from openai import OpenAI
+                self._openrouter = OpenAI(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=or_key,
+                )
+                logger.info("OpenRouter client initialized")
+            except ImportError:
+                logger.warning("openai package not installed — OpenRouter disabled")
 
     def complete(self, agent_name: str, prompt: str, system: str = "") -> dict:
         config = get_model_config(agent_name)
+        tier = AGENT_TIERS[agent_name]
+
+        # Try OpenRouter free chain for worker/drone tiers
+        if self._openrouter and tier in OPENROUTER_TIERS:
+            for model_id in FREE_MODEL_CHAIN:
+                try:
+                    result = self._complete_openrouter(model_id, prompt, system, config, agent_name)
+                    return result
+                except Exception as e:
+                    logger.warning("OpenRouter %s failed for %s: %s", model_id, agent_name, e)
+            # All free models failed — fall through to Anthropic
+            logger.info("All OpenRouter models failed for %s, falling back to Anthropic", agent_name)
+
+        # Fallback: Anthropic direct (always works)
+        return self._complete_anthropic(agent_name, prompt, system, config)
+
+    def complete_with_tier(self, tier: ModelTier, prompt: str, system: str = "", agent_name: str = "") -> dict:
+        """Complete using a specific tier (for escalation). Anthropic only."""
+        config = get_model_config_by_tier(tier)
+        return self._complete_anthropic(agent_name or "escalated", prompt, system, config)
+
+    def _complete_openrouter(self, model_id: str, prompt: str, system: str, config: ModelConfig, agent_name: str) -> dict:
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self._openrouter.chat.completions.create(
+            model=model_id,
+            messages=messages,
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            extra_headers={
+                "HTTP-Referer": "https://pursuit.org",
+                "X-Title": "Pebble Research Pipeline",
+            },
+        )
+        text = response.choices[0].message.content or ""
+        usage = {
+            "input": response.usage.prompt_tokens if response.usage else 0,
+            "output": response.usage.completion_tokens if response.usage else 0,
+        }
+        self._last_usage = usage
+        self._last_provider = f"openrouter/{model_id}"
+        logger.info("OpenRouter %s handled %s (%d in, %d out tokens)",
+                     model_id, agent_name, usage["input"], usage["output"])
+        return {"content": text, "usage": usage}
+
+    def _complete_anthropic(self, agent_name: str, prompt: str, system: str, config: ModelConfig) -> dict:
         message = self._client.messages.create(
             model=config.model_id,
             max_tokens=config.max_tokens,
@@ -106,13 +196,22 @@ class ModelClient:
             "input": message.usage.input_tokens,
             "output": message.usage.output_tokens,
         }
+        self._last_provider = f"anthropic/{config.model_id}"
         text = message.content[0].text if message.content else ""
+        logger.info("Anthropic %s handled %s (%d in, %d out tokens)",
+                     config.model_id, agent_name, self._last_usage["input"], self._last_usage["output"])
         return {"content": text, "usage": self._last_usage}
 
     def get_last_token_count(self) -> dict:
         return self._last_usage.copy()
 
+    def get_last_provider(self) -> str:
+        return self._last_provider
+
     def calculate_cost(self, agent_name: str, tokens: dict) -> float:
+        # Free OpenRouter models cost $0
+        if "openrouter" in self._last_provider:
+            return 0.0
         config = get_model_config(agent_name)
         input_cost = (tokens["input"] / 1_000_000) * config.cost_per_mtok_input
         output_cost = (tokens["output"] / 1_000_000) * config.cost_per_mtok_output

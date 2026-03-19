@@ -1,13 +1,13 @@
-"""WorkerHarness: timeout, retries, schema validation, cost cap. Queen commands the hive."""
+"""WorkerHarness: timeout, retries, schema validation, cost cap, escalation. Queen commands the hive."""
 
 import json
 import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
-from .model_client import ModelClient, get_model_config
+from .model_client import ModelClient, ModelTier, get_model_config, AGENT_TIERS, ESCALATION_CHAIN
 
 logger = logging.getLogger("pebble.harness")
 
@@ -45,6 +45,66 @@ class HarnessResult:
     error: str | None = None
 
 
+@dataclass
+class TaskSpec:
+    """Structured task definition. Required for all sub-Queen tiers."""
+    agent_name: str
+    data: dict
+    output_hint: str = ""
+    source_urls: list[str] = field(default_factory=list)
+
+
+PROMPT_TEMPLATES: dict[str, Callable[[dict, list[str]], tuple[str, str]]] = {}
+
+
+def register_template(agent_name: str):
+    """Decorator to register a prompt template for an agent."""
+    def decorator(fn):
+        PROMPT_TEMPLATES[agent_name] = fn
+        return fn
+    return decorator
+
+
+@register_template("api_response_extractor")
+def _tpl_extractor(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    prospect = data["prospect"]
+    context_parts = data["context_parts"]
+    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
+    org = prospect.get("organization", "")
+    prompt = (
+        f"Extract factual claims about this prospect from the following data.\n"
+        f"Prospect: {name} at {org}\n\n"
+        f"Data:\n{chr(10).join(context_parts)}\n\n"
+        f'{{"claims": [{{"text": "...", "source_url": "https://...", "confidence": "high|medium|low"}}]}}\n\n'
+        f"Use these source URLs: {', '.join(source_urls[:5])}"
+    )
+    system = "You extract factual claims. Every claim must have source_url. Output valid JSON only, no markdown fences."
+    return prompt, system
+
+
+@register_template("batch_summarizer")
+def _tpl_summarizer(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    names = data["prospect_names"]
+    prompt = f"Summarize these prospects in 2-3 sentences for prioritization:\n{chr(10).join(names)}"
+    system = "You provide brief prioritization summaries. Output valid JSON only."
+    return prompt, system
+
+
+TIER_HARNESS_DEFAULTS = {
+    ModelTier.WORKER:  {"max_input_tokens": 4000, "max_output_tokens": 2000},
+    ModelTier.DRONE:   {"max_input_tokens": 3000, "max_output_tokens": 1500},
+    ModelTier.FORAGER: {"max_input_tokens": 8000, "max_output_tokens": 4000},
+    ModelTier.QUEEN:   {"max_input_tokens": 16000, "max_output_tokens": 6000},
+}
+
+
+def harness_config_for_agent(agent_name: str) -> HarnessConfig:
+    """Return a HarnessConfig with tier-appropriate defaults."""
+    tier = AGENT_TIERS.get(agent_name, ModelTier.WORKER)
+    defaults = TIER_HARNESS_DEFAULTS.get(tier, {})
+    return HarnessConfig(**defaults)
+
+
 def _validate_schema(response: dict, schema: dict | None) -> tuple[bool, str | None]:
     """Validate response against JSON schema. Returns (is_valid, error_msg)."""
     if not schema:
@@ -73,15 +133,61 @@ def _validate_claims_have_source_url(data: dict) -> tuple[bool, str | None]:
 
 
 class WorkerHarness:
-    """Wraps every LLM call. Timeout, retries, schema validation, cost cap."""
+    """Wraps every LLM call. Timeout, retries, schema validation, cost cap, escalation."""
 
     def __init__(self, agent_name: str, config: HarnessConfig, client: ModelClient):
         self.agent_name = agent_name
         self.config = config
         self.client = client
 
+    def execute_task(self, spec: TaskSpec) -> HarnessResult:
+        """Execute a structured task. Required for WORKER/DRONE/FORAGER tiers."""
+        template_fn = PROMPT_TEMPLATES.get(spec.agent_name)
+        if not template_fn:
+            raise ValueError(
+                f"No template registered for '{spec.agent_name}'. "
+                f"All sub-Queen agents must have a registered prompt template."
+            )
+        prompt, system = template_fn(spec.data, spec.source_urls)
+        self._in_template_call = True
+        try:
+            return self.execute(prompt, system)
+        finally:
+            self._in_template_call = False
+
     def execute(self, prompt: str, system: str = "") -> HarnessResult:
+        tier = AGENT_TIERS.get(self.agent_name)
+
+        # Block raw execute() for sub-Queen unless called from execute_task()
+        if tier in (ModelTier.WORKER, ModelTier.DRONE, ModelTier.FORAGER):
+            if not getattr(self, '_in_template_call', False):
+                logger.error(
+                    "BLOCKED: %s (tier=%s) called execute() directly. Use execute_task().",
+                    self.agent_name, tier.value,
+                )
+                return HarnessResult(
+                    outcome=AgentOutcome.SKIPPED,
+                    error=f"Direct execute() not allowed for {tier.value} tier. Use execute_task().",
+                )
+
         start = time.monotonic()
+
+        # Max input tokens safety net
+        estimated_input = int(len(prompt.split()) * 1.3)
+        if estimated_input > self.config.max_input_tokens:
+            return HarnessResult(
+                outcome=AgentOutcome.KILLED_BUDGET,
+                error=f"Input tokens ~{estimated_input} exceeds max {self.config.max_input_tokens}",
+            )
+
+        # Tier-aware system prompt prefix for sub-Queen
+        if tier and tier != ModelTier.QUEEN:
+            system = (
+                "You perform exactly ONE task. Output valid JSON only. "
+                "Do not plan, reason across multiple steps, or ask clarifying questions.\n\n"
+                + system
+            )
+
         config = get_model_config(self.agent_name)
 
         for attempt in range(1, self.config.max_retries + 1):
@@ -127,13 +233,10 @@ class WorkerHarness:
                 if not is_valid:
                     logger.warning(f"{self.agent_name} schema fail (attempt {attempt}): {err}")
                     if attempt == self.config.max_retries:
-                        if self.config.escalation_tier:
-                            return HarnessResult(
-                                outcome=AgentOutcome.ESCALATED,
-                                attempts=attempt,
-                                elapsed_seconds=time.monotonic() - start,
-                                error=f"Schema failures; escalating to {self.config.escalation_tier}",
-                            )
+                        # Try escalation before giving up
+                        escalation_result = self._try_escalation(prompt, system, start, attempt, err)
+                        if escalation_result:
+                            return escalation_result
                         return HarnessResult(
                             outcome=AgentOutcome.KILLED_SCHEMA,
                             attempts=attempt,
@@ -151,6 +254,10 @@ class WorkerHarness:
                 if not ok:
                     logger.warning(f"{self.agent_name} claim missing source_url: {err}")
                     if attempt == self.config.max_retries:
+                        # Try escalation before giving up
+                        escalation_result = self._try_escalation(prompt, system, start, attempt, err)
+                        if escalation_result:
+                            return escalation_result
                         return HarnessResult(
                             outcome=AgentOutcome.KILLED_SCHEMA,
                             attempts=attempt,
@@ -180,3 +287,44 @@ class WorkerHarness:
             elapsed_seconds=time.monotonic() - start,
             error="Exhausted all retries",
         )
+
+    def _try_escalation(self, prompt: str, system: str, start: float, attempts: int, error: str | None) -> HarnessResult | None:
+        """Try one escalation call with a higher-tier model. Returns result or None."""
+        tier = AGENT_TIERS.get(self.agent_name)
+        escalation_tier = ESCALATION_CHAIN.get(tier) if tier else None
+        if not escalation_tier:
+            return None
+
+        logger.info("Escalating %s from %s to %s", self.agent_name, tier, escalation_tier)
+        try:
+            response = self.client.complete_with_tier(
+                tier=escalation_tier,
+                prompt=prompt,
+                system=system,
+                agent_name=self.agent_name,
+            )
+            tokens = self.client.get_last_token_count()
+            # Validate escalated response too
+            if self.config.output_schema:
+                is_valid, err = _validate_schema(response, self.config.output_schema)
+                if not is_valid:
+                    logger.warning("Escalation also failed schema: %s", err)
+                    return HarnessResult(
+                        outcome=AgentOutcome.KILLED_SCHEMA,
+                        attempts=attempts + 1,
+                        elapsed_seconds=time.monotonic() - start,
+                        error=f"Escalation failed: {err}",
+                    )
+
+            cost = self.client.calculate_cost(self.agent_name, tokens)
+            return HarnessResult(
+                outcome=AgentOutcome.ESCALATED,
+                data=response,
+                tokens_used=tokens,
+                cost_usd=cost,
+                attempts=attempts + 1,
+                elapsed_seconds=time.monotonic() - start,
+            )
+        except Exception as e:
+            logger.error("Escalation failed for %s: %s", self.agent_name, e)
+            return None
