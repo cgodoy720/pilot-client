@@ -57,8 +57,8 @@ TIER_CONFIGS = {
         model_id="claude-opus-4-6",
         temperature=0.0,
         max_tokens=6000,
-        cost_per_mtok_input=5.0,
-        cost_per_mtok_output=25.0,
+        cost_per_mtok_input=15.0,
+        cost_per_mtok_output=75.0,
     ),
 }
 
