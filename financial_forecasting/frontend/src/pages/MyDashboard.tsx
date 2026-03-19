@@ -161,6 +161,7 @@ function CalendarInboxSplit({
   inboxTasks,
   tasksLoading,
   currentUserId,
+  onToggleUrgent,
 }: {
   calNeedsReauth: boolean;
   logout: () => Promise<void>;
@@ -176,6 +177,7 @@ function CalendarInboxSplit({
   inboxTasks: InboxTask[];
   tasksLoading: boolean;
   currentUserId?: string | null;
+  onToggleUrgent?: (taskId: string, urgent: boolean) => void;
 }) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'pursuit-calendar-inbox-split',
@@ -284,6 +286,7 @@ function CalendarInboxSplit({
             loading={tasksLoading}
             maxHeight={prefs.taskInboxMaxHeight ?? 400}
             currentUserId={currentUserId}
+            onToggleUrgent={onToggleUrgent}
             onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
           />
         </Section>
@@ -385,6 +388,19 @@ const MyDashboard: React.FC = () => {
     setPrefs((p) => ({ ...p, calendarView: view }));
   const handleFilteredChange = useCallback((allFiltered: PriorityOpp[], visible: PriorityOpp[]) => {
     setFilteredOpps({ allFiltered, visible });
+  }, []);
+
+  // Urgent overrides — persisted in localStorage
+  const URGENT_KEY = 'pursuit-urgent-overrides';
+  const [urgentOverrides, setUrgentOverrides] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem(URGENT_KEY) || '{}'); } catch { return {}; }
+  });
+  const handleToggleUrgent = useCallback((taskId: string, urgent: boolean) => {
+    setUrgentOverrides(prev => {
+      const next = { ...prev, [taskId]: urgent };
+      localStorage.setItem(URGENT_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   // Compute date range for calendar
@@ -627,9 +643,9 @@ const MyDashboard: React.FC = () => {
       CreatedByName: t.CreatedBy?.Name || null,
       WhatId: t.WhatId || null,
       OpportunityName: t.WhatId ? oppNameMap.get(t.WhatId) || null : null,
-      isUrgent: t.Priority === 'High',
+      isUrgent: Object.hasOwn(urgentOverrides, t.Id) ? urgentOverrides[t.Id] : t.Priority === 'High',
     }));
-  }, [sfTasks, allOpportunities]);
+  }, [sfTasks, allOpportunities, urgentOverrides]);
 
   // Pipeline summary stats — scoped by snapshot mode
   // For 'priorities': use allFiltered (all that meet filters) so Total/Weighted toggle reflects full set
@@ -762,6 +778,7 @@ const MyDashboard: React.FC = () => {
           inboxTasks={inboxTasks}
           tasksLoading={tasksLoading}
           currentUserId={user?.salesforce_user_id}
+          onToggleUrgent={handleToggleUrgent}
         />
       ) : (
         <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -838,6 +855,7 @@ const MyDashboard: React.FC = () => {
                 loading={tasksLoading}
                 maxHeight={prefs.taskInboxMaxHeight ?? 400}
                 currentUserId={user?.salesforce_user_id}
+                onToggleUrgent={handleToggleUrgent}
                 onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
               />
             </Section>

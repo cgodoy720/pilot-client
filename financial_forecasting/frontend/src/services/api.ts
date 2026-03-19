@@ -406,6 +406,40 @@ export const apiService = {
       delete_existing: true
     }),
 
+  // Projects (PostgreSQL-backed)
+  getProjects: () =>
+    api.get('/api/projects'),
+
+  getProject: (projectId: string) =>
+    api.get(`/api/projects/${projectId}`),
+
+  createWorkstream: (projectId: string, data: { name: string; description?: string; sort_order?: number }) =>
+    api.post(`/api/projects/${projectId}/workstreams`, data),
+
+  updateWorkstream: (workstreamId: string, data: { name?: string; description?: string; sort_order?: number }) =>
+    api.put(`/api/workstreams/${workstreamId}`, data),
+
+  deleteWorkstream: (workstreamId: string) =>
+    api.delete(`/api/workstreams/${workstreamId}`),
+
+  createMilestone: (workstreamId: string, data: { title: string; status?: string; priority?: string; owner?: string; description?: string }) =>
+    api.post(`/api/workstreams/${workstreamId}/milestones`, data),
+
+  updateMilestone: (milestoneId: string, data: { title?: string; status?: string; priority?: string; owner?: string; description?: string }) =>
+    api.put(`/api/milestones/${milestoneId}`, data),
+
+  deleteMilestone: (milestoneId: string) =>
+    api.delete(`/api/milestones/${milestoneId}`),
+
+  createProjectTask: (milestoneId: string, data: { title: string; status?: string; owner?: string; deadline?: string; description?: string }) =>
+    api.post(`/api/milestones/${milestoneId}/tasks`, data),
+
+  updateProjectTask: (taskId: string, data: { title?: string; status?: string; owner?: string; deadline?: string; description?: string }) =>
+    api.put(`/api/project-tasks/${taskId}`, data),
+
+  deleteProjectTask: (taskId: string) =>
+    api.delete(`/api/project-tasks/${taskId}`),
+
   // Cache Management
   clearCache: () =>
     api.post('/api/cache/clear'),

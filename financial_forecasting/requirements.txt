@@ -38,6 +38,9 @@ anthropic>=0.30.0
 # Pydantic (FastAPI dependency)
 pydantic>=2.7
 
+# PostgreSQL (async)
+asyncpg==0.30.0
+
 # Background scheduler
 APScheduler==3.10.4
 

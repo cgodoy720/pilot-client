@@ -16,6 +16,8 @@ import Opportunities from './Opportunities';
 import Accounts from './Accounts';
 import Contacts from './Contacts';
 import Leads from './Leads';
+import ConnectPrompt from '../components/ConnectPrompt';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -40,11 +42,20 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function Pipeline() {
+  const { user } = useAuth();
   const [currentTab, setCurrentTab] = useState(0);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
   };
+
+  if (!user?.salesforce_connected) {
+    return (
+      <Box>
+        <ConnectPrompt service="Salesforce" message="Connect Salesforce to view pipeline data." />
+      </Box>
+    );
+  }
 
   return (
     <Box>

@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bedrock
+      POSTGRES_PASSWORD: bedrock
+      POSTGRES_DB: bedrock
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -12,9 +26,12 @@ services:
     environment:
       - PORT=8080
       - GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+      - DATABASE_URL=postgresql://bedrock:bedrock@db:5432/bedrock
     volumes:
       - ./:/app
       - /tmp:/tmp
+    depends_on:
+      - db
     restart: unless-stopped
 
   frontend:
@@ -26,6 +43,9 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  pgdata:
 
 networks:
   default:

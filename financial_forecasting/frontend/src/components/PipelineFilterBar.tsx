@@ -17,7 +17,7 @@ import {
   ExpandMore as ExpandIcon,
   ExpandLess as CollapseIcon,
 } from '@mui/icons-material';
-import { OPPORTUNITY_STAGES, OPEN_STAGES } from '../types/salesforce';
+import { OPPORTUNITY_STAGES, OPEN_STAGES, getStageHexColor } from '../types/salesforce';
 
 export interface PipelineFilters {
   owners: string[];
@@ -159,6 +159,12 @@ const PipelineFilterBar: React.FC<PipelineFilterBarProps> = ({
             value={filters.stages}
             onChange={(_, vals) => update({ stages: vals })}
             renderInput={(params) => <TextField {...params} label="Stage" />}
+            renderOption={(props, option) => (
+              <li {...props}>
+                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: getStageHexColor(option), mr: 1, flexShrink: 0 }} />
+                {option}
+              </li>
+            )}
             sx={{ minWidth: 200 }}
             disableCloseOnSelect
           />

@@ -7,9 +7,9 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal
 import logging
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 import uvicorn
 
@@ -30,6 +30,10 @@ from models import (
 )
 from forecasting_engine import ForecastingEngine
 from data_sync import DataSyncService
+from db import init_db, close_db
+from routes.projects import router as projects_router
+from routes.auth import router as auth_router
+from auth import get_current_user_dep, IS_PRODUCTION, JWT_SECRET_KEY
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -44,17 +48,33 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Session middleware (required for Authlib OAuth state)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=JWT_SECRET_KEY,
+    session_cookie="session",
+    max_age=3600 * 24,
+    same_site="none" if IS_PRODUCTION else "lax",
+    https_only=IS_PRODUCTION,
+)
+
 # CORS middleware
+CORS_ORIGINS = ["http://localhost:3000", "http://localhost:3001"]
+FRONTEND_URL = os.getenv('FRONTEND_URL')
+if FRONTEND_URL:
+    CORS_ORIGINS.append(FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # React dev servers
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Security — auto_error=False allows unauthenticated requests (demo mode)
-security = HTTPBearer(auto_error=False)
+# Routers
+app.include_router(projects_router)
+app.include_router(auth_router)
 
 # Service singletons — initialized on startup, injected via Depends()
 _services: Dict[str, Any] = {}
@@ -66,6 +86,9 @@ _sync_lock = asyncio.Lock()
 async def startup_event():
     """Initialize services on startup."""
     logger.info("Starting up Financial Forecasting API...")
+
+    # Initialize PostgreSQL (non-blocking — app works without it)
+    await init_db()
 
     client = UnifiedMCPClient()
     _services["mcp_client"] = client
@@ -98,6 +121,7 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("Shutting down Financial Forecasting API...")
+    await close_db()
     client = _services.get("mcp_client")
     if client:
         await client.disconnect_all()
@@ -127,12 +151,8 @@ async def background_sync_task():
         await asyncio.sleep(900)
 
 
-# Dependency functions
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get current user from token (simplified for POC)."""
-    # In production, validate JWT token and return user info
-    return {"user_id": "demo_user", "name": "Demo User", "role": "admin"}
+# Dependency functions — get_current_user is now cookie-based (see auth.py)
+get_current_user = get_current_user_dep
 
 
 def get_mcp_client() -> UnifiedMCPClient:
@@ -157,22 +177,6 @@ def get_data_sync_service() -> DataSyncService:
     if not svc:
         raise HTTPException(status_code=503, detail="Data sync service not available")
     return svc
-
-
-# Auth endpoints (for frontend compatibility with simple_server)
-
-@app.get("/auth/me")
-async def auth_me():
-    """Return current user info for the frontend."""
-    return {
-        "user_id": "demo_user",
-        "name": "Demo User",
-        "email": "demo@pursuit.org",
-        "picture": None,
-        "salesforce_connected": False,
-        "salesforce_user_id": None,
-        "salesforce_user_name": None,
-    }
 
 
 @app.get("/api/cashflow/summary")
@@ -485,7 +489,7 @@ async def get_my_tasks(
         where_sql = " AND ".join(where_clauses)
         query = f"""
         SELECT Id, Subject, ActivityDate, Status, Priority, WhatId, WhoId,
-               OwnerId, Description, CreatedDate, LastModifiedDate
+               OwnerId, Owner.Name, CreatedById, CreatedBy.Name, Description, CreatedDate, LastModifiedDate
         FROM Task
         WHERE {where_sql}
         ORDER BY ActivityDate ASC
@@ -498,6 +502,125 @@ async def get_my_tasks(
 
     except Exception as e:
         logger.error(f"Error fetching tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Salesforce Task CRUD (linked to Opportunities)
+# ---------------------------------------------------------------------------
+
+class TaskCreateRequest(BaseModel):
+    Subject: str
+    Status: str = "Not Started"
+    Priority: str = "Normal"
+    ActivityDate: Optional[str] = None
+    Description: Optional[str] = None
+    OwnerId: Optional[str] = None
+
+
+class TaskUpdateRequest(BaseModel):
+    Subject: Optional[str] = None
+    Status: Optional[str] = None
+    Priority: Optional[str] = None
+    ActivityDate: Optional[str] = None
+    Description: Optional[str] = None
+    OwnerId: Optional[str] = None
+
+
+@app.get("/api/salesforce/opportunities/{opportunity_id}/tasks")
+async def get_opportunity_tasks(
+    opportunity_id: str,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Get all tasks linked to a specific opportunity."""
+    try:
+        salesforce = client.salesforce
+        query = f"""
+        SELECT Id, Subject, Status, Priority, ActivityDate, Description,
+               OwnerId, Owner.Name, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE WhatId = '{opportunity_id}'
+        ORDER BY ActivityDate DESC NULLS LAST
+        """
+        result = await salesforce.query(query)
+        tasks = result.get("records", [])
+
+        formatted = []
+        for t in tasks:
+            formatted.append({
+                "Id": t.get("Id"),
+                "Subject": t.get("Subject"),
+                "Status": t.get("Status"),
+                "Priority": t.get("Priority"),
+                "ActivityDate": t.get("ActivityDate"),
+                "Description": t.get("Description"),
+                "OwnerId": t.get("OwnerId"),
+                "OwnerName": (t.get("Owner") or {}).get("Name"),
+                "CreatedDate": t.get("CreatedDate"),
+                "LastModifiedDate": t.get("LastModifiedDate"),
+            })
+
+        return ApiResponse(success=True, data=formatted, meta={"count": len(formatted)})
+    except Exception as e:
+        logger.error(f"Error fetching opportunity tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/salesforce/opportunities/{opportunity_id}/tasks")
+async def create_opportunity_task(
+    opportunity_id: str,
+    task_data: TaskCreateRequest,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Create a new task linked to an opportunity."""
+    try:
+        salesforce = client.salesforce
+        fields = {"WhatId": opportunity_id, **task_data.model_dump(exclude_none=True)}
+        result = await salesforce.create_record("Task", fields)
+        task_id = result.get("id") or result.get("Id")
+        return ApiResponse(success=True, data={"id": task_id, "message": "Task created"})
+    except Exception as e:
+        logger.error(f"Error creating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/salesforce/tasks/{task_id}")
+async def update_task(
+    task_id: str,
+    updates: TaskUpdateRequest,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Update an existing Salesforce task."""
+    try:
+        salesforce = client.salesforce
+        fields = updates.model_dump(exclude_none=True)
+        if not fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        await salesforce.update_record("Task", task_id, fields)
+        return ApiResponse(success=True, data={"message": "Task updated"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/salesforce/tasks/{task_id}")
+async def delete_task(
+    task_id: str,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(get_current_user),
+):
+    """Delete a Salesforce task."""
+    try:
+        salesforce = client.salesforce
+        await salesforce.delete_record("Task", task_id)
+        return ApiResponse(success=True, data={"message": "Task deleted"})
+    except Exception as e:
+        logger.error(f"Error deleting task: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
