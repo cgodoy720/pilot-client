@@ -25,6 +25,7 @@ export interface ProspectInput {
   last_name?: string;
   organization?: string;
   ein?: string;
+  organizations?: string[];
 }
 
 export interface ResearchRequest {

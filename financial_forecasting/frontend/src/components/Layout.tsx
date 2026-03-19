@@ -37,6 +37,7 @@ import {
   Science as ResearchIcon,
   AccountTree as ProjectsIcon,
   Search as SearchIcon,
+  Upload as UploadIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import BedrockLogo from './BedrockLogo';
@@ -62,13 +63,14 @@ const ALL_MENU_ITEMS = [
   { text: 'Auto Review', icon: <ReviewIcon />, path: '/automation-review' },
   { text: 'Research', icon: <ResearchIcon />, path: '/research' },
   { text: 'Pebble', icon: <SearchIcon />, path: '/pebble' },
+  { text: 'Import', icon: <UploadIcon />, path: '/prospect-import' },
   { text: 'Cashflow', icon: <AttachMoneyIcon />, path: '/cashflow' },
   { text: 'Projects', icon: <ProjectsIcon />, path: '/projects' },
   { text: 'Data Tools', icon: <ToolsIcon />, path: '/data-tools' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
-const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', '/projects', '/settings']);
+const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', '/projects', '/prospect-import', '/settings']);
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();

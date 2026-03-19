@@ -6407,6 +6407,132 @@ async def update_opportunity_stage(request: dict, http_request: Request = None):
 
 
 # ============================================================================
+# PROSPECT IMPORT API (prospect_import pipeline)
+# ============================================================================
+
+import sys
+from pathlib import Path as _Path
+_reporoot = _Path(__file__).resolve().parent.parent
+if str(_reporoot) not in sys.path:
+    sys.path.insert(0, str(_reporoot))
+
+class ProspectImportPreviewRequest(BaseModel):
+    csv_text: str
+
+class ProspectImportColumnMapping(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    name: Optional[str] = None  # If set, split into first/last
+    email: Optional[str] = None
+    organizations: Optional[List[str]] = None  # List of column names for orgs
+
+class ProspectImportParseRequest(BaseModel):
+    csv_text: str
+    column_mapping: ProspectImportColumnMapping
+    filename: str = "import.csv"
+
+@app.post("/api/prospect-import/preview")
+async def prospect_import_preview(req: ProspectImportPreviewRequest):
+    """Parse CSV and return headers + first 20 rows for column mapping."""
+    try:
+        from prospect_import.parser import preview_csv
+        result = preview_csv(req.csv_text, max_rows=20)
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/prospect-import/parse")
+async def prospect_import_parse(req: ProspectImportParseRequest):
+    """Parse CSV with column mapping, normalize, and save to SQLite."""
+    try:
+        from prospect_import.db import init_db, create_import_session, save_raw_rows, normalize_and_save
+        from prospect_import.parser import parse_csv_with_mapping
+
+        init_db()
+        cm = req.column_mapping.model_dump(exclude_none=True)
+        mapping = {
+            "first_name": cm.get("first_name"),
+            "last_name": cm.get("last_name"),
+            "email": cm.get("email"),
+            "organizations": cm.get("organizations") or [],
+        }
+        split_name_col = None
+        if cm.get("name"):
+            mapping["name"] = cm["name"]
+            split_name_col = cm["name"]
+        parsed = parse_csv_with_mapping(req.csv_text, mapping, split_name_column=split_name_col)
+
+        session_id = create_import_session(req.filename, mapping, "")
+        save_raw_rows(session_id, parsed)
+        counts = normalize_and_save(session_id, parsed)
+        return {"success": True, "session_id": session_id, **counts}
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=400, detail={"error": str(e), "traceback": traceback.format_exc()})
+
+@app.get("/api/prospect-import/persons")
+async def prospect_import_get_persons(session_id: Optional[str] = None):
+    """Get normalized persons with affiliations."""
+    try:
+        from prospect_import.db import get_persons_with_affiliations
+        persons = get_persons_with_affiliations(session_id)
+        return {"success": True, "persons": persons}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ProspectImportWriteToCrmRequest(BaseModel):
+    session_id: Optional[str] = None
+
+@app.post("/api/prospect-import/write-to-crm")
+async def prospect_import_write_to_crm(req: ProspectImportWriteToCrmRequest, request: Request = None):
+    """Write normalized persons and organizations to Salesforce (Contact, Account)."""
+    try:
+        from prospect_import.db import get_persons_with_affiliations
+        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        persons = get_persons_with_affiliations(req.session_id)
+        accounts_by_name: Dict[str, str] = {}
+        created_accounts = 0
+        created_contacts = 0
+
+        for p in persons:
+            affs = p.get("affiliations") or []
+            primary_account_id = None
+            if affs:
+                first_org = affs[0]
+                org_name = first_org.get("org_name") or ""
+                if org_name and org_name not in accounts_by_name:
+                    safe_name = org_name.replace("'", "''")
+                    existing = sf.query(f"SELECT Id FROM Account WHERE Name = '{safe_name}' AND IsDeleted = false LIMIT 1")
+                    if existing.get("totalSize", 0) > 0:
+                        accounts_by_name[org_name] = existing["records"][0]["Id"]
+                    else:
+                        acc_result = sf.Account.create({"Name": org_name, "Type": first_org.get("org_type", "Other") or "Other"})
+                        if acc_result.get("success"):
+                            accounts_by_name[org_name] = acc_result["id"]
+                            created_accounts += 1
+                primary_account_id = accounts_by_name.get(org_name)
+
+            contact_data = {
+                "FirstName": p.get("first_name") or "Unknown",
+                "LastName": p.get("last_name") or "Unknown",
+            }
+            if p.get("email"):
+                contact_data["Email"] = p["email"]
+            if primary_account_id:
+                contact_data["AccountId"] = primary_account_id
+            result = sf.Contact.create(contact_data)
+            if result.get("success"):
+                created_contacts += 1
+
+        cache.invalidate("accounts")
+        cache.invalidate_prefix("contacts:")
+        return {"success": True, "created_accounts": created_accounts, "created_contacts": created_contacts}
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail={"error": str(e), "traceback": traceback.format_exc()})
+
+
+# ============================================================================
 # BACKGROUND SCHEDULER FOR AUTOMATIC SYNC
 # ============================================================================
 

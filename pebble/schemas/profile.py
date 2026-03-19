@@ -29,6 +29,7 @@ class ProspectInput(BaseModel):
     last_name: str = ""
     organization: str = ""
     ein: str | None = None
+    organizations: list[str] | None = None  # Multiple affiliations; Pebble fetches 990/SEC for each
 
 
 class ResearchRequest(BaseModel):

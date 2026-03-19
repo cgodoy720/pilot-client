@@ -55,3 +55,15 @@ Bedrock (financial_forecasting) runs on 8000. Set `REACT_APP_PEBBLE_API_URL=http
 - **Bee hierarchy:** Worker → Haiku (MVP), Drone → Haiku, Forager → Sonnet, Queen → Opus
 - **WorkerHarness:** Timeout, retries, schema validation, cost cap
 - **ProspectBudgetTracker:** $0.50/prospect cap
+
+## Day 5 Verification
+
+Run 5–10 contacts end-to-end to confirm profiles, costs, and harness_log:
+
+1. Start Pebble and Bedrock (see Testing above).
+2. Test contacts with org names (e.g. "American Red Cross", "Goldman Sachs") — ProPublica lookup works without EIN.
+3. Inspect `pebble/pebble.db`:
+   ```bash
+   sqlite3 pebble/pebble.db "SELECT agent_name, outcome, cost_usd, prospect_id FROM harness_log ORDER BY created_at DESC LIMIT 20;"
+   ```
+4. Confirm cost per prospect < $0.50 and profiles have claims with `source_url`.
