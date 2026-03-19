@@ -130,6 +130,18 @@ How do we know this is done and working?
 
 ---
 
+## Future Feature Specs
+
+Specs for features that are planned but blocked on external dependencies.
+These are separated from the numbered PRD sequence to prevent scope creep
+while ensuring the vision isn't lost.
+
+| Spec | Depends On | Status |
+|------|-----------|--------|
+| [Pebble Network Intro Routing](pebble-network-intro.md) | Learning platform integration (LinkedIn contacts) | Future — blocked |
+
+---
+
 ## Cross-References
 
 - **Read first:** `product/crm-architecture/canonical-definitions.md` (stages, field names, IDs, enums — this file governs)
