@@ -30,7 +30,6 @@
     "react-hook-form": "^7.45.2",
     "react-hot-toast": "^2.4.1",
     "react-query": "^3.39.3",
-    "react-resizable-panels": "^2.0.0",
     "react-resizable-panels": "^4.7.3",
     "react-router-dom": "^6.3.0",
     "react-scripts": "5.0.1",

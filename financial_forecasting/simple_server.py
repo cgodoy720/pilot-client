@@ -49,6 +49,8 @@ JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(32))
 # Import config
 from config import SALESFORCE_CONFIG
 from models import OpportunityStage, OPEN_STAGES, CLOSED_STAGES, COLLECTING_STAGES
+from routes.projects import router as projects_router
+from db import init_db, close_db
 
 VALID_STAGES = {s.value for s in OpportunityStage}
 
@@ -265,6 +267,9 @@ app = FastAPI(
     description="Simplified API for Pursuit financial forecasting POC",
     version="1.0.0"
 )
+
+# Mount Projects router (PostgreSQL-backed CRUD)
+app.include_router(projects_router)
 
 # CORS middleware
 # Allow both local development and production Cloud Run domains
@@ -6540,6 +6545,12 @@ async def prospect_import_write_to_crm(req: ProspectImportWriteToCrmRequest, req
 scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
+async def start_db_pool():
+    """Initialize PostgreSQL connection pool."""
+    await init_db()
+
+
+@app.on_event("startup")
 async def start_scheduler():
     """Start the background scheduler when the app starts."""
     try:
@@ -6561,6 +6572,12 @@ async def start_scheduler():
         
     except Exception as e:
         logger.error(f"❌ Failed to start scheduler: {str(e)}")
+
+
+@app.on_event("shutdown")
+async def shutdown_db_pool():
+    """Close PostgreSQL connection pool."""
+    await close_db()
 
 
 @app.on_event("shutdown")

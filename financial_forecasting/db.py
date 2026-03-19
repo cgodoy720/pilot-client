@@ -16,7 +16,7 @@ DB_DIR = Path(__file__).parent / "db"
 async def init_db() -> None:
     """Create connection pool and run init.sql if tables don't exist."""
     global _pool
-    from config import DATABASE_URL
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://bedrock@localhost:5432/bedrock")
 
     try:
         _pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
