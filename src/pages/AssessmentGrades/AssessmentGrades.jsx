@@ -23,10 +23,6 @@ const AssessmentGrades = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
 
   // Editing states for Overview tab
-  const [isEditingOverview, setIsEditingOverview] = useState(false);
-  const [editingStrengths, setEditingStrengths] = useState('');
-  const [editingGrowthAreas, setEditingGrowthAreas] = useState('');
-  const [savingOverview, setSavingOverview] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -55,7 +51,8 @@ const AssessmentGrades = () => {
       setLoading(false);
       return;
     }
-    
+
+    setError(null);
     fetchInitialData();
   }, [user, authToken, canAccessPage]);
 
@@ -395,23 +392,8 @@ const AssessmentGrades = () => {
     !!appliedFiltersRef.current.cohort &&
     renderedCohorts.some((cohortName) => cohortName !== appliedFiltersRef.current.cohort);
 
-  // Overview editing functions
-  const handleStartEditing = (grade) => {
-    setIsEditingOverview(true);
-    setEditingStrengths(grade.strengths_summary || '');
-    setEditingGrowthAreas(grade.growth_areas_summary || '');
-  };
-
-  const handleCancelEditing = () => {
-    setIsEditingOverview(false);
-    setEditingStrengths('');
-    setEditingGrowthAreas('');
-  };
-
-  const handleSaveOverview = async (userId) => {
+  const handleSaveOverview = async (userId, assessmentPeriod, level, strengths, growthAreas) => {
     try {
-      setSavingOverview(true);
-      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/update-feedback`, {
         method: 'POST',
         headers: {
@@ -419,9 +401,11 @@ const AssessmentGrades = () => {
           'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({
-          userId: userId,
-          strengths_summary: editingStrengths,
-          growth_areas_summary: editingGrowthAreas
+          userId,
+          strengths_summary: strengths,
+          growth_areas_summary: growthAreas,
+          assessment_period: assessmentPeriod,
+          level
         })
       });
 
@@ -429,40 +413,26 @@ const AssessmentGrades = () => {
         throw new Error('Failed to update feedback');
       }
 
-      const result = await response.json();
-      
-      // Update the local state
-      setAssessmentGrades(prev => prev.map(grade => 
-        grade.user_id === userId 
-          ? { ...grade, strengths_summary: editingStrengths, growth_areas_summary: editingGrowthAreas }
+      // Update the local table state for the matching row
+      setAssessmentGrades(prev => prev.map(grade =>
+        grade.user_id === userId && grade.assessment_period === assessmentPeriod && grade.level === level
+          ? { ...grade, strengths_summary: strengths, growth_areas_summary: growthAreas }
           : grade
       ));
 
-      // Update selectedGrade if it's the same user
-      if (selectedGrade && selectedGrade.user_id === userId) {
-        setSelectedGrade(prev => ({
-          ...prev,
-          strengths_summary: editingStrengths,
-          growth_areas_summary: editingGrowthAreas
-        }));
-      }
-
-      setIsEditingOverview(false);
-      setEditingStrengths('');
-      setEditingGrowthAreas('');
-      
       toast.success('Feedback Updated!', {
         description: 'The feedback has been successfully updated in the database.',
         duration: 3000,
       });
+
+      return true;
     } catch (error) {
       console.error('Error updating feedback:', error);
       toast.error('Update Failed', {
         description: 'Failed to update feedback. Please try again.',
         duration: 5000,
       });
-    } finally {
-      setSavingOverview(false);
+      return false;
     }
   };
 
@@ -541,15 +511,7 @@ const AssessmentGrades = () => {
             setShowGradeModal(false);
             setSelectedGrade(null);
           }}
-          isEditingOverview={isEditingOverview}
-          editingStrengths={editingStrengths}
-          editingGrowthAreas={editingGrowthAreas}
-          savingOverview={savingOverview}
-          onStartEditing={handleStartEditing}
-          onCancelEditing={handleCancelEditing}
           onSaveOverview={handleSaveOverview}
-          setEditingStrengths={setEditingStrengths}
-          setEditingGrowthAreas={setEditingGrowthAreas}
         />
 
         {/* Mass Email Modal */}
