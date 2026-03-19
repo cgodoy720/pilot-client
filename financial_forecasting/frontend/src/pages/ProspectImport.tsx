@@ -88,8 +88,7 @@ export default function ProspectImport() {
       const sid = (parseRes.data as { session_id?: string })?.session_id;
       setSessionId(sid || null);
       const res = await apiService.prospectImportGetPersons(sid);
-      const data = res.data as { persons: typeof parsed };
-      setParsed(data);
+      setParsed(res.data as NonNullable<typeof parsed>);
       toast.success('Import complete');
     } catch (err: any) {
       const detail = err.response?.data?.detail;
