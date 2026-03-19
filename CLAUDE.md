@@ -13,9 +13,48 @@
 - For complex problems, throw more compute at it via subagents
 - One task per subagent for focused execution
 
-### 2a. Agent Teams (Claude Code)
-- When using Claude Code for development, prefer Agent Teams for complex multi-step work where parallel exploration adds value: cross-layer coordination, debugging with competing hypotheses, or research across different aspects
-- Enable with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (requires Claude Code v2.1.32+)
+### 2a. Agent Teams (Local Setup)
+- 10 custom agents in `.claude/agents/` — local only, not committed to repo
+- All agents use Opus; `model: opus` resolves to latest Opus at Claude Code runtime
+- Invoke via `@agent-name` mention or natural language; `/agents` for management only
+- Agents cannot spawn other agents — main thread orchestrates the workflow
+
+> **Pebble disambiguation:** "Agent Teams" here = Claude Code development agents
+> (scout, architect, backend, etc.). These are NOT Pebble's research agents
+> (Worker/Drone/Forager/Queen bee hierarchy in `pebble/`). Completely separate systems.
+
+#### Read-Only Agents (permissionMode: plan)
+- `scout` — Code explorer & explainer. Trace data flow, explain behavior.
+- `architect` — System designer. Feature design, migration planning, trade-offs.
+- `reviewer` — Quality gate. Security, patterns, tests, canonical correctness.
+- `integration-debugger` — Diagnose external API issues (Salesforce, Sage, Slack).
+
+#### Implementation Agents
+- `backend` — Python/FastAPI. Endpoints, models, business logic, MCP services.
+- `frontend` — React/TypeScript/MUI. Pages, components, hooks, service calls.
+- `tester` — pytest + Jest. Test writing, running, verification.
+- `data-modeler` — Schema design, migrations, canonical validation, PostgreSQL planning.
+- `pebble-dev` — Pebble AI pipeline. Data sources, prompt templates, orchestrator stages.
+- `docs` — PRDs, architecture docs, setup guides, PLAN-INDEX, lessons.md.
+
+#### Workflows
+
+**Building**
+1. Feature Build: `scout → architect → [data-modeler] → backend + frontend → tester → reviewer`
+2. Pebble Extension: `architect → pebble-dev → tester → reviewer`
+3. Schema Migration: `architect → data-modeler → backend → tester → reviewer`
+
+**Fixing**
+4. Bug Fix: `scout → backend/frontend → tester → reviewer`
+5. Integration Fix: `integration-debugger → [scout] → backend → tester`
+6. Incident Response: `integration-debugger → backend → tester` (review post-fix)
+
+**Understanding**
+7. Spike / Research: `scout → architect` (no implementation)
+
+**Maintaining**
+8. Docs Sprint: `scout → docs`
+9. Pre-Commit Review: `reviewer` (standalone)
 
 ### 3. Self-Improvement Loop
 - After ANY correction from the user: update `tasks/lessons.md` with the pattern
