@@ -1,6 +1,7 @@
 """Pebble API: prospect research pipeline. Integration #9."""
 
 import asyncio
+import hmac
 import logging
 import os
 import uuid
@@ -11,9 +12,27 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env", override=True)
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+
+
+# ---------------------------------------------------------------------------
+# API key validation (set PEBBLE_API_KEY to enable; empty = dev mode)
+# ---------------------------------------------------------------------------
+_PEBBLE_API_KEY = os.getenv("PEBBLE_API_KEY", "")
+
+
+async def verify_api_key(request: Request):
+    """Validate X-Api-Key header against PEBBLE_API_KEY.
+
+    If PEBBLE_API_KEY is not set, validation is skipped (dev mode).
+    """
+    if not _PEBBLE_API_KEY:
+        return  # Dev mode — no key required
+    provided = request.headers.get("X-Api-Key", "")
+    if not provided or not hmac.compare_digest(provided, _PEBBLE_API_KEY):
+        raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
 from .schemas import ResearchRequest, ResearchFeedback, CancelRequest
 from .storage.db import (
@@ -61,12 +80,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_pebble_cors_origins = ["http://localhost:3000"]
+_frontend_url = os.getenv("FRONTEND_URL")
+if _frontend_url:
+    _pebble_cors_origins.append(_frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=_pebble_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cookie"],
 )
 
 
@@ -75,7 +99,7 @@ def _error_response(code: str, message: str, status: int = 400) -> dict:
     return {"success": False, "error": {"code": code, "message": message}}
 
 
-@app.post("/api/v1/research/cancel")
+@app.post("/api/v1/research/cancel", dependencies=[Depends(verify_api_key)])
 async def cancel_research(body: CancelRequest):
     """Cancel a running research job by job_id."""
     _cancel_flags.add(body.job_id)
@@ -88,7 +112,7 @@ def _is_cancelled(job_id: str | None) -> bool:
     return job_id is not None and job_id in _cancel_flags
 
 
-@app.post("/api/v1/research/request")
+@app.post("/api/v1/research/request", dependencies=[Depends(verify_api_key)])
 async def research_request(body: ResearchRequest):
     """Accept research request. Runs Stage 1 enrichment when prospects provided."""
     if not body.prospects:
@@ -333,7 +357,7 @@ async def research_request(body: ResearchRequest):
     return {"status": status, "contact_ids": body.contact_ids, "results": results}
 
 
-@app.get("/api/v1/research/profiles/{contact_id}/export")
+@app.get("/api/v1/research/profiles/{contact_id}/export", dependencies=[Depends(verify_api_key)])
 async def export_profile(contact_id: str, format: str = "md"):
     """Export a research profile as Markdown (or PDF in the future)."""
     profile = get_profile(contact_id)
@@ -371,7 +395,7 @@ async def export_profile(contact_id: str, format: str = "md"):
     )
 
 
-@app.get("/api/v1/research/profiles/{contact_id}")
+@app.get("/api/v1/research/profiles/{contact_id}", dependencies=[Depends(verify_api_key)])
 async def get_research_profile(contact_id: str):
     """Get research profile for a contact. Stub: returns null if not found."""
     profile = get_profile(contact_id)
@@ -380,33 +404,33 @@ async def get_research_profile(contact_id: str):
     return {"profile": profile}
 
 
-@app.post("/api/v1/research/feedback")
+@app.post("/api/v1/research/feedback", dependencies=[Depends(verify_api_key)])
 async def research_feedback(body: ResearchFeedback):
     """Store human feedback on a claim."""
     save_feedback(body.claim_id, body.correct, text=body.text, contact_id=body.contact_id)
     return {"ok": True}
 
 
-@app.get("/api/v1/research/feedback/trends")
+@app.get("/api/v1/research/feedback/trends", dependencies=[Depends(verify_api_key)])
 async def feedback_trends(days: int = 30):
     """Return feedback accuracy trends over the last N days."""
     return get_feedback_trends(days)
 
 
-@app.get("/api/v1/research/feedback/{contact_id}")
+@app.get("/api/v1/research/feedback/{contact_id}", dependencies=[Depends(verify_api_key)])
 async def contact_feedback(contact_id: str):
     """Return all feedback for a contact."""
     return {"feedback": get_feedback_for_contact(contact_id)}
 
 
-@app.get("/api/v1/research/history")
+@app.get("/api/v1/research/history", dependencies=[Depends(verify_api_key)])
 async def research_history(limit: int = 100):
     """Return recent research sessions."""
     sessions = get_recent_sessions(limit)
     return {"sessions": sessions}
 
 
-@app.get("/api/v1/research/history/{session_id}")
+@app.get("/api/v1/research/history/{session_id}", dependencies=[Depends(verify_api_key)])
 async def research_session(session_id: str):
     """Return a full research session including profile."""
     session = get_session(session_id)
