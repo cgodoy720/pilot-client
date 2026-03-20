@@ -4561,12 +4561,8 @@ async def get_grant_invoices(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        error_detail = {
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
-        raise HTTPException(status_code=500, detail=error_detail)
+        logger.exception("Error in get_grant_invoices")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/matching/search-opportunities")
@@ -4883,11 +4879,8 @@ async def get_awaiting_invoices(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_awaiting_invoices")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 class CreateInvoiceRequest(BaseModel):
@@ -4960,11 +4953,8 @@ async def create_sage_invoice(request: CreateInvoiceRequest, http_request: Reque
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in create_sage_invoice")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -5205,12 +5195,8 @@ async def get_sage_customers(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        logger.error(f"Error loading customers: {str(e)}")
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_customers")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/gl-accounts")
@@ -5275,11 +5261,8 @@ async def get_sage_gl_accounts(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_gl_accounts")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/departments")
@@ -5343,11 +5326,8 @@ async def get_sage_departments(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_departments")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/classes")
@@ -5411,11 +5391,8 @@ async def get_sage_classes(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_classes")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/locations")
@@ -5479,11 +5456,8 @@ async def get_sage_locations(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_locations")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/payments")
@@ -5538,11 +5512,8 @@ async def get_sage_payments(request: Request, limit: int = 1000):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_payments")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/invoices")
@@ -5597,11 +5568,8 @@ async def get_sage_invoices(request: Request, limit: int = 1000):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_invoices")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/expenses")
@@ -5656,11 +5624,8 @@ async def get_sage_expenses(request: Request, limit: int = 1000):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_expenses")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/unpaid-bills")
@@ -5716,12 +5681,8 @@ async def get_sage_unpaid_bills(request: Request, limit: int = 500):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        logger.error(f"Error fetching unpaid bills: {e}")
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_unpaid_bills")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/sage/gl-accounts-balance")
@@ -5776,11 +5737,8 @@ async def get_sage_gl_accounts_balance(request: Request):
         }
         
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_sage_gl_accounts_balance")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/cashflow/summary")
@@ -6202,14 +6160,8 @@ async def get_cashflow_summary(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
-        )
+        logger.exception("Error in get_cashflow_summary")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -6287,11 +6239,8 @@ async def validate_stage_change(request: dict, http_request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in validate_stage_change")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/api/opportunities/{opportunity_id}/payment-schedule")
@@ -6341,15 +6290,12 @@ async def get_payment_schedule(opportunity_id: str, request: Request):
                 "PaymentDate": p.get('npe01__Payment_Date__c')
             } for p in payments]
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in get_payment_schedule")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 class PaymentScheduleItem(BaseModel):
@@ -6437,15 +6383,12 @@ async def create_payment_schedule(request: CreatePaymentScheduleRequest, http_re
             "payments": created_payments,
             "opportunity_name": opp.get('Name')
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in create_payment_schedule")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.post("/api/opportunities/update-stage")
@@ -6479,15 +6422,12 @@ async def update_opportunity_stage(request: dict, http_request: Request):
             "stage": new_stage,
             "validation": validation_result
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        })
+        logger.exception("Error in update_opportunity_stage")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -6553,8 +6493,8 @@ async def prospect_import_parse(req: ProspectImportParseRequest, request: Reques
         counts = normalize_and_save(session_id, parsed)
         return {"success": True, "session_id": session_id, **counts}
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=400, detail={"error": str(e), "traceback": traceback.format_exc()})
+        logger.exception("Error in prospect_import_parse")
+        raise HTTPException(status_code=400, detail="Bad request")
 
 @app.get("/api/prospect-import/persons")
 async def prospect_import_get_persons(request: Request, session_id: Optional[str] = None):
@@ -6616,8 +6556,8 @@ async def prospect_import_write_to_crm(req: ProspectImportWriteToCrmRequest, req
         cache.invalidate_prefix("contacts:")
         return {"success": True, "created_accounts": created_accounts, "created_contacts": created_contacts}
     except Exception as e:
-        import traceback
-        raise HTTPException(status_code=500, detail={"error": str(e), "traceback": traceback.format_exc()})
+        logger.exception("Error in prospect_import_write_to_crm")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
