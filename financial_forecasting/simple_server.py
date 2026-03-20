@@ -267,10 +267,14 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+_is_prod = os.getenv('FRONTEND_URL', '').startswith('https')
+
 app = FastAPI(
     title="Financial Forecasting API",
     description="Simplified API for Pursuit financial forecasting POC",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
 )
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])

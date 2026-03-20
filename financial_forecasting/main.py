@@ -44,13 +44,16 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+# Production detection (duplicated here for app init; also in auth.py)
+_IS_PROD = os.getenv('FRONTEND_URL', '').startswith('https')
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Financial Forecasting API",
     description="API for sales pipeline and financial forecasting integration",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url=None if _IS_PROD else "/docs",
+    redoc_url=None if _IS_PROD else "/redoc",
 )
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
