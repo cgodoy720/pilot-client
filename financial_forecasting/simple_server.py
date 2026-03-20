@@ -284,14 +284,12 @@ FRONTEND_URL = os.getenv('FRONTEND_URL')
 if FRONTEND_URL:
     CORS_ORIGINS.append(FRONTEND_URL)
 
-# Also allow any *.run.app domain for Cloud Run deployments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_origin_regex=r"https://.*\.run\.app",  # Allow all Cloud Run domains
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cookie"],
 )
 
 # Production detection and secret validation
