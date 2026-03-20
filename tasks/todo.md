@@ -71,12 +71,25 @@ PRs 2, 4✓, 8✓, 9, 10✓ ship independently.
 
 ## Pebble: Known Issues for Follow-up
 
-- [ ] **SEC CIK caching** — Downloads 5MB JSON on every call. Add file-based cache with TTL. *Address after live test confirms SEC source is useful.*
+- [x] **SEC CIK caching** — API response cache layer added (Stage 1C). SQLite TTL cache in `pebble/storage/cache.py`.
 - [ ] **Sync LLM calls block event loop** — `harness.execute()` / `execute_task()` are synchronous; server freezes for concurrent users. Wrap in `asyncio.to_thread()` or switch to async Anthropic client. *Address before multi-user testing.*
-- [ ] **OpenCorporates needs API key** — `search_officers()` returns empty without credentials. Missing data source for officer/director info. *Address when credentials are available.*
-- [ ] **Google OAuth not configured** — Frontend requires `REACT_APP_DEV_BYPASS=true` for auth. See `financial_forecasting/OAUTH_SETUP.md` for setup steps. *Address when Google Cloud credentials are set up.*
+- [ ] **OpenCorporates needs API key** — Code ready, cache in place. `search_officers()` returns empty without credentials. *Configure when credentials are available.*
+- [x] **Google OAuth configured** — Set up 2026-03-20. See `tasks/google-oauth-setup.md` (DONE).
 - [ ] **No unit/integration tests** — Zero test coverage for pipeline, data sources, harness. *Address after pipeline behavior is validated and stable — shape tests around real failure modes.*
-- [ ] **Frontend UX gaps** — No research history, minimal error details, no cost display, no failed_agents visibility. *Address after pipeline is working, informed by real usage.*
+- [x] **Frontend UX gaps** — Resolved in Stage 1: research history sidebar, text feedback, download export, stop button, previous feedback display on reopen. Remaining: cost display, failed_agents visibility.
+
+## Pebble Stage 1 Complete (2026-03-20)
+
+- [x] Pebble + Upload pages merged into single tabbed page
+- [x] Stop button with backend cancel checkpoints (cooperative cancellation)
+- [x] Wikipedia full article + infobox parsing (board memberships, career history)
+- [x] Temporal accuracy in LLM prompts (current vs former roles)
+- [x] API response cache layer (SQLite TTL)
+- [x] Markdown export with download button
+- [x] Session history (last 100, right sidebar drawer)
+- [x] Text feedback + display on reopen + trends endpoint
+- See `tasks/pebble-evolution-roadmap.md` for Stages 2-4 (future work)
+- See `tasks/pebble-stage1-issues.md` for known issues and deferred items
 
 ## Future Considerations
 

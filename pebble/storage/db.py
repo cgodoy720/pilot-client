@@ -50,7 +50,44 @@ def init_db() -> None:
                 prospect_id TEXT,
                 created_at TEXT DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS api_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL,
+                lookup_key TEXT NOT NULL,
+                response_json TEXT NOT NULL,
+                created_at TEXT,
+                expires_at TEXT
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_api_cache_source_key
+                ON api_cache(source, lookup_key);
+            CREATE TABLE IF NOT EXISTS research_sessions (
+                id TEXT PRIMARY KEY,
+                contact_id TEXT NOT NULL,
+                profile_json TEXT NOT NULL,
+                cost_usd REAL,
+                prospect_name TEXT,
+                prospect_org TEXT,
+                status TEXT DEFAULT 'completed',
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_sessions_contact ON research_sessions(contact_id);
+            CREATE INDEX IF NOT EXISTS idx_sessions_created ON research_sessions(created_at DESC);
         """)
+        conn.commit()
+
+        # Migrate feedback table — add columns if missing
+        try:
+            conn.execute("ALTER TABLE feedback ADD COLUMN text TEXT")
+        except Exception:
+            pass  # already exists
+        try:
+            conn.execute("ALTER TABLE feedback ADD COLUMN contact_id TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE feedback ADD COLUMN user_id TEXT")
+        except Exception:
+            pass
         conn.commit()
     finally:
         conn.close()
@@ -103,11 +140,76 @@ def get_profile(contact_id: str) -> dict | None:
         conn.close()
 
 
-def save_feedback(claim_id: str, correct: bool) -> None:
+def save_feedback(
+    claim_id: str,
+    correct: bool,
+    text: str | None = None,
+    contact_id: str | None = None,
+    user_id: str | None = None,
+) -> None:
     conn = get_db()
     try:
-        conn.execute("INSERT INTO feedback (claim_id, correct) VALUES (?, ?)", (claim_id, 1 if correct else 0))
+        conn.execute(
+            "INSERT INTO feedback (claim_id, correct, text, contact_id, user_id) VALUES (?, ?, ?, ?, ?)",
+            (claim_id, 1 if correct else 0, text, contact_id, user_id),
+        )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def get_feedback_for_contact(contact_id: str) -> list[dict]:
+    """Return all feedback rows for a contact, newest first."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, claim_id, correct, text, contact_id, user_id, created_at "
+            "FROM feedback WHERE contact_id = ? ORDER BY created_at DESC",
+            (contact_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_feedback_trends(days: int = 30) -> dict:
+    """Return feedback trend stats over the last N days."""
+    conn = get_db()
+    try:
+        cutoff = f"-{days} days"
+        # Overall counts
+        row = conn.execute(
+            "SELECT COUNT(*) AS total, "
+            "SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct_count, "
+            "SUM(CASE WHEN correct = 0 THEN 1 ELSE 0 END) AS incorrect_count "
+            "FROM feedback WHERE created_at >= datetime('now', ?)",
+            (cutoff,),
+        ).fetchone()
+        total = row["total"] or 0
+        correct_count = row["correct_count"] or 0
+        incorrect_count = row["incorrect_count"] or 0
+        correct_pct = round(correct_count / total * 100, 1) if total > 0 else 0.0
+
+        # By contact
+        by_contact_rows = conn.execute(
+            "SELECT contact_id, COUNT(*) AS total, "
+            "SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct_count "
+            "FROM feedback WHERE created_at >= datetime('now', ?) AND contact_id IS NOT NULL "
+            "GROUP BY contact_id ORDER BY total DESC",
+            (cutoff,),
+        ).fetchall()
+        by_contact = [
+            {"contact_id": r["contact_id"], "total": r["total"], "correct_count": r["correct_count"] or 0}
+            for r in by_contact_rows
+        ]
+
+        return {
+            "total": total,
+            "correct_count": correct_count,
+            "incorrect_count": incorrect_count,
+            "correct_pct": correct_pct,
+            "by_contact": by_contact,
+        }
     finally:
         conn.close()
 
@@ -138,5 +240,84 @@ def get_source_reliability(source_name: str) -> float:
             return 1.0  # No history — neutral multiplier (no dampening)
         successes = sum(1 for r in rows if r["outcome"] == "success")
         return successes / len(rows)
+    finally:
+        conn.close()
+
+
+# ── Session History ──
+
+
+def save_session(
+    session_id: str,
+    contact_id: str,
+    profile: dict,
+    prospect_name: str,
+    prospect_org: str,
+    cost_usd: float | None = None,
+    status: str = "completed",
+) -> None:
+    """Insert a research session record."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO research_sessions
+               (id, contact_id, profile_json, cost_usd, prospect_name, prospect_org, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, contact_id, json.dumps(profile), cost_usd, prospect_name, prospect_org, status),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_recent_sessions(limit: int = 100) -> list[dict]:
+    """Return recent research sessions ordered by created_at DESC.
+
+    Each dict contains: id, contact_id, prospect_name, prospect_org,
+    status, claims_count, confidence_score, created_at.
+    """
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT id, contact_id, prospect_name, prospect_org, status,
+                      profile_json, created_at
+               FROM research_sessions
+               ORDER BY created_at DESC
+               LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        results = []
+        for r in rows:
+            profile = json.loads(r["profile_json"])
+            results.append({
+                "id": r["id"],
+                "contact_id": r["contact_id"],
+                "prospect_name": r["prospect_name"],
+                "prospect_org": r["prospect_org"],
+                "status": r["status"],
+                "claims_count": len(profile.get("claims", [])),
+                "confidence_score": profile.get("confidence_score", "unknown"),
+                "created_at": r["created_at"],
+            })
+        return results
+    finally:
+        conn.close()
+
+
+def get_session(session_id: str) -> dict | None:
+    """Return a full session record including profile_json (parsed)."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """SELECT id, contact_id, profile_json, cost_usd,
+                      prospect_name, prospect_org, status, created_at
+               FROM research_sessions WHERE id = ?""",
+            (session_id,),
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["profile"] = json.loads(result.pop("profile_json"))
+        return result
     finally:
         conn.close()

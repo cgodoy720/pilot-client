@@ -9,6 +9,7 @@ class Claim(BaseModel):
     text: str
     source_url: str = Field(..., description="Required. Every claim must have a source URL.")
     confidence: str = Field(default="medium", pattern="^(high|medium|low)$")
+    temporal_status: str = Field(default="unknown", pattern="^(current|former|unknown)$")
 
 
 class Profile(BaseModel):
@@ -37,6 +38,13 @@ class ResearchRequest(BaseModel):
 
     contact_ids: list[str] = Field(..., min_length=1)
     prospects: list[ProspectInput] | None = None  # Optional; if not provided, use contact_ids as stub IDs
+    job_id: str | None = None  # Client-generated UUID for cancellation support
+
+
+class CancelRequest(BaseModel):
+    """Request body for POST /api/v1/research/cancel."""
+
+    job_id: str
 
 
 class ResearchFeedback(BaseModel):
@@ -44,3 +52,5 @@ class ResearchFeedback(BaseModel):
 
     claim_id: str
     correct: bool
+    text: str | None = None
+    contact_id: str | None = None

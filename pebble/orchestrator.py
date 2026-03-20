@@ -281,6 +281,8 @@ Output JSON: {{"verified_claims": [{{"text", "source_url", "confidence"}}]}}
         "capacity indicators over individual transaction records. "
         'Claims tagged origin:"forager" are cross-referenced analytical findings — weight these heavily. '
         'Claims tagged origin:"template" are raw data points from public databases. '
+        "Always distinguish current from former positions. Never state someone 'serves as' a role "
+        "unless evidence shows the position is active. Use 'formerly served as' for past positions. "
         "Output valid JSON only, no markdown fences."
     )
 
@@ -415,13 +417,25 @@ async def activate_foragers(
             name = f"{prospect.get('first_name', '')}_{prospect.get('last_name', '')}".strip("_")
             source_urls.append(f"https://en.wikipedia.org/wiki/{name}")
 
+        # Build enriched wiki context for philanthropy agent
+        wiki_raw = data_results.get("wiki_data")
+        wiki_for_agent = None
+        if wiki_raw and isinstance(wiki_raw, dict):
+            wiki_for_agent = {
+                "extract": wiki_raw.get("extract", ""),
+                "full_text": wiki_raw.get("full_text", "")[:3000],
+                "infobox": wiki_raw.get("infobox", {}),
+                "board_memberships": wiki_raw.get("board_memberships", []),
+                "career_history": wiki_raw.get("career_history", []),
+            }
+
         spec = TaskSpec(
             agent_name="philanthropy_agent",
             data={
                 "prospect": prospect,
                 "propublica_data": data_results.get("propublica_data"),
                 "edgar_data": data_results.get("edgar_data", []),
-                "wiki_data": data_results.get("wiki_data"),
+                "wiki_data": wiki_for_agent,
             },
             source_urls=source_urls,
         )
@@ -582,6 +596,8 @@ def synthesize_profile(
         "capacity indicators over individual transaction records. "
         'Claims tagged origin:"forager" are cross-referenced analytical findings — weight these heavily. '
         'Claims tagged origin:"template" are raw data points from public databases. '
+        "Always distinguish current from former positions. Never state someone 'serves as' a role "
+        "unless evidence shows the position is active. Use 'formerly served as' for past positions. "
         "Output valid JSON only, no markdown fences."
     )
 
