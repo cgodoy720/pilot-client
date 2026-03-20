@@ -415,7 +415,8 @@ function EnrollmentsTab({ token, setLoading }) {
           cohort_id: destinationCohortId,
           enrolled_date: bulkFormData.enrolled_date,
           status: bulkFormData.status,
-          is_active: bulkFormData.is_active
+          is_active: bulkFormData.is_active,
+          source_cohort_id: sourceCohortId
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );

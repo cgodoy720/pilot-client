@@ -452,6 +452,7 @@ describe('EnrollmentsTab — Bulk Add Enrollments', () => {
             cohort_id: '3',
             status: 'in_progress',
             is_active: false,
+            source_cohort_id: '1',
           }),
           expect.objectContaining({
             headers: { Authorization: `Bearer ${mockToken}` },
