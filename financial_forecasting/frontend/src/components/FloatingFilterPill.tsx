@@ -9,7 +9,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { CalendarToday as CalendarIcon } from '@mui/icons-material';
+import { Tune as FilterIcon } from '@mui/icons-material';
 import DateRangeSelector, { type DateRangeValue } from './DateRangeSelector';
 
 type Edge = 'left' | 'right' | 'top' | 'bottom';
@@ -90,6 +90,7 @@ const FloatingFilterPill: React.FC<FloatingFilterPillProps> = ({
   const pillRef = useRef<HTMLDivElement>(null);
 
   const pos = position || DEFAULT_POSITION;
+  const isFiltering = snapshotMode !== 'all' || dateRange.preset !== 'all';
   const [coords, setCoords] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -210,7 +211,7 @@ const FloatingFilterPill: React.FC<FloatingFilterPillProps> = ({
     <>
       <Chip
         ref={pillRef}
-        icon={<CalendarIcon sx={{ fontSize: 16 }} />}
+        icon={<FilterIcon sx={{ fontSize: 16, color: isFiltering ? 'primary.main' : 'grey.600' }} />}
         label={label}
         onClick={isMobile ? () => setPopoverOpen((p) => !p) : undefined}
         onPointerDown={!isMobile ? handlePointerDown : undefined}
@@ -218,11 +219,12 @@ const FloatingFilterPill: React.FC<FloatingFilterPillProps> = ({
         onPointerUp={!isMobile ? handlePointerUp : undefined}
         sx={{
           ...pillSx,
+          minWidth: 140,
           maxWidth: 220,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
           bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
+          border: '1.5px solid',
+          borderColor: isFiltering ? 'primary.main' : 'grey.400',
           fontWeight: 500,
           fontSize: '0.8rem',
           '& .MuiChip-label': {
