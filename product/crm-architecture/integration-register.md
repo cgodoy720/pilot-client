@@ -239,7 +239,7 @@ Pebble uses Claude; Bedrock does not call Claude directly for research. Claude i
 
 **Owner:** Engineering (Bedrock client); Pebble team (API).
 
-**Current state:** Not started. Contract defined in Pebble–Bedrock Integration Architecture plan. Env vars: `PEBBLE_API_URL`, `PEBBLE_API_KEY`.
+**Current state (updated 2026-03-20):** MVP live. Pebble runs on port 8001 with 9 data sources (ProPublica 990, SEC EDGAR, FEC, USAspending, Wikipedia full article + infobox, OpenCorporates). Stage 1 additions: session history (`GET /api/v1/research/history`), text feedback with trends (`GET /api/v1/research/feedback/{contact_id}`), markdown export (`GET /api/v1/research/profiles/{id}/export`), cooperative job cancellation (`POST /api/v1/research/cancel`). See `tasks/pebble-evolution-roadmap.md` for Stages 2-4.
 
 **PII constraint:** Bedrock sends minimal context (contact_id, name, org). Pebble pulls 990/SEC/FEC etc. itself. PII never through OpenRouter or prompt-logging APIs; Pebble uses Anthropic direct + local Ollama.
 

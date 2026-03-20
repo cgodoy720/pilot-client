@@ -1,9 +1,11 @@
 # Pebble MVP — 1-Week Sprint Plan
 
-**Version:** 1.1  
-**Date:** March 18, 2026  
-**Status:** Ready for implementation  
+**Version:** 1.1
+**Date:** March 18, 2026
+**Status:** MVP complete; Stage 1 enhancements shipped 2026-03-20
 **Scaffolding:** MVP → v2 path defined
+
+> **Note (2026-03-20):** This is the original Pebble MVP sprint spec. It documents the design decisions and constraints that shaped the current system. Stage 1 enhancements (Wikipedia full article parsing, temporal accuracy, session history, feedback, export, stop button) are now complete. For the full 4-stage evolution plan (Stages 2-4 are future work), see `tasks/pebble-evolution-roadmap.md`.
 
 ---
 

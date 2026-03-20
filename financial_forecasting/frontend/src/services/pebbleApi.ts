@@ -31,6 +31,7 @@ export interface ProspectInput {
 export interface ResearchRequest {
   contact_ids: string[];
   prospects?: ProspectInput[];
+  job_id?: string;
 }
 
 export interface Claim {
@@ -48,14 +49,64 @@ export interface Profile {
 }
 
 export const pebbleService = {
-  requestResearch: (body: ResearchRequest) =>
-    pebbleApi.post('/api/v1/research/request', body),
+  requestResearch: (body: ResearchRequest, signal?: AbortSignal) =>
+    pebbleApi.post('/api/v1/research/request', body, { signal }),
+
+  cancelResearch: (jobId: string) =>
+    pebbleApi.post('/api/v1/research/cancel', { job_id: jobId }),
 
   getProfile: (contactId: string) =>
     pebbleApi.get<{ profile: Profile | null }>(`/api/v1/research/profiles/${contactId}`),
 
-  submitFeedback: (claimId: string, correct: boolean) =>
-    pebbleApi.post('/api/v1/research/feedback', { claim_id: claimId, correct }),
+  submitFeedback: (claimId: string, correct: boolean, text?: string, contactId?: string) =>
+    pebbleApi.post('/api/v1/research/feedback', { claim_id: claimId, correct, text: text || null, contact_id: contactId || null }),
+
+  getContactFeedback: (contactId: string) =>
+    pebbleApi.get<{ feedback: Array<{ id: number; claim_id: string; correct: number; text: string | null; contact_id: string; created_at: string }> }>(
+      `/api/v1/research/feedback/${contactId}`,
+    ),
+
+  getFeedbackTrends: (days?: number) =>
+    pebbleApi.get<{ total: number; correct_count: number; incorrect_count: number; correct_pct: number; by_contact: Array<{ contact_id: string; total: number; correct_count: number }> }>(
+      '/api/v1/research/feedback/trends',
+      { params: { days } },
+    ),
+
+  exportProfile: (contactId: string, format: string = 'md') =>
+    pebbleApi.get(`/api/v1/research/profiles/${contactId}/export`, {
+      params: { format },
+      responseType: 'blob',
+    }),
+
+  getHistory: (limit: number = 100) =>
+    pebbleApi.get<{ sessions: ResearchSession[] }>('/api/v1/research/history', {
+      params: { limit },
+    }),
+
+  getSession: (sessionId: string) =>
+    pebbleApi.get<ResearchSessionDetail>(`/api/v1/research/history/${sessionId}`),
 
   health: () => pebbleApi.get('/health'),
 };
+
+export interface ResearchSession {
+  id: string;
+  contact_id: string;
+  prospect_name: string;
+  prospect_org: string;
+  status: string;
+  claims_count: number;
+  confidence_score: string;
+  created_at: string;
+}
+
+export interface ResearchSessionDetail {
+  id: string;
+  contact_id: string;
+  profile: Profile;
+  cost_usd: number | null;
+  prospect_name: string;
+  prospect_org: string;
+  status: string;
+  created_at: string;
+}

@@ -97,7 +97,11 @@ def _tpl_extractor(data: dict, source_urls: list[str]) -> tuple[str, str]:
         f'{{"claims": [{{"text": "...", "source_url": "https://...", "confidence": "high|medium|low"}}]}}\n\n'
         f"Use these source URLs: {', '.join(source_urls[:5])}"
     )
-    system = "You extract factual claims. Every claim must have source_url. Output valid JSON only, no markdown fences."
+    system = (
+        "You extract factual claims. Every claim must have source_url. Output valid JSON only, no markdown fences. "
+        "Distinguish current vs past roles. If a date range indicates a position ended, mark it as 'former'. "
+        "Use present tense only for clearly active positions."
+    )
     return prompt, system
 
 
@@ -130,7 +134,8 @@ def _tpl_wealth(data: dict, source_urls: list[str]) -> tuple[str, str]:
     system = (
         "You are a wealth analysis specialist. Analyze financial signals to produce claims about "
         "giving capacity, wealth indicators, and financial connections. "
-        "Every claim must have a source_url. Output valid JSON only, no markdown fences."
+        "Every claim must have a source_url. Output valid JSON only, no markdown fences. "
+        "For FEC contributions, note the most recent contribution date and whether giving is ongoing or historical."
     )
     return prompt, system
 
@@ -158,7 +163,9 @@ def _tpl_philanthropy(data: dict, source_urls: list[str]) -> tuple[str, str]:
     system = (
         "You are a philanthropy research specialist. Analyze nonprofit data and biographical info "
         "to produce claims about philanthropic activity, board service, and nonprofit affiliations. "
-        "Every claim must have a source_url. Output valid JSON only, no markdown fences."
+        "Every claim must have a source_url. Output valid JSON only, no markdown fences. "
+        "When data mentions positions with date ranges, indicate whether they are current or former. "
+        "If no end date is stated and the source uses present tense, mark as current."
     )
     return prompt, system
 

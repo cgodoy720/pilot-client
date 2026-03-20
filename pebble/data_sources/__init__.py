@@ -5,7 +5,7 @@ from .sec import fetch_company
 from .fec import search_contributions
 from .edgar_search import search_filings
 from .usaspending import search_awards
-from .wikipedia import fetch_summary
+from .wikipedia import fetch_summary, fetch_full_profile
 from .opencorporates import search_officers
 
 __all__ = [
@@ -16,5 +16,6 @@ __all__ = [
     "search_filings",
     "search_awards",
     "fetch_summary",
+    "fetch_full_profile",
     "search_officers",
 ]

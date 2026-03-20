@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -12,9 +13,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
-from .schemas import ResearchRequest, ResearchFeedback
-from .storage.db import init_db, save_profile, get_profile, save_feedback
+from .schemas import ResearchRequest, ResearchFeedback, CancelRequest
+from .storage.db import (
+    init_db, save_profile, get_profile, save_feedback,
+    get_feedback_for_contact, get_feedback_trends,
+    save_session, get_recent_sessions, get_session,
+)
+from .export import render_profile_markdown
+
+# Cooperative cancellation: job_ids that should be stopped
+_cancel_flags: set[str] = set()
 
 logger = logging.getLogger("pebble.main")
 
@@ -65,6 +75,19 @@ def _error_response(code: str, message: str, status: int = 400) -> dict:
     return {"success": False, "error": {"code": code, "message": message}}
 
 
+@app.post("/api/v1/research/cancel")
+async def cancel_research(body: CancelRequest):
+    """Cancel a running research job by job_id."""
+    _cancel_flags.add(body.job_id)
+    logger.info("Cancel requested for job %s", body.job_id)
+    return {"ok": True, "job_id": body.job_id}
+
+
+def _is_cancelled(job_id: str | None) -> bool:
+    """Check if a job has been cancelled."""
+    return job_id is not None and job_id in _cancel_flags
+
+
 @app.post("/api/v1/research/request")
 async def research_request(body: ResearchRequest):
     """Accept research request. Runs Stage 1 enrichment when prospects provided."""
@@ -73,6 +96,8 @@ async def research_request(body: ResearchRequest):
 
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY not configured")
+
+    job_id = body.job_id
 
     # Build prospect map from request
     prospect_map = {p.id: p.model_dump() for p in body.prospects}
@@ -99,7 +124,7 @@ async def research_request(body: ResearchRequest):
         search_contributions,
         search_filings,
         search_awards,
-        fetch_summary,
+        fetch_full_profile,
         search_officers,
     )
     from .data_sources.sec import search_cik
@@ -108,12 +133,21 @@ async def research_request(body: ResearchRequest):
         claims_from_usaspending,
         claims_from_opencorporates,
         claims_from_edgar_search,
+        claims_from_wikipedia_infobox,
     )
 
     client = ModelClient()
     results = []
 
+    cancelled = False
+
     for cid in body.contact_ids:
+        # Cancel checkpoint: before starting a new prospect
+        if _is_cancelled(job_id):
+            logger.info("Job %s cancelled before prospect %s", job_id, cid)
+            cancelled = True
+            break
+
         prospect = prospect_map.get(cid, {"id": cid, "first_name": "", "last_name": "", "organization": "", "ein": None, "organizations": None})
         budget = ProspectBudgetTracker(prospect_id=cid)
 
@@ -134,11 +168,17 @@ async def research_request(body: ResearchRequest):
                 asyncio.to_thread(search_contributions, name, 10) if name else _noop(),
                 asyncio.to_thread(search_filings, name) if name else _noop(),
                 asyncio.to_thread(search_awards, name) if name else _noop(),
-                asyncio.to_thread(fetch_summary, name) if name else _noop(),
+                asyncio.to_thread(fetch_full_profile, name) if name else _noop(),
                 asyncio.to_thread(search_officers, name) if name else _noop(),
                 return_exceptions=True,
             )
             ein_orgs, cik_result, fec_data, edgar_data, usa_data, wiki_data, oc_data = [_safe_result(r) for r in phase1]
+
+            # Cancel checkpoint: after data fetches, before dependent fetches
+            if _is_cancelled(job_id):
+                logger.info("Job %s cancelled after phase 1 for %s", job_id, cid)
+                cancelled = True
+                break
 
             # Phase 2: Dependent fetches (need EIN / CIK from phase 1)
             ein = ein or (str(ein_orgs[0]["ein"]) if ein_orgs and ein_orgs[0].get("ein") else None)
@@ -164,6 +204,15 @@ async def research_request(body: ResearchRequest):
             structured_claims.extend(claims_from_usaspending(usa_data or []))
             structured_claims.extend(claims_from_opencorporates(oc_data or []))
             structured_claims.extend(claims_from_edgar_search(edgar_data or []))
+            structured_claims.extend(claims_from_wikipedia_infobox(wiki_data))
+
+            # Cancel checkpoint: before LLM-heavy stages
+            if _is_cancelled(job_id):
+                logger.info("Job %s cancelled before foragers for %s", job_id, cid)
+                save_profile(cid, {"claims": structured_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
+                results.append({"contact_id": cid, "claims_count": len(structured_claims)})
+                cancelled = True
+                break
 
             # Activate specialist foragers (conditional on richness thresholds)
             forager_claims = await activate_foragers(
@@ -191,6 +240,14 @@ async def research_request(body: ResearchRequest):
                 len(llm_claims) - len(structured_claims), len(all_claims),
             )
 
+            # Cancel checkpoint: before verification and synthesis
+            if _is_cancelled(job_id):
+                logger.info("Job %s cancelled before verification for %s", job_id, cid)
+                save_profile(cid, {"claims": all_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
+                results.append({"contact_id": cid, "claims_count": len(all_claims)})
+                cancelled = True
+                break
+
             # URL pre-filter: drop claims with dead source URLs
             if all_claims and not budget.exceeded():
                 all_claims, dropped = await verify_urls(all_claims)
@@ -201,10 +258,30 @@ async def research_request(body: ResearchRequest):
                     )
 
             # Quorum verification (replaces single Opus fact-check)
-            wikipedia_context = wiki_data.get("extract") if wiki_data else None
+            # Build enriched Wikipedia context: full text + infobox summary
+            wikipedia_context = None
+            if wiki_data:
+                parts = []
+                if wiki_data.get("full_text"):
+                    parts.append(wiki_data["full_text"][:3000])
+                elif wiki_data.get("extract"):
+                    parts.append(wiki_data["extract"])
+                infobox = wiki_data.get("infobox", {})
+                if infobox:
+                    infobox_summary = ", ".join(f"{k}: {v}" for k, v in infobox.items())
+                    parts.append(f"Infobox: {infobox_summary}")
+                wikipedia_context = "\n\n".join(parts) if parts else None
             verified_claims = all_claims
             if all_claims and not budget.exceeded():
                 verified_claims = await quorum_verify_claims(all_claims, prospect, client, budget)
+
+            # Cancel checkpoint: before synthesis (most expensive LLM call)
+            if _is_cancelled(job_id):
+                logger.info("Job %s cancelled before synthesis for %s", job_id, cid)
+                save_profile(cid, {"claims": verified_claims, "summary": "", "confidence_score": "medium", "partial": True, "failed_agents": ["cancelled"]})
+                results.append({"contact_id": cid, "claims_count": len(verified_claims)})
+                cancelled = True
+                break
 
             # Synthesis (Opus, with pre-verified origin-tagged claims)
             if verified_claims and not budget.exceeded():
@@ -235,9 +312,63 @@ async def research_request(body: ResearchRequest):
             }
 
         save_profile(cid, profile)
+        # Save session history entry
+        session_status = "cancelled" if _is_cancelled(job_id) else "completed"
+        save_session(
+            session_id=str(uuid.uuid4()),
+            contact_id=cid,
+            profile=profile,
+            prospect_name=name,
+            prospect_org=primary_org or "",
+            cost_usd=budget.total_cost if hasattr(budget, "total_cost") else None,
+            status=session_status,
+        )
         results.append({"contact_id": cid, "claims_count": len(profile["claims"])})
 
-    return {"status": "completed", "contact_ids": body.contact_ids, "results": results}
+    # Clean up cancel flag
+    if job_id:
+        _cancel_flags.discard(job_id)
+
+    status = "cancelled" if cancelled else "completed"
+    return {"status": status, "contact_ids": body.contact_ids, "results": results}
+
+
+@app.get("/api/v1/research/profiles/{contact_id}/export")
+async def export_profile(contact_id: str, format: str = "md"):
+    """Export a research profile as Markdown (or PDF in the future)."""
+    profile = get_profile(contact_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Try to find prospect name/org from the most recent session
+    from .storage.db import get_db
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT prospect_name, prospect_org FROM research_sessions WHERE contact_id = ? ORDER BY created_at DESC LIMIT 1",
+            (contact_id,),
+        ).fetchone()
+        prospect_name = row["prospect_name"] if row else contact_id
+        prospect_org = row["prospect_org"] if row else ""
+    finally:
+        conn.close()
+
+    md_text = render_profile_markdown(profile, prospect_name, prospect_org)
+
+    if format == "pdf":
+        from .export import render_profile_pdf
+        pdf_bytes = render_profile_pdf(md_text)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="profile-{contact_id}.pdf"'},
+        )
+
+    return Response(
+        content=md_text,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="profile-{contact_id}.md"'},
+    )
 
 
 @app.get("/api/v1/research/profiles/{contact_id}")
@@ -252,8 +383,36 @@ async def get_research_profile(contact_id: str):
 @app.post("/api/v1/research/feedback")
 async def research_feedback(body: ResearchFeedback):
     """Store human feedback on a claim."""
-    save_feedback(body.claim_id, body.correct)
+    save_feedback(body.claim_id, body.correct, text=body.text, contact_id=body.contact_id)
     return {"ok": True}
+
+
+@app.get("/api/v1/research/feedback/trends")
+async def feedback_trends(days: int = 30):
+    """Return feedback accuracy trends over the last N days."""
+    return get_feedback_trends(days)
+
+
+@app.get("/api/v1/research/feedback/{contact_id}")
+async def contact_feedback(contact_id: str):
+    """Return all feedback for a contact."""
+    return {"feedback": get_feedback_for_contact(contact_id)}
+
+
+@app.get("/api/v1/research/history")
+async def research_history(limit: int = 100):
+    """Return recent research sessions."""
+    sessions = get_recent_sessions(limit)
+    return {"sessions": sessions}
+
+
+@app.get("/api/v1/research/history/{session_id}")
+async def research_session(session_id: str):
+    """Return a full research session including profile."""
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
 
 
 @app.get("/health")
