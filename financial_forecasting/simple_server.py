@@ -703,6 +703,15 @@ async def get_current_user(request: Request) -> Optional[Dict]:
         return None
     return verify_token(token)
 
+
+async def require_auth(request: Request) -> Dict:
+    """Raises 401 if not authenticated."""
+    user = await get_current_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
 # Request/Response Models
 class OpportunityUpdate(BaseModel):
     updates: Dict[str, Any]
@@ -1162,12 +1171,14 @@ async def services_health():
 # Salesforce - Opportunities
 @app.get("/api/salesforce/opportunities")
 async def get_opportunities(
+    request: Request,
     stage: Optional[str] = None,
     record_type: Optional[str] = Query(None, description="Filter by Record Type (e.g., 'Philanthropy')"),
     opp_type: Optional[str] = Query(None, description="Filter by Opportunity Type (e.g., 'PBC')"),
     active_only: Optional[bool] = Query(None, description="Filter by Active_Opportunity__c")
 ):
     """Get ALL Salesforce opportunities with optional filters. Cached for 5 min."""
+    user = await require_auth(request)
     try:
         # Build cache key from filters
         cache_key = f"opps:{stage}:{record_type}:{opp_type}:{active_only}"
@@ -1227,8 +1238,9 @@ async def get_opportunities(
 
 
 @app.get("/api/salesforce/opportunities/stage-history")
-async def get_stage_history(days: int = Query(30, ge=1, le=365)):
+async def get_stage_history(request: Request, days: int = Query(30, ge=1, le=365)):
     """Get StageName changes from OpportunityFieldHistory within the given window."""
+    user = await require_auth(request)
     cache_key = f"stage_history:{days}"
     try:
         cached = cache.get(cache_key)
@@ -1268,8 +1280,9 @@ async def get_stage_history(days: int = Query(30, ge=1, le=365)):
 
 
 @app.post("/api/ai/pipeline-analysis")
-async def ai_pipeline_analysis(payload: Dict[str, Any] = Body(...)):
+async def ai_pipeline_analysis(request: Request, payload: Dict[str, Any] = Body(...)):
     """On-demand AI analysis of pipeline stage changes and funnel health."""
+    user = await require_auth(request)
     if not ANTHROPIC_API_KEY:
         raise HTTPException(status_code=503, detail="AI analysis not configured (missing ANTHROPIC_API_KEY)")
 
@@ -1356,10 +1369,11 @@ Be specific — reference actual stage names, counts, and dollar amounts. Keep e
 
 # Salesforce - Create Opportunity
 @app.post("/api/salesforce/opportunities")
-async def create_opportunity(opportunity_data: Dict[str, Any], request: Request = None):
+async def create_opportunity(opportunity_data: Dict[str, Any], request: Request):
     """Create a new Salesforce opportunity. Uses per-user SF connection when available."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         
         # Create the opportunity
         result = sf.Opportunity.create(opportunity_data)
@@ -1384,10 +1398,11 @@ async def create_opportunity(opportunity_data: Dict[str, Any], request: Request 
 
 # IMPORTANT: Bulk update must come BEFORE the {opportunity_id} route
 @app.put("/api/salesforce/opportunities/bulk-update")
-async def bulk_update_opportunities(body: dict, request: Request = None):
+async def bulk_update_opportunities(body: dict, request: Request):
     """Bulk update multiple Salesforce opportunities at once. Uses per-user SF connection."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         
         opp_ids = body.get('opportunity_ids', [])
         updates = body.get('updates', {})
@@ -1427,10 +1442,11 @@ async def bulk_update_opportunities(body: dict, request: Request = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/salesforce/opportunities/{opportunity_id}")
-async def update_opportunity(opportunity_id: str, update_request: OpportunityUpdate, request: Request = None):
+async def update_opportunity(opportunity_id: str, update_request: OpportunityUpdate, request: Request):
     """Update a Salesforce opportunity. Uses per-user SF connection."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         
         # Only send the updates to Salesforce (user_id and reason are just for logging)
         # Don't send them to Salesforce as they're not real fields
@@ -1456,8 +1472,9 @@ async def update_opportunity(opportunity_id: str, update_request: OpportunityUpd
 
 # Salesforce - Accounts
 @app.get("/api/salesforce/accounts")
-async def get_accounts():
+async def get_accounts(request: Request):
     """Get ALL Salesforce accounts. Cached for 10 min."""
+    user = await require_auth(request)
     try:
         cached = cache.get("accounts")
         if cached is not None:
@@ -1502,8 +1519,9 @@ async def get_accounts():
 
 # Salesforce - Tasks (linked to Opportunities)
 @app.get("/api/salesforce/opportunities/{opportunity_id}/tasks")
-async def get_opportunity_tasks(opportunity_id: str):
+async def get_opportunity_tasks(opportunity_id: str, request: Request):
     """Get all tasks for a specific opportunity."""
+    user = await require_auth(request)
     try:
         sf = get_salesforce()
         
@@ -1546,10 +1564,11 @@ async def get_opportunity_tasks(opportunity_id: str):
 
 
 @app.post("/api/salesforce/opportunities/{opportunity_id}/tasks")
-async def create_opportunity_task(opportunity_id: str, task_data: dict, request: Request = None):
+async def create_opportunity_task(opportunity_id: str, task_data: dict, request: Request):
     """Create a new task linked to an opportunity. Uses per-user SF connection."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         
         # Build task record
         task_record = {
@@ -1589,10 +1608,11 @@ async def create_opportunity_task(opportunity_id: str, task_data: dict, request:
 
 
 @app.put("/api/salesforce/tasks/{task_id}")
-async def update_task(task_id: str, task_data: dict, request: Request = None):
+async def update_task(task_id: str, task_data: dict, request: Request):
     """Update an existing task. Uses per-user SF connection."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         
         updates = {}
         allowed_fields = ["Subject", "Status", "Priority", "ActivityDate", "Description", "OwnerId"]
@@ -1617,10 +1637,11 @@ async def update_task(task_id: str, task_data: dict, request: Request = None):
 
 
 @app.delete("/api/salesforce/tasks/{task_id}")
-async def delete_task(task_id: str, request: Request = None):
+async def delete_task(task_id: str, request: Request):
     """Delete a task. Uses per-user SF connection."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         result = sf.Task.delete(task_id)
         
         if result == 204:
@@ -1634,11 +1655,13 @@ async def delete_task(task_id: str, request: Request = None):
 
 @app.get("/api/salesforce/my-tasks")
 async def get_my_tasks(
+    request: Request,
     start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(200, le=500),
 ):
     """Get Salesforce Tasks linked to Opportunities, in date range. Used by Priorities page."""
+    user = await require_auth(request)
     try:
         if start and not _re.match(r"^\d{4}-\d{2}-\d{2}$", start):
             raise HTTPException(status_code=400, detail="start must be YYYY-MM-DD")
@@ -1693,8 +1716,9 @@ async def get_my_tasks(
 
 # Salesforce - Users
 @app.get("/api/salesforce/users")
-async def get_users(limit: int = 1000):
+async def get_users(request: Request, limit: int = 1000):
     """Get Salesforce users for autocomplete. Cached for 15 min."""
+    user = await require_auth(request)
     try:
         cache_key = f"users:{limit}"
         cached = cache.get(cache_key)
@@ -1724,8 +1748,9 @@ async def get_users(limit: int = 1000):
 
 # Salesforce - Contacts
 @app.get("/api/salesforce/contacts")
-async def get_contacts(account_id: Optional[str] = None):
+async def get_contacts(request: Request, account_id: Optional[str] = None):
     """Get ALL Salesforce contacts, optionally filtered by account. Cached for 10 min."""
+    user = await require_auth(request)
     try:
         cache_key = f"contacts:{account_id}"
         cached = cache.get(cache_key)
@@ -1759,8 +1784,9 @@ async def get_contacts(account_id: Optional[str] = None):
 
 
 @app.get("/api/salesforce/contact-fields")
-async def get_contact_fields():
+async def get_contact_fields(request: Request):
     """Get all available fields for the Contact object."""
+    user = await require_auth(request)
     try:
         sf = get_salesforce()
         contact_metadata = sf.Contact.describe()
@@ -1782,10 +1808,11 @@ async def get_contact_fields():
 
 
 @app.post("/api/salesforce/accounts")
-async def create_account(account_data: Dict[str, Any], request: Request = None):
+async def create_account(account_data: Dict[str, Any], request: Request):
     """Create a new Salesforce account. Uses per-user SF connection."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         result = sf.Account.create(account_data)
         if result.get('success'):
             cache.invalidate("accounts")  # Clear accounts cache
@@ -1801,10 +1828,11 @@ async def create_account(account_data: Dict[str, Any], request: Request = None):
 
 
 @app.post("/api/salesforce/contacts")
-async def create_contact(contact_data: Dict[str, Any], request: Request = None):
+async def create_contact(contact_data: Dict[str, Any], request: Request):
     """Create a new Salesforce contact. Uses per-user SF connection."""
+    user = await require_auth(request)
     try:
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         result = sf.Contact.create(contact_data)
         if result.get('success'):
             cache.invalidate_prefix("contacts:")  # Clear contacts cache
@@ -1821,8 +1849,9 @@ async def create_contact(contact_data: Dict[str, Any], request: Request = None):
 
 # Forecasting - Dashboard (DEPRECATED - Overview page uses direct queries instead)
 @app.get("/api/forecasting/dashboard")
-async def get_dashboard(date_range_days: int = 90, scenario: str = "realistic"):
+async def get_dashboard(request: Request, date_range_days: int = 90, scenario: str = "realistic"):
     """Get dashboard data with forecasts. DEPRECATED - not used by frontend."""
+    user = await require_auth(request)
     try:
         sf = get_salesforce()
         
@@ -1962,8 +1991,9 @@ async def get_dashboard(date_range_days: int = 90, scenario: str = "realistic"):
 
 # Data Sync
 @app.post("/api/sync/trigger")
-async def trigger_sync(sync_type: str = "all"):
+async def trigger_sync(request: Request, sync_type: str = "all"):
     """Trigger manual data synchronization."""
+    user = await require_auth(request)
     try:
         # For POC, just refresh the Salesforce connection
         global sf_client
@@ -1980,8 +2010,9 @@ async def trigger_sync(sync_type: str = "all"):
 
 # Slack Integration
 @app.get("/api/slack/account-activity/{account_name}")
-async def get_account_slack_activity(account_name: str, limit: int = 50):
+async def get_account_slack_activity(account_name: str, request: Request, limit: int = 50):
     """Get Slack activity related to an account by searching channel history."""
+    user = await require_auth(request)
     try:
         slack = get_slack()
         
@@ -2105,8 +2136,9 @@ async def get_account_slack_activity(account_name: str, limit: int = 50):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/slack/health")
-async def slack_health_check():
+async def slack_health_check(request: Request):
     """Check if Slack integration is configured and working."""
+    user = await require_auth(request)
     try:
         slack_token = os.getenv('SLACK_BOT_TOKEN')
         if not slack_token:
@@ -2130,8 +2162,9 @@ async def slack_health_check():
 
 
 @app.get("/api/slack/channel-messages/{channel_name}")
-async def get_slack_channel_messages(channel_name: str, limit: int = 50):
+async def get_slack_channel_messages(channel_name: str, request: Request, limit: int = 50):
     """Fetch recent messages from a named Slack channel."""
+    user = await require_auth(request)
     try:
         slack = get_slack()
 
@@ -2207,8 +2240,9 @@ async def get_slack_channel_messages(channel_name: str, limit: int = 50):
 
 
 @app.get("/api/slack/pipeline-updates")
-async def get_slack_pipeline_updates(limit: int = 50):
+async def get_slack_pipeline_updates(request: Request, limit: int = 50):
     """Dedicated endpoint for #pipeline-updates channel messages (cached 60s)."""
+    user = await require_auth(request)
     cache_key = f"slack:pipeline-updates:{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -2323,8 +2357,9 @@ async def slack_webhook(payload: SlackWebhookPayload):
 
 
 @app.get("/api/automation-review/pending")
-async def get_pending_reviews():
+async def get_pending_reviews(request: Request):
     """Return all pending automation review items."""
+    user = await require_auth(request)
     pending = [
         item for item in _automation_queue.values() if item["status"] == "pending"
     ]
@@ -2333,16 +2368,18 @@ async def get_pending_reviews():
 
 
 @app.get("/api/automation-review/all")
-async def get_all_reviews():
+async def get_all_reviews(request: Request):
     """Return all automation review items (pending + reviewed)."""
+    user = await require_auth(request)
     items = list(_automation_queue.values())
     items.sort(key=lambda x: x["created_at"], reverse=True)
     return {"items": items, "total": len(items)}
 
 
 @app.post("/api/automation-review/{item_id}/approve")
-async def approve_review(item_id: str, edits: Dict[str, Any] = {}):
+async def approve_review(item_id: str, request: Request, edits: Dict[str, Any] = {}):
     """Approve an automation review item and apply the CRM change."""
+    user = await require_auth(request)
     if item_id not in _automation_queue:
         raise HTTPException(status_code=404, detail="Review item not found")
 
@@ -2364,8 +2401,9 @@ async def approve_review(item_id: str, edits: Dict[str, Any] = {}):
 
 
 @app.post("/api/automation-review/{item_id}/reject")
-async def reject_review(item_id: str, body: Dict[str, Any] = {}):
+async def reject_review(item_id: str, request: Request, body: Dict[str, Any] = {}):
     """Reject an automation review item."""
+    user = await require_auth(request)
     if item_id not in _automation_queue:
         raise HTTPException(status_code=404, detail="Review item not found")
 
@@ -2385,9 +2423,10 @@ _ingested_slack_ts: set = set()
 
 
 @app.post("/api/automation-review/ingest-pipeline")
-async def ingest_pipeline_updates(limit: int = 20):
+async def ingest_pipeline_updates(request: Request, limit: int = 20):
     """Fetch new messages from #pipeline-updates and feed them through
     _parse_crm_message → _automation_queue. Deduplicates by Slack timestamp."""
+    user = await require_auth(request)
     try:
         slack = get_slack()
 
@@ -2485,8 +2524,9 @@ def query_fireflies(query: str, variables: dict = None):
     return response.json()
 
 @app.get("/api/fireflies/account-meetings/{account_name}")
-async def get_account_fireflies_meetings(account_name: str, limit: int = 20):
+async def get_account_fireflies_meetings(account_name: str, request: Request, limit: int = 20):
     """Get Fireflies meeting transcripts related to an account."""
+    user = await require_auth(request)
     try:
         # Get account details from Salesforce for better matching
         sf = get_salesforce()
@@ -2738,8 +2778,9 @@ async def get_account_fireflies_meetings(account_name: str, limit: int = 20):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/fireflies/refresh-cache")
-async def refresh_fireflies_cache():
+async def refresh_fireflies_cache(request: Request):
     """Manually refresh the Fireflies cache (force re-fetch from API)."""
+    user = await require_auth(request)
     global fireflies_cache
     try:
         # Clear cache to force refresh
@@ -2758,8 +2799,9 @@ async def refresh_fireflies_cache():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/fireflies/health")
-async def fireflies_health_check():
+async def fireflies_health_check(request: Request):
     """Check if Fireflies integration is configured and working."""
+    user = await require_auth(request)
     try:
         if not FIREFLIES_API_KEY:
             return {"configured": False, "message": "FIREFLIES_API_KEY not set"}
@@ -2811,8 +2853,9 @@ async def fireflies_health_check():
         return {"configured": True, "connected": False, "error": error_msg}
 
 @app.get("/api/fireflies/recent-meetings")
-async def get_recent_fireflies_meetings(limit: int = 10):
+async def get_recent_fireflies_meetings(request: Request, limit: int = 10):
     """Get recent Fireflies meetings to help identify test accounts."""
+    user = await require_auth(request)
     try:
         if not FIREFLIES_API_KEY:
             raise HTTPException(status_code=503, detail="FIREFLIES_API_KEY not set")
@@ -2890,8 +2933,9 @@ async def get_recent_fireflies_meetings(limit: int = 10):
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.get("/api/fireflies/debug-account/{account_name}")
-async def debug_account_matching(account_name: str):
+async def debug_account_matching(account_name: str, request: Request):
     """Debug endpoint to see ALL meetings and their match scores for an account."""
+    user = await require_auth(request)
     try:
         sf = get_salesforce()
         
@@ -3094,10 +3138,8 @@ def _get_google_credentials(email: str, request: Request = None):
 @app.get("/api/gmail/account-activity/{account_name}")
 async def get_account_gmail_activity(account_name: str, request: Request, limit: int = 20):
     """Search Gmail for recent emails mentioning an account."""
+    user = await require_auth(request)
     try:
-        user = await get_current_user(request)
-        if not user:
-            raise HTTPException(status_code=401, detail="Not authenticated")
 
         email = user.get('email')
         creds = _get_google_credentials(email, request)
@@ -3190,9 +3232,7 @@ async def get_account_gmail_activity(account_name: str, request: Request, limit:
 @app.get("/api/gmail/health")
 async def gmail_health_check(request: Request):
     """Check Gmail integration status for the current user."""
-    user = await get_current_user(request)
-    if not user:
-        return {"configured": False, "message": "Not authenticated"}
+    user = await require_auth(request)
     email = user.get('email')
     tokens = _google_tokens.get(email)
     return {
@@ -3208,10 +3248,8 @@ async def gmail_health_check(request: Request):
 @app.get("/api/calendar/account-activity/{account_name}")
 async def get_account_calendar_activity(account_name: str, request: Request, limit: int = 20):
     """Search Google Calendar for events related to an account."""
+    user = await require_auth(request)
     try:
-        user = await get_current_user(request)
-        if not user:
-            raise HTTPException(status_code=401, detail="Not authenticated")
 
         email = user.get('email')
         creds = _get_google_credentials(email, request)
@@ -3366,6 +3404,7 @@ async def get_my_calendar_events(
     calendar_id: str = None,
 ):
     """Get calendar events for the current user from the PBD shared calendar only."""
+    user = await require_auth(request)
     # Restrict to PBD calendar only — block personal and arbitrary calendar IDs
     if not calendar_id or calendar_id == "primary" or calendar_id != PBD_CALENDAR_ID:
         return {
@@ -3375,9 +3414,6 @@ async def get_my_calendar_events(
         }
 
     try:
-        user = await get_current_user(request)
-        if not user:
-            raise HTTPException(status_code=401, detail="Not authenticated")
 
         email = user.get("email")
         creds = _get_google_credentials(email, request)
@@ -3454,9 +3490,7 @@ async def get_my_calendar_events(
 @app.get("/api/calendar/health")
 async def calendar_health_check(request: Request):
     """Check Calendar integration status."""
-    user = await get_current_user(request)
-    if not user:
-        return {"configured": False, "message": "Not authenticated"}
+    user = await require_auth(request)
     email = user.get('email')
     tokens = _google_tokens.get(email)
     return {
@@ -3472,10 +3506,8 @@ async def calendar_health_check(request: Request):
 @app.get("/api/drive/account-activity/{account_name}")
 async def get_account_drive_activity(account_name: str, request: Request, limit: int = 20, opportunity_name: str = None):
     """Search Google Drive for files related to an account."""
+    user = await require_auth(request)
     try:
-        user = await get_current_user(request)
-        if not user:
-            raise HTTPException(status_code=401, detail="Not authenticated")
 
         email = user.get('email')
         creds = _get_google_credentials(email, request)
@@ -3625,9 +3657,7 @@ async def get_account_drive_activity(account_name: str, request: Request, limit:
 @app.get("/api/drive/health")
 async def drive_health_check(request: Request):
     """Check Drive integration status."""
-    user = await get_current_user(request)
-    if not user:
-        return {"configured": False, "message": "Not authenticated"}
+    user = await require_auth(request)
     email = user.get('email')
     tokens = _google_tokens.get(email)
     return {
@@ -4277,10 +4307,8 @@ async def get_activity_intelligence(
 ):
     """AI-powered activity intelligence with 24h server-side cache.
     Pass ?force_refresh=true to regenerate. Pass ?opportunity_name=X to scope to a specific opp."""
+    user = await require_auth(request)
     try:
-        user = await get_current_user(request)
-        if not user:
-            raise HTTPException(status_code=401, detail="Not authenticated")
 
         if not ANTHROPIC_API_KEY:
             raise HTTPException(status_code=503, detail="Anthropic API key not configured")
@@ -4490,8 +4518,9 @@ class InvoiceMatchRequest(BaseModel):
 
 
 @app.get("/api/matching/grant-invoices")
-async def get_grant_invoices():
+async def get_grant_invoices(request: Request):
     """Get nonprofit grant invoices for matching."""
+    user = await require_auth(request)
     try:
         import os
         from datetime import datetime
@@ -4542,13 +4571,15 @@ async def get_grant_invoices():
 
 @app.get("/api/matching/search-opportunities")
 async def search_opportunities(
-    q: str = "", 
+    request: Request,
+    q: str = "",
     limit: int = 20,
     customer_name: str = Query(None),
     invoice_amount: float = Query(None),
     invoice_date: str = Query(None)
 ):
     """Search Salesforce opportunities by name or account with smart matching."""
+    user = await require_auth(request)
     try:
         from difflib import SequenceMatcher
         from datetime import datetime, timedelta
@@ -4685,8 +4716,9 @@ async def search_opportunities(
 
 
 @app.get("/api/matching/matches")
-async def get_invoice_matches():
+async def get_invoice_matches(request: Request):
     """Get saved invoice-opportunity matches."""
+    user = await require_auth(request)
     try:
         import json
         import os
@@ -4710,8 +4742,9 @@ async def get_invoice_matches():
 
 
 @app.post("/api/matching/save-match")
-async def save_invoice_match(match_request: InvoiceMatchRequest):
+async def save_invoice_match(match_request: InvoiceMatchRequest, request: Request):
     """Save an invoice-opportunity match."""
+    user = await require_auth(request)
     try:
         import json
         import os
@@ -4756,8 +4789,9 @@ async def save_invoice_match(match_request: InvoiceMatchRequest):
 
 
 @app.delete("/api/matching/delete-match/{invoice_id}")
-async def delete_invoice_match(invoice_id: str):
+async def delete_invoice_match(invoice_id: str, request: Request):
     """Delete an invoice-opportunity match."""
+    user = await require_auth(request)
     try:
         import json
         import os
@@ -4795,7 +4829,7 @@ async def delete_invoice_match(invoice_id: str):
 # ============================================================================
 
 @app.get("/api/finance/awaiting-invoices")
-async def get_awaiting_invoices():
+async def get_awaiting_invoices(request: Request):
     """Get payments that are ready to be invoiced.
     
     Returns individual payment records (not opportunities) that:
@@ -4803,9 +4837,10 @@ async def get_awaiting_invoices():
     - Don't have an invoice yet (Invoice__c is null)
     - Aren't marked as paid yet
     """
+    user = await require_auth(request)
     try:
         sf = get_salesforce()
-        
+
         # Query for payments that need invoices
         query = f"""
         SELECT Id, npe01__Payment_Amount__c, npe01__Scheduled_Date__c, npe01__Paid__c,
@@ -4861,12 +4896,13 @@ class CreateInvoiceRequest(BaseModel):
 
 
 @app.post("/api/finance/create-invoice")
-async def create_sage_invoice(request: CreateInvoiceRequest):
+async def create_sage_invoice(request: CreateInvoiceRequest, http_request: Request):
     """Create invoice in Sage Intacct from a Salesforce payment record.
-    
-    NOTE: This is a simplified version for demo. 
+
+    NOTE: This is a simplified version for demo.
     For full production, we'd integrate with Sage Intacct API.
     """
+    user = await require_auth(http_request)
     try:
         sf = get_salesforce()
         payment_id = request.payment_id
@@ -5107,11 +5143,12 @@ def sync_invoice_payments_from_sage():
 
 
 @app.post("/api/finance/sync-payments")
-async def manual_sync_payments():
+async def manual_sync_payments(request: Request):
     """
     Manually trigger the Sage → Salesforce payment sync.
     Useful for testing or forcing an immediate sync.
     """
+    user = await require_auth(request)
     result = sync_invoice_payments_from_sage()
     return result
 
@@ -5121,12 +5158,15 @@ async def manual_sync_payments():
 # ============================================================================
 
 @app.get("/api/sage/customers")
-async def get_sage_customers():
+async def get_sage_customers(request: Request):
     """Get Sage Intacct customers for invoice creation.
-    
+
     Uses the pre-exported grant invoices CSV to get list of grant customers.
     This is more reliable than querying Sage API with pagination issues.
     """
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import csv
         
@@ -5174,8 +5214,11 @@ async def get_sage_customers():
 
 
 @app.get("/api/sage/gl-accounts")
-async def get_sage_gl_accounts():
+async def get_sage_gl_accounts(request: Request):
     """Get Sage Intacct GL accounts for invoice line items."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5240,8 +5283,11 @@ async def get_sage_gl_accounts():
 
 
 @app.get("/api/sage/departments")
-async def get_sage_departments():
+async def get_sage_departments(request: Request):
     """Get Sage Intacct departments."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5305,8 +5351,11 @@ async def get_sage_departments():
 
 
 @app.get("/api/sage/classes")
-async def get_sage_classes():
+async def get_sage_classes(request: Request):
     """Get Sage Intacct classes."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5370,8 +5419,11 @@ async def get_sage_classes():
 
 
 @app.get("/api/sage/locations")
-async def get_sage_locations():
+async def get_sage_locations(request: Request):
     """Get Sage Intacct locations."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5435,8 +5487,11 @@ async def get_sage_locations():
 
 
 @app.get("/api/sage/payments")
-async def get_sage_payments(limit: int = 1000):
+async def get_sage_payments(request: Request, limit: int = 1000):
     """Get payment transactions from Sage Intacct."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5491,8 +5546,11 @@ async def get_sage_payments(limit: int = 1000):
 
 
 @app.get("/api/sage/invoices")
-async def get_sage_invoices(limit: int = 1000):
+async def get_sage_invoices(request: Request, limit: int = 1000):
     """Get AR invoices from Sage Intacct."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5547,8 +5605,11 @@ async def get_sage_invoices(limit: int = 1000):
 
 
 @app.get("/api/sage/expenses")
-async def get_sage_expenses(limit: int = 1000):
+async def get_sage_expenses(request: Request, limit: int = 1000):
     """Get expense transactions from Sage Intacct (AP bills)."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5603,8 +5664,11 @@ async def get_sage_expenses(limit: int = 1000):
 
 
 @app.get("/api/sage/unpaid-bills")
-async def get_sage_unpaid_bills(limit: int = 500):
+async def get_sage_unpaid_bills(request: Request, limit: int = 500):
     """Get AP bills from Sage Intacct that haven't been fully paid yet."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os as _os
@@ -5661,8 +5725,11 @@ async def get_sage_unpaid_bills(limit: int = 500):
 
 
 @app.get("/api/sage/gl-accounts-balance")
-async def get_sage_gl_accounts_balance():
+async def get_sage_gl_accounts_balance(request: Request):
     """Get GL account balances from Sage Intacct (cash accounts)."""
+    user = await require_auth(request)
+    if not SAGE_ENABLED:
+        raise HTTPException(status_code=503, detail="Sage integration is disabled. Set SAGE_ENABLED=true in .env to enable.")
     try:
         import sys
         import os
@@ -5717,13 +5784,14 @@ async def get_sage_gl_accounts_balance():
 
 
 @app.get("/api/cashflow/summary")
-async def get_cashflow_summary():
+async def get_cashflow_summary(request: Request):
     """
     Comprehensive cash flow summary combining:
     - Sage Intacct: payments, invoices, expenses, cash balances
     - Salesforce: pipeline forecast (weighted by probability and payment dates)
     Cached for 10 minutes.
     """
+    user = await require_auth(request)
     try:
         cached = cache.get("cashflow_summary")
         if cached is not None:
@@ -6149,10 +6217,11 @@ async def get_cashflow_summary():
 # ============================================================================
 
 @app.post("/api/opportunities/validate-stage-change")
-async def validate_stage_change(request: dict, http_request: Request = None):
+async def validate_stage_change(request: dict, http_request: Request):
     """Validate that opportunity can move to 'Collecting / In Effect'."""
+    user = await require_auth(http_request)
     try:
-        sf = get_salesforce_for_request(http_request) if http_request else get_salesforce()
+        sf = get_salesforce_for_request(http_request)
         opp_id = request.get('opportunity_id')
         new_stage = request.get('new_stage')
         
@@ -6226,8 +6295,9 @@ async def validate_stage_change(request: dict, http_request: Request = None):
 
 
 @app.get("/api/opportunities/{opportunity_id}/payment-schedule")
-async def get_payment_schedule(opportunity_id: str):
+async def get_payment_schedule(opportunity_id: str, request: Request):
     """Get payment schedule for an opportunity."""
+    user = await require_auth(request)
     try:
         sf = get_salesforce()
         
@@ -6294,10 +6364,11 @@ class CreatePaymentScheduleRequest(BaseModel):
 
 
 @app.post("/api/opportunities/create-payment-schedule")
-async def create_payment_schedule(request: CreatePaymentScheduleRequest, http_request: Request = None):
+async def create_payment_schedule(request: CreatePaymentScheduleRequest, http_request: Request):
     """Create payment schedule for an opportunity. Uses per-user SF connection."""
+    user = await require_auth(http_request)
     try:
-        sf = get_salesforce_for_request(http_request) if http_request else get_salesforce()
+        sf = get_salesforce_for_request(http_request)
         opp_id = request.opportunity_id
         
         # Get opportunity
@@ -6378,10 +6449,11 @@ async def create_payment_schedule(request: CreatePaymentScheduleRequest, http_re
 
 
 @app.post("/api/opportunities/update-stage")
-async def update_opportunity_stage(request: dict, http_request: Request = None):
+async def update_opportunity_stage(request: dict, http_request: Request):
     """Update opportunity stage with validation. Uses per-user SF connection."""
+    user = await require_auth(http_request)
     try:
-        sf = get_salesforce_for_request(http_request) if http_request else get_salesforce()
+        sf = get_salesforce_for_request(http_request)
         opp_id = request.get('opportunity_id')
         new_stage = request.get('new_stage')
         
@@ -6444,8 +6516,9 @@ class ProspectImportParseRequest(BaseModel):
     filename: str = "import.csv"
 
 @app.post("/api/prospect-import/preview")
-async def prospect_import_preview(req: ProspectImportPreviewRequest):
+async def prospect_import_preview(req: ProspectImportPreviewRequest, request: Request):
     """Parse CSV and return headers + first 20 rows for column mapping."""
+    user = await require_auth(request)
     try:
         from prospect_import.parser import preview_csv
         result = preview_csv(req.csv_text, max_rows=20)
@@ -6454,8 +6527,9 @@ async def prospect_import_preview(req: ProspectImportPreviewRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/prospect-import/parse")
-async def prospect_import_parse(req: ProspectImportParseRequest):
+async def prospect_import_parse(req: ProspectImportParseRequest, request: Request):
     """Parse CSV with column mapping, normalize, and save to SQLite."""
+    user = await require_auth(request)
     try:
         from prospect_import.db import init_db, create_import_session, save_raw_rows, normalize_and_save
         from prospect_import.parser import parse_csv_with_mapping
@@ -6483,8 +6557,9 @@ async def prospect_import_parse(req: ProspectImportParseRequest):
         raise HTTPException(status_code=400, detail={"error": str(e), "traceback": traceback.format_exc()})
 
 @app.get("/api/prospect-import/persons")
-async def prospect_import_get_persons(session_id: Optional[str] = None):
+async def prospect_import_get_persons(request: Request, session_id: Optional[str] = None):
     """Get normalized persons with affiliations."""
+    user = await require_auth(request)
     try:
         from prospect_import.db import get_persons_with_affiliations
         persons = get_persons_with_affiliations(session_id)
@@ -6496,11 +6571,12 @@ class ProspectImportWriteToCrmRequest(BaseModel):
     session_id: Optional[str] = None
 
 @app.post("/api/prospect-import/write-to-crm")
-async def prospect_import_write_to_crm(req: ProspectImportWriteToCrmRequest, request: Request = None):
+async def prospect_import_write_to_crm(req: ProspectImportWriteToCrmRequest, request: Request):
     """Write normalized persons and organizations to Salesforce (Contact, Account)."""
+    user = await require_auth(request)
     try:
         from prospect_import.db import get_persons_with_affiliations
-        sf = get_salesforce_for_request(request) if request else get_salesforce()
+        sf = get_salesforce_for_request(request)
         persons = get_persons_with_affiliations(req.session_id)
         accounts_by_name: Dict[str, str] = {}
         created_accounts = 0
