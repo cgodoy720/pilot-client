@@ -37,6 +37,8 @@ const emptyCohortForm = {
   name: '',
   start_date: '',
   end_date: '',
+  cutoff_date: '',
+  onboarding_date: '',
   description: '',
   contact_name: '',
   contact_email: '',
@@ -235,6 +237,8 @@ function CohortsTab({ token, setLoading }) {
       name: cohort.name || '',
       start_date: cohort.start_date ? cohort.start_date.split('T')[0] : '',
       end_date: cohort.end_date ? cohort.end_date.split('T')[0] : '',
+      cutoff_date: cohort.cutoff_date ? cohort.cutoff_date.split('T')[0] : '',
+      onboarding_date: cohort.onboarding_date ? cohort.onboarding_date.split('T')[0] : '',
       description: cohort.description || '',
       contact_name: cohort.contact_name || '',
       contact_email: cohort.contact_email || '',
@@ -868,6 +872,29 @@ function CohortsTab({ token, setLoading }) {
                     type="date"
                     value={cohortForm.end_date}
                     onChange={(e) => setCohortForm(prev => ({ ...prev, end_date: e.target.value }))}
+                    className="font-proxima"
+                  />
+                </div>
+              </div>
+
+              {/* Cutoff Date and Onboarding Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-proxima">Application Cutoff Date</Label>
+                  <Input
+                    type="date"
+                    value={cohortForm.cutoff_date}
+                    onChange={(e) => setCohortForm(prev => ({ ...prev, cutoff_date: e.target.value }))}
+                    className="font-proxima"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Deadline for applications. Defaults to start date if empty.</p>
+                </div>
+                <div>
+                  <Label className="font-proxima">Onboarding Date</Label>
+                  <Input
+                    type="date"
+                    value={cohortForm.onboarding_date}
+                    onChange={(e) => setCohortForm(prev => ({ ...prev, onboarding_date: e.target.value }))}
                     className="font-proxima"
                   />
                 </div>

@@ -967,7 +967,10 @@ const ApplicationsTab = ({
         {/* Cohort Filter */}
         <Select
           value={applicationFilters.cohort_id || '_all'}
-          onValueChange={(value) => handleFilterChange('cohort_id', value === '_all' ? '' : value)}
+          onValueChange={(value) => {
+            setApplicationFilters(prev => ({ ...prev, cohort_id: value === '_all' ? '' : value, offset: 0 }));
+            onPageChange(1);
+          }}
         >
           <SelectTrigger className="w-[200px] bg-white font-proxima">
             <SelectValue placeholder="Cohort: All Time" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, ChevronDown, ChevronUp, GripVertical, Copy, X } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronDown, ChevronUp, GripVertical, Copy, X, Eye } from 'lucide-react';
 import { Switch } from '../../components/ui/switch';
 import axios from 'axios';
 
@@ -1172,6 +1172,429 @@ function SurveyCreateDialog({ open, onOpenChange, token, onCreated }) {
 }
 
 // ============================================================================
+// ASSESSMENT EMAIL TEMPLATES TAB
+// ============================================================================
+
+function AssessmentEmailTemplatesTab({ token }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+
+  const fetchTemplates = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_URL}/api/admin/templates/assessment-emails`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTemplates(res.data.templates || []);
+    } catch (error) {
+      toast.error('Failed to load email templates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchTemplates(); }, []);
+
+  const handleToggleActive = async (template) => {
+    try {
+      await axios.put(
+        `${API_URL}/api/admin/templates/assessment-emails/${template.template_id}`,
+        { is_active: !template.is_active },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`Template ${template.is_active ? 'deactivated' : 'activated'}`);
+      fetchTemplates();
+    } catch (error) {
+      toast.error('Failed to update template status');
+    }
+  };
+
+  const handleEdit = (template) => {
+    setEditingTemplate({ ...template });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const { template_id, created_at, updated_at, ...data } = editingTemplate;
+      await axios.put(
+        `${API_URL}/api/admin/templates/assessment-emails/${template_id}`,
+        data,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Email template updated');
+      setEditDialogOpen(false);
+      fetchTemplates();
+    } catch (error) {
+      toast.error('Failed to update email template');
+    }
+  };
+
+  const handleCreate = async (form) => {
+    try {
+      await axios.post(`${API_URL}/api/admin/templates/assessment-emails`, form, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Email template created');
+      setCreateDialogOpen(false);
+      fetchTemplates();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to create email template');
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-12 text-slate-500 font-proxima">Loading templates...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-600 font-proxima">{templates.length} email template(s)</p>
+        <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="bg-[#4242EA] hover:bg-[#3535cc] font-proxima">
+          <Plus className="h-4 w-4 mr-1" /> New Email Template
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {templates.map(template => (
+          <div key={template.template_id} className={`bg-white border rounded-lg px-4 py-3 ${!template.is_active ? 'opacity-60' : 'border-slate-200'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-semibold text-slate-900 font-proxima flex items-center gap-2">
+                  {template.display_name}
+                  {!template.is_active && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inactive</span>
+                  )}
+                  {template.include_next_steps && (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Next Steps</span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-500 font-proxima mt-0.5">
+                  Slug: <span className="font-mono">{template.slug}</span>
+                  {' | '}Growth: {template.growth_header}
+                  {' | '}Order: {template.sort_order}
+                </div>
+                <div className="text-xs text-slate-400 font-proxima mt-1 line-clamp-1">
+                  {template.intro_text?.substring(0, 120)}...
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                <Switch
+                  checked={template.is_active}
+                  onCheckedChange={() => handleToggleActive(template)}
+                />
+                <Button variant="ghost" size="sm" onClick={() => handleEdit(template)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Edit Email Template Dialog */}
+      <EmailTemplateEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        template={editingTemplate}
+        setTemplate={setEditingTemplate}
+        onSave={handleSaveEdit}
+      />
+
+      {/* Create Email Template Dialog */}
+      <EmailTemplateCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreate={handleCreate}
+      />
+    </div>
+  );
+}
+
+function EmailTemplateEditDialog({ open, onOpenChange, template, setTemplate, onSave }) {
+  const token = useAuthStore((s) => s.token);
+  if (!template) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="!max-w-none w-[calc(100vw-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="font-proxima">Edit Email Template</DialogTitle>
+        </DialogHeader>
+        <EmailTemplateFormWithPreview template={template} setTemplate={setTemplate} isEdit token={token} />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="font-proxima">Cancel</Button>
+          <Button onClick={onSave} className="bg-[#4242EA] hover:bg-[#3535cc] font-proxima">Save Changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EmailTemplateCreateDialog({ open, onOpenChange, onCreate }) {
+  const token = useAuthStore((s) => s.token);
+  const [form, setForm] = useState({
+    slug: '',
+    display_name: '',
+    intro_text: '',
+    philosophy_text: '',
+    strengths_header: 'Strengths',
+    strengths_intro: '',
+    growth_header: 'Growth Areas',
+    growth_intro: '',
+    include_next_steps: false,
+    next_steps_content: '',
+    closing_text: '',
+    closing_gratitude: '',
+    is_active: true,
+    sort_order: 0
+  });
+
+  const handleCreate = () => {
+    if (!form.slug || !form.display_name || !form.intro_text || !form.philosophy_text || !form.closing_text) {
+      toast.error('Slug, display name, intro text, philosophy text, and closing text are required');
+      return;
+    }
+    onCreate(form);
+    setForm({
+      slug: '', display_name: '', intro_text: '', philosophy_text: '',
+      strengths_header: 'Strengths', strengths_intro: '', growth_header: 'Growth Areas',
+      growth_intro: '', include_next_steps: false, next_steps_content: '',
+      closing_text: '', closing_gratitude: '', is_active: true, sort_order: 0
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="!max-w-none w-[calc(100vw-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="font-proxima">Create Email Template</DialogTitle>
+        </DialogHeader>
+        <EmailTemplateFormWithPreview template={form} setTemplate={setForm} isEdit={false} token={token} />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="font-proxima">Cancel</Button>
+          <Button onClick={handleCreate} className="bg-[#4242EA] hover:bg-[#3535cc] font-proxima">Create Template</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EmailTemplateFormWithPreview({ template, setTemplate, isEdit, token }) {
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const debounceRef = useRef(null);
+
+  const fetchPreview = useCallback(async (data) => {
+    if (!data.intro_text && !data.philosophy_text && !data.closing_text) {
+      setPreviewHtml('');
+      return;
+    }
+    try {
+      setLoadingPreview(true);
+      const res = await axios.post(
+        `${API_URL}/api/admin/templates/assessment-emails/preview`,
+        data,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        setPreviewHtml(res.data.html);
+      }
+    } catch {
+      // silently fail preview
+    } finally {
+      setLoadingPreview(false);
+    }
+  }, [token]);
+
+  // Auto-refresh preview with debounce
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchPreview(template);
+    }, 600);
+    return () => clearTimeout(debounceRef.current);
+  }, [template, fetchPreview]);
+
+  return (
+    <div className="flex-1 min-h-0 flex gap-6 overflow-hidden">
+      {/* Left: Form fields */}
+      <div className="w-1/2 overflow-y-auto pr-2 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="font-proxima">Display Name *</Label>
+            <Input
+              value={template.display_name || ''}
+              onChange={(e) => setTemplate({ ...template, display_name: e.target.value })}
+              placeholder="e.g. Week 2 (L1)"
+              className="font-proxima"
+            />
+          </div>
+          <div>
+            <Label className="font-proxima">Slug (unique key) {isEdit ? '(read-only)' : '*'}</Label>
+            <Input
+              value={template.slug || ''}
+              onChange={(e) => !isEdit && setTemplate({ ...template, slug: e.target.value })}
+              placeholder="e.g. week_2"
+              className="font-proxima font-mono"
+              readOnly={isEdit}
+              disabled={isEdit}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label className="font-proxima">
+            Intro Text *
+            <span className="text-xs text-slate-500 font-normal ml-2">Use {'${week}'} for week number interpolation</span>
+          </Label>
+          <Textarea
+            value={template.intro_text || ''}
+            onChange={(e) => setTemplate({ ...template, intro_text: e.target.value })}
+            rows={3}
+            className="font-proxima text-sm"
+            placeholder="Congratulations on completing your Week ${week} assessment!..."
+          />
+        </div>
+
+        <div>
+          <Label className="font-proxima">Philosophy Text *</Label>
+          <Textarea
+            value={template.philosophy_text || ''}
+            onChange={(e) => setTemplate({ ...template, philosophy_text: e.target.value })}
+            rows={3}
+            className="font-proxima text-sm"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="font-proxima">Strengths Header</Label>
+            <Input
+              value={template.strengths_header || ''}
+              onChange={(e) => setTemplate({ ...template, strengths_header: e.target.value })}
+              className="font-proxima"
+            />
+          </div>
+          <div>
+            <Label className="font-proxima">Growth Header</Label>
+            <Input
+              value={template.growth_header || ''}
+              onChange={(e) => setTemplate({ ...template, growth_header: e.target.value })}
+              className="font-proxima"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="font-proxima">Strengths Intro (optional)</Label>
+            <Textarea
+              value={template.strengths_intro || ''}
+              onChange={(e) => setTemplate({ ...template, strengths_intro: e.target.value })}
+              rows={2}
+              className="font-proxima text-sm"
+            />
+          </div>
+          <div>
+            <Label className="font-proxima">Growth Intro (optional)</Label>
+            <Textarea
+              value={template.growth_intro || ''}
+              onChange={(e) => setTemplate({ ...template, growth_intro: e.target.value })}
+              rows={2}
+              className="font-proxima text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 py-2">
+          <Switch
+            checked={template.include_next_steps || false}
+            onCheckedChange={(checked) => setTemplate({ ...template, include_next_steps: checked })}
+          />
+          <Label className="font-proxima">Include Next Steps Section</Label>
+        </div>
+
+        {template.include_next_steps && (
+          <div>
+            <Label className="font-proxima">Next Steps Content</Label>
+            <Textarea
+              value={template.next_steps_content || ''}
+              onChange={(e) => setTemplate({ ...template, next_steps_content: e.target.value })}
+              rows={3}
+              className="font-proxima text-sm"
+            />
+          </div>
+        )}
+
+        <div>
+          <Label className="font-proxima">Closing Text *</Label>
+          <Textarea
+            value={template.closing_text || ''}
+            onChange={(e) => setTemplate({ ...template, closing_text: e.target.value })}
+            rows={3}
+            className="font-proxima text-sm"
+          />
+        </div>
+
+        <div>
+          <Label className="font-proxima">Closing Gratitude (optional)</Label>
+          <Input
+            value={template.closing_gratitude || ''}
+            onChange={(e) => setTemplate({ ...template, closing_gratitude: e.target.value })}
+            className="font-proxima"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="font-proxima">Sort Order</Label>
+            <Input
+              type="number"
+              value={template.sort_order ?? 0}
+              onChange={(e) => setTemplate({ ...template, sort_order: parseInt(e.target.value) || 0 })}
+              className="font-proxima"
+            />
+          </div>
+          <div className="flex items-center gap-2 pt-6">
+            <Switch
+              checked={template.is_active !== false}
+              onCheckedChange={(checked) => setTemplate({ ...template, is_active: checked })}
+            />
+            <Label className="font-proxima">Active</Label>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Live preview */}
+      <div className="w-1/2 flex flex-col min-h-0">
+        <div className="flex items-center gap-2 mb-2">
+          <Eye className="h-4 w-4 text-slate-400" />
+          <p className="text-sm font-medium text-slate-600 font-proxima">Live Preview</p>
+          {loadingPreview && <span className="text-xs text-slate-400">Updating...</span>}
+        </div>
+        <div className="flex-1 min-h-0 border border-slate-200 rounded-lg overflow-auto bg-[#f4f4f7]">
+          {previewHtml ? (
+            <div
+              className="font-sans text-sm"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-slate-400 font-proxima text-sm">
+              Fill in template fields to see a preview
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // MAIN PAGE
 // ============================================================================
 
@@ -1196,13 +1619,14 @@ function TemplateManagement() {
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900 font-proxima">Template Management</h1>
-          <p className="text-slate-600 font-proxima">Manage assessment and survey templates</p>
+          <p className="text-slate-600 font-proxima">Manage assessment, survey, and email templates</p>
         </div>
 
         <Tabs defaultValue="assessments" className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="assessments" className="font-proxima">Assessments</TabsTrigger>
             <TabsTrigger value="surveys" className="font-proxima">Surveys</TabsTrigger>
+            <TabsTrigger value="email-templates" className="font-proxima">Email Templates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="assessments">
@@ -1211,6 +1635,10 @@ function TemplateManagement() {
 
           <TabsContent value="surveys">
             <SurveyTemplatesTab token={token} />
+          </TabsContent>
+
+          <TabsContent value="email-templates">
+            <AssessmentEmailTemplatesTab token={token} />
           </TabsContent>
         </Tabs>
       </div>

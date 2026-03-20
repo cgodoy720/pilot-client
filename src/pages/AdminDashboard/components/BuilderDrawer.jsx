@@ -158,7 +158,7 @@ const VideoItem = ({ v }) => {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium text-[#1E1E1E]">{resolveStr(v.task_title)}</p>
-          <p className="text-[10px] text-slate-400">{formattedDate}</p>
+          <p className="text-[10px] text-slate-400">{formattedDate}{v.cohort_name ? ` · ${v.cohort_name}` : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           {hasScores && (
@@ -267,7 +267,7 @@ const RawConversationItem = ({ conversation }) => {
       >
         <Badge className={`text-[10px] px-1.5 py-0 ${style.bg}`}>{style.label}</Badge>
         <span className="text-[10px] font-medium text-slate-600 flex-1 truncate">{conversation.task_title}</span>
-        <span className="text-[10px] text-slate-400 flex-shrink-0">{dateStr}</span>
+        <span className="text-[10px] text-slate-400 flex-shrink-0">{dateStr}{conversation.cohort_name ? ` · ${conversation.cohort_name}` : ''}</span>
         {expanded ? <ChevronUp size={10} className="text-slate-400" /> : <ChevronDown size={10} className="text-slate-400" />}
       </button>
       {expanded && (
@@ -339,6 +339,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
               task_title: v.task_title,
               loom_url: v.loom_url,
               submission_date: v.day_date || v.submission_date,
+              cohort_name: v.cohort_name,
               average_score: v.average_score ?? null,
               technical_score: v.technical_score ?? null,
               business_score: v.business_score ?? null,

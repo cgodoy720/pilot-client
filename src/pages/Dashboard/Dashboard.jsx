@@ -887,12 +887,12 @@ function Dashboard() {
                           <div key={task.id}>
                             <div
                               className={`dashboard__day-activity${
-                                showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                showTaskCheckbox && !isBreakTask && !isComplete && completionStatus?.requiresDeliverable
                                   ? ' dashboard__day-activity--clickable'
                                   : ''
                               }`}
                               onClick={(e) => {
-                                if (showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)) {
+                                if (showTaskCheckbox && !isBreakTask && !isComplete && completionStatus?.requiresDeliverable) {
                                   e.stopPropagation();
                                   handleNavigateToTask(day.id, task.id);
                                 }
@@ -904,7 +904,7 @@ function Dashboard() {
                                 <div className={`dashboard__task-checkbox ${
                                   isComplete
                                     ? 'dashboard__task-checkbox--complete'
-                                    : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                    : completionStatus?.requiresDeliverable
                                       ? 'dashboard__task-checkbox--incomplete'
                                       : 'dashboard__task-checkbox--empty'
                                 }`}>
@@ -912,7 +912,7 @@ function Dashboard() {
                                     <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
                                       <polyline points="2.5,6 5.5,9 11.5,3" />
                                     </svg>
-                                  ) : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze) ? (
+                                  ) : completionStatus?.requiresDeliverable ? (
                                     <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
                                       <line x1="1" y1="1" x2="7" y2="7" />
                                       <line x1="7" y1="1" x2="1" y2="7" />
