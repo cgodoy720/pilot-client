@@ -263,11 +263,24 @@ def get_salesforce_for_request(request: Request) -> Salesforce:
     # Fallback to service account
     return get_salesforce()
 
+# Rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+_is_prod = os.getenv('FRONTEND_URL', '').startswith('https')
+
 app = FastAPI(
     title="Financial Forecasting API",
     description="Simplified API for Pursuit financial forecasting POC",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
 )
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Mount Projects router (PostgreSQL-backed CRUD)
 app.include_router(projects_router)
@@ -1278,6 +1291,7 @@ async def get_stage_history(request: Request, days: int = Query(30, ge=1, le=365
 
 
 @app.post("/api/ai/pipeline-analysis")
+@limiter.limit("10/minute")
 async def ai_pipeline_analysis(request: Request, payload: Dict[str, Any] = Body(...)):
     """On-demand AI analysis of pipeline stage changes and funnel health."""
     user = await require_auth(request)
@@ -1367,6 +1381,7 @@ Be specific — reference actual stage names, counts, and dollar amounts. Keep e
 
 # Salesforce - Create Opportunity
 @app.post("/api/salesforce/opportunities")
+@limiter.limit("30/minute")
 async def create_opportunity(opportunity_data: Dict[str, Any], request: Request):
     """Create a new Salesforce opportunity. Uses per-user SF connection when available."""
     user = await require_auth(request)

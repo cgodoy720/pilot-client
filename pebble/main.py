@@ -93,6 +93,15 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cookie"],
 )
 
+# Rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 def _error_response(code: str, message: str, status: int = 400) -> dict:
     """BedrockResult-style error."""
@@ -113,7 +122,8 @@ def _is_cancelled(job_id: str | None) -> bool:
 
 
 @app.post("/api/v1/research/request", dependencies=[Depends(verify_api_key)])
-async def research_request(body: ResearchRequest):
+@limiter.limit("10/minute")
+async def research_request(request: Request, body: ResearchRequest):
     """Accept research request. Runs Stage 1 enrichment when prospects provided."""
     if not body.prospects:
         return {"status": "queued", "contact_ids": body.contact_ids}
