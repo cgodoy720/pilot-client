@@ -52,6 +52,7 @@ class ProjectTaskCreate(BaseModel):
     status: str = "Not Started"
     owner: str = ""
     deadline: Optional[str] = None
+    start_date: Optional[str] = None
     description: str = ""
     updates: str = ""
     links: List[str] = []
@@ -64,6 +65,7 @@ class ProjectTaskUpdate(BaseModel):
     status: Optional[str] = None
     owner: Optional[str] = None
     deadline: Optional[str] = None
+    start_date: Optional[str] = None
     description: Optional[str] = None
     updates: Optional[str] = None
     links: Optional[List[str]] = None
@@ -99,8 +101,8 @@ async def get_project(project_id: str, conn=Depends(get_db)):
             m.id AS m_id, m.title AS m_title, m.status AS m_status, m.priority AS m_priority,
             m.owner AS m_owner, m.description AS m_desc, m.source_links AS m_links, m.sort_order AS m_sort,
             t.id AS t_id, t.title AS t_title, t.status AS t_status, t.owner AS t_owner,
-            t.deadline AS t_deadline, t.description AS t_desc, t.updates AS t_updates,
-            t.links AS t_links, t.depends_on AS t_depends, t.sort_order AS t_sort
+            t.deadline AS t_deadline, t.start_date AS t_start_date, t.description AS t_desc,
+            t.updates AS t_updates, t.links AS t_links, t.depends_on AS t_depends, t.sort_order AS t_sort
         FROM workstream w
         LEFT JOIN milestone m ON m.workstream_id = w.id
         LEFT JOIN project_task t ON t.milestone_id = m.id
@@ -148,6 +150,7 @@ async def get_project(project_id: str, conn=Depends(get_db)):
                 "status": r["t_status"],
                 "owner": r["t_owner"],
                 "deadline": r["t_deadline"].isoformat() if r["t_deadline"] else None,
+                "startDate": r["t_start_date"].isoformat() if r["t_start_date"] else None,
                 "description": r["t_desc"],
                 "updates": r["t_updates"],
                 "links": r["t_links"] or [],
@@ -244,12 +247,17 @@ async def create_project_task(milestone_id: str, body: ProjectTaskCreate, conn=D
         from datetime import date as d
         deadline = d.fromisoformat(body.deadline)
 
+    start_date_val = None
+    if body.start_date:
+        from datetime import date as d
+        start_date_val = d.fromisoformat(body.start_date)
+
     depends = [uuid.UUID(x) for x in body.depends_on] if body.depends_on else []
 
     row = await conn.fetchrow(
-        """INSERT INTO project_task (milestone_id, title, status, owner, deadline, description, updates, links, depends_on, sort_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
-        mid, body.title, body.status, body.owner, deadline,
+        """INSERT INTO project_task (milestone_id, title, status, owner, deadline, start_date, description, updates, links, depends_on, sort_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id""",
+        mid, body.title, body.status, body.owner, deadline, start_date_val,
         body.description, body.updates, body.links, depends, body.sort_order,
     )
     return {"success": True, "data": {"id": str(row["id"])}}
@@ -269,6 +277,12 @@ async def update_project_task(task_id: str, body: ProjectTaskUpdate, conn=Depend
             fields["deadline"] = d.fromisoformat(fields["deadline"])
         else:
             fields["deadline"] = None
+    if "start_date" in fields:
+        if fields["start_date"]:
+            from datetime import date as d
+            fields["start_date"] = d.fromisoformat(fields["start_date"])
+        else:
+            fields["start_date"] = None
     if "depends_on" in fields:
         fields["depends_on"] = [uuid.UUID(x) for x in fields["depends_on"]]
 

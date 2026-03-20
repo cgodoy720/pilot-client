@@ -59,6 +59,7 @@ const Opportunities: React.FC = () => {
   const [pbcOnly, setPbcOnly] = useState(false);
   const [aijiOnly, setAijiOnly] = useState(false);
   const [initialFilter, setInitialFilter] = useState<'atRisk' | 'stale' | null>(null);
+  const [dashboardFilterAlert, setDashboardFilterAlert] = useState<string | null>(null);
   const [pipelineFilters, setPipelineFilters] = useState<PipelineFilters>(DEFAULT_FILTERS);
 
   // Selection & bulk actions
@@ -105,10 +106,31 @@ const Opportunities: React.FC = () => {
 
   // Handle incoming filter from Dashboard
   useEffect(() => {
-    const state = location.state as { filterAtRisk?: boolean; filterStale?: boolean } | null;
+    const state = location.state as {
+      filterAtRisk?: boolean;
+      filterStale?: boolean;
+      dashboardFilters?: {
+        owners: string[];
+        closeDateStart: string;
+        closeDateEnd: string;
+        source: string;
+      };
+    } | null;
     if (state) {
       if (state.filterAtRisk) setInitialFilter('atRisk');
       else if (state.filterStale) setInitialFilter('stale');
+
+      if (state.dashboardFilters) {
+        const { owners, closeDateStart, closeDateEnd, source } = state.dashboardFilters;
+        setPipelineFilters((prev) => ({
+          ...prev,
+          owners,
+          closeDateStart,
+          closeDateEnd,
+        }));
+        setDashboardFilterAlert(source);
+      }
+
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state]);
@@ -385,6 +407,7 @@ const Opportunities: React.FC = () => {
       {/* Pipeline Filter Bar */}
       <PipelineFilterBar
         filters={pipelineFilters}
+        initialExpanded={!!dashboardFilterAlert}
         onChange={(f) => {
           setPipelineFilters(f);
           // Sync legacy flags for data hook
@@ -397,6 +420,13 @@ const Opportunities: React.FC = () => {
           return Array.from(streams).sort();
         })()}
       />
+
+      {/* Dashboard navigation alert */}
+      {dashboardFilterAlert && (
+        <Alert severity="info" sx={{ mb: 2 }} onClose={() => setDashboardFilterAlert(null)}>
+          Filtered from Dashboard: {dashboardFilterAlert}
+        </Alert>
+      )}
 
       {/* Filter alerts */}
       {initialFilter && (

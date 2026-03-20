@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS project_task (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Add start_date for Gantt chart support (idempotent)
+DO $$ BEGIN
+    ALTER TABLE project_task ADD COLUMN start_date DATE;
+EXCEPTION
+    WHEN duplicate_column THEN NULL;
+END $$;
+
 -- Updated-at trigger
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$

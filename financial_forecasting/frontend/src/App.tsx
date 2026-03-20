@@ -2,6 +2,8 @@ import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box, CircularProgress } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 
@@ -105,6 +107,7 @@ function App() {
         <ErrorBoundary>
         <AuthProvider>
           <LeadsProvider>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
           <Router>
             <Routes>
               {/* Public routes */}
@@ -321,6 +324,7 @@ function App() {
               />
             </Routes>
           </Router>
+          </LocalizationProvider>
           </LeadsProvider>
           <Toaster
             position="top-right"

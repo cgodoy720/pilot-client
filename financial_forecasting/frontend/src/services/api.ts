@@ -431,10 +431,10 @@ export const apiService = {
   deleteMilestone: (milestoneId: string) =>
     api.delete(`/api/milestones/${milestoneId}`),
 
-  createProjectTask: (milestoneId: string, data: { title: string; status?: string; owner?: string; deadline?: string; description?: string }) =>
+  createProjectTask: (milestoneId: string, data: { title: string; status?: string; owner?: string; deadline?: string; start_date?: string; description?: string }) =>
     api.post(`/api/milestones/${milestoneId}/tasks`, data),
 
-  updateProjectTask: (taskId: string, data: { title?: string; status?: string; owner?: string; deadline?: string; description?: string }) =>
+  updateProjectTask: (taskId: string, data: { title?: string; status?: string; owner?: string; deadline?: string; start_date?: string; description?: string; updates?: string }) =>
     api.put(`/api/project-tasks/${taskId}`, data),
 
   deleteProjectTask: (taskId: string) =>

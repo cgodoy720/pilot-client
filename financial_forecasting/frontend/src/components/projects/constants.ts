@@ -1,0 +1,37 @@
+import React from 'react';
+import type { TaskStatus, MilestoneStatus, GanttZoom } from './types';
+
+export const TASK_STATUSES: TaskStatus[] = ['Not Started', 'In Progress', 'Completed', 'Blocked', 'On Hold'];
+export const MILESTONE_STATUSES: MilestoneStatus[] = ['On Track', 'At Risk', 'Needs Attention', 'Completed'];
+
+export const TASK_STATUS_COLOR: Record<string, string> = {
+  'Not Started': '#9e9e9e',
+  'In Progress': '#1976d2',
+  'Completed': '#4caf50',
+  'Blocked': '#d32f2f',
+  'On Hold': '#ed6c02',
+};
+
+export const STATUS_CHIP: Record<string, { color: 'success' | 'warning' | 'error' | 'default'; icon: string }> = {
+  'On Track': { color: 'success', icon: 'check' },
+  'At Risk': { color: 'warning', icon: 'warning' },
+  'Needs Attention': { color: 'error', icon: 'error' },
+  'Completed': { color: 'success', icon: 'check' },
+};
+
+export const ROW_HEIGHT = 36;
+
+export const GANTT_DAY_WIDTHS: Record<GanttZoom, number> = {
+  day: 40,
+  week: 16,
+  month: 5,
+};
+
+export const PRIORITY_BORDER_COLOR: Record<string, string> = {
+  'Now': '#1976d2',
+  'Later': '#9e9e9e',
+  'On-going': '#2e7d32',
+};
+
+// Deterministic AIJI project ID (matches seed.sql)
+export const AIJI_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';

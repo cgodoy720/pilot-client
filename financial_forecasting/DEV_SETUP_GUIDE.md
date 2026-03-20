@@ -4,6 +4,8 @@
 
 This app bridges Salesforce (grant pipeline) and Sage Intacct (accounting) to provide forecasting, cash flow projections, and data sync. The backend is FastAPI (Python), the frontend is React + TypeScript + Material-UI.
 
+> **Fiscal Year Convention:** Pursuit's fiscal year follows the calendar year (January 1 – December 31). This is reflected in `GoalTracker.tsx`'s `getFYBounds()` and the `DateRangeSelector`'s "Current FY" preset.
+
 ## Architecture: How Auth Works
 
 There are **two auth layers** — this is important to understand before you start:
