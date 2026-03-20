@@ -138,7 +138,7 @@ lsof -ti:8000 | xargs kill -9
 **Can't connect to Salesforce:**
 - Check `financial_forecasting/config.py`
 - Username should be: jac@pursuit.org
-- Password should be: Pursuit1234!
+- Password should be: [see .env]
 - Domain should be: login
 
 **Test connection:**
