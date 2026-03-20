@@ -20,10 +20,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tooltip,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels';
+import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -34,6 +35,8 @@ import {
   AccountBalance as WeightedIcon,
   Event as EventIcon,
   Inbox as InboxIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
 import {
@@ -52,6 +55,9 @@ import WeeklyCalendar, { CalendarEvent, CalendarViewMode } from '../components/W
 import PriorityTable, { PriorityOpp } from '../components/PriorityTable';
 import TaskInbox, { InboxTask } from '../components/TaskInbox';
 import TaskPanel from '../components/TaskPanel';
+import GoalTracker from '../components/GoalTracker';
+import { type DateRangeValue } from '../components/DateRangeSelector';
+import FloatingFilterPill, { type PillPosition } from '../components/FloatingFilterPill';
 import type { Opportunity } from './Opportunities/helpers';
 
 const PREFS_KEY = 'pursuit-priorities-prefs';
@@ -62,8 +68,6 @@ const OPEN_STAGES = [
   'Contract Creation', 'Negotiating Contract',
 ];
 
-type CloseDateRange = 'all' | 'next30' | 'next60' | 'next90' | 'thisQuarter' | 'thisYear';
-
 type SnapshotMode = 'all' | 'filtered' | 'priorities';
 
 interface DashboardPrefs {
@@ -72,25 +76,46 @@ interface DashboardPrefs {
   topN: number;
   filterUserId: string; // 'all' or a SF user ID
   showWeighted: boolean;
-  closeDateRange: CloseDateRange;
+  dateRange: DateRangeValue;
   snapshotMode: SnapshotMode;
   calendarInboxSplit?: number[];
   taskPanelWidth?: number;
   taskInboxMaxHeight?: number;
+  calendarTimeGridHeight?: number;
+  weekOffset?: number;
+  filterPillPosition?: PillPosition;
 }
 
 function loadPrefs(): DashboardPrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
-      const parsed = { filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all', ...JSON.parse(raw) };
-      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 20));
+      const parsed = { filterUserId: 'all', showWeighted: false, snapshotMode: 'all', ...JSON.parse(raw) };
+      // Migrate old closeDateRange to new dateRange format
+      if (parsed.closeDateRange && !parsed.dateRange) {
+        const mapping: Record<string, DateRangeValue> = {
+          all: { preset: 'all' },
+          next30: { preset: 'next30' },
+          next60: { preset: 'next60' },
+          next90: { preset: 'next90' },
+          thisQuarter: { preset: 'thisQuarter' },
+          thisYear: { preset: 'currentFY' },
+        };
+        parsed.dateRange = mapping[parsed.closeDateRange] || { preset: 'all' };
+        delete parsed.closeDateRange;
+      }
+      if (!parsed.dateRange) parsed.dateRange = { preset: 'all' };
+      if (parsed._topNV !== 2) {
+        parsed.topN = 30;
+        parsed._topNV = 2;
+      }
+      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 30));
       if (parsed.taskPanelWidth != null) parsed.taskPanelWidth = Math.min(800, Math.max(360, parsed.taskPanelWidth));
       if (parsed.taskInboxMaxHeight != null) parsed.taskInboxMaxHeight = Math.min(600, Math.max(200, parsed.taskInboxMaxHeight));
       return parsed;
     }
   } catch {}
-  return { collapsed: {}, calendarView: 'week', topN: 20, filterUserId: 'all', showWeighted: false, closeDateRange: 'all', snapshotMode: 'all' as SnapshotMode };
+  return { collapsed: {}, calendarView: 'week', topN: 30, filterUserId: 'all', showWeighted: false, dateRange: { preset: 'all' }, snapshotMode: 'all' as SnapshotMode };
 }
 
 function savePrefs(prefs: DashboardPrefs) {
@@ -162,6 +187,9 @@ function CalendarInboxSplit({
   tasksLoading,
   currentUserId,
   onToggleUrgent,
+  gcalCount,
+  taskCount,
+  setSelectedTaskId,
 }: {
   calNeedsReauth: boolean;
   logout: () => Promise<void>;
@@ -178,12 +206,20 @@ function CalendarInboxSplit({
   tasksLoading: boolean;
   currentUserId?: string | null;
   onToggleUrgent?: (taskId: string, urgent: boolean) => void;
+  gcalCount: number;
+  taskCount: number;
+  setSelectedTaskId: (id: string | null) => void;
 }) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'pursuit-calendar-inbox-split',
     storage: typeof window !== 'undefined' ? localStorage : undefined,
     panelIds: ['calendar', 'inbox'],
   });
+
+  const calendarPanelRef = usePanelRef();
+  const inboxPanelRef = usePanelRef();
+  const [calCollapsed, setCalCollapsed] = useState(false);
+  const [inboxCollapsed, setInboxCollapsed] = useState(false);
 
   const handleTaskClick = useCallback(
     (taskId: string, whatId: string) => {
@@ -204,94 +240,206 @@ function CalendarInboxSplit({
         };
         setTaskPanelOpp(mapped);
         setTaskPanelOpen(true);
+        setSelectedTaskId(taskId);
       }
     },
-    [priorityOpps, allOpportunities, setTaskPanelOpp, setTaskPanelOpen]
+    [priorityOpps, allOpportunities, setTaskPanelOpp, setTaskPanelOpen, setSelectedTaskId]
   );
 
+  const openTaskCount = inboxTasks.filter((t) => t.Status !== 'Completed').length;
+
   return (
-    <Group
-      orientation="horizontal"
-      defaultLayout={defaultLayout}
-      onLayoutChanged={onLayoutChanged}
-      style={{ marginBottom: 16, minHeight: 400 }}
-    >
-      <Panel id="calendar" defaultSize={60} minSize={25}>
-        <Section
-          id="calendar"
-          title="Weekly Calendar"
-          icon={<CalendarIcon color="primary" />}
-          collapsed={!!prefs.collapsed['calendar']}
-          onToggle={() => toggleSection('calendar')}
-          badge={
-            calendarEvents.length > 0 ? (
-              <Chip label={`${calendarEvents.length} events`} size="small" />
-            ) : undefined
-          }
-        >
-          {calNeedsReauth && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              Calendar access expired. Please{' '}
-              <Button
-                size="small"
-                color="inherit"
-                sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
-                onClick={() => logout().then(() => {})}
-              >
-                log out and sign in again
-              </Button>{' '}
-              to restore PBD calendar sync.
-            </Alert>
-          )}
-          <WeeklyCalendar
-            events={calendarEvents}
-            loading={calLoading}
-            viewMode={prefs.calendarView}
-            onViewModeChange={(v) => setPrefs((p) => ({ ...p, calendarView: v }))}
-            onTaskClick={handleTaskClick}
-          />
-        </Section>
-      </Panel>
-      <Separator style={{ width: 8, background: 'transparent', cursor: 'col-resize', position: 'relative' }}>
+    <Box sx={{ display: 'flex', mb: 2, height: 'calc(100vh - 240px)', minHeight: 400, maxHeight: 800, gap: 0 }}>
+      {/* Collapsed calendar tab */}
+      {calCollapsed && (
         <Box
-          component="div"
+          onClick={() => calendarPanelRef.current?.expand()}
           sx={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 4,
-            height: 40,
-            borderRadius: 2,
-            bgcolor: 'divider',
-            '&:hover': { bgcolor: 'primary.main', opacity: 0.5 },
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            cursor: 'pointer',
+            px: 0.75,
+            py: 2,
+            bgcolor: 'grey.100',
+            borderRadius: '8px 0 0 8px',
+            '&:hover': { bgcolor: 'primary.main', color: 'white', '& .MuiSvgIcon-root': { color: 'white' } },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            userSelect: 'none',
+            flexShrink: 0,
+            transition: 'background-color 0.15s, color 0.15s',
           }}
-        />
-      </Separator>
-      <Panel id="inbox" defaultSize={40} minSize={25}>
-        <Section
-          id="inbox"
-          title="Task Inbox"
-          icon={<InboxIcon color="primary" />}
-          collapsed={!!prefs.collapsed['inbox']}
-          onToggle={() => toggleSection('inbox')}
-          badge={
-            inboxTasks.filter((t) => t.Status !== 'Completed').length > 0 ? (
-              <Chip label={`${inboxTasks.filter((t) => t.Status !== 'Completed').length} open`} size="small" />
-            ) : undefined
-          }
         >
-          <TaskInbox
-            tasks={inboxTasks}
-            loading={tasksLoading}
-            maxHeight={prefs.taskInboxMaxHeight ?? 400}
-            currentUserId={currentUserId}
-            onToggleUrgent={onToggleUrgent}
-            onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
+          <CalendarIcon sx={{ fontSize: 16, color: 'primary.main', transition: 'color 0.15s' }} />
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>Calendar</Typography>
+        </Box>
+      )}
+
+      <Group
+        orientation="horizontal"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+        style={{ flex: 1 }}
+      >
+        <Panel
+          id="calendar"
+          panelRef={calendarPanelRef}
+          defaultSize={60}
+          minSize={30}
+          collapsible
+          collapsedSize={0}
+          onResize={(size) => setCalCollapsed(size.asPercentage === 0)}
+        >
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2,
+                py: 1.5,
+                flexShrink: 0,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarIcon color="primary" />
+                <Typography variant="h6">Weekly Calendar</Typography>
+                {(gcalCount > 0 || taskCount > 0) && (
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
+                    {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
+                  </Box>
+                )}
+              </Box>
+              <IconButton
+                size="small"
+                onClick={() => calendarPanelRef.current?.collapse()}
+                title="Collapse calendar"
+              >
+                <ChevronLeftIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            <CardContent sx={{ pt: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              {calNeedsReauth && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  Calendar access expired. Please{' '}
+                  <Button
+                    size="small"
+                    color="inherit"
+                    sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                    onClick={() => logout().then(() => {})}
+                  >
+                    log out and sign in again
+                  </Button>{' '}
+                  to restore PBD calendar sync.
+                </Alert>
+              )}
+              <WeeklyCalendar
+                events={calendarEvents}
+                loading={calLoading}
+                viewMode={prefs.calendarView}
+                onViewModeChange={(v) => setPrefs((p) => ({ ...p, calendarView: v }))}
+                weekOffset={prefs.weekOffset ?? 0}
+                onWeekOffsetChange={(offset) => setPrefs((p) => ({ ...p, weekOffset: offset }))}
+                onTaskClick={handleTaskClick}
+                timeGridHeight={prefs.calendarTimeGridHeight ?? 520}
+                onTimeGridHeightChange={(h) => setPrefs((p) => ({ ...p, calendarTimeGridHeight: h }))}
+              />
+            </CardContent>
+          </Card>
+        </Panel>
+        <Separator style={{ width: 8, background: 'transparent', cursor: 'col-resize', position: 'relative' }}>
+          <Box
+            component="div"
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 4,
+              height: 40,
+              borderRadius: 2,
+              bgcolor: 'divider',
+              '&:hover': { bgcolor: 'primary.main', opacity: 0.5 },
+            }}
           />
-        </Section>
-      </Panel>
-    </Group>
+        </Separator>
+        <Panel
+          id="inbox"
+          panelRef={inboxPanelRef}
+          defaultSize={40}
+          minSize={25}
+          collapsible
+          collapsedSize={0}
+          onResize={(size) => setInboxCollapsed(size.asPercentage === 0)}
+        >
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2,
+                py: 1.5,
+                flexShrink: 0,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <InboxIcon color="primary" />
+                <Typography variant="h6">Task Inbox</Typography>
+                {openTaskCount > 0 && (
+                  <Chip label={`${openTaskCount} open`} size="small" />
+                )}
+              </Box>
+              <IconButton
+                size="small"
+                onClick={() => inboxPanelRef.current?.collapse()}
+                title="Collapse inbox"
+              >
+                <ChevronRightIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            <CardContent sx={{ pt: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <TaskInbox
+                tasks={inboxTasks}
+                loading={tasksLoading}
+                maxHeight={prefs.taskInboxMaxHeight ?? 400}
+                currentUserId={currentUserId}
+                onToggleUrgent={onToggleUrgent}
+                onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
+              />
+            </CardContent>
+          </Card>
+        </Panel>
+      </Group>
+
+      {/* Collapsed inbox tab */}
+      {inboxCollapsed && (
+        <Box
+          onClick={() => inboxPanelRef.current?.expand()}
+          sx={{
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            cursor: 'pointer',
+            px: 0.75,
+            py: 2,
+            bgcolor: 'grey.100',
+            borderRadius: '0 8px 8px 0',
+            '&:hover': { bgcolor: 'primary.main', color: 'white', '& .MuiSvgIcon-root': { color: 'white' } },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            userSelect: 'none',
+            flexShrink: 0,
+            transition: 'background-color 0.15s, color 0.15s',
+          }}
+        >
+          <InboxIcon sx={{ fontSize: 16, color: 'primary.main', transition: 'color 0.15s' }} />
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>Inbox</Typography>
+        </Box>
+      )}
+    </Box>
   );
 }
 
@@ -374,6 +522,7 @@ const MyDashboard: React.FC = () => {
   const [prefs, setPrefs] = useState<DashboardPrefs>(loadPrefs);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [filteredOpps, setFilteredOpps] = useState<{ allFiltered: PriorityOpp[]; visible: PriorityOpp[] }>({ allFiltered: [], visible: [] });
 
   useEffect(() => {
@@ -406,15 +555,17 @@ const MyDashboard: React.FC = () => {
   // Compute date range for calendar
   const { calStart, calEnd, calDaysForward } = useMemo(() => {
     const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const offset = prefs.weekOffset || 0;
+    const weekStart = startOfWeek(addDays(today, offset * 7), { weekStartsOn: 1 });
+    const start = prefs.calendarView === 'day' ? today : weekStart;
     const daysForward = prefs.calendarView === 'day' ? 1 : prefs.calendarView === 'week' ? 7 : 14;
-    const end = addDays(weekStart, daysForward);
+    const end = addDays(start, daysForward);
     return {
-      calStart: format(weekStart, 'yyyy-MM-dd'),
+      calStart: format(start, 'yyyy-MM-dd'),
       calEnd: format(end, 'yyyy-MM-dd'),
       calDaysForward: daysForward,
     };
-  }, [prefs.calendarView]);
+  }, [prefs.calendarView, prefs.weekOffset]);
 
   // Wider task date range for priorities (90 days back, 180 days forward)
   const { taskStart, taskEnd } = useMemo(() => {
@@ -512,32 +663,44 @@ const MyDashboard: React.FC = () => {
   const myOpenOpps = useMemo(() => {
     let opps = filteredOpportunities.filter((opp: any) => OPEN_STAGES.includes(opp.StageName));
 
-    // Apply close date range filter
-    if (prefs.closeDateRange !== 'all') {
+    const dr = prefs.dateRange;
+    if (dr.preset !== 'all') {
       const now = new Date();
       const today = startOfDay(now);
-      let cutoff: Date;
-      switch (prefs.closeDateRange) {
-        case 'next30': cutoff = addDays(today, 30); break;
-        case 'next60': cutoff = addDays(today, 60); break;
-        case 'next90': cutoff = addDays(today, 90); break;
-        case 'thisQuarter': {
-          const qMonth = Math.floor(now.getMonth() / 3) * 3 + 3;
-          cutoff = new Date(now.getFullYear(), qMonth, 0);
-          break;
+      let rangeStart: Date | null = null;
+      let rangeEnd: Date | null = null;
+
+      if (dr.preset === 'custom') {
+        rangeStart = parseISO(dr.start);
+        rangeEnd = parseISO(dr.end);
+      } else {
+        switch (dr.preset) {
+          case 'next30': rangeEnd = addDays(today, 30); break;
+          case 'next60': rangeEnd = addDays(today, 60); break;
+          case 'next90': rangeEnd = addDays(today, 90); break;
+          case 'thisQuarter': {
+            const qMonth = Math.floor(now.getMonth() / 3) * 3 + 3;
+            rangeEnd = new Date(now.getFullYear(), qMonth, 0);
+            break;
+          }
+          case 'currentFY':
+            rangeStart = new Date(now.getFullYear(), 0, 1);
+            rangeEnd = new Date(now.getFullYear(), 11, 31);
+            break;
         }
-        case 'thisYear': cutoff = new Date(now.getFullYear(), 11, 31); break;
-        default: cutoff = addDays(today, 365);
       }
+
       opps = opps.filter((opp: any) => {
         if (!opp.CloseDate) return false;
         const d = parseISO(opp.CloseDate);
-        return d <= endOfDay(cutoff);
+        if (rangeStart && d < startOfDay(rangeStart)) return false;
+        if (rangeEnd && d > endOfDay(rangeEnd)) return false;
+        return true;
       });
     }
 
     return opps;
-  }, [filteredOpportunities, prefs.closeDateRange]);
+  }, [filteredOpportunities, prefs.dateRange]);
 
   // Map tasks to their parent opportunities
   const sfTasks = useMemo(() => (Array.isArray(tasksData) ? tasksData : []), [tasksData]);
@@ -570,9 +733,11 @@ const MyDashboard: React.FC = () => {
       });
     }
 
-    // SF Tasks
+    // SF Tasks — show tasks due within the visible calendar range (before that goes to Inbox OVERDUE)
     for (const task of sfTasks) {
       if (!task.ActivityDate) continue;
+      if (task.ActivityDate < calStart) continue;
+      if (task.Status === 'Completed') continue;
       events.push({
         id: task.Id || `task-${events.length}`,
         summary: task.Subject || 'Untitled Task',
@@ -588,6 +753,9 @@ const MyDashboard: React.FC = () => {
 
     return events;
   }, [calEventsData, sfTasks, oppNameMap]);
+
+  const gcalCount = useMemo(() => calendarEvents.filter(e => e.type === 'gcal').length, [calendarEvents]);
+  const taskCount = useMemo(() => calendarEvents.filter(e => e.type === 'task').length, [calendarEvents]);
 
   // Build priority opportunities with tasks attached
   const priorityOpps: PriorityOpp[] = useMemo(() => {
@@ -653,7 +821,7 @@ const MyDashboard: React.FC = () => {
     let statsOpps: any[];
     switch (prefs.snapshotMode) {
       case 'filtered': statsOpps = filteredOpps.allFiltered; break;
-      case 'priorities': statsOpps = filteredOpps.allFiltered; break; // all filtered, not just visible top N
+      case 'priorities': statsOpps = filteredOpps.visible; break;
       default: statsOpps = myOpenOpps;
     }
     const count = statsOpps.length;
@@ -669,9 +837,105 @@ const MyDashboard: React.FC = () => {
       const d = parseISO(opp.CloseDate);
       return d >= startOfDay(now) && d <= endOfDay(monthEnd);
     });
-    const closingAmount = closingThisMonth.reduce((s: number, o: any) => s + (o.Amount || 0), 0);
-    return { count, total, weighted, closingThisMonth: closingThisMonth.length, closingAmount };
+    const closingAmount = closingThisMonth.reduce((s: number, o: any) => s + ((o.Amount || 0) * (o.Probability || 0)) / 100, 0);
+    const closingOpps = closingThisMonth.map((o: any) => ({
+      Name: o.Name as string,
+      Amount: (o.Amount || 0) as number,
+      Probability: (o.Probability || 0) as number,
+    }));
+    return { count, total, weighted, closingThisMonth: closingThisMonth.length, closingAmount, closingOpps };
   }, [myOpenOpps, prefs.snapshotMode, filteredOpps]);
+
+  const snapshotDescription = useMemo(() => {
+    const parts: string[] = [];
+    switch (prefs.snapshotMode) {
+      case 'all': parts.push(`All open pipeline (${myOpenOpps.length} opps)`); break;
+      case 'filtered': parts.push(`All filtered (${filteredOpps.allFiltered.length} opps)`); break;
+      case 'priorities': parts.push(`Top ${Math.min(prefs.topN, filteredOpps.visible.length)} priorities`); break;
+    }
+    if (resolvedFilterId !== 'all') {
+      const userName = sfUsers.find((u: any) => u.Id === resolvedFilterId)?.Name;
+      if (userName) parts.push(userName);
+    }
+    const dr = prefs.dateRange;
+    if (dr.preset !== 'all') {
+      if (dr.preset === 'custom') {
+        try {
+          parts.push(`${format(parseISO(dr.start), 'MMM d')} – ${format(parseISO(dr.end), 'MMM d')}`);
+        } catch {}
+      } else {
+        const labels: Record<string, string> = {
+          currentFY: 'Current FY', next30: 'Next 30 days', next60: 'Next 60 days',
+          next90: 'Next 90 days', thisQuarter: 'This Quarter',
+        };
+        parts.push(labels[dr.preset] || '');
+      }
+    }
+    return parts.join(' \u00b7 ');
+  }, [prefs.snapshotMode, prefs.topN, prefs.dateRange, resolvedFilterId, sfUsers, myOpenOpps, filteredOpps]);
+
+  const pillLabel = useMemo(() => {
+    const dateLabels: Record<string, string> = {
+      currentFY: 'FY', next30: 'Next 30d', next60: 'Next 60d',
+      next90: 'Next 90d', thisQuarter: 'Quarter', all: 'All dates',
+    };
+    const dr = prefs.dateRange;
+    const datePart = dr.preset === 'custom'
+      ? `${format(parseISO(dr.start), 'MMM d')}\u2013${format(parseISO(dr.end), 'MMM d')}`
+      : dateLabels[dr.preset] || '';
+    const modeLabels = { all: 'All', filtered: 'Filtered', priorities: 'Priorities' };
+    return `${datePart} \u00b7 ${modeLabels[prefs.snapshotMode]}`;
+  }, [prefs.dateRange, prefs.snapshotMode]);
+
+  // Navigate to Pipeline with pre-applied filters from hero card click
+  const navigateToPipeline = useCallback((card: 'total' | 'weighted' | 'closing') => {
+    const owners = resolvedFilterId !== 'all' ? [resolvedFilterId] : [];
+    let closeDateStart = '';
+    let closeDateEnd = '';
+
+    const dr = prefs.dateRange;
+    if (dr.preset === 'custom') {
+      closeDateStart = dr.start;
+      closeDateEnd = dr.end;
+    } else if (dr.preset !== 'all') {
+      const now = new Date();
+      const today = startOfDay(now);
+      switch (dr.preset) {
+        case 'next30': closeDateEnd = format(addDays(today, 30), 'yyyy-MM-dd'); break;
+        case 'next60': closeDateEnd = format(addDays(today, 60), 'yyyy-MM-dd'); break;
+        case 'next90': closeDateEnd = format(addDays(today, 90), 'yyyy-MM-dd'); break;
+        case 'thisQuarter': {
+          const qMonth = Math.floor(now.getMonth() / 3) * 3 + 3;
+          closeDateEnd = format(new Date(now.getFullYear(), qMonth, 0), 'yyyy-MM-dd');
+          break;
+        }
+        case 'currentFY':
+          closeDateStart = format(new Date(now.getFullYear(), 0, 1), 'yyyy-MM-dd');
+          closeDateEnd = format(new Date(now.getFullYear(), 11, 31), 'yyyy-MM-dd');
+          break;
+      }
+    }
+
+    if (card === 'closing') {
+      const now = new Date();
+      closeDateStart = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd');
+      closeDateEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), 'yyyy-MM-dd');
+    }
+
+    const cardLabels = { total: 'Total Pipeline', weighted: 'Weighted Pipeline', closing: 'Weighted Closing This Month' };
+    let source = cardLabels[card];
+    if (resolvedFilterId !== 'all') {
+      const name = sfUsers.find(u => u.Id === resolvedFilterId)?.Name;
+      if (name) source += ` — ${name}`;
+    }
+    if (card === 'closing') {
+      source += `, ${format(new Date(), 'MMMM yyyy')}`;
+    }
+
+    navigate('/pipeline', {
+      state: { dashboardFilters: { owners, closeDateStart, closeDateEnd, source } },
+    });
+  }, [prefs.dateRange, resolvedFilterId, sfUsers, navigate]);
 
   if (oppsLoading) {
     return (
@@ -706,8 +970,11 @@ const MyDashboard: React.FC = () => {
             collapsed={!!prefs.collapsed['calendar']}
             onToggle={() => toggleSection('calendar')}
             badge={
-              calendarEvents.length > 0 ? (
-                <Chip label={`${calendarEvents.length} events`} size="small" />
+              (gcalCount > 0 || taskCount > 0) ? (
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
+                  {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
+                </Box>
               ) : undefined
             }
           >
@@ -730,6 +997,8 @@ const MyDashboard: React.FC = () => {
               loading={calLoading}
               viewMode={prefs.calendarView}
               onViewModeChange={setCalendarView}
+              weekOffset={prefs.weekOffset ?? 0}
+              onWeekOffsetChange={(offset) => setPrefs((p) => ({ ...p, weekOffset: offset }))}
               onTaskClick={(taskId, whatId) => {
                 const opp = priorityOpps.find((o) => o.Id === whatId) || allOpportunities.find((o: any) => o.Id === whatId);
                 if (opp) {
@@ -748,6 +1017,7 @@ const MyDashboard: React.FC = () => {
                   };
                   setTaskPanelOpp(mapped);
                   setTaskPanelOpen(true);
+                  setSelectedTaskId(taskId);
                 }
               }}
             />
@@ -779,6 +1049,9 @@ const MyDashboard: React.FC = () => {
           tasksLoading={tasksLoading}
           currentUserId={user?.salesforce_user_id}
           onToggleUrgent={handleToggleUrgent}
+          gcalCount={gcalCount}
+          taskCount={taskCount}
+          setSelectedTaskId={setSelectedTaskId}
         />
       ) : (
         <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -790,8 +1063,11 @@ const MyDashboard: React.FC = () => {
               collapsed={!!prefs.collapsed['calendar']}
               onToggle={() => toggleSection('calendar')}
               badge={
-                calendarEvents.length > 0 ? (
-                  <Chip label={`${calendarEvents.length} events`} size="small" />
+                (gcalCount > 0 || taskCount > 0) ? (
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
+                    {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
+                  </Box>
                 ) : undefined
               }
             >
@@ -814,6 +1090,8 @@ const MyDashboard: React.FC = () => {
                 loading={calLoading}
                 viewMode={prefs.calendarView}
                 onViewModeChange={setCalendarView}
+                weekOffset={prefs.weekOffset ?? 0}
+                onWeekOffsetChange={(offset) => setPrefs((p) => ({ ...p, weekOffset: offset }))}
                 onTaskClick={(taskId, whatId) => {
                   const opp = priorityOpps.find((o) => o.Id === whatId) || allOpportunities.find((o: any) => o.Id === whatId);
                   if (opp) {
@@ -832,6 +1110,7 @@ const MyDashboard: React.FC = () => {
                     };
                     setTaskPanelOpp(mapped);
                     setTaskPanelOpen(true);
+                    setSelectedTaskId(taskId);
                   }
                 }}
               />
@@ -897,22 +1176,6 @@ const MyDashboard: React.FC = () => {
                     </MenuItem>
                   );
                 })}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel id="close-date-label">Close Date</InputLabel>
-              <Select
-                labelId="close-date-label"
-                label="Close Date"
-                value={prefs.closeDateRange}
-                onChange={(e) => setPrefs((p) => ({ ...p, closeDateRange: e.target.value as CloseDateRange }))}
-              >
-                <MenuItem value="all">All Dates</MenuItem>
-                <MenuItem value="next30">Next 30 days</MenuItem>
-                <MenuItem value="next60">Next 60 days</MenuItem>
-                <MenuItem value="next90">Next 90 days</MenuItem>
-                <MenuItem value="thisQuarter">This Quarter</MenuItem>
-                <MenuItem value="thisYear">This Year</MenuItem>
               </Select>
             </FormControl>
             <ToggleButtonGroup
@@ -1015,97 +1278,133 @@ const MyDashboard: React.FC = () => {
         )}
       </Section>
 
-      {/* Section 3: Revenue Tracker */}
+      {/* Section 3: Revenue Snapshot */}
       <Section
         id="revenue"
         title="Revenue Snapshot"
         icon={<TrendingUpIcon color="primary" />}
         collapsed={!!prefs.collapsed['revenue']}
         onToggle={() => toggleSection('revenue')}
-        badge={
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={prefs.snapshotMode}
-            onChange={(_, val) => val && updatePrefs({ snapshotMode: val })}
-            onClick={(e) => e.stopPropagation()}
-            sx={{ ml: 1 }}
-          >
-            <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>All Pipeline</ToggleButton>
-            <ToggleButton value="filtered" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>All Filtered</ToggleButton>
-            <ToggleButton value="priorities" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>Just Priorities</ToggleButton>
-          </ToggleButtonGroup>
-        }
       >
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
-            <Card
-              variant="outlined"
-              sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
-              onClick={() => navigate('/dashboard')}
-            >
-              <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
-                <MoneyIcon color="primary" />
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Total Pipeline
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                  {formatDollarMillions(pipelineStats.total)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {pipelineStats.count} open opportunities
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} md={5}>
+            <GoalTracker
+              goalAmount={2_000_000}
+              allOpportunities={allOpportunities}
+              filterUserId={resolvedFilterId}
+              ownerName={
+                resolvedFilterId !== 'all'
+                  ? sfUsers.find((u) => u.Id === resolvedFilterId)?.Name || null
+                  : null
+              }
+            />
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card
-              variant="outlined"
-              sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
-              onClick={() => navigate('/dashboard')}
-            >
-              <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
-                <WeightedIcon color="primary" />
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Weighted Pipeline
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                  {formatDollarMillions(pipelineStats.weighted)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Probability-weighted
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card
-              variant="outlined"
-              sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
-              onClick={() => navigate('/dashboard')}
-            >
-              <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
-                <EventIcon color="primary" />
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Closing This Month
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                  {formatDollarMillions(pipelineStats.closingAmount)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {pipelineStats.closingThisMonth} deal{pipelineStats.closingThisMonth !== 1 ? 's' : ''}
-                </Typography>
-              </CardContent>
-            </Card>
+          <Grid item xs={12} md={7}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <Card
+                  variant="outlined"
+                  sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+                  onClick={() => navigateToPipeline('total')}
+                >
+                  <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
+                    <MoneyIcon color="primary" />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Total Pipeline
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      {formatDollarMillions(pipelineStats.total)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {pipelineStats.count} open opportunities
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Card
+                  variant="outlined"
+                  sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+                  onClick={() => navigateToPipeline('weighted')}
+                >
+                  <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
+                    <WeightedIcon color="primary" />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Weighted Pipeline
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      {formatDollarMillions(pipelineStats.weighted)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Probability-weighted
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Card
+                  variant="outlined"
+                  sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+                  onClick={() => navigateToPipeline('closing')}
+                >
+                  <CardContent sx={{ py: 1.5, textAlign: 'center' }}>
+                    <EventIcon color="primary" />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Weighted Closing This Mo.
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      {formatDollarMillions(pipelineStats.closingAmount)}
+                    </Typography>
+                    <Tooltip
+                      title={
+                        pipelineStats.closingOpps.length > 0 ? (
+                          <Box>
+                            {pipelineStats.closingOpps.slice(0, 8).map((o, i) => (
+                              <Typography key={i} variant="caption" display="block" sx={{ fontSize: '0.75rem' }}>
+                                {o.Name} — ${(o.Amount || 0).toLocaleString()} ({o.Probability}%)
+                              </Typography>
+                            ))}
+                            {pipelineStats.closingOpps.length > 8 && (
+                              <Typography variant="caption" display="block" sx={{ fontSize: '0.75rem', fontStyle: 'italic' }}>
+                                and {pipelineStats.closingOpps.length - 8} more…
+                              </Typography>
+                            )}
+                          </Box>
+                        ) : ''
+                      }
+                      arrow
+                      placement="top"
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ cursor: 'default' }}>
+                        {pipelineStats.closingThisMonth} deal{pipelineStats.closingThisMonth !== 1 ? 's' : ''} &middot; probability-weighted
+                      </Typography>
+                    </Tooltip>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </Grid>
         </Grid>
       </Section>
 
+      {/* Floating filter pill — date range + snapshot mode */}
+      <FloatingFilterPill
+        dateRange={prefs.dateRange}
+        onDateRangeChange={(dateRange) => setPrefs((p) => ({ ...p, dateRange }))}
+        snapshotMode={prefs.snapshotMode}
+        onSnapshotModeChange={(snapshotMode) => setPrefs((p) => ({ ...p, snapshotMode }))}
+        snapshotDescription={snapshotDescription}
+        label={pillLabel}
+        position={prefs.filterPillPosition}
+        onPositionChange={(filterPillPosition) => setPrefs((p) => ({ ...p, filterPillPosition }))}
+      />
+
       {/* Task Panel drawer */}
       <TaskPanel
         open={taskPanelOpen}
-        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); }}
+        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); setSelectedTaskId(null); }}
         opportunity={taskPanelOpp}
+        selectedTaskId={selectedTaskId}
       />
     </Box>
   );

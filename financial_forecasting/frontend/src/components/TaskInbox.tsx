@@ -162,9 +162,11 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     return items;
   }, [tasks, filterStatus, filterPriority, filterMyTasks, filterNext14Days, currentUserId]);
 
-  const { urgent, assigned } = useMemo(() => {
+  const { urgent, overdue, assigned } = useMemo(() => {
     const u: InboxTask[] = [];
+    const o: InboxTask[] = [];
     const a: InboxTask[] = [];
+    const now = startOfDay(new Date());
 
     const sortFn = (x: InboxTask, y: InboxTask): number => {
       let diff = 0;
@@ -189,14 +191,20 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     };
 
     for (const t of filtered) {
-      if (t.isUrgent) u.push(t);
-      else a.push(t);
+      if (t.isUrgent) {
+        u.push(t);
+      } else if (t.ActivityDate && isBefore(parseISO(t.ActivityDate), now) && t.Status !== 'Completed') {
+        o.push(t);
+      } else {
+        a.push(t);
+      }
     }
 
     u.sort(sortFn);
+    o.sort(sortFn);
     a.sort(sortFn);
 
-    return { urgent: u, assigned: a };
+    return { urgent: u, overdue: o, assigned: a };
   }, [filtered, sort]);
 
   const renderTask = (task: InboxTask) => {
@@ -321,7 +329,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   };
 
   return (
-    <Box>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* Filters */}
       {!compact && (
         <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
@@ -378,8 +386,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
         </Box>
       )}
 
-      <Box sx={{ position: 'relative' }}>
-      <Box sx={{ overflowY: 'auto', maxHeight }}>
+      <Box sx={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <Box sx={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
         {/* Urgent section */}
         {urgent.length > 0 && (
           <Box sx={{ mb: 1 }}>
@@ -394,7 +402,23 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           </Box>
         )}
 
-        {urgent.length > 0 && assigned.length > 0 && <Divider sx={{ my: 0.5 }} />}
+        {urgent.length > 0 && (overdue.length > 0 || assigned.length > 0) && <Divider sx={{ my: 0.5 }} />}
+
+        {/* Overdue section */}
+        {overdue.length > 0 && (
+          <Box sx={{ mb: 1 }}>
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, color: '#d32f2f', px: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}
+            >
+              <ScheduleIcon sx={{ fontSize: 14 }} />
+              OVERDUE ({overdue.length})
+            </Typography>
+            {overdue.map(renderTask)}
+          </Box>
+        )}
+
+        {overdue.length > 0 && assigned.length > 0 && <Divider sx={{ my: 0.5 }} />}
 
         {/* Assigned section */}
         {assigned.length > 0 && (
@@ -409,7 +433,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           </Box>
         )}
 
-        {urgent.length === 0 && assigned.length === 0 && (
+        {urgent.length === 0 && overdue.length === 0 && assigned.length === 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
             {loading ? 'Loading tasks...' : 'No tasks to show.'}
           </Typography>

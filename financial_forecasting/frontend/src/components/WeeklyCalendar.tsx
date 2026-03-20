@@ -4,7 +4,6 @@ import {
   Typography,
   ToggleButton,
   ToggleButtonGroup,
-  Paper,
   Chip,
   CircularProgress,
   Tooltip,
@@ -12,15 +11,12 @@ import {
   FormControlLabel,
   Popover,
   IconButton,
-  Collapse,
-  Button,
 } from '@mui/material';
 import {
-  Event as EventIcon,
   Assignment as TaskIcon,
   Tune as TuneIcon,
   CheckCircle as CheckCircleIcon,
-  Edit as EditIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import {
   format,
@@ -64,10 +60,14 @@ interface WeeklyCalendarProps {
   loading?: boolean;
   viewMode?: CalendarViewMode;
   onViewModeChange?: (mode: CalendarViewMode) => void;
+  weekOffset?: number;
+  onWeekOffsetChange?: (offset: number) => void;
   sources?: CalendarSource[];
   enabledSources?: string[];
   onToggleSource?: (sourceId: string) => void;
   onTaskClick?: (taskId: string, whatId: string) => void;
+  timeGridHeight?: number;
+  onTimeGridHeightChange?: (height: number) => void;
 }
 
 const VIEW_DAYS: Record<CalendarViewMode, number> = {
@@ -83,6 +83,8 @@ const DEFAULT_SOURCES: CalendarSource[] = [
 
 const MAX_VISIBLE_ITEMS = 6;
 const TITLE_TRUNCATE_LEN = 40;
+const MIN_COL_WIDTH = 110; // px — minimum day column width before horizontal scroll
+const GUTTER_WIDTH = 50;   // px — time label / icon column
 
 function truncate(str: string, len: number): string {
   if (!str) return '';
@@ -142,13 +144,22 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   loading = false,
   viewMode: controlledViewMode,
   onViewModeChange,
+  weekOffset: controlledWeekOffset,
+  onWeekOffsetChange,
   sources = DEFAULT_SOURCES,
   enabledSources: controlledEnabledSources,
   onToggleSource,
   onTaskClick,
+  timeGridHeight: controlledTimeGridHeight,
+  onTimeGridHeightChange,
 }) => {
   const [internalViewMode, setInternalViewMode] = useState<CalendarViewMode>('week');
   const viewMode = controlledViewMode ?? internalViewMode;
+  const timeGridHeight = controlledTimeGridHeight ?? 520;
+
+  const [internalWeekOffset, setInternalWeekOffset] = useState(0);
+  const weekOffset = controlledWeekOffset ?? internalWeekOffset;
+  const setWeekOffset = onWeekOffsetChange ?? setInternalWeekOffset;
 
   const [internalEnabled, setInternalEnabled] = useState<Set<string>>(
     new Set(sources.map((s) => s.id)),
@@ -158,24 +169,17 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     : internalEnabled;
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const [eventAnchorEl, setEventAnchorEl] = useState<HTMLElement | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
-  const toggleExpand = useCallback((id: string) => {
-    setExpandedEventId((prev) => (prev === id ? null : id));
+  const closeEventPopover = useCallback(() => {
+    setEventAnchorEl(null);
+    setSelectedEvent(null);
   }, []);
-
-  const handleTaskEdit = useCallback(
-    (ev: CalendarEvent) => {
-      if (ev.whatId && onTaskClick) {
-        onTaskClick(ev.id, ev.whatId);
-        setExpandedEventId(null);
-      }
-    },
-    [onTaskClick]
-  );
 
   const handleViewChange = (_: any, newMode: CalendarViewMode | null) => {
     if (!newMode) return;
+    if (newMode === 'day') setWeekOffset(0);
     if (onViewModeChange) onViewModeChange(newMode);
     else setInternalViewMode(newMode);
   };
@@ -202,10 +206,16 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
   const days = useMemo(() => {
     const today = new Date();
-    const start = viewMode === 'day' ? today : startOfWeek(today, { weekStartsOn: 1 });
+    const start = viewMode === 'day'
+      ? today
+      : startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 });
     const count = VIEW_DAYS[viewMode];
     return Array.from({ length: count }, (_, i) => addDays(start, i));
-  }, [viewMode]);
+  }, [viewMode, weekOffset]);
+
+  // Shared grid layout — guarantees column alignment across all sections
+  const minGridWidth = GUTTER_WIDTH + days.length * MIN_COL_WIDTH;
+  const gridCols = `${GUTTER_WIDTH}px repeat(${days.length}, minmax(${MIN_COL_WIDTH}px, 1fr))`;
 
   // Group events by day, split into meetings (gcal) and tasks
   const eventsByDay = useMemo(() => {
@@ -244,19 +254,35 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   const gridRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!loading && gridRef.current) {
-      const nowLine = gridRef.current.querySelector('[data-now-line]');
-      if (nowLine) nowLine.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      const nowLine = gridRef.current.querySelector('[data-now-line]') as HTMLElement;
+      if (nowLine) {
+        // Scroll the container (not the page) so the now-line is centered
+        const containerHeight = gridRef.current.clientHeight;
+        const nowTop = nowLine.offsetTop;
+        gridRef.current.scrollTop = Math.max(0, nowTop - containerHeight / 2);
+      }
     }
   }, [loading, viewMode]);
 
   return (
-    <Box>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* Header bar */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="subtitle2" color="text.secondary">
           {format(days[0], 'MMM d')} — {format(days[days.length - 1], 'MMM d, yyyy')}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {viewMode !== 'day' && (
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={weekOffset}
+              onChange={(_, val) => { if (val !== null) setWeekOffset(val); }}
+            >
+              <ToggleButton value={0} sx={{ textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' }}>This Week</ToggleButton>
+              <ToggleButton value={1} sx={{ textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' }}>Next Week</ToggleButton>
+            </ToggleButtonGroup>
+          )}
           <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
             <TuneIcon fontSize="small" />
           </IconButton>
@@ -289,7 +315,6 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
           <ToggleButtonGroup size="small" exclusive value={viewMode} onChange={handleViewChange}>
             <ToggleButton value="day">Day</ToggleButton>
             <ToggleButton value="week">Week</ToggleButton>
-            <ToggleButton value="2week">2 Week</ToggleButton>
           </ToggleButtonGroup>
         </Box>
       </Box>
@@ -300,123 +325,21 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
           <Typography variant="body2">Loading events...</Typography>
         </Box>
       ) : (
-        <Box ref={gridRef}>
-          {/* All-day row: tasks (no specific time) */}
-          {(() => {
-            const allDayTasks = days.map((day) => {
-              const key = format(day, 'yyyy-MM-dd');
-              return eventsByDay.get(key)?.tasks || [];
-            });
-            const hasAnyTasks = allDayTasks.some((t) => t.length > 0);
-            if (!hasAnyTasks) return null;
-            return (
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: `50px repeat(${days.length}, 1fr)`,
-                  mb: 0.5,
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TaskIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                </Box>
-                {days.map((day, di) => {
-                  const key = format(day, 'yyyy-MM-dd');
-                  const tasks = eventsByDay.get(key)?.tasks || [];
-                  return (
-                    <Box key={key} sx={{ px: 0.25, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                      {tasks.map((ev, i) => {
-                        const borderColor = getTaskBorderColor(ev);
-                        const isCompleted = ev.status === 'Completed';
-                        const isExpanded = expandedEventId === ev.id;
-                        const canEdit = ev.whatId && onTaskClick;
-                        return (
-                          <Box key={ev.id + i}>
-                            <Box
-                              onClick={() => toggleExpand(ev.id)}
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 0.5,
-                                px: 0.5,
-                                py: 0.25,
-                                borderRadius: 0.5,
-                                bgcolor: isCompleted ? 'grey.50' : 'transparent',
-                                borderLeft: `3px solid ${borderColor}`,
-                                cursor: 'pointer',
-                                overflow: 'hidden',
-                                opacity: isCompleted ? 0.6 : 1,
-                                '&:hover': { bgcolor: 'action.hover' },
-                              }}
-                            >
-                              {isCompleted ? (
-                                <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
-                              ) : (
-                                <TaskIcon sx={{ fontSize: 14, color: borderColor }} />
-                              )}
-                              <Typography
-                                variant="caption"
-                                noWrap
-                                sx={{
-                                  fontSize: '0.7rem',
-                                  lineHeight: 1.2,
-                                  textDecoration: isCompleted ? 'line-through' : 'none',
-                                  color: isCompleted ? 'text.secondary' : 'text.primary',
-                                }}
-                              >
-                                {truncate(ev.summary, viewMode === 'day' ? 60 : 20)}
-                              </Typography>
-                            </Box>
-                            <Collapse in={isExpanded}>
-                              <Box sx={{ pl: 2, pr: 0.5, py: 0.5, mb: 0.5, borderLeft: `2px solid ${borderColor}80` }}>
-                                <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
-                                  {ev.summary}
-                                </Typography>
-                                <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
-                                  {ev.status && <Chip label={ev.status} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
-                                  {ev.priority && <Chip label={ev.priority} size="small" sx={{ height: 20, fontSize: '0.7rem' }} variant="outlined" />}
-                                </Box>
-                                {ev.opportunityName && (
-                                  <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
-                                    Opp: {ev.opportunityName}
-                                  </Typography>
-                                )}
-                                {ev.description && (
-                                  <Typography variant="caption" sx={{ fontSize: '0.75rem', lineHeight: 1.4, mt: 0.5, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                    {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
-                                  </Typography>
-                                )}
-                                {canEdit && (
-                                  <Button
-                                    size="small"
-                                    startIcon={<EditIcon sx={{ fontSize: 14 }} />}
-                                    onClick={(e) => { e.stopPropagation(); handleTaskEdit(ev); }}
-                                    sx={{ mt: 0.5, fontSize: '0.75rem', minWidth: 0, px: 1 }}
-                                  >
-                                    Edit in panel
-                                  </Button>
-                                )}
-                              </Box>
-                            </Collapse>
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  );
-                })}
-              </Box>
-            );
-          })()}
-
-          {/* Day headers */}
+        <Box ref={gridRef} sx={{ overflow: 'auto', flex: 1, minHeight: 0 }}>
+          {/* Day headers — sticky at top during vertical scroll */}
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: `50px repeat(${days.length}, 1fr)`,
+              gridTemplateColumns: gridCols,
+              minWidth: minGridWidth,
               borderBottom: '1px solid',
               borderColor: 'divider',
               pb: 0.5,
               mb: 0,
+              position: 'sticky',
+              top: 0,
+              zIndex: 5,
+              bgcolor: 'background.paper',
             }}
           >
             <Box /> {/* spacer for time column */}
@@ -453,18 +376,117 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             })}
           </Box>
 
+          {/* All-day row: tasks (below day headers for alignment) */}
+          {(() => {
+            const allDayTasks = days.map((day) => {
+              const key = format(day, 'yyyy-MM-dd');
+              return eventsByDay.get(key)?.tasks || [];
+            });
+            const hasAnyTasks = allDayTasks.some((t) => t.length > 0);
+            if (!hasAnyTasks) return null;
+            return (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: gridCols,
+                  minWidth: minGridWidth,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TaskIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                </Box>
+                {days.map((day, di) => {
+                  const key = format(day, 'yyyy-MM-dd');
+                  const tasks = eventsByDay.get(key)?.tasks || [];
+                  return (
+                    <Box
+                      key={key}
+                      sx={{
+                        px: 0.25,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0.25,
+                        py: 0.25,
+                        borderLeft: di > 0 ? '1px solid' : 'none',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      {tasks.map((ev, i) => {
+                        const borderColor = getTaskBorderColor(ev);
+                        const isCompleted = ev.status === 'Completed';
+                        const hasOpp = ev.whatId && onTaskClick;
+                        return (
+                          <Tooltip
+                            key={ev.id + i}
+                            title={hasOpp ? 'Open in task panel' : 'No linked opportunity'}
+                            placement="top"
+                            arrow
+                          >
+                            <Box
+                              onClick={(e) => {
+                                if (hasOpp) {
+                                  onTaskClick!(ev.id, ev.whatId!);
+                                } else {
+                                  setSelectedEvent(ev);
+                                  setEventAnchorEl(e.currentTarget as HTMLElement);
+                                }
+                              }}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                px: 0.5,
+                                py: 0.25,
+                                borderRadius: 0.5,
+                                bgcolor: isCompleted ? 'grey.50' : 'transparent',
+                                borderLeft: `3px solid ${borderColor}`,
+                                cursor: 'pointer',
+                                overflow: 'hidden',
+                                opacity: isCompleted ? 0.6 : 1,
+                                '&:hover': { bgcolor: 'action.hover' },
+                              }}
+                            >
+                              {isCompleted ? (
+                                <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                              ) : (
+                                <TaskIcon sx={{ fontSize: 14, color: borderColor }} />
+                              )}
+                              <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{
+                                  fontSize: '0.7rem',
+                                  lineHeight: 1.2,
+                                  textDecoration: isCompleted ? 'line-through' : 'none',
+                                  color: isCompleted ? 'text.secondary' : 'text.primary',
+                                }}
+                              >
+                                {truncate(ev.summary, viewMode === 'day' ? 60 : 20)}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        );
+                      })}
+                    </Box>
+                  );
+                })}
+              </Box>
+            );
+          })()}
+
           {/* Time grid */}
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: `50px repeat(${days.length}, 1fr)`,
-              maxHeight: 520,
-              overflowY: 'auto',
+              gridTemplateColumns: gridCols,
+              minWidth: minGridWidth,
               position: 'relative',
             }}
           >
-            {/* Hour labels column */}
-            <Box sx={{ position: 'relative' }}>
+            {/* Hour labels column — sticky left during horizontal scroll */}
+            <Box sx={{ position: 'sticky', left: 0, zIndex: 2, bgcolor: 'background.paper' }}>
               {HOURS.map((hour) => (
                 <Box
                   key={hour}
@@ -547,75 +569,47 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                     const height = getEventHeight(ev.start, ev.end);
                     const time = formatTime(ev.start);
                     const endTime = ev.end ? formatTime(ev.end) : '';
-                    const isExpanded = expandedEventId === ev.id;
-                    const attendeeNames = (ev.attendees || [])
-                      .map((a: any) => a.name || a.email).filter(Boolean).slice(0, 5);
                     const attendeeCount = (ev.attendees || []).length;
 
                     return (
-                      <Box key={ev.id + i}>
-                        <Box
-                          onClick={() => toggleExpand(ev.id)}
-                          sx={{
-                            position: 'absolute',
-                            top: `${top}%`,
-                            height: `${height}%`,
-                            left: 2,
-                            right: 2,
-                            bgcolor: `${meetingColor}18`,
-                            borderLeft: `3px solid ${meetingColor}`,
-                            borderRadius: 0.5,
-                            px: 0.5,
-                            overflow: 'hidden',
-                            cursor: 'pointer',
-                            zIndex: 1,
-                            '&:hover': { bgcolor: `${meetingColor}28`, zIndex: 2 },
-                          }}
+                      <Box
+                        key={ev.id + i}
+                        onClick={(e) => {
+                          setSelectedEvent(ev);
+                          setEventAnchorEl(e.currentTarget as HTMLElement);
+                        }}
+                        sx={{
+                          position: 'absolute',
+                          top: `${top}%`,
+                          height: `${height}%`,
+                          left: 2,
+                          right: 2,
+                          bgcolor: `${meetingColor}18`,
+                          borderLeft: `3px solid ${meetingColor}`,
+                          borderRadius: 0.5,
+                          px: 0.5,
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          zIndex: 1,
+                          '&:hover': { bgcolor: `${meetingColor}28`, zIndex: 2 },
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          noWrap
+                          sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.3, display: 'block' }}
                         >
-                          <Typography
-                            variant="caption"
-                            noWrap
-                            sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.3, display: 'block' }}
-                          >
-                            {truncate(ev.summary, viewMode === 'day' ? 60 : TITLE_TRUNCATE_LEN)}
+                          {truncate(ev.summary, viewMode === 'day' ? 60 : TITLE_TRUNCATE_LEN)}
+                        </Typography>
+                        <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1 }}>
+                          {time}{endTime ? ` – ${endTime}` : ''}
+                        </Typography>
+                        {viewMode === 'day' && attendeeCount > 0 && (
+                          <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
+                            {(ev.attendees || []).map((a: any) => a.name || a.email).filter(Boolean).slice(0, 3).join(', ')}
+                            {attendeeCount > 3 ? ` +${attendeeCount - 3}` : ''}
                           </Typography>
-                          <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1 }}>
-                            {time}{endTime ? ` – ${endTime}` : ''}
-                          </Typography>
-                          {viewMode === 'day' && attendeeCount > 0 && (
-                            <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
-                              {attendeeNames.slice(0, 3).join(', ')}{attendeeCount > 3 ? ` +${attendeeCount - 3}` : ''}
-                            </Typography>
-                          )}
-                        </Box>
-                        <Collapse in={isExpanded} sx={{ position: 'relative', zIndex: 10 }}>
-                          <Paper elevation={4} sx={{ p: 1, mx: 0.5, mb: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.85rem', display: 'block' }}>
-                              {ev.summary}
-                            </Typography>
-                            {time && (
-                              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
-                                {time}{endTime ? ` – ${endTime}` : ''}
-                              </Typography>
-                            )}
-                            {ev.location && (
-                              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
-                                {ev.location}
-                              </Typography>
-                            )}
-                            {ev.description && (
-                              <Typography variant="caption" sx={{ fontSize: '0.75rem', lineHeight: 1.4, mt: 0.5, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {ev.description.length > 200 ? ev.description.slice(0, 200) + '…' : ev.description}
-                              </Typography>
-                            )}
-                            {attendeeCount > 0 && (
-                              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                                {attendeeNames.join(', ')}
-                                {attendeeCount > 5 ? ` +${attendeeCount - 5} more` : ''}
-                              </Typography>
-                            )}
-                          </Paper>
-                        </Collapse>
+                        )}
                       </Box>
                     );
                   })}
@@ -623,8 +617,108 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
               );
             })}
           </Box>
+
+          {/* Calendar height resize handle */}
+          {onTimeGridHeightChange && (
+            <Box
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startHeight = timeGridHeight;
+                const onMove = (me: MouseEvent) => {
+                  const newH = Math.min(800, Math.max(200, startHeight + me.clientY - startY));
+                  onTimeGridHeightChange(newH);
+                };
+                const onUp = () => {
+                  window.removeEventListener('mousemove', onMove);
+                  window.removeEventListener('mouseup', onUp);
+                };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+              sx={{
+                height: 8,
+                cursor: 'row-resize',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                '&:hover > div': { bgcolor: 'primary.main' },
+              }}
+            >
+              <Box sx={{ width: 40, height: 4, borderRadius: 2, bgcolor: 'divider', transition: 'background-color 0.15s' }} />
+            </Box>
+          )}
         </Box>
       )}
+
+      {/* Event / orphan-task detail popover */}
+      <Popover
+        open={Boolean(eventAnchorEl) && Boolean(selectedEvent)}
+        anchorEl={eventAnchorEl}
+        onClose={closeEventPopover}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { maxWidth: 340, p: 1.5, position: 'relative' } } }}
+      >
+        {selectedEvent && (
+          <>
+            <IconButton
+              size="small"
+              onClick={closeEventPopover}
+              sx={{ position: 'absolute', top: 4, right: 4 }}
+            >
+              <CloseIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, pr: 3 }}>
+              {selectedEvent.summary}
+            </Typography>
+
+            {selectedEvent.type === 'gcal' && (
+              <>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  {formatTime(selectedEvent.start)}
+                  {selectedEvent.end ? ` \u2013 ${formatTime(selectedEvent.end)}` : ''}
+                </Typography>
+                {selectedEvent.location && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                    {selectedEvent.location}
+                  </Typography>
+                )}
+                {selectedEvent.description && (
+                  <Typography variant="caption" sx={{ mt: 0.5, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4 }}>
+                    {selectedEvent.description.length > 200 ? selectedEvent.description.slice(0, 200) + '\u2026' : selectedEvent.description}
+                  </Typography>
+                )}
+                {(selectedEvent.attendees?.length || 0) > 0 && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                    {selectedEvent.attendees!.slice(0, 5).map(a => a.name || a.email).filter(Boolean).join(', ')}
+                    {selectedEvent.attendees!.length > 5 ? ` +${selectedEvent.attendees!.length - 5} more` : ''}
+                  </Typography>
+                )}
+              </>
+            )}
+
+            {selectedEvent.type === 'task' && (
+              <>
+                <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                  {selectedEvent.status && <Chip label={selectedEvent.status} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                  {selectedEvent.priority && <Chip label={selectedEvent.priority} size="small" sx={{ height: 20, fontSize: '0.7rem' }} variant="outlined" />}
+                </Box>
+                {selectedEvent.opportunityName && (
+                  <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', display: 'block' }}>
+                    Opp: {selectedEvent.opportunityName}
+                  </Typography>
+                )}
+                {selectedEvent.description && (
+                  <Typography variant="caption" sx={{ mt: 0.5, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4 }}>
+                    {selectedEvent.description.length > 200 ? selectedEvent.description.slice(0, 200) + '\u2026' : selectedEvent.description}
+                  </Typography>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </Popover>
     </Box>
   );
 };

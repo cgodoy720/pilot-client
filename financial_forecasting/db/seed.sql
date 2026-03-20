@@ -118,3 +118,7 @@ WHERE id = 'd0000000-0000-4000-8000-000000000009' AND depends_on = '{}';
 
 UPDATE project_task SET depends_on = ARRAY['d0000000-0000-4000-8000-000000000012'::UUID]
 WHERE id = 'd0000000-0000-4000-8000-000000000013' AND depends_on = '{}';
+
+-- Set start_date for Gantt chart (7 days before deadline, or fallback)
+UPDATE project_task SET start_date = deadline - INTERVAL '7 days' WHERE deadline IS NOT NULL AND start_date IS NULL;
+UPDATE project_task SET start_date = '2026-03-01' WHERE deadline IS NULL AND start_date IS NULL;

@@ -31,6 +31,7 @@ import {
   Person as PersonIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
+  Sort as SortIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiService } from '../services/api';
@@ -67,6 +68,7 @@ interface TaskPanelProps {
   onClose: () => void;
   opportunity: Opportunity | null;
   users?: Array<{ Id: string; Name: string }>;
+  selectedTaskId?: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -100,9 +102,9 @@ const isOverdue = (dateStr: string | null, status: string) => {
 };
 
 const TASK_PANEL_PREFS_KEY = 'pursuit-task-panel-prefs';
-const DEFAULT_WIDTH = 520;
-const MIN_WIDTH = 360;
-const MAX_WIDTH = 800;
+const DEFAULT_WIDTH = 680;
+const MIN_WIDTH = 400;
+const MAX_WIDTH = 1200;
 
 function loadTaskPanelWidth(): number {
   try {
@@ -120,7 +122,7 @@ function saveTaskPanelWidth(width: number) {
   localStorage.setItem(TASK_PANEL_PREFS_KEY, JSON.stringify({ width }));
 }
 
-const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users }) => {
+const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users, selectedTaskId }) => {
   const queryClient = useQueryClient();
   const [width, setWidth] = useState(loadTaskPanelWidth);
   const widthRef = useRef(width);
@@ -157,7 +159,8 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  
+  const [taskSort, setTaskSort] = useState<'asc' | 'desc'>('asc');
+
   // New task form state
   const [newTask, setNewTask] = useState({
     Subject: '',
@@ -194,6 +197,18 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
   );
 
   const tasks: Task[] = tasksData?.tasks || [];
+
+  // Auto-expand selected task details (not edit mode) when tasks load
+  useEffect(() => {
+    if (selectedTaskId && tasks.length > 0) {
+      setExpandedTaskId(selectedTaskId);
+      // Scroll into view after render
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`task-item-${selectedTaskId}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [selectedTaskId, tasks.length]);
 
   // Create task mutation
   const createTaskMutation = useMutation(
@@ -290,8 +305,14 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
 
   if (!opportunity) return null;
 
-  const openTasks = tasks.filter(t => t.Status !== 'Completed');
-  const completedTasks = tasks.filter(t => t.Status === 'Completed');
+  const sortByDueDate = (a: Task, b: Task) => {
+    const aDate = a.ActivityDate || '9999-12-31';
+    const bDate = b.ActivityDate || '9999-12-31';
+    return taskSort === 'asc' ? aDate.localeCompare(bDate) : bDate.localeCompare(aDate);
+  };
+
+  const openTasks = tasks.filter(t => t.Status !== 'Completed').sort(sortByDueDate);
+  const completedTasks = tasks.filter(t => t.Status === 'Completed').sort(sortByDueDate);
 
   return (
     <Drawer
@@ -538,9 +559,16 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
         {/* Open Tasks */}
         {openTasks.length > 0 && (
           <Box sx={{ mb: 2 }}>
-            <Typography variant="overline" sx={{ color: '#666', fontWeight: 700, display: 'block', mb: 1 }}>
-              Open Tasks ({openTasks.length})
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="overline" sx={{ color: '#666', fontWeight: 700 }}>
+                Open Tasks ({openTasks.length})
+              </Typography>
+              <Tooltip title={taskSort === 'asc' ? 'Earliest due first' : 'Latest due first'}>
+                <IconButton size="small" onClick={() => setTaskSort(s => s === 'asc' ? 'desc' : 'asc')}>
+                  <SortIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
             {openTasks.map((task) => (
               <TaskItem
                 key={task.Id}
@@ -620,8 +648,8 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
   if (isEditing) {
     return (
-      <Box sx={{ 
-        mb: 1, p: 2, border: '1px solid #1976d2', borderRadius: 2, bgcolor: '#f5f9ff' 
+      <Box id={`task-item-${task.Id}`} sx={{
+        mb: 1, p: 2, border: '1px solid #1976d2', borderRadius: 2, bgcolor: '#f5f9ff'
       }}>
         <TextField
           label="Subject"
@@ -726,7 +754,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   }
 
   return (
-    <Box sx={{ 
+    <Box id={`task-item-${task.Id}`} sx={{
       mb: 0.5,
       border: '1px solid',
       borderColor: overdue ? '#ffcdd2' : '#e0e0e0',

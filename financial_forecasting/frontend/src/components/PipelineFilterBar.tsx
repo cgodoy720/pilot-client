@@ -47,6 +47,7 @@ interface PipelineFilterBarProps {
   ownerOptions: Array<{ id: string; name: string }>;
   stageOptions?: string[];
   revenueStreamOptions?: string[];
+  initialExpanded?: boolean;
 }
 
 const PipelineFilterBar: React.FC<PipelineFilterBarProps> = ({
@@ -55,8 +56,9 @@ const PipelineFilterBar: React.FC<PipelineFilterBarProps> = ({
   ownerOptions,
   stageOptions = OPPORTUNITY_STAGES as unknown as string[],
   revenueStreamOptions = [],
+  initialExpanded = false,
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initialExpanded);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
