@@ -83,10 +83,14 @@ async def research_request(body: ResearchRequest):
 
     from .orchestrator import (
         stage1_enrich_prospect,
-        stage3_fact_check_and_synthesize,
+        score_source_richness,
+        activate_foragers,
+        quorum_verify_claims,
+        synthesize_profile,
         verify_urls,
         ProspectBudgetTracker,
     )
+    from .storage.db import save_source_scores
     from .model_client import ModelClient
     from .data_sources import (
         fetch_organization,
@@ -146,6 +150,14 @@ async def research_request(body: ResearchRequest):
             )
             propublica_data, sec_data = [_safe_result(r) for r in phase2]
 
+            # Score source richness (waggle dance)
+            source_scores = score_source_richness(
+                propublica_data, sec_data, fec_data, edgar_data,
+                usa_data, wiki_data, oc_data,
+            )
+            save_source_scores(cid, source_scores)
+            logger.info("Source scores for %s: %s", cid, source_scores)
+
             # Build structured claims from templates (no LLM)
             structured_claims = []
             structured_claims.extend(claims_from_fec(fec_data or []))
@@ -153,25 +165,52 @@ async def research_request(body: ResearchRequest):
             structured_claims.extend(claims_from_opencorporates(oc_data or []))
             structured_claims.extend(claims_from_edgar_search(edgar_data or []))
 
+            # Activate specialist foragers (conditional on richness thresholds)
+            forager_claims = await activate_foragers(
+                source_scores,
+                {
+                    "fec_data": fec_data,
+                    "oc_data": oc_data,
+                    "usa_data": usa_data,
+                    "propublica_data": propublica_data,
+                    "edgar_data": edgar_data,
+                    "wiki_data": wiki_data,
+                },
+                prospect, client, budget,
+            )
+
             # Stage 1: LLM extraction for ProPublica + SEC only
             enriched = stage1_enrich_prospect(prospect, structured_claims, propublica_data, sec_data, client, budget)
-            claims = [c for c in enriched.get("claims", []) if isinstance(c, dict) and c.get("source_url")]
+            llm_claims = [c for c in enriched.get("claims", []) if isinstance(c, dict) and c.get("source_url")]
 
-            # URL pre-filter: drop claims with dead source URLs before Opus fact-check
-            if claims and not budget.exceeded():
-                claims, dropped = await verify_urls(claims)
+            # Merge all claims: template + forager + llm-extracted
+            all_claims = llm_claims + forager_claims
+            logger.info(
+                "Claim pool for %s: %d template, %d forager, %d llm = %d total",
+                cid, len(structured_claims), len(forager_claims),
+                len(llm_claims) - len(structured_claims), len(all_claims),
+            )
+
+            # URL pre-filter: drop claims with dead source URLs
+            if all_claims and not budget.exceeded():
+                all_claims, dropped = await verify_urls(all_claims)
                 if dropped:
                     logger.info(
                         "URL pre-filter dropped %d claims: %s",
                         len(dropped), [c.get("source_url") for c in dropped],
                     )
 
-            # Stage 3: Fact-check + synthesis with Wikipedia context
+            # Quorum verification (replaces single Opus fact-check)
             wikipedia_context = wiki_data.get("extract") if wiki_data else None
-            if claims and not budget.exceeded():
-                profile_data = stage3_fact_check_and_synthesize(claims, prospect, client, budget, wikipedia_context=wikipedia_context)
+            verified_claims = all_claims
+            if all_claims and not budget.exceeded():
+                verified_claims = await quorum_verify_claims(all_claims, prospect, client, budget)
+
+            # Synthesis (Opus, with pre-verified origin-tagged claims)
+            if verified_claims and not budget.exceeded():
+                profile_data = synthesize_profile(verified_claims, prospect, client, budget, wikipedia_context=wikipedia_context)
                 profile = {
-                    "claims": profile_data.get("claims", claims),
+                    "claims": profile_data.get("claims", verified_claims),
                     "summary": profile_data.get("summary", ""),
                     "confidence_score": profile_data.get("confidence_score", "medium"),
                     "partial": profile_data.get("partial", False),
@@ -179,7 +218,7 @@ async def research_request(body: ResearchRequest):
                 }
             else:
                 profile = {
-                    "claims": claims,
+                    "claims": verified_claims,
                     "summary": "",
                     "confidence_score": "medium",
                     "partial": enriched.get("partial", False),

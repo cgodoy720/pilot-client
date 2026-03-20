@@ -90,6 +90,110 @@ def _tpl_summarizer(data: dict, source_urls: list[str]) -> tuple[str, str]:
     return prompt, system
 
 
+@register_template("wealth_indicator_agent")
+def _tpl_wealth(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    prospect = data["prospect"]
+    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
+    sections = []
+    if data.get("fec_data"):
+        sections.append(f"FEC Contributions:\n{json.dumps(data['fec_data'][:10], default=str)}")
+    if data.get("oc_data"):
+        sections.append(f"OpenCorporates Officer Positions:\n{json.dumps(data['oc_data'][:10], default=str)}")
+    if data.get("usa_data"):
+        sections.append(f"USAspending Awards:\n{json.dumps(data['usa_data'][:10], default=str)}")
+    prompt = (
+        f"Analyze financial signals for {name} and produce claims about giving capacity, "
+        f"wealth indicators, and financial connections.\n\n"
+        f"{chr(10).join(sections)}\n\n"
+        f"Source URLs: {', '.join(source_urls[:5])}\n\n"
+        f'{{"claims": [{{"text": "...", "source_url": "https://...", "confidence": "high|medium|low"}}]}}'
+    )
+    system = (
+        "You are a wealth analysis specialist. Analyze financial signals to produce claims about "
+        "giving capacity, wealth indicators, and financial connections. "
+        "Every claim must have a source_url. Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
+@register_template("philanthropy_agent")
+def _tpl_philanthropy(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    prospect = data["prospect"]
+    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
+    sections = []
+    if data.get("propublica_data"):
+        sections.append(f"ProPublica 990 Data:\n{json.dumps(data['propublica_data'], default=str)[:2000]}")
+    if data.get("edgar_data"):
+        sections.append(f"EDGAR Filings:\n{json.dumps(data['edgar_data'][:10], default=str)}")
+    if data.get("wiki_data"):
+        extract = data["wiki_data"].get("extract", "") if isinstance(data["wiki_data"], dict) else ""
+        if extract:
+            sections.append(f"Wikipedia:\n{extract[:1500]}")
+    prompt = (
+        f"Analyze nonprofit and biographical data for {name} and produce claims about "
+        f"philanthropic activity, board service, and nonprofit affiliations.\n\n"
+        f"{chr(10).join(sections)}\n\n"
+        f"Source URLs: {', '.join(source_urls[:5])}\n\n"
+        f'{{"claims": [{{"text": "...", "source_url": "https://...", "confidence": "high|medium|low"}}]}}'
+    )
+    system = (
+        "You are a philanthropy research specialist. Analyze nonprofit data and biographical info "
+        "to produce claims about philanthropic activity, board service, and nonprofit affiliations. "
+        "Every claim must have a source_url. Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
+@register_template("verifier_source")
+def _tpl_verifier_source(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    claims_text = data["claims_text"]
+    prompt = (
+        f"Evaluate each claim's source credibility.\n\n{claims_text}\n\n"
+        f"For each claim: is the source_url a .gov database, major institution site, "
+        f"or unrecognizable/suspicious? Approve claims with credible institutional sources.\n\n"
+        f'{{"approved": [0, 1, 3], "rejected": [{{"index": 2, "reason": "unverifiable source"}}]}}'
+    )
+    system = (
+        "You verify source credibility. Approve claims from .gov, .edu, major nonprofit, "
+        "or established institutional sources. Reject claims with unrecognizable URLs. "
+        "Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
+@register_template("verifier_consistency")
+def _tpl_verifier_consistency(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    claims_text = data["claims_text"]
+    prompt = (
+        f"Check internal consistency of these claims.\n\n{claims_text}\n\n"
+        f"Flag any claim that contradicts another claim in the set. "
+        f"Approve claims that are internally consistent.\n\n"
+        f'{{"approved": [0, 1, 3], "rejected": [{{"index": 2, "reason": "contradicts claim 0"}}]}}'
+    )
+    system = (
+        "You check internal consistency. Flag claims that contradict each other. "
+        "Approve claims that are mutually consistent. Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
+@register_template("verifier_crossref")
+def _tpl_verifier_crossref(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    claims_text = data["claims_text"]
+    prompt = (
+        f"Check cross-references among these claims.\n\n{claims_text}\n\n"
+        f"Do claims corroborate each other? Claims supported by multiple independent sources "
+        f"deserve higher confidence. Approve claims that are corroborated or standalone factual.\n\n"
+        f'{{"approved": [0, 1, 3], "rejected": [{{"index": 2, "reason": "no corroboration and low confidence"}}]}}'
+    )
+    system = (
+        "You check cross-references. Approve claims corroborated by other claims or from "
+        "authoritative standalone sources. Reject unsupported low-confidence claims. "
+        "Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
 TIER_HARNESS_DEFAULTS = {
     ModelTier.WORKER:  {"max_input_tokens": 4000, "max_output_tokens": 2000},
     ModelTier.DRONE:   {"max_input_tokens": 3000, "max_output_tokens": 1500},

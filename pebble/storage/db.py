@@ -43,6 +43,13 @@ def init_db() -> None:
                 correct INTEGER NOT NULL,
                 created_at TEXT DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS source_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_name TEXT NOT NULL,
+                richness_score REAL NOT NULL,
+                prospect_id TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
         """)
         conn.commit()
     finally:
@@ -101,5 +108,35 @@ def save_feedback(claim_id: str, correct: bool) -> None:
     try:
         conn.execute("INSERT INTO feedback (claim_id, correct) VALUES (?, ?)", (claim_id, 1 if correct else 0))
         conn.commit()
+    finally:
+        conn.close()
+
+
+def save_source_scores(prospect_id: str, scores: dict[str, float]) -> None:
+    """Stigmergy: write source richness scores to environment."""
+    conn = get_db()
+    try:
+        conn.executemany(
+            "INSERT INTO source_scores (source_name, richness_score, prospect_id) VALUES (?, ?, ?)",
+            [(name, score, prospect_id) for name, score in scores.items()],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_source_reliability(source_name: str) -> float:
+    """Stigmergy: read pheromone trail — success rate over last 50 runs for a source."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT outcome FROM harness_log
+               WHERE agent_name = ? ORDER BY created_at DESC LIMIT 50""",
+            (source_name,),
+        ).fetchall()
+        if not rows:
+            return 0.5  # No history — neutral
+        successes = sum(1 for r in rows if r["outcome"] == "success")
+        return successes / len(rows)
     finally:
         conn.close()

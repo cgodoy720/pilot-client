@@ -254,6 +254,241 @@ Output JSON: {{"summary": "...", "confidence_score": "high|medium|low"}}
         return {"claims": verified, "summary": "", "confidence_score": "medium", "partial": False, "failed_agents": []}
 
 
+def score_source_richness(
+    propublica_data: dict | None,
+    sec_data: dict | None,
+    fec_data: list | None,
+    edgar_data: list | None,
+    usa_data: list | None,
+    wiki_data: dict | None,
+    oc_data: list | None,
+) -> dict[str, float]:
+    """Scout-Recruit: score each source's data richness (waggle dance). Pure Python, no LLM."""
+    scores: dict[str, float] = {}
+
+    # ProPublica: full org with filings = 1.0, org found = 0.5, None = 0.0
+    if propublica_data:
+        org = propublica_data.get("organization", {})
+        scores["propublica"] = 1.0 if org.get("filings_with_data", 0) > 0 else 0.5
+    else:
+        scores["propublica"] = 0.0
+
+    # SEC: company with filings = 1.0, company found = 0.5, None = 0.0
+    if sec_data:
+        filings = sec_data.get("filings", sec_data.get("recent", {}))
+        scores["sec"] = 1.0 if filings else 0.5
+    else:
+        scores["sec"] = 0.0
+
+    # List-based sources: min(1.0, len(results) / 5)
+    scores["fec"] = min(1.0, len(fec_data) / 5) if fec_data else 0.0
+    scores["edgar"] = min(1.0, len(edgar_data) / 5) if edgar_data else 0.0
+    scores["usaspending"] = min(1.0, len(usa_data) / 5) if usa_data else 0.0
+    scores["opencorporates"] = min(1.0, len(oc_data) / 5) if oc_data else 0.0
+
+    # Wikipedia: 1.0 if extract > 200 chars, 0.5 if shorter, 0.0 if None
+    if wiki_data:
+        extract = wiki_data.get("extract", "") if isinstance(wiki_data, dict) else ""
+        scores["wikipedia"] = 1.0 if len(extract) > 200 else (0.5 if extract else 0.0)
+    else:
+        scores["wikipedia"] = 0.0
+
+    return scores
+
+
+async def activate_foragers(
+    source_scores: dict[str, float],
+    data_results: dict,
+    prospect: dict,
+    client: ModelClient,
+    budget: ProspectBudgetTracker,
+) -> list[dict]:
+    """Division of Labor: activate specialist FORAGER agents when their signal threshold is met."""
+    forager_claims: list[dict] = []
+
+    wealth_score = source_scores.get("fec", 0) + source_scores.get("opencorporates", 0) + source_scores.get("usaspending", 0)
+    philanthropy_score = source_scores.get("propublica", 0) + source_scores.get("edgar", 0) + source_scores.get("wikipedia", 0)
+
+    tasks = []
+
+    # Wealth indicator: fires when financial signals >= 1.5
+    if wealth_score >= 1.5 and not budget.exceeded():
+        source_urls = []
+        if data_results.get("fec_data"):
+            source_urls.append("https://api.open.fec.gov/")
+        if data_results.get("oc_data"):
+            source_urls.append("https://api.opencorporates.com/")
+        if data_results.get("usa_data"):
+            source_urls.append("https://api.usaspending.gov/")
+
+        spec = TaskSpec(
+            agent_name="wealth_indicator_agent",
+            data={
+                "prospect": prospect,
+                "fec_data": data_results.get("fec_data", []),
+                "oc_data": data_results.get("oc_data", []),
+                "usa_data": data_results.get("usa_data", []),
+            },
+            source_urls=source_urls,
+        )
+        tasks.append(("wealth_indicator_agent", spec))
+
+    # Philanthropy: fires when nonprofit signals >= 1.0
+    if philanthropy_score >= 1.0 and not budget.exceeded():
+        source_urls = []
+        if data_results.get("propublica_data"):
+            ein = data_results["propublica_data"].get("organization", {}).get("ein", "")
+            source_urls.append(f"https://projects.propublica.org/nonprofits/organizations/{ein}")
+        if data_results.get("edgar_data"):
+            source_urls.append("https://efts.sec.gov/LATEST/search-index")
+        if data_results.get("wiki_data"):
+            name = f"{prospect.get('first_name', '')}_{prospect.get('last_name', '')}".strip("_")
+            source_urls.append(f"https://en.wikipedia.org/wiki/{name}")
+
+        spec = TaskSpec(
+            agent_name="philanthropy_agent",
+            data={
+                "prospect": prospect,
+                "propublica_data": data_results.get("propublica_data"),
+                "edgar_data": data_results.get("edgar_data", []),
+                "wiki_data": data_results.get("wiki_data"),
+            },
+            source_urls=source_urls,
+        )
+        tasks.append(("philanthropy_agent", spec))
+
+    # Execute foragers (in parallel via asyncio)
+    async def _run_forager(agent_name: str, spec: TaskSpec) -> list[dict]:
+        harness = WorkerHarness(agent_name, harness_config_for_agent(agent_name), client)
+        result = await asyncio.to_thread(harness.execute_task, spec)
+        _log_result(result, agent_name, prospect.get("id"))
+
+        if result.outcome in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
+            budget.add(result.cost_usd)
+            try:
+                raw = _strip_fences(result.data.get("content", "{}"))
+                data = json.loads(raw)
+                claims = data.get("claims", [])
+                for c in claims:
+                    if isinstance(c, dict):
+                        c["origin"] = "forager"
+                return [c for c in claims if isinstance(c, dict) and c.get("source_url")]
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse forager claims from %s", agent_name)
+        return []
+
+    if tasks:
+        results = await asyncio.gather(*[_run_forager(name, spec) for name, spec in tasks])
+        for claim_list in results:
+            forager_claims.extend(claim_list)
+
+    return forager_claims
+
+
+async def quorum_verify_claims(
+    claims: list[dict],
+    prospect: dict,
+    client: ModelClient,
+    budget: ProspectBudgetTracker,
+) -> list[dict]:
+    """Quorum Sensing: 3 independent Haiku verifiers, majority vote (2-of-3) to include a claim."""
+    if not claims or budget.exceeded():
+        return claims
+
+    # Build numbered claim list for verifier input
+    claim_lines = []
+    for i, c in enumerate(claims):
+        text = c.get("text", "")
+        url = c.get("source_url", "")
+        confidence = c.get("confidence", "medium")
+        claim_lines.append(f"[{i}] {text} (source: {url}, confidence: {confidence})")
+    claims_text = "\n".join(claim_lines)
+
+    verifier_names = ["verifier_source", "verifier_consistency", "verifier_crossref"]
+
+    async def _run_verifier(agent_name: str) -> set[int]:
+        """Run a single verifier, return set of approved claim indices."""
+        harness = WorkerHarness(agent_name, harness_config_for_agent(agent_name), client)
+        spec = TaskSpec(
+            agent_name=agent_name,
+            data={"claims_text": claims_text},
+        )
+        result = await asyncio.to_thread(harness.execute_task, spec)
+        _log_result(result, agent_name, prospect.get("id"))
+
+        if result.outcome in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
+            budget.add(result.cost_usd)
+            try:
+                raw = _strip_fences(result.data.get("content", "{}"))
+                data = json.loads(raw)
+                approved = set(data.get("approved", []))
+                return approved
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("Failed to parse verifier output from %s", agent_name)
+        # On failure, approve all (fail-open to avoid losing claims)
+        return set(range(len(claims)))
+
+    # Run all 3 verifiers in parallel
+    results = await asyncio.gather(*[_run_verifier(name) for name in verifier_names])
+
+    # Majority vote: claim included if approved by 2-of-3
+    verified = []
+    for i, claim in enumerate(claims):
+        votes = sum(1 for approved_set in results if i in approved_set)
+        if votes >= 2:
+            claim["verification_votes"] = votes
+            verified.append(claim)
+        else:
+            logger.info("Quorum rejected claim %d (%d/3 votes): %s", i, votes, claim.get("text", "")[:80])
+
+    logger.info("Quorum verification: %d/%d claims passed (2-of-3 vote)", len(verified), len(claims))
+    return verified
+
+
+def synthesize_profile(
+    verified_claims: list[dict],
+    prospect: dict,
+    client: ModelClient,
+    budget: ProspectBudgetTracker,
+    wikipedia_context: str | None = None,
+) -> dict:
+    """Synthesis: Opus produces summary + confidence from pre-verified, origin-tagged claims."""
+    if budget.exceeded():
+        return {"claims": verified_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["budget"]}
+
+    verified_json = _safe_truncate(verified_claims, max_chars=2500)
+    wiki_synth = f"\n\nWikipedia context:\n{wikipedia_context[:1000]}" if wikipedia_context else ""
+
+    prompt = (
+        f"Synthesize a 2-3 sentence summary for a development officer. "
+        f"Prospect: {prospect.get('first_name', '')} {prospect.get('last_name', '')}.\n"
+        f"Claims: {verified_json}{wiki_synth}\n"
+        f'Output JSON: {{"summary": "...", "confidence_score": "high|medium|low"}}'
+    )
+    harness = WorkerHarness("profile_synthesizer", harness_config_for_agent("profile_synthesizer"), client)
+    result = harness.execute(prompt, system="You write concise prospect summaries. Output valid JSON only, no markdown fences.")
+
+    _log_result(result, "profile_synthesizer", prospect.get("id"))
+
+    if result.outcome not in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
+        return {"claims": verified_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["profile_synthesizer"]}
+
+    budget.add(result.cost_usd)
+
+    try:
+        raw = _strip_fences(result.data.get("content", "{}"))
+        data = json.loads(raw)
+        return {
+            "claims": verified_claims,
+            "summary": data.get("summary", ""),
+            "confidence_score": data.get("confidence_score", "medium"),
+            "partial": False,
+            "failed_agents": [],
+        }
+    except json.JSONDecodeError:
+        return {"claims": verified_claims, "summary": "", "confidence_score": "medium", "partial": False, "failed_agents": []}
+
+
 async def verify_urls(claims: list[dict], timeout: float = 5.0) -> tuple[list[dict], list[dict]]:
     """Verify claim source_urls via HEAD request. Returns (live, dropped)."""
     import httpx
