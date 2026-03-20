@@ -14,15 +14,7 @@
 
 ## Your Working Credentials
 
-```bash
-SAGE_INTACCT_COMPANY_ID=pursuit
-SAGE_INTACCT_USER_ID=Pursuit Systems
-SAGE_INTACCT_USER_PASSWORD=Queenstech!23
-SAGE_INTACCT_SENDER_ID=pursuit
-SAGE_INTACCT_SENDER_PASSWORD=Pursuit1234!
-```
-
-**⚠️ IMPORTANT**: Add these to your `.env` file and never commit to git!
+[REDACTED — see .env and env.production.template for required variable names]
 
 ## What You Can Do Now
 

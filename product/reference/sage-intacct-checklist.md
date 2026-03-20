@@ -39,9 +39,9 @@ Check these locations in your Sage Intacct account and note what you find:
 **What You Have:**
 - Company ID: pursuit
 - User ID: pursuit-dev (Web Services user created)
-- User Password: ZK838OYeX#c
+- User Password: [see .env]
 - Sender ID: pursuit (needs verification)
-- Sender Password: Pursuit1234! (needs verification)
+- Sender Password: [see .env]
 
 **Current Error:**
 ```

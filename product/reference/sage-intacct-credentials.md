@@ -1,31 +1,28 @@
-# ✅ Sage Intacct Connection SUCCESSFUL!
+# Sage Intacct Connection
 
-## Verified Working Credentials
+## Credentials
 
-Add these to your `.env` file or environment configuration:
+All Sage Intacct credentials are stored in `.env` — see `env.production.template` for required variable names.
 
+**Required environment variables:**
 ```bash
-# Sage Intacct Configuration
-SAGE_INTACCT_COMPANY_ID=pursuit
-SAGE_INTACCT_USER_ID=Pursuit Systems
-SAGE_INTACCT_USER_PASSWORD=Queenstech!23
-SAGE_INTACCT_SENDER_ID=pursuit
-SAGE_INTACCT_SENDER_PASSWORD=Pursuit1234!
+SAGE_INTACCT_COMPANY_ID=
+SAGE_INTACCT_USER_ID=
+SAGE_INTACCT_USER_PASSWORD=
+SAGE_INTACCT_SENDER_ID=
+SAGE_INTACCT_SENDER_PASSWORD=
 ```
 
 ## Connection Details
 
-- **Status**: ✅ Connected and operational
 - **Session Endpoint**: https://api.intacct.com/ia/xml/xmlgw.phtml
 - **Tested Operations**:
-  - ✅ Customer retrieval
-  - ✅ Invoice retrieval
-  - ✅ Payment retrieval
-  - ✅ Financial metrics
+  - Customer retrieval
+  - Invoice retrieval
+  - Payment retrieval
+  - Financial metrics
 
 ## Usage in Your Application
-
-### Python Code Example
 
 ```python
 from mcp_client.services.sage_intacct import SageIntacctMCPService
@@ -51,31 +48,6 @@ payments = await sage.get_payments(limit=100)
 metrics = await sage.get_financial_metrics()
 ```
 
-## Next Steps for Financial Forecasting Integration
-
-1. **Add to Backend Server** (`financial_forecasting/simple_server.py`)
-   - Initialize Sage Intacct service on startup
-   - Create endpoints to fetch invoice and payment data
-   - Sync data with Salesforce opportunities
-
-2. **Create Dashboard Endpoints**
-   - `/api/sage/invoices` - Get all invoices
-   - `/api/sage/payments` - Get payment history
-   - `/api/sage/cash-flow` - Get cash flow projections
-   - `/api/sage/metrics` - Get financial KPIs
-
-3. **Integrate with Forecasting Engine**
-   - Pull outstanding invoices for AR aging
-   - Calculate expected payment dates
-   - Generate cash flow projections
-   - Match invoices to Salesforce opportunities
-
-4. **Frontend Display**
-   - Show invoice status in dashboard
-   - Display payment history
-   - Visualize cash flow timeline
-   - Alert on overdue payments
-
 ## Available Methods
 
 ### Data Retrieval
@@ -92,43 +64,31 @@ metrics = await sage.get_financial_metrics()
 - `authenticate()` - Establish API session
 - `get_service_info()` - Get service configuration
 
-## Testing
-
-To verify the connection is still working, run:
-
-```bash
-python test_sage_final.py
-```
-
-This will authenticate and test all major operations.
-
 ## Troubleshooting
 
 ### Session Expired
-If you get session errors, the service will automatically re-authenticate when calling `ensure_authenticated()`.
+The service will automatically re-authenticate when calling `ensure_authenticated()`.
 
 ### Permission Errors
-Ensure the user "Pursuit Systems" has permissions for:
-- Web Services User role (✅ enabled)
-- Access to AR modules (✅ verified)
+Ensure the Web Services user has permissions for:
+- Web Services User role
+- Access to AR modules
 - Read/write permissions for invoices and payments
 
 ### Authorization Errors
-If you see "sender not authorized" errors again:
-- Check that sender ID "pursuit" is still in the authorized list
-- Go to Company → Company Info → Security (or wherever you found it)
-- Verify "pursuit" is checked/listed
+If you see "sender not authorized" errors:
+- Check that the sender ID is in the authorized list
+- Go to Company > Company Info > Security
+- Verify the sender is checked/listed
 
 ## Security Notes
 
-- ⚠️ Never commit `.env` file with these credentials
-- 🔒 Keep credentials secure and rotate periodically
-- 👤 "Pursuit Systems" user should only be used for API access
-- 📝 Monitor API usage in Sage Intacct admin panel
+- Never commit `.env` file with credentials
+- Keep credentials secure and rotate periodically
+- The Web Services user should only be used for API access
+- Monitor API usage in Sage Intacct admin panel
 
 ---
 
 **Date Connected**: November 12, 2025
-**Connection Status**: ✅ Operational
-**Last Tested**: November 12, 2025
-
+**Connection Status**: Operational
