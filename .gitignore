@@ -163,3 +163,10 @@ financial_forecasting/frontend/test-results/
 
 # Claude Code local config (agents, settings, plans)
 .claude/
+
+# Data files (financial data, exports)
+*.csv
+*.zip
+
+# Production environment
+financial_forecasting/frontend/.env.production

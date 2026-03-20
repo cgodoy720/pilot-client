@@ -33,7 +33,8 @@ from data_sync import DataSyncService
 from db import init_db, close_db
 from routes.projects import router as projects_router
 from routes.auth import router as auth_router
-from auth import get_current_user_dep, IS_PRODUCTION, JWT_SECRET_KEY
+from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
+from security import validate_salesforce_id, escape_soql_string
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -80,8 +81,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cookie"],
 )
 
 # Routers
@@ -256,7 +257,7 @@ async def get_opportunities(
     stages: Optional[List[str]] = Query(None),
     limit: int = Query(500, le=2000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get Salesforce opportunities."""
     try:
@@ -306,16 +307,17 @@ async def update_opportunity(
     opportunity_id: str,
     update_request: OpportunityUpdateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Update a Salesforce opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
         salesforce = client.salesforce
-        
+
         # Update the opportunity
         success = await salesforce.update_record(
-            "Opportunity", 
-            opportunity_id, 
+            "Opportunity",
+            opportunity_id,
             update_request.updates
         )
         
@@ -334,7 +336,7 @@ async def update_opportunity(
 async def get_accounts(
     limit: int = Query(100, le=1000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get Salesforce accounts."""
     try:
@@ -366,7 +368,7 @@ async def get_accounts(
 async def create_account(
     account_data: Dict[str, Any],
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Create a new Salesforce account."""
     try:
@@ -391,19 +393,20 @@ async def get_contacts(
     account_id: Optional[str] = None,
     limit: int = Query(100, le=1000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get Salesforce contacts, optionally filtered by account."""
     try:
         salesforce = client.salesforce
-        
+
         query = f"""
         SELECT Id, FirstName, LastName, Name, AccountId, Title, Email, Phone,
                Primary_Affiliation__c, CreatedDate, LastModifiedDate
         FROM Contact
         """
-        
+
         if account_id:
+            validate_salesforce_id(account_id, "account_id")
             query += f" WHERE AccountId = '{account_id}'"
         
         query += f" ORDER BY LastName ASC LIMIT {limit}"
@@ -425,7 +428,7 @@ async def get_contacts(
 async def create_contact(
     contact_data: Dict[str, Any],
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Create a new Salesforce contact."""
     try:
@@ -449,7 +452,7 @@ async def create_contact(
 async def get_users(
     limit: int = Query(100, le=1000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get Salesforce users."""
     try:
@@ -486,7 +489,7 @@ async def get_my_tasks(
     end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(200, le=500),
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Get current user's Salesforce Tasks in a date range."""
     try:
@@ -543,9 +546,10 @@ class TaskUpdateRequest(BaseModel):
 async def get_opportunity_tasks(
     opportunity_id: str,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Get all tasks linked to a specific opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
         salesforce = client.salesforce
         query = f"""
@@ -584,9 +588,10 @@ async def create_opportunity_task(
     opportunity_id: str,
     task_data: TaskCreateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Create a new task linked to an opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
         salesforce = client.salesforce
         fields = {"WhatId": opportunity_id, **task_data.model_dump(exclude_none=True)}
@@ -603,9 +608,10 @@ async def update_task(
     task_id: str,
     updates: TaskUpdateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Update an existing Salesforce task."""
+    validate_salesforce_id(task_id, "task_id")
     try:
         salesforce = client.salesforce
         fields = updates.model_dump(exclude_none=True)
@@ -624,9 +630,10 @@ async def update_task(
 async def delete_task(
     task_id: str,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Delete a Salesforce task."""
+    validate_salesforce_id(task_id, "task_id")
     try:
         salesforce = client.salesforce
         await salesforce.delete_record("Task", task_id)
@@ -642,7 +649,7 @@ async def get_my_calendar_events(
     end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(100, le=200),
     calendar_id: str = Query("primary", description="Calendar ID (default: primary)"),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Get Google Calendar events in a date range. Supports shared calendars via calendar_id."""
     client = _services.get("mcp_client")
@@ -686,7 +693,7 @@ async def get_invoices(
     customer_id: Optional[str] = None,
     limit: int = Query(100, le=1000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get Sage Intacct invoices."""
     try:
@@ -712,7 +719,7 @@ async def create_invoice(
     invoice_request: InvoiceCreationRequest,
     background_tasks: BackgroundTasks,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Create a new invoice in Sage Intacct."""
     try:
@@ -756,7 +763,7 @@ async def get_payments(
     customer_id: Optional[str] = None,
     limit: int = Query(100, le=1000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get Sage Intacct payments."""
     try:
@@ -784,7 +791,7 @@ async def get_forecasting_dashboard(
     date_range_days: int = Query(90, ge=30, le=365),
     scenario: str = Query("realistic"),
     engine: ForecastingEngine = Depends(get_forecasting_engine),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get forecasting dashboard data."""
     try:
@@ -809,7 +816,7 @@ async def get_payment_forecast(
     days_ahead: int = Query(90, ge=30, le=365),
     min_probability: int = Query(0, ge=0, le=100),
     engine: ForecastingEngine = Depends(get_forecasting_engine),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get payment forecast for opportunities."""
     try:
@@ -829,7 +836,7 @@ async def get_payment_forecast(
 async def get_cash_flow_projection(
     months_ahead: int = Query(6, ge=1, le=24),
     engine: ForecastingEngine = Depends(get_forecasting_engine),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get cash flow projections."""
     try:
@@ -847,7 +854,7 @@ async def get_cash_flow_projection(
 @app.get("/api/forecasting/metrics", response_model=ForecastingMetrics)
 async def get_forecasting_metrics(
     engine: ForecastingEngine = Depends(get_forecasting_engine),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get key forecasting metrics."""
     try:
@@ -864,7 +871,7 @@ async def generate_forecasting_report(
     background_tasks: BackgroundTasks,
     period_days: int = Query(90, ge=30, le=365),
     engine: ForecastingEngine = Depends(get_forecasting_engine),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Generate comprehensive forecasting report."""
     try:
@@ -898,7 +905,7 @@ async def trigger_data_sync(
     background_tasks: BackgroundTasks,
     sync_type: str = Query("all", regex="^(all|salesforce|intacct)$"),
     sync_service: DataSyncService = Depends(get_data_sync_service),
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Trigger manual data synchronization."""
     try:
@@ -945,7 +952,7 @@ class InvoiceMatchRequest(BaseModel):
 
 @app.get("/api/matching/grant-invoices")
 async def get_grant_invoices(
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get nonprofit grant invoices for matching."""
     try:
@@ -971,7 +978,7 @@ async def get_grant_invoices(
 
 @app.get("/api/matching/matches")
 async def get_invoice_matches(
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Get saved invoice-opportunity matches."""
     try:
@@ -996,7 +1003,7 @@ async def get_invoice_matches(
 @app.post("/api/matching/save-match")
 async def save_invoice_match(
     match_request: InvoiceMatchRequest,
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Save an invoice-opportunity match."""
     try:
@@ -1046,7 +1053,7 @@ async def save_invoice_match(
 @app.delete("/api/matching/delete-match/{invoice_id}")
 async def delete_invoice_match(
     invoice_id: str,
-    user = Depends(get_current_user)
+    user = Depends(require_auth)
 ):
     """Delete an invoice-opportunity match."""
     try:
@@ -1308,7 +1315,7 @@ def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str,
 @app.post("/api/slack/webhook")
 async def slack_webhook(
     payload: Dict[str, Any],
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Receive a Slack message and parse it as a CRM update."""
     text = payload.get("text", "")
@@ -1339,7 +1346,7 @@ async def slack_webhook(
 
 
 @app.get("/api/automation-review/pending")
-async def get_pending_reviews(user=Depends(get_current_user)):
+async def get_pending_reviews(user=Depends(require_auth)):
     """List all pending CRM updates awaiting review."""
     pending = [
         item for item in _automation_queue.values()
@@ -1350,7 +1357,7 @@ async def get_pending_reviews(user=Depends(get_current_user)):
 
 
 @app.get("/api/automation-review/all")
-async def get_all_reviews(user=Depends(get_current_user)):
+async def get_all_reviews(user=Depends(require_auth)):
     """List all CRM updates (pending, approved, rejected)."""
     items = list(_automation_queue.values())
     items.sort(key=lambda x: x["created_at"], reverse=True)
@@ -1362,7 +1369,7 @@ async def approve_review(
     item_id: str,
     edits: Optional[Dict[str, Any]] = None,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Approve a pending CRM update and apply to Salesforce."""
     item = _automation_queue.get(item_id)
@@ -1379,6 +1386,8 @@ async def approve_review(
     try:
         salesforce = client.salesforce
         opp_id = parsed.get("matched_opportunity")
+        if opp_id:
+            validate_salesforce_id(opp_id, "matched_opportunity")
 
         if parsed["action"] == "stage_change" and opp_id and parsed.get("stage"):
             update_fields: Dict[str, Any] = {"StageName": parsed["stage"]}
@@ -1417,7 +1426,7 @@ async def approve_review(
 async def reject_review(
     item_id: str,
     reason: Optional[str] = None,
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Reject a pending CRM update."""
     item = _automation_queue.get(item_id)
@@ -1457,7 +1466,7 @@ async def slack_health_check():
 async def get_slack_account_activity(
     account_name: str,
     limit: int = Query(20, le=100),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Get Slack messages mentioning an account."""
     client = _services.get("mcp_client")
@@ -1512,7 +1521,7 @@ async def fireflies_health_check():
 async def get_fireflies_account_meetings(
     account_name: str,
     limit: int = Query(20, le=100),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Get Fireflies meeting transcripts mentioning an account."""
     client = _services.get("mcp_client")
@@ -1553,7 +1562,7 @@ async def gmail_health_check():
 async def get_gmail_account_activity(
     account_name: str,
     limit: int = Query(20, le=100),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Get Gmail emails related to an account."""
     client = _services.get("mcp_client")
@@ -1594,7 +1603,7 @@ async def calendar_health_check():
 async def get_calendar_account_activity(
     account_name: str,
     limit: int = Query(20, le=100),
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Get Google Calendar events related to an account."""
     client = _services.get("mcp_client")
@@ -1620,7 +1629,7 @@ async def get_activity_intelligence(
     account_name: str,
     force_refresh: bool = Query(False),
     opportunity_name: Optional[str] = None,
-    user=Depends(get_current_user),
+    user=Depends(require_auth),
 ):
     """Aggregate activity data from all sources into a unified timeline."""
     client = _services.get("mcp_client")

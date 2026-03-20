@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from jose import jwt, JWTError
 from cryptography.fernet import Fernet
-from fastapi import Request
+from fastapi import Request, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +114,14 @@ def cookie_params() -> dict:
 # ---------------------------------------------------------------------------
 # FastAPI dependency wrapper
 # ---------------------------------------------------------------------------
+
+async def require_auth(request: Request) -> Dict:
+    """Raises 401 if not authenticated."""
+    user = await get_current_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
 
 async def get_current_user_dep(request: Request) -> Optional[Dict]:
     """FastAPI Depends() wrapper — returns user dict or None (allows unauthenticated)."""
