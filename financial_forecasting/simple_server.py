@@ -18,6 +18,7 @@ import secrets
 from jose import jwt, JWTError
 
 from simple_salesforce import Salesforce, SalesforceLogin
+from security import validate_salesforce_id, escape_soql_string
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import requests
@@ -883,6 +884,7 @@ async def auth_salesforce_callback(request: Request, code: str = None, error: st
         # Get the user's name from Salesforce
         sf_user_name = None
         if sf_user_id:
+            validate_salesforce_id(sf_user_id, "sf_user_id")
             try:
                 instance = token_data["instance_url"].replace("https://", "")
                 temp_sf = Salesforce(instance=instance, session_id=token_data["access_token"])
@@ -1190,13 +1192,14 @@ async def get_opportunities(
         where_clauses = []
         
         if stage:
-            where_clauses.append(f"StageName = '{stage}'")
-        
+            where_clauses.append(f"StageName = '{escape_soql_string(stage)}'")
+
         if record_type:
-            where_clauses.append(f"RecordType.Name = '{record_type}'")
-        
+            where_clauses.append(f"RecordType.Name = '{escape_soql_string(record_type)}'")
+
         if opp_type:
-            where_clauses.append(f"Type = '{opp_type}'")
+            where_clauses.append(f"Type = '{escape_soql_string(opp_type)}'")
+
         
         if active_only is not None:
             where_clauses.append(f"Active_Opportunity__c = {str(active_only).lower()}")
@@ -1737,6 +1740,7 @@ async def get_contacts(account_id: Optional[str] = None):
         FROM Contact
         """
         if account_id:
+            validate_salesforce_id(account_id, "account_id")
             # Include contacts where account is either household OR primary affiliation
             query += f" WHERE (AccountId = '{account_id}' OR npsp__Primary_Affiliation__c = '{account_id}')"
         query += " ORDER BY LastName ASC"
@@ -2484,7 +2488,7 @@ async def get_account_fireflies_meetings(account_name: str, limit: int = 20):
         # Get account details from Salesforce for better matching
         sf = get_salesforce()
         # Escape single quotes for SOQL query
-        escaped_account_name = account_name.replace("'", "\\'")
+        escaped_account_name = escape_soql_string(account_name)
         account_query = f"""
         SELECT Id, Name, Website, 
                (SELECT Id, Name, Email FROM Contacts)
@@ -2890,7 +2894,7 @@ async def debug_account_matching(account_name: str):
         
         # Get account details
         # Escape single quotes for SOQL query
-        escaped_account_name = account_name.replace("'", "\\'")
+        escaped_account_name = escape_soql_string(account_name)
         account_query = f"""
         SELECT Id, Name, Website, 
                (SELECT Id, Name, Email FROM Contacts)
@@ -3110,7 +3114,7 @@ async def get_account_gmail_activity(account_name: str, request: Request, limit:
         contact_domains = set()
         try:
             sf = get_salesforce()
-            escaped = account_name.replace("'", "\\'")
+            escaped = escape_soql_string(account_name)
             result = sf.query(f"SELECT Id, Website, (SELECT Email FROM Contacts) FROM Account WHERE Name = '{escaped}' LIMIT 1")
             if result['totalSize'] > 0:
                 acct = result['records'][0]
@@ -3225,7 +3229,7 @@ async def get_account_calendar_activity(account_name: str, request: Request, lim
         contact_domains = set()
         try:
             sf = get_salesforce()
-            escaped = account_name.replace("'", "\\'")
+            escaped = escape_soql_string(account_name)
             result = sf.query(f"SELECT Id, Website, (SELECT Email FROM Contacts) FROM Account WHERE Name = '{escaped}' LIMIT 1")
             if result['totalSize'] > 0:
                 acct = result['records'][0]
@@ -3636,7 +3640,7 @@ async def drive_health_check(request: Request):
 def _gather_salesforce_context(account_name: str) -> dict:
     """Pull account, contacts, and related context from Salesforce."""
     sf = get_salesforce()
-    escaped = account_name.replace("'", "\\'")
+    escaped = escape_soql_string(account_name)
 
     ctx = {
         'account_name': account_name,

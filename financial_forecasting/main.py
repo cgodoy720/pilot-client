@@ -34,6 +34,7 @@ from db import init_db, close_db
 from routes.projects import router as projects_router
 from routes.auth import router as auth_router
 from auth import get_current_user_dep, IS_PRODUCTION, JWT_SECRET_KEY
+from security import validate_salesforce_id, escape_soql_string
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -297,13 +298,14 @@ async def update_opportunity(
     user = Depends(get_current_user)
 ):
     """Update a Salesforce opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
         salesforce = client.salesforce
-        
+
         # Update the opportunity
         success = await salesforce.update_record(
-            "Opportunity", 
-            opportunity_id, 
+            "Opportunity",
+            opportunity_id,
             update_request.updates
         )
         
@@ -384,14 +386,15 @@ async def get_contacts(
     """Get Salesforce contacts, optionally filtered by account."""
     try:
         salesforce = client.salesforce
-        
+
         query = f"""
         SELECT Id, FirstName, LastName, Name, AccountId, Title, Email, Phone,
                Primary_Affiliation__c, CreatedDate, LastModifiedDate
         FROM Contact
         """
-        
+
         if account_id:
+            validate_salesforce_id(account_id, "account_id")
             query += f" WHERE AccountId = '{account_id}'"
         
         query += f" ORDER BY LastName ASC LIMIT {limit}"
@@ -534,6 +537,7 @@ async def get_opportunity_tasks(
     user=Depends(get_current_user),
 ):
     """Get all tasks linked to a specific opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
         salesforce = client.salesforce
         query = f"""
@@ -575,6 +579,7 @@ async def create_opportunity_task(
     user=Depends(get_current_user),
 ):
     """Create a new task linked to an opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
         salesforce = client.salesforce
         fields = {"WhatId": opportunity_id, **task_data.model_dump(exclude_none=True)}
@@ -594,6 +599,7 @@ async def update_task(
     user=Depends(get_current_user),
 ):
     """Update an existing Salesforce task."""
+    validate_salesforce_id(task_id, "task_id")
     try:
         salesforce = client.salesforce
         fields = updates.model_dump(exclude_none=True)
@@ -615,6 +621,7 @@ async def delete_task(
     user=Depends(get_current_user),
 ):
     """Delete a Salesforce task."""
+    validate_salesforce_id(task_id, "task_id")
     try:
         salesforce = client.salesforce
         await salesforce.delete_record("Task", task_id)
@@ -1367,6 +1374,8 @@ async def approve_review(
     try:
         salesforce = client.salesforce
         opp_id = parsed.get("matched_opportunity")
+        if opp_id:
+            validate_salesforce_id(opp_id, "matched_opportunity")
 
         if parsed["action"] == "stage_change" and opp_id and parsed.get("stage"):
             update_fields: Dict[str, Any] = {"StageName": parsed["stage"]}
