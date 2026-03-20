@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Any, Callable
 
 from .model_client import ModelClient, ModelTier, get_model_config, AGENT_TIERS, ESCALATION_CHAIN
+from .storage.db import log_harness_outcome
 
 logger = logging.getLogger("pebble.harness")
 
@@ -55,12 +56,30 @@ class TaskSpec:
 
 
 PROMPT_TEMPLATES: dict[str, Callable[[dict, list[str]], tuple[str, str]]] = {}
+TEMPLATE_MAX_DATA_SOURCES: dict[str, int | None] = {}
+
+# Default max data source keys per tier (Layer 2 guardrail)
+_TIER_MAX_DATA_SOURCES = {
+    ModelTier.WORKER: 2,
+    ModelTier.DRONE: 2,
+    ModelTier.FORAGER: 5,
+    ModelTier.QUEEN: None,  # uncapped — token budget is the natural guard
+}
 
 
-def register_template(agent_name: str):
-    """Decorator to register a prompt template for an agent."""
+def register_template(agent_name: str, max_data_sources: int | None = None):
+    """Decorator to register a prompt template for an agent.
+
+    Args:
+        agent_name: Agent identifier matching AGENT_TIERS key.
+        max_data_sources: Explicit override for max data source keys allowed.
+            When set, overrides the tier default. Forces a conscious design decision
+            with documented reason (see the template's docstring for rationale).
+    """
     def decorator(fn):
         PROMPT_TEMPLATES[agent_name] = fn
+        if max_data_sources is not None:
+            TEMPLATE_MAX_DATA_SOURCES[agent_name] = max_data_sources
         return fn
     return decorator
 
@@ -194,6 +213,20 @@ def _tpl_verifier_crossref(data: dict, source_urls: list[str]) -> tuple[str, str
     return prompt, system
 
 
+# Tier design rules (Layer 3 guardrail — intent documentation):
+#
+# WORKER/DRONE: Single data source, flat output (lists, indices), no cross-referencing.
+#   If your template needs 2+ _data sources, either split the task or promote to FORAGER.
+#   System prompt enforces "ONE task only" constraint.
+#
+# FORAGER: Multi-source domain analysis, analytical claims with reasoning.
+#   May cross-reference data. Output is structured claims, not raw extraction.
+#   System prompt allows multi-source reasoning.
+#
+# QUEEN: Pre-processed input only (claims, summaries, not raw API data).
+#   Token budget is the natural cap. No source count limit.
+#   No system prompt constraint — full reasoning capability.
+#
 TIER_HARNESS_DEFAULTS = {
     ModelTier.WORKER:  {"max_input_tokens": 4000, "max_output_tokens": 2000},
     ModelTier.DRONE:   {"max_input_tokens": 3000, "max_output_tokens": 1500},
@@ -252,6 +285,35 @@ class WorkerHarness:
                 f"No template registered for '{spec.agent_name}'. "
                 f"All sub-Queen agents must have a registered prompt template."
             )
+
+        # Layer 2 guardrail: input scoping validation
+        # Count data source keys (keys ending with _data) vs metadata keys
+        data_source_keys = [k for k in spec.data if k.endswith("_data")]
+        tier = AGENT_TIERS.get(spec.agent_name, ModelTier.WORKER)
+        max_sources = TEMPLATE_MAX_DATA_SOURCES.get(
+            spec.agent_name,
+            _TIER_MAX_DATA_SOURCES.get(tier),
+        )
+
+        if max_sources is not None and len(data_source_keys) > max_sources:
+            msg = (
+                f"{spec.agent_name} ({tier.value}) received {len(data_source_keys)} "
+                f"data sources {data_source_keys}, max is {max_sources}"
+            )
+            logger.warning("INPUT_SCOPING: %s", msg)
+            log_harness_outcome(
+                agent_name=spec.agent_name,
+                outcome="input_scoping_violation",
+                error=msg,
+            )
+            # Block execution — template must declare explicit override
+            return HarnessResult(
+                outcome=AgentOutcome.SKIPPED,
+                error=f"Input scoping violation: {msg}. "
+                      f"Add max_data_sources={len(data_source_keys)} to @register_template "
+                      f"if this is intentional.",
+            )
+
         prompt, system = template_fn(spec.data, spec.source_urls)
         self._in_template_call = True
         try:
@@ -285,7 +347,14 @@ class WorkerHarness:
             )
 
         # Tier-aware system prompt prefix for sub-Queen
-        if tier and tier != ModelTier.QUEEN:
+        if tier == ModelTier.FORAGER:
+            system = (
+                "Analyze the provided data thoroughly. You may reason across multiple sources. "
+                "Output valid JSON only, no markdown fences.\n\n"
+                + system
+            )
+        elif tier and tier != ModelTier.QUEEN:
+            # WORKER and DRONE keep strict single-task constraint
             system = (
                 "You perform exactly ONE task. Output valid JSON only. "
                 "Do not plan, reason across multiple steps, or ask clarifying questions.\n\n"

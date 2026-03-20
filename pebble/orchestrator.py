@@ -1,4 +1,20 @@
-"""Orchestrator: pipeline stages, ProspectBudgetTracker."""
+"""Orchestrator: pipeline stages, ProspectBudgetTracker.
+
+Decomposition pattern:
+    The orchestrator breaks complex prospect research into tier-appropriate tasks:
+    - Complex work → decompose into narrow sub-tasks → dispatch to Workers
+    - Domain analysis across sources → dispatch to Foragers
+    - Synthesis of pre-processed claims → dispatch to Queen
+    - The quorum verifiers are the canonical example: one complex "verify everything"
+      task → three narrow single-lens tasks (source credibility, consistency, cross-ref)
+
+    When adding new tasks, match complexity to tier:
+    - WORKER: single data source extraction (api_response_extractor is a known exception
+      with 2 sources — ProPublica + SEC — because extraction across two related sources
+      is simpler than analysis)
+    - FORAGER: multi-source domain analysis (wealth_indicator, philanthropy)
+    - QUEEN: synthesis of pre-processed claims only
+"""
 
 import asyncio
 import json
@@ -8,7 +24,7 @@ from dataclasses import dataclass, field
 
 from .model_client import ModelClient
 from .harness import WorkerHarness, HarnessConfig, AgentOutcome, TaskSpec, harness_config_for_agent
-from .storage.db import log_harness_outcome
+from .storage.db import log_harness_outcome, get_source_reliability
 
 logger = logging.getLogger("pebble.orchestrator")
 
@@ -17,11 +33,41 @@ PROSPECT_COST_CAP_USD = 0.50
 # Strip markdown fences that LLMs sometimes wrap around JSON
 _FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", re.DOTALL)
 
+# Claim ranking constants
+_ORIGIN_RANK = {"forager": 0, "llm_extracted": 1, "template": 2}
+_CONFIDENCE_RANK = {"high": 0, "medium": 1, "low": 2}
+_DOLLAR_RE = re.compile(r"\$[\d,]+\.?\d*")
+
 
 def _strip_fences(text: str) -> str:
     """Remove markdown code fences wrapping JSON output."""
     m = _FENCE_RE.match(text.strip())
     return m.group(1) if m else text
+
+
+def _extract_dollar_amount(claim: dict) -> float:
+    """Extract dollar amount from claim text for ranking FEC contributions."""
+    m = _DOLLAR_RE.search(claim.get("text", ""))
+    return float(m.group().replace("$", "").replace(",", "")) if m else 0.0
+
+
+def _rank_claims(claims: list[dict]) -> list[dict]:
+    """Rank claims so the most valuable survive truncation.
+
+    Ranking rules:
+    - Origin priority: forager (0) > llm_extracted (1) > template (2)
+    - Within same origin: high confidence > medium > low
+    - FEC template dedup: keep only the 3 largest contributions by dollar amount
+    """
+    fec = [c for c in claims if c.get("origin") == "template" and "contributed $" in c.get("text", "")]
+    non_fec = [c for c in claims if c not in fec]
+    fec_top = sorted(fec, key=_extract_dollar_amount, reverse=True)[:3]
+    combined = non_fec + fec_top
+    combined.sort(key=lambda c: (
+        _ORIGIN_RANK.get(c.get("origin", "template"), 2),
+        _CONFIDENCE_RANK.get(c.get("confidence", "medium"), 1),
+    ))
+    return combined
 
 
 def _safe_truncate(records, max_chars: int = 2000) -> str:
@@ -191,10 +237,11 @@ def stage3_fact_check_and_synthesize(
         return {"claims": claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["budget"]}
 
     # Fact-check: verify claims have source support
-    claims_json = _safe_truncate(claims[:20], max_chars=3000)
+    ranked = _rank_claims(claims)
+    claims_json = _safe_truncate(ranked[:20], max_chars=6000)
     wiki_section = ""
     if wikipedia_context:
-        wiki_section = f"\n\nWikipedia context (use for biographical depth, cross-reference with claims):\n{wikipedia_context[:1500]}"
+        wiki_section = f"\n\nWikipedia context (use for biographical depth, cross-reference with claims):\n{wikipedia_context[:2000]}"
 
     prompt = f"""Verify these claims are supported by their source URLs. Remove any claim that cannot be verified.
 Prospect: {prospect.get('first_name', '')} {prospect.get('last_name', '')} at {prospect.get('organization', '')}
@@ -222,16 +269,32 @@ Output JSON: {{"verified_claims": [{{"text", "source_url", "confidence"}}]}}
     except (json.JSONDecodeError, TypeError):
         pass
 
-    # Profile Synthesizer
-    verified_json = _safe_truncate(verified, max_chars=2500)
-    wiki_synth = f"\n\nWikipedia context:\n{wikipedia_context[:1000]}" if wikipedia_context else ""
+    # Profile Synthesizer — rank claims so forager findings survive truncation
+    ranked_verified = _rank_claims(verified)
+    verified_json = _safe_truncate(ranked_verified, max_chars=6000)
+    wiki_synth = f"\n\nWikipedia context:\n{wikipedia_context[:2000]}" if wikipedia_context else ""
+    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
 
-    prompt2 = f"""Synthesize a 2-3 sentence summary for a development officer. Prospect: {prospect.get('first_name', '')} {prospect.get('last_name', '')}.
-Claims: {verified_json}{wiki_synth}
-Output JSON: {{"summary": "...", "confidence_score": "high|medium|low"}}
-"""
+    synth_system = (
+        "You write prospect research summaries for nonprofit development officers. "
+        "Prioritize: executive roles, board seats, organizational leadership, and giving "
+        "capacity indicators over individual transaction records. "
+        'Claims tagged origin:"forager" are cross-referenced analytical findings — weight these heavily. '
+        'Claims tagged origin:"template" are raw data points from public databases. '
+        "Output valid JSON only, no markdown fences."
+    )
+
+    prompt2 = (
+        f"Write a 2-3 sentence research brief for a development officer about {name}. "
+        f"Focus on: current role, organizational affiliations, board service, giving capacity, "
+        f"and philanthropic activity. Mention individual donations only if they reveal a "
+        f"pattern (e.g., consistent max-out giving, bipartisan strategy).\n\n"
+        f"Claims (ranked by analytical value):\n{verified_json}{wiki_synth}\n\n"
+        f'Output JSON: {{"summary": "...", "confidence_score": "high|medium|low"}}'
+    )
+
     harness2 = WorkerHarness("profile_synthesizer", harness_config_for_agent("profile_synthesizer"), client)
-    result2 = harness2.execute(prompt2, system="You write concise prospect summaries. Output valid JSON only, no markdown fences.")
+    result2 = harness2.execute(prompt2, system=synth_system)
 
     _log_result(result2, "profile_synthesizer", prospect.get("id"))
 
@@ -292,6 +355,13 @@ def score_source_richness(
         scores["wikipedia"] = 1.0 if len(extract) > 200 else (0.5 if extract else 0.0)
     else:
         scores["wikipedia"] = 0.0
+
+    # Pheromone adjustment: dampen unreliable sources, boost reliable ones.
+    # Sources that consistently fail (e.g., OpenCorporates 401s) get dampened toward 0.
+    # Sources with high verification pass rates stay at full strength.
+    for source_name in scores:
+        reliability = get_source_reliability(source_name)
+        scores[source_name] *= reliability
 
     return scores
 
@@ -440,8 +510,41 @@ async def quorum_verify_claims(
             verified.append(claim)
         else:
             logger.info("Quorum rejected claim %d (%d/3 votes): %s", i, votes, claim.get("text", "")[:80])
+            # Log rejection details for future pattern analysis (Level 2 swarm learning)
+            rejecting_verifiers = [
+                verifier_names[j] for j, approved_set in enumerate(results) if i not in approved_set
+            ]
+            log_harness_outcome(
+                agent_name="quorum_rejection",
+                outcome="rejected",
+                error=json.dumps({
+                    "claim_index": i,
+                    "claim_text": claim.get("text", "")[:200],
+                    "votes": votes,
+                    "rejected_by": rejecting_verifiers,
+                    "origin": claim.get("origin", "unknown"),
+                }),
+                prospect_id=prospect.get("id"),
+            )
 
     logger.info("Quorum verification: %d/%d claims passed (2-of-3 vote)", len(verified), len(claims))
+
+    # Log quorum summary for Level 3 yield analysis (accepted + rejected in one entry)
+    log_harness_outcome(
+        agent_name="quorum_summary",
+        outcome="success",
+        error=json.dumps({
+            "total_claims": len(claims),
+            "accepted": len(verified),
+            "rejected": len(claims) - len(verified),
+            "origins": {
+                origin: sum(1 for c in claims if c.get("origin") == origin)
+                for origin in {"forager", "llm_extracted", "template"}
+            },
+        }),
+        prospect_id=prospect.get("id"),
+    )
+
     return verified
 
 
@@ -452,21 +555,47 @@ def synthesize_profile(
     budget: ProspectBudgetTracker,
     wikipedia_context: str | None = None,
 ) -> dict:
-    """Synthesis: Opus produces summary + confidence from pre-verified, origin-tagged claims."""
+    """Synthesis: Opus produces summary + confidence from pre-verified, origin-tagged claims.
+
+    Claims are ranked before truncation so forager analytical findings (board seats,
+    executive roles, org financials) survive over bulk template data (individual FEC donations).
+    """
     if budget.exceeded():
         return {"claims": verified_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["budget"]}
 
-    verified_json = _safe_truncate(verified_claims, max_chars=2500)
-    wiki_synth = f"\n\nWikipedia context:\n{wikipedia_context[:1000]}" if wikipedia_context else ""
+    ranked = _rank_claims(verified_claims)
+    logger.info(
+        "Ranked %d claims for synthesis (forager: %d, llm: %d, template: %d)",
+        len(ranked),
+        sum(1 for c in ranked if c.get("origin") == "forager"),
+        sum(1 for c in ranked if c.get("origin") == "llm_extracted"),
+        sum(1 for c in ranked if c.get("origin") == "template"),
+    )
+
+    verified_json = _safe_truncate(ranked, max_chars=6000)
+    wiki_synth = f"\n\nWikipedia context:\n{wikipedia_context[:2000]}" if wikipedia_context else ""
+    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
+
+    system = (
+        "You write prospect research summaries for nonprofit development officers. "
+        "Prioritize: executive roles, board seats, organizational leadership, and giving "
+        "capacity indicators over individual transaction records. "
+        'Claims tagged origin:"forager" are cross-referenced analytical findings — weight these heavily. '
+        'Claims tagged origin:"template" are raw data points from public databases. '
+        "Output valid JSON only, no markdown fences."
+    )
 
     prompt = (
-        f"Synthesize a 2-3 sentence summary for a development officer. "
-        f"Prospect: {prospect.get('first_name', '')} {prospect.get('last_name', '')}.\n"
-        f"Claims: {verified_json}{wiki_synth}\n"
+        f"Write a 2-3 sentence research brief for a development officer about {name}. "
+        f"Focus on: current role, organizational affiliations, board service, giving capacity, "
+        f"and philanthropic activity. Mention individual donations only if they reveal a "
+        f"pattern (e.g., consistent max-out giving, bipartisan strategy).\n\n"
+        f"Claims (ranked by analytical value):\n{verified_json}{wiki_synth}\n\n"
         f'Output JSON: {{"summary": "...", "confidence_score": "high|medium|low"}}'
     )
+
     harness = WorkerHarness("profile_synthesizer", harness_config_for_agent("profile_synthesizer"), client)
-    result = harness.execute(prompt, system="You write concise prospect summaries. Output valid JSON only, no markdown fences.")
+    result = harness.execute(prompt, system=system)
 
     _log_result(result, "profile_synthesizer", prospect.get("id"))
 

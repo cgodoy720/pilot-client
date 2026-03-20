@@ -135,7 +135,7 @@ def get_source_reliability(source_name: str) -> float:
             (source_name,),
         ).fetchall()
         if not rows:
-            return 0.5  # No history — neutral
+            return 1.0  # No history — neutral multiplier (no dampening)
         successes = sum(1 for r in rows if r["outcome"] == "success")
         return successes / len(rows)
     finally:
