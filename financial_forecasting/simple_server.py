@@ -296,6 +296,9 @@ app.add_middleware(
 
 # Production detection and secret validation
 IS_PRODUCTION = os.getenv('FRONTEND_URL', '').startswith('https')
+
+# Sage Intacct feature flag — disabled by default
+SAGE_ENABLED = os.getenv("SAGE_ENABLED", "false").lower() == "true"
 if IS_PRODUCTION:
     if not JWT_SECRET_KEY or len(JWT_SECRET_KEY) < 32:
         raise RuntimeError(
