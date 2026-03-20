@@ -63,18 +63,14 @@ TIER_CONFIGS = {
 }
 
 AGENT_TIERS = {
-    "csv_normalizer": ModelTier.WORKER,
     "api_response_extractor": ModelTier.WORKER,
-    "name_normalizer": ModelTier.WORKER,
     "batch_summarizer": ModelTier.DRONE,
-    "filing_agent": ModelTier.WORKER,
-    "sec_corporate_agent": ModelTier.WORKER,
-    "fec_political_agent": ModelTier.WORKER,
-    "news_agent": ModelTier.DRONE,
-    "real_estate_agent": ModelTier.WORKER,
     "philanthropy_agent": ModelTier.FORAGER,
     "wealth_indicator_agent": ModelTier.FORAGER,
     "entity_resolution_agent": ModelTier.FORAGER,
+    "verifier_source": ModelTier.WORKER,
+    "verifier_consistency": ModelTier.WORKER,
+    "verifier_crossref": ModelTier.WORKER,
     "fact_check_agent": ModelTier.QUEEN,
     "profile_synthesizer": ModelTier.QUEEN,
 }
