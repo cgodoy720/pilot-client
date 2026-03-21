@@ -353,7 +353,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* Filters */}
       {!compact && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap', pr: 4 }}>
           {headerSlot}
           <FilterIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
           <FormControl size="small" sx={{ minWidth: 80, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
