@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 
 import { AuthProvider } from './contexts/AuthContext';
+import { PermissionsProvider } from './contexts/PermissionsContext';
 import { LeadsProvider } from './contexts/LeadsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -106,6 +107,7 @@ function App() {
         <CssBaseline />
         <ErrorBoundary>
         <AuthProvider>
+          <PermissionsProvider>
           <LeadsProvider>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
           <Router>
@@ -326,6 +328,7 @@ function App() {
           </Router>
           </LocalizationProvider>
           </LeadsProvider>
+          </PermissionsProvider>
           <Toaster
             position="top-right"
             toastOptions={{

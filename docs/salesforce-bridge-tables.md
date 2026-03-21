@@ -144,3 +144,9 @@ Create a local `opportunity` table (schema TBD based on target platform). Popula
 | Completed | Completed |
 | Deferred | On Hold |
 | Waiting on someone else | Blocked |
+
+## Known Limitation: MCP Client Dependency
+
+The **opportunity lock endpoint** (`POST /api/opportunities/{id}/lock`) currently relies on the frontend to pass the opportunity's `OwnerId` for ownership verification, because the permissions route doesn't have access to the MCP Salesforce client. Once the MCP client is available as a shared dependency (injectable into any route, not just `main.py` endpoints), the lock endpoint should query Salesforce directly to verify ownership rather than trusting the frontend-provided `owner_id`. This is a security improvement that should be prioritized when MCP connectivity is stable.
+
+Similarly, **permission enforcement on opportunity/task updates** could be enhanced with MCP access — the backend could verify `OwnerId` matches the authenticated user's `sf_user_id` by querying the actual Salesforce record, rather than relying on the frontend to only send edits for records the user owns.

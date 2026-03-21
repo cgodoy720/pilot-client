@@ -2,6 +2,7 @@
 
 import sys
 import os
+import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -44,6 +45,17 @@ SF_TASK_ID_1 = "00T000000000001AAA"
 SF_TASK_ID_2 = "00T000000000002AAA"
 SF_OPP_ID = "006000000000001AAA"
 
+# Admin permissions JSON for check_permission to pass
+ALL_PERMS = json.dumps({
+    "view_opportunities": True, "edit_own_opportunities": True, "edit_all_opportunities": True,
+    "create_opportunities": True, "bulk_update_opportunities": True, "lock_own_opportunities": True,
+    "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": True, "create_tasks": True,
+    "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
+    "view_sage_invoices_payments": True, "create_sage_invoices": True,
+    "match_invoices": True, "manage_payment_schedules": True, "generate_financial_reports": True,
+    "trigger_data_sync": True, "manage_users_roles": True,
+})
+
 
 class MockDBRow(dict):
     """Dict subclass that also supports attribute access (like asyncpg.Record)."""
@@ -65,11 +77,20 @@ def make_link_row():
     )
 
 
+def _admin_user_row():
+    """Mock row returned by get_user_permissions for check_permission to pass."""
+    return MockDBRow(
+        id=str(uuid.uuid4()), sf_user_id="005TESTSFUSER0001", email="test@test.org",
+        name="Test User", is_active=True, permissions=ALL_PERMS, profile_name="Admin",
+    )
+
+
 @pytest.fixture
 def mock_db():
     db = AsyncMock()
     db.fetch = AsyncMock(return_value=[])
-    db.fetchrow = AsyncMock(return_value=None)
+    # Default fetchrow returns admin user (for check_permission queries)
+    db.fetchrow = AsyncMock(return_value=_admin_user_row())
     db.execute = AsyncMock(return_value="DELETE 1")
     return db
 

@@ -30,10 +30,11 @@ from models import (
 )
 from forecasting_engine import ForecastingEngine
 from data_sync import DataSyncService
-from db import init_db, close_db
+from db import init_db, close_db, get_db
 from routes.projects import router as projects_router
 from routes.auth import router as auth_router
 from routes.sf_dependencies import router as sf_deps_router
+from routes.permissions import router as permissions_router, opp_router as opp_lock_router, check_permission
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 
@@ -90,6 +91,8 @@ app.add_middleware(
 app.include_router(projects_router)
 app.include_router(auth_router)
 app.include_router(sf_deps_router)
+app.include_router(permissions_router)
+app.include_router(opp_lock_router)
 
 # Service singletons — initialized on startup, injected via Depends()
 _services: Dict[str, Any] = {}
@@ -309,29 +312,42 @@ async def update_opportunity(
     opportunity_id: str,
     update_request: OpportunityUpdateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(require_auth)
+    user = Depends(check_permission("edit_own_opportunities")),
+    db = Depends(get_db),
 ):
     """Update a Salesforce opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
-        salesforce = client.salesforce
+        # Enforce opportunity lock — only owner or admin can edit locked opportunities
+        lock = await db.fetchrow(
+            "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
+        )
+        if lock:
+            perms = user.get("_permissions", {})
+            sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
+            is_lock_owner = (lock["locked_by"] == sf_user_id)
+            is_admin = perms.get("manage_users_roles", False)
+            if not is_lock_owner and not is_admin:
+                raise HTTPException(status_code=403, detail="This opportunity is locked by its owner")
 
-        # Update the opportunity
+        salesforce = client.salesforce
         success = await salesforce.update_record(
             "Opportunity",
             opportunity_id,
             update_request.updates
         )
-        
+
         if success:
             logger.info(f"Opportunity {opportunity_id} updated by {user['user_id']}")
             return ApiResponse(success=True, data={"id": opportunity_id, "message": "Opportunity updated successfully"})
         else:
             raise HTTPException(status_code=400, detail="Failed to update opportunity")
-            
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error updating opportunity: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update opportunity")
 
 
 @app.get("/api/salesforce/accounts", response_model=List[SalesforceAccount])
@@ -370,7 +386,7 @@ async def get_accounts(
 async def create_account(
     account_data: Dict[str, Any],
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(require_auth)
+    user = Depends(check_permission("create_opportunities"))
 ):
     """Create a new Salesforce account."""
     try:
@@ -430,7 +446,7 @@ async def get_contacts(
 async def create_contact(
     contact_data: Dict[str, Any],
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(require_auth)
+    user = Depends(check_permission("create_opportunities"))
 ):
     """Create a new Salesforce contact."""
     try:
@@ -603,7 +619,7 @@ async def create_opportunity_task(
     opportunity_id: str,
     task_data: TaskCreateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(require_auth),
+    user=Depends(check_permission("create_tasks")),
 ):
     """Create a new task linked to an opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
@@ -615,7 +631,7 @@ async def create_opportunity_task(
         return ApiResponse(success=True, data={"id": task_id, "message": "Task created"})
     except Exception as e:
         logger.error(f"Error creating task: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to create task")
 
 
 @app.put("/api/salesforce/tasks/{task_id}")
@@ -623,11 +639,24 @@ async def update_task(
     task_id: str,
     updates: TaskUpdateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(require_auth),
+    user=Depends(check_permission("edit_own_tasks")),
+    db=Depends(get_db),
 ):
     """Update an existing Salesforce task."""
     validate_salesforce_id(task_id, "task_id")
     try:
+        # If the task has a linked opportunity (WhatId), check if it's locked
+        what_id = updates.WhatId
+        if what_id:
+            lock = await db.fetchrow(
+                "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", what_id
+            )
+            if lock:
+                perms = user.get("_permissions", {})
+                sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
+                if lock["locked_by"] != sf_user_id and not perms.get("manage_users_roles", False):
+                    raise HTTPException(403, "This task's opportunity is locked by its owner")
+
         salesforce = client.salesforce
         fields = updates.model_dump(exclude_none=True)
         if not fields:
@@ -638,14 +667,14 @@ async def update_task(
         raise
     except Exception as e:
         logger.error(f"Error updating task: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update task")
 
 
 @app.delete("/api/salesforce/tasks/{task_id}")
 async def delete_task(
     task_id: str,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(require_auth),
+    user=Depends(check_permission("edit_own_tasks")),
 ):
     """Delete a Salesforce task."""
     validate_salesforce_id(task_id, "task_id")
@@ -655,7 +684,7 @@ async def delete_task(
         return ApiResponse(success=True, data={"message": "Task deleted"})
     except Exception as e:
         logger.error(f"Error deleting task: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete task")
 
 
 @app.post("/api/salesforce/tasks/{task_id}/duplicate")
@@ -663,7 +692,7 @@ async def duplicate_task(
     task_id: str,
     body: TaskDuplicateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user=Depends(require_auth),
+    user=Depends(check_permission("create_tasks")),
 ):
     """Duplicate a Salesforce task, optionally linking to a different opportunity."""
     validate_salesforce_id(task_id, "task_id")
@@ -784,7 +813,7 @@ async def create_invoice(
     invoice_request: InvoiceCreationRequest,
     background_tasks: BackgroundTasks,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(require_auth)
+    user = Depends(check_permission("create_sage_invoices"))
 ):
     """Create a new invoice in Sage Intacct."""
     try:
@@ -935,8 +964,8 @@ async def get_forecasting_metrics(
 async def generate_forecasting_report(
     background_tasks: BackgroundTasks,
     period_days: int = Query(90, ge=30, le=365),
+    user = Depends(check_permission("generate_financial_reports")),
     engine: ForecastingEngine = Depends(get_forecasting_engine),
-    user = Depends(require_auth)
 ):
     """Generate comprehensive forecasting report."""
     try:
@@ -969,8 +998,8 @@ async def generate_forecasting_report(
 async def trigger_data_sync(
     background_tasks: BackgroundTasks,
     sync_type: str = Query("all", regex="^(all|salesforce|intacct)$"),
+    user = Depends(check_permission("trigger_data_sync")),
     sync_service: DataSyncService = Depends(get_data_sync_service),
-    user = Depends(require_auth)
 ):
     """Trigger manual data synchronization."""
     try:
@@ -1068,7 +1097,7 @@ async def get_invoice_matches(
 @app.post("/api/matching/save-match")
 async def save_invoice_match(
     match_request: InvoiceMatchRequest,
-    user = Depends(require_auth)
+    user = Depends(check_permission("match_invoices"))
 ):
     """Save an invoice-opportunity match."""
     try:
@@ -1118,7 +1147,7 @@ async def save_invoice_match(
 @app.delete("/api/matching/delete-match/{invoice_id}")
 async def delete_invoice_match(
     invoice_id: str,
-    user = Depends(require_auth)
+    user = Depends(check_permission("match_invoices"))
 ):
     """Delete an invoice-opportunity match."""
     try:

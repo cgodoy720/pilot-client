@@ -47,6 +47,7 @@ import toast from 'react-hot-toast';
 
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 const drawerWidth = 200;
 const collapsedDrawerWidth = 48;
@@ -70,6 +71,12 @@ const ALL_MENU_ITEMS = [
 
 const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', '/projects', '/settings']);
 
+// Map nav paths to required permissions (undefined = no permission needed)
+const NAV_PERMISSIONS: Record<string, string | undefined> = {
+  '/cashflow': 'view_cashflow_forecasts',
+  '/settings': undefined, // visible to all, tabs gated inside
+};
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -77,17 +84,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, logout, connectSalesforce } = useAuth();
+  const { can } = usePermissions();
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // MVP nav: show Priorities, Dashboard, Pipeline, Settings. Set REACT_APP_NAV_PHASE=FULL for all pages.
   const navPhase = process.env.REACT_APP_NAV_PHASE || 'MVP';
   const menuItems = useMemo(() => {
+    let items = ALL_MENU_ITEMS;
     if (navPhase === 'MVP') {
-      return ALL_MENU_ITEMS.filter((item) => MVP_PATHS.has(item.path));
+      items = items.filter((item) => MVP_PATHS.has(item.path));
     }
-    return ALL_MENU_ITEMS;
-  }, [navPhase]);
+    // Filter by permissions
+    return items.filter((item) => {
+      const perm = NAV_PERMISSIONS[item.path];
+      return perm === undefined || can(perm);
+    });
+  }, [navPhase, can]);
 
   // Prefetch opportunities when authenticated so Priorities/Dashboard load instantly
   useEffect(() => {
