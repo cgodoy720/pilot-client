@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from auth import require_auth, decrypt_tokens
 from db import get_db
-from security import validate_salesforce_id
+from security import validate_salesforce_id, escape_soql_string
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/permissions", tags=["permissions"])
@@ -112,6 +112,51 @@ def check_permission(permission_key: str):
         user["_app_user"] = user_data
         return user
     return _check
+
+
+async def resolve_task_lock(task_id: str, user: dict, db, salesforce) -> dict:
+    """Fetch task from Salesforce, check if its opportunity is locked, return decision.
+
+    Queries Salesforce for the task's WhatId and OwnerId, then checks the
+    opportunity_lock table. Fails closed (503) if Salesforce is unreachable.
+    """
+    try:
+        safe_id = escape_soql_string(task_id)
+        result = await salesforce.query(
+            f"SELECT WhatId, OwnerId FROM Task WHERE Id = '{safe_id}'"
+        )
+    except Exception as e:
+        logger.error(f"Cannot verify task lock status — Salesforce query failed: {e}")
+        raise HTTPException(503, "Cannot verify lock status — try again later")
+
+    records = result.get("records", [])
+    what_id = records[0].get("WhatId") if records else None
+    task_owner_id = records[0].get("OwnerId") if records else None
+
+    if what_id:
+        lock = await db.fetchrow(
+            "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", what_id
+        )
+        if lock:
+            perms = user.get("_permissions", {})
+            sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
+            return {
+                "what_id": what_id,
+                "task_owner_id": task_owner_id,
+                "is_locked": True,
+                "is_lock_owner": lock["locked_by"] == sf_user_id,
+                "is_admin": perms.get("manage_users_roles", False),
+                "is_task_owner": task_owner_id == sf_user_id,
+            }
+
+    return {
+        "what_id": what_id,
+        "task_owner_id": task_owner_id,
+        "is_locked": False,
+        "is_lock_owner": False,
+        "is_admin": False,
+        "is_task_owner": False,
+    }
 
 
 # ── My Permissions ──

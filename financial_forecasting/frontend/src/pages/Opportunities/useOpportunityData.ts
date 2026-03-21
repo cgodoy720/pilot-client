@@ -192,6 +192,37 @@ export function useOpportunityData(
     });
   };
 
+  // ---------- Opportunity Locks ----------
+
+  const { data: locksData } = useQuery('opportunity-locks', async () => {
+    const res = await apiService.getOpportunityLocks();
+    return res.data?.data || [];
+  }, { staleTime: 30_000 });
+
+  const lockMap = useMemo(() => {
+    const map = new Map<string, { locked_by: string; locked_at: string }>();
+    for (const lock of (locksData || [])) {
+      map.set(lock.sf_opportunity_id, { locked_by: lock.locked_by, locked_at: lock.locked_at });
+    }
+    return map;
+  }, [locksData]);
+
+  const lockMutation = useMutation(
+    async ({ oppId, ownerId }: { oppId: string; ownerId: string }) => apiService.lockOpportunity(oppId, ownerId),
+    {
+      onSuccess: () => { queryClient.invalidateQueries('opportunity-locks'); toast.success('Opportunity locked'); },
+      onError: (err: any) => { toast.error(err.response?.data?.detail || 'Failed to lock'); },
+    }
+  );
+
+  const unlockMutation = useMutation(
+    async (oppId: string) => apiService.unlockOpportunity(oppId),
+    {
+      onSuccess: () => { queryClient.invalidateQueries('opportunity-locks'); toast.success('Opportunity unlocked'); },
+      onError: (err: any) => { toast.error(err.response?.data?.detail || 'Failed to unlock'); },
+    }
+  );
+
   return {
     // raw
     opportunities,
@@ -212,5 +243,9 @@ export function useOpportunityData(
     recentlyChangedRef,
     markRecentlyChanged,
     clearRecentlyChanged,
+    // locks
+    lockMap,
+    lockMutation,
+    unlockMutation,
   };
 }
