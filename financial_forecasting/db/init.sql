@@ -142,3 +142,92 @@ DO $$ BEGIN
 EXCEPTION
     WHEN duplicate_column THEN NULL;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- Permission Profiles & User Roles
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS permission_profile (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name        TEXT NOT NULL UNIQUE,
+    description TEXT DEFAULT '',
+    is_default  BOOLEAN DEFAULT false,
+    permissions JSONB NOT NULL DEFAULT '{}',
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS app_user (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sf_user_id  TEXT UNIQUE,
+    email       TEXT NOT NULL UNIQUE,
+    name        TEXT DEFAULT '',
+    profile_id  UUID REFERENCES permission_profile(id) ON DELETE SET NULL,
+    is_active   BOOLEAN DEFAULT true,
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS opportunity_lock (
+    sf_opportunity_id TEXT PRIMARY KEY,
+    locked_by         TEXT NOT NULL,
+    locked_at         TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_opp_lock_locked_by ON opportunity_lock(locked_by);
+
+-- Seed permission profiles (idempotent via ON CONFLICT)
+INSERT INTO permission_profile (name, description, is_default, permissions)
+VALUES (
+    'Admin',
+    'Full access to all features',
+    false,
+    '{
+        "view_opportunities": true,
+        "edit_own_opportunities": true,
+        "edit_all_opportunities": true,
+        "create_opportunities": true,
+        "bulk_update_opportunities": true,
+        "lock_own_opportunities": true,
+        "view_tasks": true,
+        "edit_own_tasks": true,
+        "edit_all_tasks": true,
+        "create_tasks": true,
+        "view_revenue_dashboard": true,
+        "view_cashflow_forecasts": true,
+        "view_sage_invoices_payments": true,
+        "create_sage_invoices": true,
+        "match_invoices": true,
+        "manage_payment_schedules": true,
+        "generate_financial_reports": true,
+        "trigger_data_sync": true,
+        "manage_users_roles": true
+    }'::jsonb
+) ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO permission_profile (name, description, is_default, permissions)
+VALUES (
+    'Fundraiser',
+    'Standard fundraiser access — own opportunities and tasks, no financial writes',
+    true,
+    '{
+        "view_opportunities": true,
+        "edit_own_opportunities": true,
+        "edit_all_opportunities": false,
+        "create_opportunities": true,
+        "bulk_update_opportunities": false,
+        "lock_own_opportunities": true,
+        "view_tasks": true,
+        "edit_own_tasks": true,
+        "edit_all_tasks": false,
+        "create_tasks": true,
+        "view_revenue_dashboard": true,
+        "view_cashflow_forecasts": true,
+        "view_sage_invoices_payments": false,
+        "create_sage_invoices": false,
+        "match_invoices": false,
+        "manage_payment_schedules": false,
+        "generate_financial_reports": false,
+        "trigger_data_sync": false,
+        "manage_users_roles": false
+    }'::jsonb
+) ON CONFLICT (name) DO NOTHING;

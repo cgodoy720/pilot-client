@@ -470,6 +470,32 @@ export const apiService = {
   clearCache: () =>
     api.post('/api/cache/clear'),
 
+  // Permissions & Roles
+  getMyPermissions: () =>
+    api.get('/api/permissions/me'),
+  getPermissionProfiles: () =>
+    api.get('/api/permissions/profiles'),
+  getPermissionProfile: (profileId: string) =>
+    api.get(`/api/permissions/profiles/${profileId}`),
+  createPermissionProfile: (data: { name: string; description?: string; is_default?: boolean; permissions: Record<string, boolean> }) =>
+    api.post('/api/permissions/profiles', data),
+  updatePermissionProfile: (profileId: string, data: { name?: string; description?: string; is_default?: boolean; permissions?: Record<string, boolean> }) =>
+    api.put(`/api/permissions/profiles/${profileId}`, data),
+  deletePermissionProfile: (profileId: string) =>
+    api.delete(`/api/permissions/profiles/${profileId}`),
+  getAppUsers: () =>
+    api.get('/api/permissions/users'),
+  updateAppUser: (userId: string, data: { profile_id?: string; sf_user_id?: string; name?: string; is_active?: boolean }) =>
+    api.put(`/api/permissions/users/${userId}`, data),
+
+  // Opportunity Locks
+  getOpportunityLocks: () =>
+    api.get('/api/opportunities/locks'),
+  lockOpportunity: (opportunityId: string, ownerId: string) =>
+    api.post(`/api/opportunities/${opportunityId}/lock`, { owner_id: ownerId }),
+  unlockOpportunity: (opportunityId: string) =>
+    api.delete(`/api/opportunities/${opportunityId}/lock`),
+
   // Authentication
   getCurrentUser: () =>
     api.get('/auth/me'),

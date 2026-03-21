@@ -11,6 +11,25 @@ import {
   Alert,
   CircularProgress,
   Stack,
+  Tabs,
+  Tab,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Select,
+  MenuItem,
+  FormControl,
+  Switch,
+  IconButton,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Cloud as CloudIcon,
@@ -24,11 +43,60 @@ import {
   CalendarMonth as CalendarIcon,
   Chat as ChatIcon,
   Info as InfoIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Save as SaveIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../contexts/PermissionsContext';
 import { apiService } from '../services/api';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
+
+// Permission keys grouped by category for the checkbox grid
+const PERMISSION_GROUPS = [
+  {
+    label: 'CRM \u2014 Opportunities',
+    keys: [
+      { key: 'view_opportunities', label: 'View Opportunities' },
+      { key: 'edit_own_opportunities', label: 'Edit Own Opportunities' },
+      { key: 'edit_all_opportunities', label: 'Edit All Opportunities' },
+      { key: 'create_opportunities', label: 'Create Opportunities' },
+      { key: 'bulk_update_opportunities', label: 'Bulk Update Opportunities' },
+      { key: 'lock_own_opportunities', label: 'Lock/Unlock Own Opportunities' },
+    ],
+  },
+  {
+    label: 'CRM \u2014 Tasks',
+    keys: [
+      { key: 'view_tasks', label: 'View Tasks' },
+      { key: 'edit_own_tasks', label: 'Edit Own Tasks' },
+      { key: 'edit_all_tasks', label: 'Edit All Tasks' },
+      { key: 'create_tasks', label: 'Create Tasks' },
+    ],
+  },
+  {
+    label: 'Finance',
+    keys: [
+      { key: 'view_revenue_dashboard', label: 'View Revenue Dashboard' },
+      { key: 'view_cashflow_forecasts', label: 'View Cash Flow & Forecasts' },
+      { key: 'view_sage_invoices_payments', label: 'View Invoices & Payments (Sage)' },
+      { key: 'create_sage_invoices', label: 'Create Invoices in Sage' },
+      { key: 'match_invoices', label: 'Match Invoices to Opportunities' },
+      { key: 'manage_payment_schedules', label: 'Manage Payment Schedules' },
+      { key: 'generate_financial_reports', label: 'Generate Financial Reports' },
+    ],
+  },
+  {
+    label: 'System',
+    keys: [
+      { key: 'trigger_data_sync', label: 'Trigger Data Sync' },
+      { key: 'manage_users_roles', label: 'Manage Users & Roles (Admin)' },
+    ],
+  },
+];
 
 interface SFStatus {
   connected: boolean;
@@ -91,12 +159,93 @@ const Settings: React.FC = () => {
     }
   };
 
+  const { can: canDo } = usePermissions();
+  const isAdmin = canDo('manage_users_roles');
+  const queryClient = useQueryClient();
+  const [settingsTab, setSettingsTab] = useState(0);
+
+  // Admin data queries (only fetch if admin)
+  const { data: appUsersData } = useQuery('app-users', async () => {
+    const res = await apiService.getAppUsers();
+    return res.data?.data || [];
+  }, { enabled: isAdmin });
+  const { data: profilesData } = useQuery('permission-profiles', async () => {
+    const res = await apiService.getPermissionProfiles();
+    return res.data?.data || [];
+  }, { enabled: isAdmin });
+
+  const appUsers: any[] = appUsersData || [];
+  const profiles: any[] = profilesData || [];
+
+  // Mutations
+  const updateUserMutation = useMutation(
+    async ({ userId, data }: { userId: string; data: any }) => apiService.updateAppUser(userId, data),
+    { onSuccess: () => { queryClient.invalidateQueries('app-users'); toast.success('User updated'); } }
+  );
+  const createProfileMutation = useMutation(
+    async (data: any) => apiService.createPermissionProfile(data),
+    { onSuccess: () => { queryClient.invalidateQueries('permission-profiles'); toast.success('Profile created'); } }
+  );
+  const updateProfileMutation = useMutation(
+    async ({ id, data }: { id: string; data: any }) => apiService.updatePermissionProfile(id, data),
+    { onSuccess: () => { queryClient.invalidateQueries('permission-profiles'); toast.success('Profile updated'); } }
+  );
+  const deleteProfileMutation = useMutation(
+    async (id: string) => apiService.deletePermissionProfile(id),
+    {
+      onSuccess: () => { queryClient.invalidateQueries('permission-profiles'); toast.success('Profile deleted'); },
+      onError: (err: any) => { toast.error(err.response?.data?.detail || 'Failed to delete'); },
+    }
+  );
+
+  // Profile edit dialog state
+  const [editProfile, setEditProfile] = useState<any>(null);
+  const [editPerms, setEditPerms] = useState<Record<string, boolean>>({});
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editDefault, setEditDefault] = useState(false);
+  const [createMode, setCreateMode] = useState(false);
+
+  const openEditProfile = (profile: any) => {
+    setEditProfile(profile);
+    setEditName(profile.name);
+    setEditDesc(profile.description || '');
+    setEditDefault(profile.is_default || false);
+    setEditPerms(profile.permissions || {});
+    setCreateMode(false);
+  };
+  const openCreateProfile = () => {
+    setEditProfile({});
+    setEditName('');
+    setEditDesc('');
+    setEditDefault(false);
+    setEditPerms({});
+    setCreateMode(true);
+  };
+  const handleSaveProfile = () => {
+    const data = { name: editName, description: editDesc, is_default: editDefault, permissions: editPerms };
+    if (createMode) {
+      createProfileMutation.mutate(data, { onSuccess: () => setEditProfile(null) });
+    } else {
+      updateProfileMutation.mutate({ id: editProfile.id, data }, { onSuccess: () => setEditProfile(null) });
+    }
+  };
+
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-      <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+    <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
+      <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
         Settings
       </Typography>
 
+      <Tabs value={settingsTab} onChange={(_, v) => setSettingsTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Tab label="Connections" />
+        {isAdmin && <Tab label="Users" />}
+        {isAdmin && <Tab label="Permission Profiles" />}
+      </Tabs>
+
+      {/* ── Connections Tab ── */}
+      {settingsTab === 0 && (
+      <Box>
       {/* User Profile */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -387,6 +536,152 @@ const Settings: React.FC = () => {
           </Stack>
         </CardContent>
       </Card>
+    </Box>
+    )}
+
+    {/* ── Users Tab (Admin only) ── */}
+    {settingsTab === 1 && isAdmin && (
+      <Card>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>User Management</Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>SF User ID</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Profile</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Active</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {appUsers.map((u: any) => (
+                <TableRow key={u.id}>
+                  <TableCell>{u.name || '\u2014'}</TableCell>
+                  <TableCell>{u.email}</TableCell>
+                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{u.sf_user_id || '\u2014'}</TableCell>
+                  <TableCell>
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                      <Select
+                        value={u.profile_id || ''}
+                        onChange={(e) => updateUserMutation.mutate({ userId: u.id, data: { profile_id: e.target.value } })}
+                        sx={{ fontSize: '0.85rem' }}
+                      >
+                        {profiles.map((p: any) => (
+                          <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={u.is_active}
+                      onChange={(e) => updateUserMutation.mutate({ userId: u.id, data: { is_active: e.target.checked } })}
+                      size="small"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    )}
+
+    {/* ── Permission Profiles Tab (Admin only) ── */}
+    {settingsTab === 2 && isAdmin && (
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Permission Profiles</Typography>
+            <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={openCreateProfile}>
+              New Profile
+            </Button>
+          </Box>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Default</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Users</TableCell>
+                <TableCell sx={{ fontWeight: 600 }} align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {profiles.map((p: any) => {
+                const userCount = appUsers.filter((u: any) => u.profile_id === p.id).length;
+                return (
+                  <TableRow key={p.id}>
+                    <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>{p.description}</TableCell>
+                    <TableCell>{p.is_default && <Chip label="Default" size="small" color="primary" />}</TableCell>
+                    <TableCell>{userCount}</TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" onClick={() => openEditProfile(p)} title="Edit"><EditIcon fontSize="small" /></IconButton>
+                      <IconButton
+                        size="small" color="error"
+                        onClick={() => { if (window.confirm(`Delete "${p.name}"?`)) deleteProfileMutation.mutate(p.id); }}
+                        title="Delete" disabled={userCount > 0}
+                      ><DeleteIcon fontSize="small" /></IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    )}
+
+    {/* ── Profile Edit Dialog ── */}
+    <Dialog open={!!editProfile} onClose={() => setEditProfile(null)} maxWidth="md" fullWidth>
+      <DialogTitle>{createMode ? 'Create Permission Profile' : `Edit: ${editName}`}</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, mt: 1 }}>
+          <TextField label="Profile Name" value={editName} onChange={(e) => setEditName(e.target.value)} size="small" sx={{ flex: 1 }} />
+          <TextField label="Description" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} size="small" sx={{ flex: 2 }} />
+          <FormControlLabel
+            control={<Checkbox checked={editDefault} onChange={(e) => setEditDefault(e.target.checked)} size="small" />}
+            label="Default"
+          />
+        </Box>
+        {PERMISSION_GROUPS.map((group) => (
+          <Box key={group.label} sx={{ mb: 2 }}>
+            <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5 }}>
+              {group.label}
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 0.5 }}>
+              {group.keys.map(({ key, label }) => (
+                <FormControlLabel
+                  key={key}
+                  control={
+                    <Checkbox
+                      checked={editPerms[key] || false}
+                      onChange={(e) => setEditPerms({ ...editPerms, [key]: e.target.checked })}
+                      size="small"
+                    />
+                  }
+                  label={<Typography variant="body2">{label}</Typography>}
+                />
+              ))}
+            </Box>
+            <Divider sx={{ mt: 1 }} />
+          </Box>
+        ))}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setEditProfile(null)}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={handleSaveProfile}
+          disabled={!editName.trim() || createProfileMutation.isLoading || updateProfileMutation.isLoading}
+          startIcon={<SaveIcon />}
+        >
+          {createMode ? 'Create' : 'Save'}
+        </Button>
+      </DialogActions>
+    </Dialog>
     </Box>
   );
 };
