@@ -134,7 +134,7 @@ curl http://localhost:8000/health
 If not running:
 ```bash
 cd /Users/jacquelinereverand/pursuit-mcp-client/financial_forecasting
-python3 simple_server.py
+python3 main.py
 ```
 
 ---
@@ -251,7 +251,7 @@ curl http://localhost:8000/health
 
 # If not, start it
 cd /Users/jacquelinereverand/pursuit-mcp-client/financial_forecasting
-python3 simple_server.py
+python3 main.py
 ```
 
 ### **Frontend shows errors**

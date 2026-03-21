@@ -13,7 +13,7 @@ echo "$PREVIEW" | python3 -m json.tool
 if echo "$PREVIEW" | grep -q '"headers"'; then
   echo "   OK: Preview works"
 else
-  echo "   FAIL: Preview failed. Restart backend: cd financial_forecasting && python simple_server.py"
+  echo "   FAIL: Preview failed. Restart backend: cd financial_forecasting && python main.py"
   exit 1
 fi
 
