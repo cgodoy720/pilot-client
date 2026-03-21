@@ -1178,26 +1178,18 @@ const MyDashboard: React.FC = () => {
           ) : undefined
         }
       >
-        {priorityOpps.length === 0 ? (
+        {!user?.salesforce_connected && priorityOpps.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            {!user?.salesforce_connected ? (
-              <>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-                  Connect Salesforce to see your priority opportunities.
-                </Typography>
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => navigate('/settings')}
-                >
-                  Go to Settings
-                </Button>
-              </>
-            ) : (
-              <Typography variant="body1" color="text.secondary">
-                No open opportunities found. New opportunities will appear here automatically.
-              </Typography>
-            )}
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+              Connect Salesforce to see your priority opportunities.
+            </Typography>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => navigate('/settings')}
+            >
+              Go to Settings
+            </Button>
           </Box>
         ) : (
           <>

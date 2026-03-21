@@ -2,6 +2,8 @@
 
 import os
 import asyncio
+from dotenv import load_dotenv
+load_dotenv(override=False)
 from typing import Any, Dict, List, Optional
 from datetime import datetime, date, timedelta
 from decimal import Decimal
@@ -113,9 +115,9 @@ async def startup_event():
 
     # Connect all services gracefully — each is independent
     for svc_name, connect_fn in [
-        ("Salesforce", lambda: client.connect_salesforce("stdio")),
-        ("Sage Intacct", lambda: client.connect_sage_intacct("stdio")),
-        ("Slack", lambda: client.connect_slack("stdio")),
+        ("Salesforce", lambda: client.connect_salesforce(None)),
+        ("Sage Intacct", lambda: client.connect_sage_intacct(None)),
+        ("Slack", lambda: client.connect_slack(None)),
         ("Google Calendar", lambda: client.connect_google_calendar()),
         ("Gmail", lambda: client.connect_gmail()),
         ("Fireflies", lambda: client.connect_fireflies()),
@@ -256,7 +258,7 @@ async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_clien
 VALID_STAGES = {s.value for s in OpportunityStage}
 
 
-@app.get("/api/salesforce/opportunities", response_model=List[SalesforceOpportunity])
+@app.get("/api/salesforce/opportunities")
 async def get_opportunities(
     stage: Optional[OpportunityStage] = None,
     stages: Optional[List[str]] = Query(None),
@@ -270,10 +272,14 @@ async def get_opportunities(
 
         # Build SOQL query
         query = """
-        SELECT Id, AccountId, Name, StageName, Amount, Probability, CloseDate,
-               ExpectedRevenue, ForecastCategory, LeadSource, NextStep, Description,
-               OwnerId, CreatedDate, LastModifiedDate, Payment_Terms__c,
-               Contract_Start_Date__c, Contract_End_Date__c, Billing_Frequency__c
+        SELECT Id, AccountId, Account.Name, Name, StageName, Amount, Probability,
+               CloseDate, ForecastCategory, LeadSource, NextStep,
+               Description, Type, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
+               npe01__Payments_Made__c, Outstanding_Payments__c,
+               Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,
+               Last_Actual_Payment__c, npe01__Number_of_Payments__c,
+               PaymentDate__c, Earliest_Scheduled_Payment__c,
+               RecordType.Name, Active_Opportunity__c
         FROM Opportunity
         """
 
@@ -288,19 +294,16 @@ async def get_opportunities(
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
 
-        query += f" ORDER BY CloseDate ASC LIMIT {limit}"
-        
-        result = await salesforce.query(query)
-        
-        opportunities = []
-        raw_records = result.get("records", [])
-        for record in raw_records:
-            opportunities.append(SalesforceOpportunity(**record))
+        query += " ORDER BY CloseDate DESC"
+
+        # Use query_all to get ALL records with automatic pagination
+        result = await salesforce.query_all(query)
+        records = result.get("records", [])
 
         # Refresh entity cache for Slack parser
-        _refresh_opp_cache(raw_records)
+        _refresh_opp_cache(records)
 
-        return opportunities
+        return records
         
     except Exception as e:
         logger.error(f"Error fetching opportunities: {e}")
@@ -350,7 +353,7 @@ async def update_opportunity(
         raise HTTPException(status_code=500, detail="Failed to update opportunity")
 
 
-@app.get("/api/salesforce/accounts", response_model=List[SalesforceAccount])
+@app.get("/api/salesforce/accounts")
 async def get_accounts(
     limit: int = Query(100, le=1000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
@@ -359,11 +362,9 @@ async def get_accounts(
     """Get Salesforce accounts."""
     try:
         salesforce = client.salesforce
-        
+
         query = f"""
-        SELECT Id, Name, Type, Industry, AnnualRevenue, NumberOfEmployees,
-               BillingStreet, BillingCity, BillingState, BillingPostalCode,
-               BillingCountry, Phone, Website, CreatedDate, LastModifiedDate
+        SELECT Id, Name, Type, Industry
         FROM Account
         ORDER BY Name ASC
         LIMIT {limit}
@@ -371,11 +372,7 @@ async def get_accounts(
         
         result = await salesforce.query(query)
         
-        accounts = []
-        for record in result.get("records", []):
-            accounts.append(SalesforceAccount(**record))
-        
-        return accounts
+        return result.get("records", [])
         
     except Exception as e:
         logger.error(f"Error fetching accounts: {e}")
@@ -418,8 +415,9 @@ async def get_contacts(
         salesforce = client.salesforce
 
         query = f"""
-        SELECT Id, FirstName, LastName, Name, AccountId, Title, Email, Phone,
-               Primary_Affiliation__c, CreatedDate, LastModifiedDate
+        SELECT Id, FirstName, LastName, Name, AccountId, Account.Name, Title, Email, Phone,
+               npsp__Primary_Affiliation__c, npsp__Primary_Affiliation__r.Name,
+               CreatedDate, LastModifiedDate
         FROM Contact
         """
 
