@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-Simplified FastAPI server for Financial Forecasting POC.
-Uses direct Salesforce connection without MCP layer for simplicity.
+DEPRECATED — This file has been superseded by main.py.
+
+All endpoints have been ported into modular route files (routes/).
+See docs/architecture-server-migration.md for migration details.
+
+DO NOT add new endpoints here. Use main.py and the appropriate route file.
+This file is kept for reference only.
 """
 
 from fastapi import FastAPI, HTTPException, Depends, Response, Request, Query, Body

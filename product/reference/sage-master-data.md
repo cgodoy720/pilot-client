@@ -163,7 +163,7 @@ Only **active** records are fetched (STATUS = 'active').
 
 ## 🔧 **Technical Implementation**
 
-### **Backend: `simple_server.py`**
+### **Backend: `routes/sage.py`**
 - Added 5 new endpoints (customers, GL accounts, departments, classes, locations)
 - Each endpoint:
   - Connects to Sage Intacct
@@ -245,7 +245,7 @@ No configuration needed! The system automatically:
 
 ## 📝 **Files Modified**
 
-1. **simple_server.py** - Added 5 Sage master data endpoints
+1. **routes/sage.py** - 5 Sage master data endpoints
 2. **api.ts** - Added 5 frontend API methods
 3. **CreateInvoiceModal.tsx** - Dynamic dropdowns, parallel fetching, loading states
 4. **ARCHITECTURE_DECISIONS.md** - Documented the design decision

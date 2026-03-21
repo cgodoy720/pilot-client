@@ -65,7 +65,7 @@ Day 5 (immediately after): Salesforce auto-calculates
 - Runs initial sync on startup
 
 ### **Sync Function**
-- Location: `sync_invoice_payments_from_sage()` in `simple_server.py`
+- Location: `sync_invoice_payments_from_sage()` in `routes/finance.py`
 - Checks only **unpaid** invoices (Invoice_Status__c != 'Paid')
 - Skips **DEMO invoices** (those with IDs starting with "DEMO-")
 - Queries Sage for: `STATE`, `TOTALDUE`, `TOTALPAID`
@@ -103,7 +103,7 @@ This is useful for:
 ### **Sync Frequency**
 Currently set to **5 minutes**. To change:
 ```python
-# In simple_server.py, line ~2240:
+# In routes/finance.py:
 scheduler.add_job(
     func=sync_invoice_payments_from_sage,
     trigger=IntervalTrigger(minutes=5),  # ← Change this
@@ -176,7 +176,7 @@ INFO:__main__:✅ Sync complete: 1 invoices updated, 1 payments marked as paid, 
 ## 📝 Files Modified
 
 1. **requirements.txt** - Added `APScheduler==3.10.4`
-2. **simple_server.py** - Added:
+2. **routes/finance.py** - Contains:
    - `sync_invoice_payments_from_sage()` function
    - `/api/finance/sync-payments` endpoint (manual trigger)
    - Background scheduler (runs every 5 minutes)

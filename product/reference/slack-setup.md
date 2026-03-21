@@ -63,7 +63,7 @@ echo 'SLACK_BOT_TOKEN=xoxb-your-token-here' > financial_forecasting/.env
 
 ```bash
 cd financial_forecasting
-python3 simple_server.py
+python3 main.py
 ```
 
 You should see confirmation that Slack is connected in the startup logs.

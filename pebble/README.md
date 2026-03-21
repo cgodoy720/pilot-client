@@ -28,7 +28,7 @@ Bedrock (financial_forecasting) runs on 8000. Set `REACT_APP_PEBBLE_API_URL=http
 
 3. **Start Bedrock** (terminal 2):
    ```bash
-   cd financial_forecasting && python simple_server.py
+   cd financial_forecasting && python main.py
    # Or: cd financial_forecasting/frontend && npm start
    ```
 

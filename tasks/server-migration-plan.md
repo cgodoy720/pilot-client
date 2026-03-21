@@ -1,6 +1,6 @@
 # Server Migration: simple_server.py → main.py
 
-## Status: Phase 3 COMPLETE, Phase 4 NEXT
+## Status: Phase 4 COMPLETE, Phase 5 NEXT
 
 **PR History:**
 - Phase 2: Port missing endpoints into 8 route files + shared services (in progress)
@@ -113,9 +113,12 @@
 - Updated `start_server.sh` — References `python3 main.py`
 - Updated `docs/architecture-decisions.md` section 6A — Marked as complete
 
-### Phase 4: Deprecate simple_server.py
-- Add deprecation notice at top of file
-- Update Dockerfile: `simple_server:app` → `main:app`
+### Phase 4: Deprecate simple_server.py (COMPLETE)
+- Added deprecation notice at top of `simple_server.py`
+- Updated Dockerfile CMD: `simple_server:app` → `main:app`
+- Updated scripts: `pebble/README.md`, `test_prospect_import.sh`, `RUN_POC.sh`
+- Updated `product/reference/` docs: setup-guide, slack-setup, automatic-payment-sync, sage-master-data
+- `simple_server.py` kept in repo indefinitely for reference
 
 ### Phase 5: Hardening
 - All ported endpoints get auth

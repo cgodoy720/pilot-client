@@ -26,5 +26,5 @@ ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
 
 # Run the application with Gunicorn for production
-CMD exec gunicorn --bind :$PORT --workers 1 --worker-class uvicorn.workers.UvicornWorker --timeout 0 simple_server:app
+CMD exec gunicorn --bind :$PORT --workers 1 --worker-class uvicorn.workers.UvicornWorker --timeout 0 main:app
 
