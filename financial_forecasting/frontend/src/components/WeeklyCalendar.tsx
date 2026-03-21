@@ -40,6 +40,7 @@ export interface CalendarEvent {
   location?: string;
   description?: string;
   type: 'gcal' | 'task';
+  htmlLink?: string;
   opportunityName?: string;
   accountName?: string;
   status?: string;
@@ -68,6 +69,7 @@ interface WeeklyCalendarProps {
   onTaskClick?: (taskId: string, whatId: string) => void;
   timeGridHeight?: number;
   onTimeGridHeightChange?: (height: number) => void;
+  headerSlot?: React.ReactNode;
 }
 
 const VIEW_DAYS: Record<CalendarViewMode, number> = {
@@ -152,6 +154,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   onTaskClick,
   timeGridHeight: controlledTimeGridHeight,
   onTimeGridHeightChange,
+  headerSlot,
 }) => {
   const [internalViewMode, setInternalViewMode] = useState<CalendarViewMode>('week');
   const viewMode = controlledViewMode ?? internalViewMode;
@@ -267,10 +270,9 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* Header bar */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          {format(days[0], 'MMM d')} — {format(days[days.length - 1], 'MMM d, yyyy')}
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+        {headerSlot}
+        <Box sx={{ flex: 1 }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {viewMode !== 'day' && (
             <ToggleButtonGroup
@@ -483,10 +485,12 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
               gridTemplateColumns: gridCols,
               minWidth: minGridWidth,
               position: 'relative',
+              borderTop: '1px solid',
+              borderColor: 'divider',
             }}
           >
             {/* Hour labels column — sticky left during horizontal scroll */}
-            <Box sx={{ position: 'sticky', left: 0, zIndex: 2, bgcolor: 'background.paper' }}>
+            <Box sx={{ position: 'sticky', left: 0, zIndex: 2, bgcolor: 'background.paper', pt: 0.5 }}>
               {HOURS.map((hour) => (
                 <Box
                   key={hour}
@@ -498,7 +502,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                     pr: 0.5,
                   }}
                 >
-                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.disabled', lineHeight: 1, mt: '-4px' }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.disabled', lineHeight: 1 }}>
                     {formatHourLabel(hour)}
                   </Typography>
                 </Box>
@@ -669,9 +673,22 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             >
               <CloseIcon sx={{ fontSize: 16 }} />
             </IconButton>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, pr: 3 }}>
-              {selectedEvent.summary}
-            </Typography>
+            {selectedEvent.type === 'gcal' && selectedEvent.htmlLink ? (
+              <Typography
+                variant="subtitle2"
+                component="a"
+                href={selectedEvent.htmlLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ fontWeight: 600, mb: 0.5, pr: 3, display: 'block', color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+              >
+                {selectedEvent.summary}
+              </Typography>
+            ) : (
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5, pr: 3 }}>
+                {selectedEvent.summary}
+              </Typography>
+            )}
 
             {selectedEvent.type === 'gcal' && (
               <>

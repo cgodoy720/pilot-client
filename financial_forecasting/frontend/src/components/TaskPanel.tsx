@@ -50,6 +50,7 @@ interface Task {
   LastModifiedDate: string;
   Type: string | null;
   TaskSubtype: string | null;
+  WhatId?: string | null;
 }
 
 interface Opportunity {
@@ -69,6 +70,7 @@ interface TaskPanelProps {
   opportunity: Opportunity | null;
   users?: Array<{ Id: string; Name: string }>;
   selectedTaskId?: string | null;
+  opportunities?: Array<{ Id: string; Name: string }>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -122,7 +124,7 @@ function saveTaskPanelWidth(width: number) {
   localStorage.setItem(TASK_PANEL_PREFS_KEY, JSON.stringify({ width }));
 }
 
-const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users, selectedTaskId }) => {
+const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users, selectedTaskId, opportunities }) => {
   const queryClient = useQueryClient();
   const [width, setWidth] = useState(loadTaskPanelWidth);
   const widthRef = useRef(width);
@@ -181,6 +183,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
     Description: '',
     OwnerId: '',
     DriveLink: '',
+    WhatId: '',
   });
 
   // Fetch tasks for the selected opportunity
@@ -286,6 +289,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
       Description: task.Description || '',
       OwnerId: task.OwnerId || '',
       DriveLink: '',
+      WhatId: task.WhatId || opportunity?.Id || '',
     });
   };
 
@@ -585,6 +589,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
                 onDelete={(id) => deleteTaskMutation.mutate(id)}
                 users={users}
                 isSaving={updateTaskMutation.isLoading}
+                opportunities={opportunities}
               />
             ))}
           </Box>
@@ -612,6 +617,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
                 onDelete={(id) => deleteTaskMutation.mutate(id)}
                 users={users}
                 isSaving={updateTaskMutation.isLoading}
+                opportunities={opportunities}
               />
             ))}
           </Box>
@@ -628,6 +634,7 @@ interface TaskItemProps {
   editTask: any;
   setEditTask: (val: any) => void;
   expandedTaskId: string | null;
+  opportunities?: Array<{ Id: string; Name: string }>;
   setExpandedTaskId: (id: string | null) => void;
   onToggleStatus: (task: Task) => void;
   onStartEdit: (task: Task) => void;
@@ -640,7 +647,7 @@ interface TaskItemProps {
 
 const TaskItem: React.FC<TaskItemProps> = ({
   task, isEditing, editTask, setEditTask, expandedTaskId, setExpandedTaskId,
-  onToggleStatus, onStartEdit, onSaveEdit, onCancelEdit, onDelete, users, isSaving
+  onToggleStatus, onStartEdit, onSaveEdit, onCancelEdit, onDelete, users, isSaving, opportunities
 }) => {
   const isCompleted = task.Status === 'Completed';
   const isExpanded = expandedTaskId === task.Id;
@@ -710,6 +717,22 @@ const TaskItem: React.FC<TaskItemProps> = ({
               <MenuItem value="">Unassigned</MenuItem>
               {users.map(user => (
                 <MenuItem key={user.Id} value={user.Id}>{user.Name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
+        {opportunities && opportunities.length > 0 && (
+          <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+            <InputLabel>Opportunity</InputLabel>
+            <Select
+              value={editTask.WhatId}
+              label="Opportunity"
+              onChange={(e) => setEditTask({ ...editTask, WhatId: e.target.value })}
+            >
+              <MenuItem value="">No Opportunity</MenuItem>
+              {opportunities.map(opp => (
+                <MenuItem key={opp.Id} value={opp.Id}>{opp.Name}</MenuItem>
               ))}
             </Select>
           </FormControl>
