@@ -105,17 +105,17 @@ function loadPrefs(): DashboardPrefs {
         delete parsed.closeDateRange;
       }
       if (!parsed.dateRange) parsed.dateRange = { preset: 'all' };
-      if (parsed._topNV !== 2) {
-        parsed.topN = 30;
-        parsed._topNV = 2;
+      if (parsed._topNV !== 3) {
+        parsed.topN = 20;
+        parsed._topNV = 3;
       }
-      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 30));
+      parsed.topN = Math.min(50, Math.max(1, parsed.topN || 20));
       if (parsed.taskPanelWidth != null) parsed.taskPanelWidth = Math.min(800, Math.max(360, parsed.taskPanelWidth));
       if (parsed.taskInboxMaxHeight != null) parsed.taskInboxMaxHeight = Math.min(600, Math.max(200, parsed.taskInboxMaxHeight));
       return parsed;
     }
   } catch {}
-  return { collapsed: {}, calendarView: 'week', topN: 30, filterUserId: 'all', showWeighted: false, dateRange: { preset: 'all' }, snapshotMode: 'all' as SnapshotMode };
+  return { collapsed: {}, calendarView: 'week', topN: 20, filterUserId: 'all', showWeighted: false, dateRange: { preset: 'all' }, snapshotMode: 'all' as SnapshotMode };
 }
 
 function savePrefs(prefs: DashboardPrefs) {
@@ -303,6 +303,13 @@ function CalendarInboxSplit({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => calendarPanelRef.current?.collapse()}
+                  title="Collapse calendar"
+                >
+                  <ChevronLeftIcon fontSize="small" />
+                </IconButton>
                 <CalendarIcon color="primary" />
                 <Typography variant="h6">Weekly Calendar</Typography>
                 {(gcalCount > 0 || taskCount > 0) && (
@@ -312,13 +319,6 @@ function CalendarInboxSplit({
                   </Box>
                 )}
               </Box>
-              <IconButton
-                size="small"
-                onClick={() => calendarPanelRef.current?.collapse()}
-                title="Collapse calendar"
-              >
-                <ChevronLeftIcon fontSize="small" />
-              </IconButton>
             </Box>
             <CardContent sx={{ pt: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {calNeedsReauth && (
@@ -949,15 +949,10 @@ const MyDashboard: React.FC = () => {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {user?.name ? `Hey, ${user.name.split(' ')[0]}` : 'Home'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {format(new Date(), 'EEEE, MMMM d')} &middot; {myOpenOpps.length} open opportunit{myOpenOpps.length === 1 ? 'y' : 'ies'}
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 1 }}>
+        <Typography variant="body2" color="text.secondary">
+          {format(new Date(), 'EEEE, MMMM d')} &middot; {myOpenOpps.length} open opportunit{myOpenOpps.length === 1 ? 'y' : 'ies'}
+        </Typography>
       </Box>
 
       {/* Row 1: Calendar + Task Inbox side-by-side (resizable on desktop) */}
@@ -1156,9 +1151,9 @@ const MyDashboard: React.FC = () => {
         }
       >
         {/* Controls row: User filter + Weighted toggle + top-N */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-            <FormControl size="small" sx={{ minWidth: 180 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 0.75 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <FormControl size="small" sx={{ minWidth: 160, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
               <InputLabel id="opportunity-owner-filter-label">Opportunity Owner</InputLabel>
               <Select
                 labelId="opportunity-owner-filter-label"
@@ -1183,10 +1178,16 @@ const MyDashboard: React.FC = () => {
               exclusive
               value={prefs.showWeighted ? 'weighted' : 'total'}
               onChange={(_, v) => v && setPrefs((p) => ({ ...p, showWeighted: v === 'weighted' }))}
+              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
             >
               <ToggleButton value="total">Total</ToggleButton>
               <ToggleButton value="weighted">Weighted</ToggleButton>
             </ToggleButtonGroup>
+            {prefs.showWeighted && (
+              <Typography variant="caption" color="text.secondary">
+                Amount × Probability
+              </Typography>
+            )}
           </Box>
           <TextField
             type="number"
@@ -1194,7 +1195,7 @@ const MyDashboard: React.FC = () => {
             label="Rows"
             defaultValue={prefs.topN}
             inputProps={{ min: 1, max: 50 }}
-            sx={{ width: 72 }}
+            sx={{ width: 64, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}
             onBlur={(e) => {
               const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 20));
               e.target.value = String(v);
@@ -1205,10 +1206,6 @@ const MyDashboard: React.FC = () => {
             }}
           />
         </Box>
-
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Ranked by strategic value (Amount × Probability)
-        </Typography>
 
         {priorityOpps.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>

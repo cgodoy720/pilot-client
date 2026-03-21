@@ -106,13 +106,9 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({
   const isTeam = filterUserId === 'all';
 
   return (
-    <Box sx={{ textAlign: 'center' }}>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        {isTeam ? 'Team Goal' : ownerName ? `${ownerName}'s Goal` : 'My Goal'}
-      </Typography>
-
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', gap: 2 }}>
       {/* Donut chart with center label */}
-      <Box sx={{ position: 'relative', width: '100%', height: 160 }}>
+      <Box sx={{ position: 'relative', width: 160, height: 160, flexShrink: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -152,8 +148,11 @@ const GoalTracker: React.FC<GoalTrackerProps> = ({
         </Box>
       </Box>
 
-      {/* Stats */}
-      <Box sx={{ mt: 1 }}>
+      {/* Stats — right of donut on desktop, below on mobile */}
+      <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+          {isTeam ? 'Team Goal' : ownerName ? `${ownerName}'s Goal` : 'My Goal'}
+        </Typography>
         <Chip label={statusLabel} color={statusColor} size="small" sx={{ mb: 0.5 }} />
         <Typography variant="caption" color="text.secondary" display="block">
           {fyLabel} (ends Dec 31) &middot; {monthsRemaining} mo left
