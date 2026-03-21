@@ -258,14 +258,14 @@ class TestSalesforceOpportunities:
     """Tests for GET/PUT /api/salesforce/opportunities."""
 
     def test_get_opportunities_empty(self, client, mock_client):
-        mock_client.salesforce.query.return_value = {"records": []}
+        mock_client.salesforce.query_all.return_value = {"records": []}
         response = client.get("/api/salesforce/opportunities")
         assert response.status_code == 200
         assert response.json() == []
 
     def test_get_opportunities_returns_records(self, client, mock_client):
         opp = make_sf_opportunity()
-        mock_client.salesforce.query.return_value = {"records": [opp]}
+        mock_client.salesforce.query_all.return_value = {"records": [opp]}
         response = client.get("/api/salesforce/opportunities")
         assert response.status_code == 200
         data = response.json()
@@ -274,33 +274,32 @@ class TestSalesforceOpportunities:
 
     def test_get_opportunities_with_stage_filter(self, client, mock_client):
         opp = make_sf_opportunity({"StageName": "Qualifying"})
-        mock_client.salesforce.query.return_value = {"records": [opp]}
+        mock_client.salesforce.query_all.return_value = {"records": [opp]}
         response = client.get("/api/salesforce/opportunities", params={"stage": "Qualifying"})
         assert response.status_code == 200
         # Verify the query method was called and a WHERE clause was built
-        call_args = mock_client.salesforce.query.call_args
+        call_args = mock_client.salesforce.query_all.call_args
         soql = call_args[0][0]
         assert "StageName = 'Qualifying'" in soql
 
     def test_get_opportunities_with_stages_list(self, client, mock_client):
-        mock_client.salesforce.query.return_value = {"records": []}
+        mock_client.salesforce.query_all.return_value = {"records": []}
         response = client.get(
             "/api/salesforce/opportunities",
             params={"stages": ["Qualifying", "Lead Gen"]},
         )
         assert response.status_code == 200
-        soql = mock_client.salesforce.query.call_args[0][0]
+        soql = mock_client.salesforce.query_all.call_args[0][0]
         assert "StageName IN" in soql
 
     def test_get_opportunities_with_limit(self, client, mock_client):
-        mock_client.salesforce.query.return_value = {"records": []}
+        """Limit param is accepted (query_all fetches all records via pagination)."""
+        mock_client.salesforce.query_all.return_value = {"records": []}
         response = client.get("/api/salesforce/opportunities", params={"limit": 10})
         assert response.status_code == 200
-        soql = mock_client.salesforce.query.call_args[0][0]
-        assert "LIMIT 10" in soql
 
     def test_get_opportunities_service_error(self, client, mock_client):
-        mock_client.salesforce.query.side_effect = RuntimeError("Salesforce down")
+        mock_client.salesforce.query_all.side_effect = RuntimeError("Salesforce down")
         response = client.get("/api/salesforce/opportunities")
         assert response.status_code == 500
         assert "Salesforce down" in response.json()["detail"]
@@ -788,9 +787,77 @@ class TestAuthEnforcement:
         )
         assert response.status_code == 401
 
+    def test_cashflow_summary_requires_auth(self, unauthed_client):
+        response = unauthed_client.get("/api/cashflow/summary")
+        assert response.status_code == 401
+
+    def test_search_opportunities_requires_auth(self, unauthed_client):
+        response = unauthed_client.get("/api/matching/search-opportunities")
+        assert response.status_code == 401
+
+    def test_cache_clear_requires_auth(self, unauthed_client):
+        response = unauthed_client.post("/api/cache/clear")
+        assert response.status_code == 401
+
 
 # ===================================================================
-# 11. Edge cases / multiple records
+# 11. New Phase 5 endpoints
+# ===================================================================
+
+class TestPhase5Endpoints:
+    """Tests for endpoints added/fixed in Phase 5 hardening."""
+
+    def test_cashflow_summary_returns_200(self, client):
+        response = client.get("/api/cashflow/summary")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "total_pipeline" in data["data"]
+
+    def test_cache_clear_returns_200(self, client):
+        response = client.post("/api/cache/clear")
+        assert response.status_code == 200
+        assert response.json()["message"] == "All caches cleared"
+
+    def test_search_opportunities_returns_200(self, client, mock_client):
+        opp = make_sf_opportunity()
+        mock_client.salesforce.query.return_value = {"records": [opp]}
+        response = client.get("/api/matching/search-opportunities")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "count" in data
+        assert "opportunities" in data
+
+    def test_search_opportunities_with_query(self, client, mock_client):
+        opp = make_sf_opportunity({"Name": "Test Grant"})
+        mock_client.salesforce.query.return_value = {"records": [opp]}
+        response = client.get(
+            "/api/matching/search-opportunities",
+            params={"q": "Test", "customer_name": "Acme Corp", "invoice_amount": 50000},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        # With customer_name provided, results should have match scores
+        if data["count"] > 0:
+            assert "matchScore" in data["opportunities"][0]
+
+    def test_search_opportunities_escapes_soql(self, client, mock_client):
+        """Verify SOQL injection characters are escaped."""
+        mock_client.salesforce.query.return_value = {"records": []}
+        response = client.get(
+            "/api/matching/search-opportunities",
+            params={"q": "test' OR Name LIKE '%"},
+        )
+        assert response.status_code == 200
+        # The query should have been escaped, not cause a 500
+        soql = mock_client.salesforce.query.call_args[0][0]
+        assert "test\\'" in soql or "test'" not in soql.split("LIKE")[1]
+
+
+# ===================================================================
+# 12. Edge cases / multiple records
 # ===================================================================
 
 class TestEdgeCases:
@@ -829,7 +896,7 @@ class TestEdgeCases:
             make_sf_opportunity({"Id": f"006MULTI{i:03d}", "Amount": 10000 * (i + 1)})
             for i in range(5)
         ]
-        mock_client.salesforce.query.return_value = {"records": opps}
+        mock_client.salesforce.query_all.return_value = {"records": opps}
         response = client.get("/api/salesforce/opportunities")
         assert response.status_code == 200
         data = response.json()
