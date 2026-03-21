@@ -11,6 +11,7 @@ import {
   FormControlLabel,
   Popover,
   IconButton,
+  Button,
 } from '@mui/material';
 import {
   Assignment as TaskIcon,
@@ -27,6 +28,7 @@ import {
   parseISO,
   startOfDay,
   differenceInDays,
+  isWeekend,
 } from 'date-fns';
 
 export type CalendarViewMode = 'day' | 'week' | '2week';
@@ -70,6 +72,8 @@ interface WeeklyCalendarProps {
   timeGridHeight?: number;
   onTimeGridHeightChange?: (height: number) => void;
   headerSlot?: React.ReactNode;
+  showWeekends?: boolean;
+  onShowWeekendsChange?: (show: boolean) => void;
 }
 
 const VIEW_DAYS: Record<CalendarViewMode, number> = {
@@ -155,6 +159,8 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   timeGridHeight: controlledTimeGridHeight,
   onTimeGridHeightChange,
   headerSlot,
+  showWeekends = true,
+  onShowWeekendsChange,
 }) => {
   const [internalViewMode, setInternalViewMode] = useState<CalendarViewMode>('week');
   const viewMode = controlledViewMode ?? internalViewMode;
@@ -213,8 +219,16 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
       ? today
       : startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 });
     const count = VIEW_DAYS[viewMode];
-    return Array.from({ length: count }, (_, i) => addDays(start, i));
-  }, [viewMode, weekOffset]);
+    const allDays = Array.from({ length: count }, (_, i) => addDays(start, i));
+    if (!showWeekends && viewMode !== 'day') {
+      return allDays.filter(d => !isWeekend(d));
+    }
+    return allDays;
+  }, [viewMode, weekOffset, showWeekends]);
+
+  // Dynamic title truncation — wider columns can show more text
+  const titleTruncLen = viewMode === 'day' ? 60 : (days.length <= 5 ? 50 : days.length <= 7 ? 40 : 20);
+  const taskTruncLen = viewMode === 'day' ? 60 : (days.length <= 5 ? 30 : 20);
 
   // Shared grid layout — guarantees column alignment across all sections
   const minGridWidth = GUTTER_WIDTH + days.length * MIN_COL_WIDTH;
@@ -318,6 +332,23 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             <ToggleButton value="day" sx={{ textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' }}>Day</ToggleButton>
             <ToggleButton value="week" sx={{ textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' }}>Week</ToggleButton>
           </ToggleButtonGroup>
+          {viewMode !== 'day' && (
+            <Button
+              size="small"
+              variant={showWeekends ? 'contained' : 'outlined'}
+              onClick={() => onShowWeekendsChange?.(!showWeekends)}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.75rem',
+                px: 1,
+                py: 0.25,
+                minWidth: 'auto',
+                lineHeight: 1.75,
+              }}
+            >
+              Sat/Sun
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -465,7 +496,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                                   color: isCompleted ? 'text.secondary' : 'text.primary',
                                 }}
                               >
-                                {truncate(ev.summary, viewMode === 'day' ? 60 : 20)}
+                                {truncate(ev.summary, taskTruncLen)}
                               </Typography>
                             </Box>
                           </Tooltip>
@@ -603,7 +634,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                           noWrap
                           sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.3, display: 'block' }}
                         >
-                          {truncate(ev.summary, viewMode === 'day' ? 60 : TITLE_TRUNCATE_LEN)}
+                          {truncate(ev.summary, titleTruncLen)}
                         </Typography>
                         <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1 }}>
                           {time}{endTime ? ` – ${endTime}` : ''}

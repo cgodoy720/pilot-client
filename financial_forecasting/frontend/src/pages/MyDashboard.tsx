@@ -83,6 +83,7 @@ interface DashboardPrefs {
   taskInboxMaxHeight?: number;
   calendarTimeGridHeight?: number;
   weekOffset?: number;
+  showWeekends?: boolean;
   filterPillPosition?: PillPosition;
 }
 
@@ -321,6 +322,8 @@ function CalendarInboxSplit({
                 onTaskClick={handleTaskClick}
                 timeGridHeight={prefs.calendarTimeGridHeight ?? 520}
                 onTimeGridHeightChange={(h) => setPrefs((p) => ({ ...p, calendarTimeGridHeight: h }))}
+                showWeekends={prefs.showWeekends ?? true}
+                onShowWeekendsChange={(show) => setPrefs((p) => ({ ...p, showWeekends: show }))}
                 headerSlot={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <IconButton
@@ -992,6 +995,8 @@ const MyDashboard: React.FC = () => {
               onViewModeChange={setCalendarView}
               weekOffset={prefs.weekOffset ?? 0}
               onWeekOffsetChange={(offset) => setPrefs((p) => ({ ...p, weekOffset: offset }))}
+              showWeekends={prefs.showWeekends ?? true}
+              onShowWeekendsChange={(show) => setPrefs((p) => ({ ...p, showWeekends: show }))}
               onTaskClick={(taskId, whatId) => {
                 const opp = priorityOpps.find((o) => o.Id === whatId) || allOpportunities.find((o: any) => o.Id === whatId);
                 if (opp) {
@@ -1087,6 +1092,8 @@ const MyDashboard: React.FC = () => {
                 onViewModeChange={setCalendarView}
                 weekOffset={prefs.weekOffset ?? 0}
                 onWeekOffsetChange={(offset) => setPrefs((p) => ({ ...p, weekOffset: offset }))}
+                showWeekends={prefs.showWeekends ?? true}
+                onShowWeekendsChange={(show) => setPrefs((p) => ({ ...p, showWeekends: show }))}
                 onTaskClick={(taskId, whatId) => {
                   const opp = priorityOpps.find((o) => o.Id === whatId) || allOpportunities.find((o: any) => o.Id === whatId);
                   if (opp) {
