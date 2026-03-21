@@ -87,10 +87,16 @@ def _admin_user_row():
 
 @pytest.fixture
 def mock_db():
+    admin_row = _admin_user_row()
+    async def smart_fetchrow(query, *args):
+        """Return admin user for permission queries, None for lock queries."""
+        if "opportunity_lock" in query:
+            return None  # No lock by default
+        return admin_row
     db = AsyncMock()
     db.fetch = AsyncMock(return_value=[])
-    # Default fetchrow returns admin user (for check_permission queries)
-    db.fetchrow = AsyncMock(return_value=_admin_user_row())
+    db.fetchrow = AsyncMock(side_effect=smart_fetchrow)
+    db.fetchval = AsyncMock(return_value=1)
     db.execute = AsyncMock(return_value="DELETE 1")
     return db
 

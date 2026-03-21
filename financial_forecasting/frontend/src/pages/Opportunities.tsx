@@ -47,10 +47,12 @@ import { useOpportunityData, ViewMode } from './Opportunities/useOpportunityData
 import { buildPipelineColumns, buildPaymentColumns, ColumnCallbacks } from './Opportunities/columns';
 import { SummaryCards } from './Opportunities/SummaryCards';
 import ConfirmSaveButton from '../components/ConfirmSaveButton';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 const Opportunities: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { can, sfUserId } = usePermissions();
   const [searchParams] = useSearchParams();
   const searchFromUrl = searchParams.get('search') || '';
 
@@ -103,6 +105,9 @@ const Opportunities: React.FC = () => {
     recentlyChangedRef,
     markRecentlyChanged,
     clearRecentlyChanged,
+    lockMap,
+    lockMutation,
+    unlockMutation,
   } = useOpportunityData(viewMode, philanthropyOnly, pbcOnly);
 
   // Handle incoming filter from Dashboard
@@ -269,7 +274,14 @@ const Opportunities: React.FC = () => {
     userMap,
     activeActivityOppId: activityOpp?.Id,
     activityPanelOpen,
-  }), [accountMap, userMap, activityOpp?.Id, activityPanelOpen, philanthropyOnly, pbcOnly, viewMode]);
+    lockMap,
+    onLockToggle: (oppId, ownerId, isLocked) => {
+      if (isLocked) unlockMutation.mutate(oppId);
+      else lockMutation.mutate({ oppId, ownerId });
+    },
+    currentSfUserId: sfUserId,
+    canLock: can('lock_own_opportunities'),
+  }), [accountMap, userMap, activityOpp?.Id, activityPanelOpen, philanthropyOnly, pbcOnly, viewMode, lockMap, sfUserId]);
 
   const pipelineColumns = useMemo(() => buildPipelineColumns(columnCallbacks), [columnCallbacks]);
   const paymentColumns = useMemo(() => buildPaymentColumns(columnCallbacks), [columnCallbacks]);
@@ -520,6 +532,11 @@ const Opportunities: React.FC = () => {
               disableColumnMenu={false}
               isCellEditable={(params) => {
                 if (viewMode !== 'open') return false;
+                // Block editing on locked opportunities
+                if (lockMap.has(params.row.Id)) {
+                  const lock = lockMap.get(params.row.Id)!;
+                  if (lock.locked_by !== sfUserId) return false;
+                }
                 return ['Name', 'AccountId', 'OwnerId', 'Amount', 'Probability', 'CloseDate', 'PaymentDate__c'].includes(params.field);
               }}
               sx={{

@@ -91,7 +91,7 @@ function loadPrefs(): DashboardPrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
-      const parsed = { filterUserId: 'all', showWeighted: false, snapshotMode: 'all', ...JSON.parse(raw) };
+      const parsed = { filterUserId: 'me', showWeighted: false, snapshotMode: 'all', ...JSON.parse(raw) };
       // Migrate old closeDateRange to new dateRange format
       if (parsed.closeDateRange && !parsed.dateRange) {
         const mapping: Record<string, DateRangeValue> = {
@@ -116,7 +116,7 @@ function loadPrefs(): DashboardPrefs {
       return parsed;
     }
   } catch {}
-  return { collapsed: {}, calendarView: 'week', topN: 20, filterUserId: 'all', showWeighted: false, dateRange: { preset: 'all' }, snapshotMode: 'all' as SnapshotMode };
+  return { collapsed: {}, calendarView: 'week', topN: 20, filterUserId: 'me', showWeighted: false, dateRange: { preset: 'all' }, snapshotMode: 'all' as SnapshotMode };
 }
 
 function savePrefs(prefs: DashboardPrefs) {

@@ -79,7 +79,7 @@ class ProjectTaskUpdate(BaseModel):
 
 
 @router.get("/projects")
-async def list_projects(conn=Depends(get_db)):
+async def list_projects(user=Depends(require_auth), conn=Depends(get_db)):
     """List all projects."""
     rows = await conn.fetch(
         "SELECT id, name, description, created_at, updated_at FROM project ORDER BY created_at"
@@ -88,7 +88,7 @@ async def list_projects(conn=Depends(get_db)):
 
 
 @router.get("/projects/{project_id}")
-async def get_project(project_id: str, conn=Depends(get_db)):
+async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     """Get a full project tree: workstreams → milestones → tasks (single query)."""
     pid = uuid.UUID(project_id)
 
@@ -173,7 +173,7 @@ async def get_project(project_id: str, conn=Depends(get_db)):
 
 
 @router.post("/projects/{project_id}/workstreams")
-async def create_workstream(project_id: str, body: WorkstreamCreate, conn=Depends(get_db)):
+async def create_workstream(project_id: str, body: WorkstreamCreate, user=Depends(require_auth), conn=Depends(get_db)):
     pid = uuid.UUID(project_id)
     row = await conn.fetchrow(
         """INSERT INTO workstream (project_id, name, description, sort_order)
@@ -184,7 +184,7 @@ async def create_workstream(project_id: str, body: WorkstreamCreate, conn=Depend
 
 
 @router.put("/workstreams/{workstream_id}")
-async def update_workstream(workstream_id: str, body: WorkstreamUpdate, conn=Depends(get_db)):
+async def update_workstream(workstream_id: str, body: WorkstreamUpdate, user=Depends(require_auth), conn=Depends(get_db)):
     wid = uuid.UUID(workstream_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -197,7 +197,7 @@ async def update_workstream(workstream_id: str, body: WorkstreamUpdate, conn=Dep
 
 
 @router.delete("/workstreams/{workstream_id}")
-async def delete_workstream(workstream_id: str, conn=Depends(get_db)):
+async def delete_workstream(workstream_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     wid = uuid.UUID(workstream_id)
     await conn.execute("DELETE FROM workstream WHERE id = $1", wid)
     return {"success": True, "data": {"message": "Workstream deleted"}}
@@ -207,7 +207,7 @@ async def delete_workstream(workstream_id: str, conn=Depends(get_db)):
 
 
 @router.post("/workstreams/{workstream_id}/milestones")
-async def create_milestone(workstream_id: str, body: MilestoneCreate, conn=Depends(get_db)):
+async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depends(require_auth), conn=Depends(get_db)):
     wid = uuid.UUID(workstream_id)
     row = await conn.fetchrow(
         """INSERT INTO milestone (workstream_id, title, status, priority, owner, description, source_links, sort_order)
@@ -219,7 +219,7 @@ async def create_milestone(workstream_id: str, body: MilestoneCreate, conn=Depen
 
 
 @router.put("/milestones/{milestone_id}")
-async def update_milestone(milestone_id: str, body: MilestoneUpdate, conn=Depends(get_db)):
+async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depends(require_auth), conn=Depends(get_db)):
     mid = uuid.UUID(milestone_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -232,7 +232,7 @@ async def update_milestone(milestone_id: str, body: MilestoneUpdate, conn=Depend
 
 
 @router.delete("/milestones/{milestone_id}")
-async def delete_milestone(milestone_id: str, conn=Depends(get_db)):
+async def delete_milestone(milestone_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     mid = uuid.UUID(milestone_id)
     await conn.execute("DELETE FROM milestone WHERE id = $1", mid)
     return {"success": True, "data": {"message": "Milestone deleted"}}
@@ -242,7 +242,7 @@ async def delete_milestone(milestone_id: str, conn=Depends(get_db)):
 
 
 @router.post("/milestones/{milestone_id}/tasks")
-async def create_project_task(milestone_id: str, body: ProjectTaskCreate, conn=Depends(get_db)):
+async def create_project_task(milestone_id: str, body: ProjectTaskCreate, user=Depends(require_auth), conn=Depends(get_db)):
     mid = uuid.UUID(milestone_id)
     deadline = None
     if body.deadline:
@@ -266,7 +266,7 @@ async def create_project_task(milestone_id: str, body: ProjectTaskCreate, conn=D
 
 
 @router.put("/project-tasks/{task_id}")
-async def update_project_task(task_id: str, body: ProjectTaskUpdate, conn=Depends(get_db)):
+async def update_project_task(task_id: str, body: ProjectTaskUpdate, user=Depends(require_auth), conn=Depends(get_db)):
     tid = uuid.UUID(task_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -295,7 +295,7 @@ async def update_project_task(task_id: str, body: ProjectTaskUpdate, conn=Depend
 
 
 @router.delete("/project-tasks/{task_id}")
-async def delete_project_task(task_id: str, conn=Depends(get_db)):
+async def delete_project_task(task_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     tid = uuid.UUID(task_id)
     await conn.execute("DELETE FROM project_task WHERE id = $1", tid)
     return {"success": True, "data": {"message": "Task deleted"}}

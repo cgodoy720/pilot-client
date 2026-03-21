@@ -15,7 +15,11 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { TipsAndUpdates as IntelligenceIcon } from '@mui/icons-material';
+import {
+  TipsAndUpdates as IntelligenceIcon,
+  Lock as LockIcon,
+  LockOpen as LockOpenIcon,
+} from '@mui/icons-material';
 import {
   GridColDef,
   GridRenderCellParams,
@@ -41,14 +45,68 @@ export interface ColumnCallbacks {
   userMap: Map<string, any>;
   activeActivityOppId?: string | null;
   activityPanelOpen?: boolean;
+  // Lock support
+  lockMap?: Map<string, { locked_by: string; locked_at: string }>;
+  onLockToggle?: (oppId: string, ownerId: string, isLocked: boolean) => void;
+  currentSfUserId?: string | null;
+  canLock?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // Pipeline columns (Sales team — focus on closing deals)
 // ---------------------------------------------------------------------------
 
+function lockColumn(cb: ColumnCallbacks): GridColDef {
+  return {
+    field: '_lock',
+    headerName: '',
+    width: 44,
+    sortable: false,
+    filterable: false,
+    disableColumnMenu: true,
+    renderCell: (params: GridRenderCellParams) => {
+      const opp = params.row as Opportunity;
+      const lock = cb.lockMap?.get(opp.Id);
+      const isOwner = cb.currentSfUserId && opp.OwnerId === cb.currentSfUserId;
+      const isLockedByMe = lock && lock.locked_by === cb.currentSfUserId;
+      const isLockedByOther = lock && !isLockedByMe;
+
+      if (isLockedByMe) {
+        return (
+          <Tooltip title="Unlock this opportunity">
+            <IconButton size="small" onClick={() => cb.onLockToggle?.(opp.Id, opp.OwnerId, true)}
+              sx={{ color: '#ed6c02' }}>
+              <LockIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        );
+      }
+      if (isLockedByOther) {
+        const lockerName = cb.userMap.get(lock!.locked_by)?.Name || 'another user';
+        return (
+          <Tooltip title={`Locked by ${lockerName}`}>
+            <LockIcon sx={{ fontSize: 18, color: '#d32f2f', cursor: 'default' }} />
+          </Tooltip>
+        );
+      }
+      if (isOwner && cb.canLock) {
+        return (
+          <Tooltip title="Lock this opportunity">
+            <IconButton size="small" onClick={() => cb.onLockToggle?.(opp.Id, opp.OwnerId, false)}
+              sx={{ color: '#bdbdbd', '&:hover': { color: '#ed6c02' } }}>
+              <LockOpenIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        );
+      }
+      return null;
+    },
+  };
+}
+
 export function buildPipelineColumns(cb: ColumnCallbacks): GridColDef[] {
   return [
+    lockColumn(cb),
     taskColumn(cb),
     intelColumn(cb),
     {

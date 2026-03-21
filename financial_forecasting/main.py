@@ -34,7 +34,7 @@ from db import init_db, close_db, get_db
 from routes.projects import router as projects_router
 from routes.auth import router as auth_router
 from routes.sf_dependencies import router as sf_deps_router
-from routes.permissions import router as permissions_router, opp_router as opp_lock_router, check_permission
+from routes.permissions import router as permissions_router, opp_router as opp_lock_router, check_permission, resolve_task_lock
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 
@@ -620,10 +620,20 @@ async def create_opportunity_task(
     task_data: TaskCreateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user=Depends(check_permission("create_tasks")),
+    db=Depends(get_db),
 ):
     """Create a new task linked to an opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
+        # Check if the target opportunity is locked
+        lock = await db.fetchrow(
+            "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
+        )
+        if lock:
+            perms = user.get("_permissions", {})
+            sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
+            if lock["locked_by"] != sf_user_id and not perms.get("manage_users_roles", False):
+                raise HTTPException(403, "Cannot create tasks on a locked opportunity")
         salesforce = client.salesforce
         fields = {"WhatId": opportunity_id, **task_data.model_dump(exclude_none=True)}
         result = await salesforce.create_record("Task", fields)
@@ -642,25 +652,28 @@ async def update_task(
     user=Depends(check_permission("edit_own_tasks")),
     db=Depends(get_db),
 ):
-    """Update an existing Salesforce task."""
+    """Update an existing Salesforce task. Respects opportunity locks."""
     validate_salesforce_id(task_id, "task_id")
     try:
-        # If the task has a linked opportunity (WhatId), check if it's locked
-        what_id = updates.WhatId
-        if what_id:
-            lock = await db.fetchrow(
-                "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", what_id
-            )
-            if lock:
-                perms = user.get("_permissions", {})
-                sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
-                if lock["locked_by"] != sf_user_id and not perms.get("manage_users_roles", False):
-                    raise HTTPException(403, "This task's opportunity is locked by its owner")
-
         salesforce = client.salesforce
+        # Server-side lock resolution — fetches task's actual WhatId + OwnerId from SF
+        lock_info = await resolve_task_lock(task_id, user, db, salesforce)
+
         fields = updates.model_dump(exclude_none=True)
         if not fields:
             raise HTTPException(status_code=400, detail="No fields to update")
+
+        if lock_info["is_locked"]:
+            if lock_info["is_lock_owner"] or lock_info["is_admin"]:
+                pass  # Full access
+            elif lock_info["is_task_owner"]:
+                # Task owner: allow field updates but BLOCK WhatId changes
+                if updates.WhatId and updates.WhatId != lock_info["what_id"]:
+                    raise HTTPException(403, "Cannot move task from a locked opportunity")
+                fields.pop("WhatId", None)  # Strip WhatId to prevent relocation
+            else:
+                raise HTTPException(403, "This task's opportunity is locked")
+
         await salesforce.update_record("Task", task_id, fields)
         return ApiResponse(success=True, data={"message": "Task updated"})
     except HTTPException:
@@ -675,13 +688,20 @@ async def delete_task(
     task_id: str,
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user=Depends(check_permission("edit_own_tasks")),
+    db=Depends(get_db),
 ):
-    """Delete a Salesforce task."""
+    """Delete a Salesforce task. Blocked on locked opportunities."""
     validate_salesforce_id(task_id, "task_id")
     try:
         salesforce = client.salesforce
+        # Check if task's opportunity is locked — only lock owner + admin can delete
+        lock_info = await resolve_task_lock(task_id, user, db, salesforce)
+        if lock_info["is_locked"] and not lock_info["is_lock_owner"] and not lock_info["is_admin"]:
+            raise HTTPException(403, "Cannot delete tasks from a locked opportunity")
         await salesforce.delete_record("Task", task_id)
         return ApiResponse(success=True, data={"message": "Task deleted"})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting task: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete task")
@@ -693,6 +713,7 @@ async def duplicate_task(
     body: TaskDuplicateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user=Depends(check_permission("create_tasks")),
+    db=Depends(get_db),
 ):
     """Duplicate a Salesforce task, optionally linking to a different opportunity."""
     validate_salesforce_id(task_id, "task_id")
@@ -700,7 +721,22 @@ async def duplicate_task(
         validate_salesforce_id(body.WhatId, "WhatId")
     try:
         salesforce = client.salesforce
-        # Fetch the original task (task_id already validated by validate_salesforce_id)
+        # Check if source task's opportunity is locked
+        lock_info = await resolve_task_lock(task_id, user, db, salesforce)
+        if lock_info["is_locked"] and not lock_info["is_lock_owner"] and not lock_info["is_admin"]:
+            raise HTTPException(403, "Cannot duplicate tasks from a locked opportunity")
+        # Check if destination opportunity is locked
+        dest_opp = body.WhatId
+        if dest_opp:
+            dest_lock = await db.fetchrow(
+                "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", dest_opp
+            )
+            if dest_lock:
+                perms = user.get("_permissions", {})
+                sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
+                if dest_lock["locked_by"] != sf_user_id and not perms.get("manage_users_roles", False):
+                    raise HTTPException(403, "Cannot duplicate tasks to a locked opportunity")
+        # Fetch the original task
         safe_id = escape_soql_string(task_id)
         result = await salesforce.query(
             f"SELECT Subject, Status, Priority, ActivityDate, Description, OwnerId, WhatId "
@@ -1410,6 +1446,7 @@ def _parse_crm_message(text: str, opportunities: List[Dict] = None) -> Dict[str,
 async def slack_webhook(
     payload: Dict[str, Any],
     user=Depends(require_auth),
+    db=Depends(get_db),
 ):
     """Receive a Slack message and parse it as a CRM update."""
     text = payload.get("text", "")
@@ -1491,12 +1528,19 @@ async def approve_review(
                 update_fields["CloseDate"] = parsed["close_date"]
             await salesforce.update_record("Opportunity", opp_id, update_fields)
         elif parsed["action"] == "task" and opp_id:
-            await salesforce.create_record("Task", {
-                "Subject": parsed.get("detail", "Follow up")[:255],
-                "WhatId": opp_id,
-                "Status": "Not Started",
-                "Priority": "Normal",
-            })
+            # Check if opportunity is locked before creating task via Slack
+            opp_lock = await db.fetchrow(
+                "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", opp_id
+            )
+            if opp_lock:
+                logger.warning(f"Slack task creation blocked — opportunity {opp_id} is locked")
+            else:
+                await salesforce.create_record("Task", {
+                    "Subject": parsed.get("detail", "Follow up")[:255],
+                    "WhatId": opp_id,
+                    "Status": "Not Started",
+                    "Priority": "Normal",
+                })
         elif parsed["action"] == "note" and opp_id:
             # Append to Description
             opp = await salesforce.query(

@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiService } from '../services/api';
+import { usePermissions } from '../contexts/PermissionsContext';
 import toast from 'react-hot-toast';
 import ConfirmSaveButton from './ConfirmSaveButton';
 import SaveStatusIndicator from './SaveStatusIndicator';
@@ -153,6 +154,22 @@ function saveTaskPanelWidth(width: number) {
 
 const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users, selectedTaskId, editOnOpen, orphanTask, opportunities }) => {
   const queryClient = useQueryClient();
+  const { sfUserId, isAdmin } = usePermissions();
+
+  // Fetch opportunity locks to determine if current opp is locked
+  const { data: locksData } = useQuery('opportunity-locks', async () => {
+    const res = await apiService.getOpportunityLocks();
+    return res.data?.data || [];
+  }, { enabled: open, staleTime: 30_000 });
+
+  const oppLock = useMemo(() => {
+    if (!opportunity?.Id || !locksData) return null;
+    return locksData.find((l: any) => l.sf_opportunity_id === opportunity.Id) || null;
+  }, [opportunity?.Id, locksData]);
+
+  const isOppLocked = !!oppLock;
+  const isLockOwner = oppLock?.locked_by === sfUserId;
+  const canEditLockedOpp = isLockOwner || isAdmin;
   const [width, setWidth] = useState(loadTaskPanelWidth);
   const widthRef = useRef(width);
   const resizeRef = useRef<{ active: boolean; startX: number; startWidth: number }>({ active: false, startX: 0, startWidth: 0 });
@@ -742,6 +759,9 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
             onRemoveDep={(depId) => removeDepMutation.mutate(depId)}
             projects={projects}
             onLinkToProject={(sfTaskId, projectId) => linkToProjectMutation.mutate({ sfTaskId, projectId })}
+            isOppLocked={isOppLocked}
+            canEditLockedOpp={canEditLockedOpp}
+            isTaskOwner={orphanAsTask?.OwnerId === sfUserId}
           />
         ) : (
         <>
@@ -924,6 +944,9 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
                 onRemoveDep={(depId) => removeDepMutation.mutate(depId)}
                 projects={projects}
                 onLinkToProject={(sfTaskId, projectId) => linkToProjectMutation.mutate({ sfTaskId, projectId })}
+                isOppLocked={isOppLocked}
+                canEditLockedOpp={canEditLockedOpp}
+                isTaskOwner={task.OwnerId === sfUserId}
               />
             ))}
           </Box>
@@ -958,6 +981,9 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
                 onRemoveDep={(depId) => removeDepMutation.mutate(depId)}
                 projects={projects}
                 onLinkToProject={(sfTaskId, projectId) => linkToProjectMutation.mutate({ sfTaskId, projectId })}
+                isOppLocked={isOppLocked}
+                canEditLockedOpp={canEditLockedOpp}
+                isTaskOwner={task.OwnerId === sfUserId}
               />
             ))}
           </Box>
@@ -1043,6 +1069,10 @@ interface TaskItemProps {
   // Project assignment
   projects?: Array<{ id: string; name: string }>;
   onLinkToProject?: (sfTaskId: string, projectId: string) => void;
+  // Lock state
+  isOppLocked?: boolean;
+  canEditLockedOpp?: boolean;  // lock owner or admin
+  isTaskOwner?: boolean;       // task.OwnerId === current user
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({
@@ -1050,6 +1080,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onToggleStatus, onStartEdit, onSaveEdit, onCancelEdit, onDelete, users, isSaving, opportunities,
   dependencies, siblingTasks, allInboxTasks, onAddDep, onRemoveDep,
   projects, onLinkToProject,
+  isOppLocked, canEditLockedOpp, isTaskOwner,
 }) => {
   const isCompleted = task.Status === 'Completed';
   const isExpanded = expandedTaskId === task.Id;
@@ -1126,11 +1157,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
         {opportunities && opportunities.length > 0 && (
           <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-            <InputLabel>Opportunity</InputLabel>
+            <InputLabel>{isOppLocked && !canEditLockedOpp ? 'Opportunity (Locked)' : 'Opportunity'}</InputLabel>
             <Select
               value={editTask.WhatId}
-              label="Opportunity"
+              label={isOppLocked && !canEditLockedOpp ? 'Opportunity (Locked)' : 'Opportunity'}
               onChange={(e) => setEditTask({ ...editTask, WhatId: e.target.value })}
+              disabled={isOppLocked && !canEditLockedOpp}
             >
               <MenuItem value="">No Opportunity</MenuItem>
               {opportunities.map(opp => (
@@ -1404,6 +1436,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
               confirmTitle="Delete from Salesforce?"
               confirmMessage="This will permanently delete this task from Salesforce."
               confirmLabel="Delete"
+              disabled={isOppLocked && !canEditLockedOpp}
               sx={{ fontSize: '0.75rem' }}
             >
               Delete
