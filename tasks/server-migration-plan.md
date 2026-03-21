@@ -1,6 +1,6 @@
 # Server Migration: simple_server.py → main.py
 
-## Status: Phase 2 COMPLETE, Phase 3 NEXT
+## Status: Phase 3 COMPLETE, Phase 4 NEXT
 
 **PR History:**
 - Phase 2: Port missing endpoints into 8 route files + shared services (in progress)
@@ -106,10 +106,12 @@
 7. Register the router in main.py with `app.include_router()`
 8. Keep exact same request/response shapes so frontend works unchanged
 
-### Phase 3: Documentation
+### Phase 3: Documentation (COMPLETE)
 - `docs/architecture-server-migration.md` — Why we migrated
 - `docs/mcp-architecture-vision.md` — MCP's role for Pebble
-- Update `DEV_SETUP_GUIDE.md` — Reference `python main.py`
+- Updated `DEV_SETUP_GUIDE.md` — References `python main.py`
+- Updated `start_server.sh` — References `python3 main.py`
+- Updated `docs/architecture-decisions.md` section 6A — Marked as complete
 
 ### Phase 4: Deprecate simple_server.py
 - Add deprecation notice at top of file

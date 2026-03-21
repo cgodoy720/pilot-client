@@ -24,5 +24,5 @@ echo "🌐 API available at: http://localhost:8000"
 echo "📖 API docs at: http://localhost:8000/docs"
 echo ""
 
-python3 simple_server.py
+python3 main.py
 

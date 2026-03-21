@@ -248,20 +248,14 @@ Then decide on simplifications or enhancements.
 
 *Documented 2026-03-17 during OAuth2 Connectivity sprint. DO NOT IMPLEMENT — for planning only.*
 
-### 6A. Server Merge: `simple_server.py` + `main.py`
+### 6A. Server Merge: `simple_server.py` → `main.py` — COMPLETE
 
-**Problem**: Two backends with overlapping endpoints and different auth models.
+**Status**: Completed in two phases (PRs #42, #43). See [architecture-server-migration.md](architecture-server-migration.md) for full details.
 
-**What to merge from `main.py`**:
-- `ForecastingEngine` — probability-weighted pipeline forecasting
-- `DataSyncService` — SF ↔ Sage Intacct background sync
-- `UnifiedMCPClient` — MCP transport abstraction
-- Pydantic data models
-- Background sync task
+- **Phase 1 (PR #42)**: `main.py` connects to Salesforce directly via `SalesforceLogin` fallback chain. Removed mock MCP transport, added `.env` support, fixed SOQL field mappings.
+- **Phase 2 (PR #43)**: Ported 50 endpoints from `simple_server.py` into 8 modular route files. Created `dependencies.py` for shared `get_mcp_client()` dependency injection.
 
-**Key challenge**: `main.py`'s services assume a single shared SF client. `simple_server.py` uses per-user OAuth tokens. Resolution: forecasting and sync use a service account, while user-facing queries use per-user tokens (already how `simple_server.py` works via `get_salesforce_for_request()`).
-
-**Estimated effort**: 1–2 days
+`simple_server.py` remains in the repo pending Phase 4 deprecation (Dockerfile update, deprecation notice).
 
 ### 6B. Per-User Slack OAuth
 

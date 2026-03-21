@@ -74,7 +74,7 @@ SLACK_BOT_TOKEN=<ask team>
 ```bash
 # Terminal 1 - Backend
 cd financial_forecasting
-python simple_server.py
+python main.py
 # Or: ./start_server.sh
 # Runs on http://localhost:8000
 
@@ -146,7 +146,7 @@ See the full migration steps in the original DEV_SETUP_GUIDE (JWT Bearer section
 
 ```
 financial_forecasting/
-├── simple_server.py          # FastAPI backend (port 8000) - all API routes
+├── main.py                   # FastAPI backend (port 8000) - entry point + route registration
 ├── config.py                 # Credential configuration (reads SALESFORCE_*, SAGE_*)
 ├── .env                      # Environment variables (DO NOT COMMIT)
 ├── frontend/
@@ -157,5 +157,5 @@ financial_forecasting/
 │   │   └── pages/             # Priorities, Dashboard, Pipeline, Settings, etc.
 │   └── package.json
 ├── start_server.sh           # Start backend with Slack check
-└── Dockerfile                # Container build (uses simple_server:app)
+└── Dockerfile                # Container build (uses main:app)
 ```
