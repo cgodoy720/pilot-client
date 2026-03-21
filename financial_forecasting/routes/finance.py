@@ -31,7 +31,7 @@ class CreateInvoiceRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.get("/api/cashflow/summary")
-async def cashflow_summary():
+async def cashflow_summary(user=Depends(require_auth)):
     """Placeholder cashflow summary for frontend."""
     return ApiResponse(success=True, data={
         "total_pipeline": 0,

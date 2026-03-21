@@ -7,6 +7,7 @@ load_dotenv(override=False)
 from typing import Any, Dict, List, Optional
 from datetime import datetime, date, timedelta
 from decimal import Decimal
+from difflib import SequenceMatcher
 import logging
 
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query, Request
@@ -27,7 +28,7 @@ from models import (
     PaymentForecast, CashFlowProjection, ForecastingMetrics, ForecastingReport,
     OpportunityUpdateRequest, InvoiceCreationRequest, ForecastingDashboardData,
     OpportunityStage, PaymentTerms, InvoiceStatus,
-    OPEN_STAGES, CLOSED_STAGES,
+    OPEN_STAGES, CLOSED_STAGES, COLLECTING_STAGES,
     ApiResponse,
 )
 from forecasting_engine import ForecastingEngine
@@ -48,6 +49,7 @@ from routes.ai import router as ai_router
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 from services.crm_parser import refresh_opp_cache as _refresh_opp_cache
+from services.cache import cache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1076,6 +1078,15 @@ async def trigger_data_sync(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Cache management
+
+@app.post("/api/cache/clear")
+async def clear_cache(user=Depends(require_auth)):
+    """Clear all server-side caches."""
+    cache.clear()
+    return {"message": "All caches cleared"}
+
+
 # Invoice Matching endpoints
 
 class InvoiceMatchRequest(BaseModel):
@@ -1087,6 +1098,148 @@ class InvoiceMatchRequest(BaseModel):
     customer_name: Optional[str] = None
     invoice_amount: Optional[float] = None
     invoice_date: Optional[str] = None
+
+
+def calculate_match_score(opp, customer_name, invoice_amount, invoice_date):
+    """Calculate match score between an invoice and an opportunity.
+
+    Weights: name 40%, amount 30%, date proximity 20%, stage bonus ±flat.
+    """
+    score = 0
+    explanation = {}
+
+    # Name matching (40% weight)
+    if customer_name and opp.get("AccountName"):
+        name_ratio = SequenceMatcher(
+            None, customer_name.lower(), opp["AccountName"].lower()
+        ).ratio() * 100
+        score += name_ratio * 0.4
+        explanation["name_match"] = name_ratio
+
+    # Amount matching (30% weight)
+    if invoice_amount and opp.get("Amount"):
+        opp_amount = float(opp["Amount"])
+        amount_diff = abs(opp_amount - invoice_amount)
+        amount_ratio = max(0, 100 - (amount_diff / max(opp_amount, invoice_amount) * 100))
+        score += amount_ratio * 0.3
+        explanation["amount_match"] = amount_ratio
+
+    # Date proximity (20% weight)
+    if invoice_date and opp.get("CloseDate"):
+        try:
+            inv_date = datetime.strptime(invoice_date, "%Y-%m-%d")
+            close_date = datetime.strptime(opp["CloseDate"], "%Y-%m-%d")
+            days_diff = abs((inv_date - close_date).days)
+
+            if days_diff <= 30:
+                date_score = 100
+            elif days_diff <= 90:
+                date_score = 100 - ((days_diff - 30) * 1.5)
+            elif days_diff <= 180:
+                date_score = max(0, 10 - ((days_diff - 90) / 30))
+            else:
+                date_score = 0
+
+            score += date_score * 0.2
+            explanation["date_proximity_days"] = days_diff
+        except (ValueError, TypeError):
+            pass
+
+    # Stage weighting (flat bonus/penalty)
+    stage = opp.get("StageName", "")
+    _collecting_values = {s.value for s in COLLECTING_STAGES}
+    _open_values = {s.value for s in OPEN_STAGES}
+    if stage in _collecting_values:
+        score += 30
+        explanation["stage_bonus"] = "Active collection"
+    elif stage == OpportunityStage.CLOSED_COMPLETED.value:
+        score += 25
+        explanation["stage_bonus"] = "Completed"
+    elif stage in (
+        OpportunityStage.CLOSED_LOST.value,
+        OpportunityStage.CLOSED_DID_NOT_FULFILL.value,
+        OpportunityStage.WITHDRAWN.value,
+    ):
+        score -= 20
+        explanation["stage_bonus"] = "Closed/Lost"
+    elif stage in _open_values:
+        score -= 10
+        explanation["stage_bonus"] = "Open pipeline (not yet won)"
+    else:
+        score -= 10
+        explanation["stage_bonus"] = "Unknown stage"
+
+    return score, explanation
+
+
+@app.get("/api/matching/search-opportunities")
+async def search_opportunities(
+    q: str = "",
+    limit: int = Query(50, le=200),
+    customer_name: Optional[str] = Query(None),
+    invoice_amount: Optional[float] = Query(None),
+    invoice_date: Optional[str] = Query(None),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Search Salesforce opportunities by name or account with smart matching."""
+    try:
+        salesforce = client.salesforce
+
+        fields = (
+            "Id, Name, AccountId, Account.Name, Amount, StageName, "
+            "CloseDate, Description, Type"
+        )
+
+        if q:
+            safe_q = escape_soql_string(q)
+            query = (
+                f"SELECT {fields} FROM Opportunity "
+                f"WHERE (Name LIKE '%{safe_q}%' OR Account.Name LIKE '%{safe_q}%') "
+                f"ORDER BY CloseDate DESC LIMIT {limit}"
+            )
+        else:
+            query = (
+                f"SELECT {fields} FROM Opportunity "
+                f"ORDER BY CloseDate DESC LIMIT {limit}"
+            )
+
+        result = await salesforce.query(query)
+
+        opportunities = []
+        for record in result.get("records", []):
+            opp_data = {
+                "Id": record.get("Id"),
+                "Name": record.get("Name"),
+                "AccountName": (record.get("Account") or {}).get("Name", ""),
+                "Amount": record.get("Amount"),
+                "StageName": record.get("StageName"),
+                "CloseDate": record.get("CloseDate"),
+                "Description": record.get("Description"),
+                "Type": record.get("Type"),
+            }
+
+            if customer_name or invoice_amount or invoice_date:
+                ms, expl = calculate_match_score(
+                    opp_data, customer_name, invoice_amount, invoice_date
+                )
+                opp_data["matchScore"] = ms
+                opp_data["matchExplanation"] = expl
+
+            opportunities.append(opp_data)
+
+        if customer_name or invoice_amount or invoice_date:
+            opportunities.sort(key=lambda x: x.get("matchScore", 0), reverse=True)
+
+        return {
+            "success": True,
+            "count": len(opportunities),
+            "opportunities": opportunities,
+        }
+
+    except Exception as e:
+        logger.error(f"Error searching opportunities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/matching/grant-invoices")

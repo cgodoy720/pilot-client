@@ -1,6 +1,6 @@
 # Server Migration: simple_server.py → main.py
 
-## Status: Phase 4 COMPLETE, Phase 5 NEXT
+## Status: Phase 5 COMPLETE
 
 **PR History:**
 - Phase 2: Port missing endpoints into 8 route files + shared services (in progress)
@@ -120,10 +120,14 @@
 - Updated `product/reference/` docs: setup-guide, slack-setup, automatic-payment-sync, sage-master-data
 - `simple_server.py` kept in repo indefinitely for reference
 
-### Phase 5: Hardening
-- All ported endpoints get auth
-- Run adversarial test suite
-- Verify frontend parity
+### Phase 5: Hardening (COMPLETE)
+- **Auth gap fixed:** `GET /api/cashflow/summary` in `routes/finance.py` was missing `require_auth` — added
+- **Missing endpoints ported:**
+  - `GET /api/matching/search-opportunities` — ported from simple_server.py with SOQL injection fix (`escape_soql_string`)
+  - `POST /api/cache/clear` — ported with auth added (security improvement over simple_server)
+- **Test suite:** Fixed 7 pre-existing test failures (mocked `query` instead of `query_all`). 434 passing, 22 skipped, 1 pre-existing failure (env-dependent MCP credentials test)
+- **New tests added:** 8 tests for auth enforcement on new endpoints + endpoint behavior
+- **Auth audit:** 80+ route endpoints + 25+ main.py endpoints verified — all protected or intentionally public
 
 ## Key Architecture Notes
 
@@ -161,4 +165,4 @@
 | `config.py` | Legacy config (hardcoded creds — being replaced by .env) |
 | `.env` | Credentials (gitignored) |
 | `db/init.sql` | PostgreSQL schema |
-| `tests/` | 427 tests across 5 test files |
+| `tests/` | 434+ tests across 16 test files |
