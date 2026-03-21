@@ -149,7 +149,7 @@ function Section({
           alignItems: 'center',
           justifyContent: 'space-between',
           px: 2,
-          py: 1.5,
+          py: 1,
           cursor: 'pointer',
           '&:hover': { bgcolor: 'action.hover' },
         }}
@@ -157,11 +157,11 @@ function Section({
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {icon}
-          <Typography variant="h6">{title}</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>{title}</Typography>
           {badge}
         </Box>
         <IconButton size="small">
-          {collapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
+          {collapsed ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
         </IconButton>
       </Box>
       <Collapse in={!collapsed}>
@@ -297,7 +297,16 @@ function CalendarInboxSplit({
           onResize={(size) => setCalCollapsed(size.asPercentage === 0)}
         >
           <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pt: 1.5 }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pt: 1.5, position: 'relative' }}>
+              {/* Collapse button — pinned top-left, symmetric with Inbox top-right */}
+              <IconButton
+                size="small"
+                onClick={() => calendarPanelRef.current?.collapse()}
+                title="Collapse calendar"
+                sx={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}
+              >
+                <ChevronLeftIcon fontSize="small" />
+              </IconButton>
               {calNeedsReauth && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
                   Calendar access expired. Please{' '}
@@ -326,15 +335,8 @@ function CalendarInboxSplit({
                 onShowWeekendsChange={(show) => setPrefs((p) => ({ ...p, showWeekends: show }))}
                 headerSlot={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <IconButton
-                      size="small"
-                      onClick={() => calendarPanelRef.current?.collapse()}
-                      title="Collapse calendar"
-                    >
-                      <ChevronLeftIcon fontSize="small" />
-                    </IconButton>
                     <CalendarIcon color="primary" sx={{ fontSize: 20 }} />
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Calendar</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1.1rem', whiteSpace: 'nowrap' }}>Calendar</Typography>
                     {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
                     {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
                   </Box>
@@ -369,7 +371,16 @@ function CalendarInboxSplit({
           onResize={(size) => setInboxCollapsed(size.asPercentage === 0)}
         >
           <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pt: 1.5 }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pt: 1.5, position: 'relative' }}>
+              {/* Collapse button — pinned top-right so filters wrap before intersecting */}
+              <IconButton
+                size="small"
+                onClick={() => inboxPanelRef.current?.collapse()}
+                title="Collapse inbox"
+                sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+              >
+                <ChevronRightIcon fontSize="small" />
+              </IconButton>
               <TaskInbox
                 tasks={inboxTasks}
                 loading={tasksLoading}
@@ -395,15 +406,8 @@ function CalendarInboxSplit({
                 headerSlot={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <InboxIcon color="primary" sx={{ fontSize: 20 }} />
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Tasks</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1.1rem', whiteSpace: 'nowrap' }}>Tasks</Typography>
                     {openTaskCount > 0 && <Chip label={`${openTaskCount} open`} size="small" />}
-                    <IconButton
-                      size="small"
-                      onClick={() => inboxPanelRef.current?.collapse()}
-                      title="Collapse inbox"
-                    >
-                      <ChevronRightIcon fontSize="small" />
-                    </IconButton>
                   </Box>
                 }
               />

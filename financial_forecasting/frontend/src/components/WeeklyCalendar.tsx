@@ -283,8 +283,8 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      {/* Header bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+      {/* Header bar — pl: 4 clears the absolutely-positioned collapse button in MyDashboard */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap', pl: 4 }}>
         {headerSlot}
         <Box sx={{ flex: 1 }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
