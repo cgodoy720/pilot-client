@@ -118,6 +118,25 @@ class SalesforceMCPService(BaseMCPService):
             
         except SalesforceAuthenticationFailed as e:
             print(f"Salesforce authentication failed: {e}")
+            # Last resort: SalesforceLogin without security token
+            if self.username and self.password:
+                try:
+                    from simple_salesforce import SalesforceLogin
+                    loop = asyncio.get_event_loop()
+                    session_id, instance = await loop.run_in_executor(
+                        None,
+                        lambda: SalesforceLogin(
+                            username=self.username,
+                            password=self.password,
+                            domain=self.domain or "login",
+                        )
+                    )
+                    self.sf_client = Salesforce(instance=instance, session_id=session_id)
+                    self._authenticated = True
+                    print(f"Salesforce connected via SalesforceLogin fallback: {self.username}")
+                    return True
+                except Exception as fallback_err:
+                    print(f"Salesforce fallback auth also failed: {fallback_err}")
             return False
         except Exception as e:
             print(f"Salesforce connection error: {e}")
@@ -137,6 +156,8 @@ class SalesforceMCPService(BaseMCPService):
     async def _get_available_tools(self) -> List[str]:
         """Get available Salesforce tools from MCP server."""
         tools = []
+        if not self.client:
+            return tools
         for tool_name, tool_def in self.client.available_tools.items():
             if "salesforce" in tool_name.lower() or "sf" in tool_name.lower():
                 tools.append(tool_name)
@@ -148,7 +169,7 @@ class SalesforceMCPService(BaseMCPService):
         
         try:
             # Use MCP tool if available
-            if "salesforce_query" in self.client.available_tools:
+            if self.client and "salesforce_query" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_query",
                     {"query": soql}
@@ -167,13 +188,27 @@ class SalesforceMCPService(BaseMCPService):
         except Exception as e:
             raise Exception(f"Failed to execute query: {e}")
 
+    async def query_all(self, soql: str) -> Dict[str, Any]:
+        """Execute SOQL query with automatic pagination (returns all records)."""
+        await self.ensure_authenticated()
+        try:
+            if self.sf_client:
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    None, lambda: self.sf_client.query_all(soql)
+                )
+                return result
+            raise Exception("No Salesforce client available")
+        except Exception as e:
+            raise Exception(f"Failed to execute query: {e}")
+
     async def create_record(self, sobject: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new record."""
         await self.ensure_authenticated()
         
         try:
             # Use MCP tool if available
-            if "salesforce_create" in self.client.available_tools:
+            if self.client and "salesforce_create" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_create",
                     {"sobject": sobject, "data": data}
@@ -201,7 +236,7 @@ class SalesforceMCPService(BaseMCPService):
         
         try:
             # Use MCP tool if available
-            if "salesforce_update" in self.client.available_tools:
+            if self.client and "salesforce_update" in self.client.available_tools:
                 result = await self.client.call_tool(
                     "salesforce_update",
                     {"sobject": sobject, "id": record_id, "data": data}
@@ -228,7 +263,7 @@ class SalesforceMCPService(BaseMCPService):
         
         try:
             # Use MCP tool if available
-            if "salesforce_delete" in self.client.available_tools:
+            if self.client and "salesforce_delete" in self.client.available_tools:
                 result = await self.client.call_tool(
                     "salesforce_delete",
                     {"sobject": sobject, "id": record_id}
@@ -255,7 +290,7 @@ class SalesforceMCPService(BaseMCPService):
         
         try:
             # Use MCP tool if available
-            if "salesforce_get" in self.client.available_tools:
+            if self.client and "salesforce_get" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_get",
                     {"sobject": sobject, "id": record_id}
@@ -281,7 +316,7 @@ class SalesforceMCPService(BaseMCPService):
         
         try:
             # Use MCP tool if available
-            if "salesforce_describe" in self.client.available_tools:
+            if self.client and "salesforce_describe" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_describe",
                     {"sobject": sobject}
@@ -307,7 +342,7 @@ class SalesforceMCPService(BaseMCPService):
         
         try:
             # Use MCP tool if available
-            if "salesforce_search" in self.client.available_tools:
+            if self.client and "salesforce_search" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_search",
                     {"query": sosl}
