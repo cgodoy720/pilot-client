@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Drawer,
   Box,
@@ -16,6 +16,10 @@ import {
   Tooltip,
   Collapse,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -32,6 +36,9 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
   Sort as SortIcon,
+  ContentCopy as DuplicateIcon,
+  Link as LinkIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiService } from '../services/api';
@@ -46,6 +53,10 @@ interface Task {
   Description: string | null;
   OwnerId: string;
   OwnerName: string | null;
+  WhoId?: string | null;
+  WhoName?: string | null;
+  CreatedById?: string | null;
+  CreatedByName?: string | null;
   CreatedDate: string;
   LastModifiedDate: string;
   Type: string | null;
@@ -64,12 +75,26 @@ interface Opportunity {
   Owner?: { Name: string } | null;
 }
 
+interface OrphanTask {
+  Id: string;
+  Subject: string;
+  Status: string;
+  Priority: string;
+  ActivityDate: string | null;
+  Description: string | null;
+  OwnerId: string;
+  OwnerName?: string | null;
+  WhatId?: string | null;
+}
+
 interface TaskPanelProps {
   open: boolean;
   onClose: () => void;
   opportunity: Opportunity | null;
   users?: Array<{ Id: string; Name: string }>;
   selectedTaskId?: string | null;
+  editOnOpen?: boolean;
+  orphanTask?: OrphanTask | null;
   opportunities?: Array<{ Id: string; Name: string }>;
 }
 
@@ -124,7 +149,7 @@ function saveTaskPanelWidth(width: number) {
   localStorage.setItem(TASK_PANEL_PREFS_KEY, JSON.stringify({ width }));
 }
 
-const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users, selectedTaskId, opportunities }) => {
+const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users, selectedTaskId, editOnOpen, orphanTask, opportunities }) => {
   const queryClient = useQueryClient();
   const [width, setWidth] = useState(loadTaskPanelWidth);
   const widthRef = useRef(width);
@@ -201,17 +226,123 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
 
   const tasks: Task[] = tasksData?.tasks || [];
 
-  // Auto-expand selected task details (not edit mode) when tasks load
+  // Track which task was already auto-edited to prevent re-triggers
+  const autoEditedRef = useRef<string | null>(null);
+
+  // Auto-expand selected task and optionally enter edit mode
   useEffect(() => {
     if (selectedTaskId && tasks.length > 0) {
       setExpandedTaskId(selectedTaskId);
+      // Enter edit mode directly if editOnOpen is set (from "Edit Task" click)
+      if (editOnOpen && autoEditedRef.current !== selectedTaskId) {
+        const task = tasks.find(t => t.Id === selectedTaskId);
+        if (task) {
+          autoEditedRef.current = selectedTaskId;
+          startEditing(task);
+        }
+      }
       // Scroll into view after render
       requestAnimationFrame(() => {
         const el = document.getElementById(`task-item-${selectedTaskId}`);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     }
-  }, [selectedTaskId, tasks.length]);
+  }, [selectedTaskId, editOnOpen, tasks.length]);
+
+  // Reset auto-edit tracking when panel closes
+  useEffect(() => {
+    if (!open) {
+      autoEditedRef.current = null;
+    }
+  }, [open]);
+
+  // Fetch available projects for "Assign to Project" dropdown
+  const { data: projectsData } = useQuery(
+    ['projects-list'],
+    async () => {
+      const response = await apiService.getProjects();
+      return response.data?.data || [];
+    },
+    { enabled: open, staleTime: 60_000 }
+  );
+  const projects: Array<{ id: string; name: string }> = projectsData || [];
+
+  // Fetch task dependencies scoped to this opportunity's tasks
+  const taskIds = useMemo(() => tasks.map(t => t.Id), [tasks]);
+  const { data: depsData } = useQuery(
+    ['sf-task-deps', taskIds.join(',')],
+    async () => {
+      if (taskIds.length === 0) return [];
+      const response = await apiService.getTaskDependenciesForOpp(taskIds);
+      return response.data?.data || [];
+    },
+    { enabled: open && taskIds.length > 0, staleTime: 30_000 }
+  );
+
+  // Build dependency map: taskId -> array of { depId, dependsOnId }
+  const depMap = useMemo(() => {
+    const map = new Map<string, Array<{ depId: string; dependsOnId: string }>>();
+    for (const dep of (depsData || [])) {
+      const existing = map.get(dep.task_id) || [];
+      existing.push({ depId: dep.id, dependsOnId: dep.depends_on_id });
+      map.set(dep.task_id, existing);
+    }
+    return map;
+  }, [depsData]);
+
+  // Add/remove dependency mutations
+  const addDepMutation = useMutation(
+    async ({ taskId, dependsOnId }: { taskId: string; dependsOnId: string }) => {
+      return apiService.addTaskDependency(taskId, dependsOnId);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['sf-task-deps']);
+        toast.success('Dependency added');
+      },
+      onError: (err: any) => { toast.error(`Failed to add dependency: ${err.message || 'Unknown error'}`); },
+    }
+  );
+
+  const removeDepMutation = useMutation(
+    async (depId: string) => {
+      return apiService.removeTaskDependency(depId);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['sf-task-deps']);
+        toast.success('Dependency removed');
+      },
+      onError: (err: any) => { toast.error(`Failed to remove dependency: ${err.message || 'Unknown error'}`); },
+    }
+  );
+
+  // Link/unlink task to project mutations
+  const linkToProjectMutation = useMutation(
+    async ({ sfTaskId, projectId }: { sfTaskId: string; projectId: string }) => {
+      return apiService.linkSfTaskToProject(projectId, { sf_task_id: sfTaskId });
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['sf-task-project-links']);
+        toast.success('Task assigned to project');
+      },
+      onError: (err: any) => { toast.error(`Failed to assign to project: ${err.message || 'Unknown error'}`); },
+    }
+  );
+
+  const unlinkFromProjectMutation = useMutation(
+    async (linkId: string) => {
+      return apiService.unlinkSfTaskFromProject(linkId);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['sf-task-project-links']);
+        toast.success('Task removed from project');
+      },
+      onError: (err: any) => { toast.error(`Failed to remove from project: ${err.message || 'Unknown error'}`); },
+    }
+  );
 
   // Create task mutation
   const createTaskMutation = useMutation(
@@ -307,7 +438,90 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
     createTaskMutation.mutate(newTask);
   };
 
-  if (!opportunity) return null;
+  // --- Orphan task state (no opportunity) ---
+  const isOrphanMode = !opportunity && !!orphanTask;
+  const [linkOppId, setLinkOppId] = useState('');
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkAction, setLinkAction] = useState<'link' | 'duplicate'>('link');
+
+  const linkToOpportunityMutation = useMutation(
+    async ({ taskId, whatId }: { taskId: string; whatId: string }) => {
+      return apiService.updateTask(taskId, { WhatId: whatId });
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['my-tasks']);
+        toast.success('Task linked to opportunity');
+        onClose();
+      },
+      onError: (err: any) => {
+        toast.error(`Failed to link task: ${err.message || 'Unknown error'}`);
+      },
+    }
+  );
+
+  const duplicateAndLinkMutation = useMutation(
+    async ({ taskId, whatId }: { taskId: string; whatId: string }) => {
+      return apiService.duplicateTask(taskId, whatId);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(['my-tasks']);
+        toast.success('Task duplicated and linked to opportunity');
+        onClose();
+      },
+      onError: (err: any) => {
+        toast.error(`Failed to duplicate task: ${err.message || 'Unknown error'}`);
+      },
+    }
+  );
+
+  const handleLinkConfirm = () => {
+    if (!orphanTask || !linkOppId) return;
+    setShowLinkDialog(false);
+    if (linkAction === 'link') {
+      linkToOpportunityMutation.mutate({ taskId: orphanTask.Id, whatId: linkOppId });
+    } else {
+      duplicateAndLinkMutation.mutate({ taskId: orphanTask.Id, whatId: linkOppId });
+    }
+  };
+
+  // Convert orphan task to Task interface for rendering in edit form
+  const orphanAsTask: Task | null = orphanTask ? {
+    Id: orphanTask.Id,
+    Subject: orphanTask.Subject,
+    Status: orphanTask.Status,
+    Priority: orphanTask.Priority,
+    ActivityDate: orphanTask.ActivityDate,
+    Description: orphanTask.Description,
+    OwnerId: orphanTask.OwnerId,
+    OwnerName: orphanTask.OwnerName || null,
+    CreatedDate: '',
+    LastModifiedDate: '',
+    Type: null,
+    TaskSubtype: null,
+    WhatId: orphanTask.WhatId || null,
+  } : null;
+
+  // Auto-enter edit mode for orphan tasks — inline to avoid stale closure on startEditing
+  useEffect(() => {
+    if (isOrphanMode && orphanTask && open && editingTaskId !== orphanTask.Id) {
+      setEditingTaskId(orphanTask.Id);
+      setEditTask({
+        Subject: orphanTask.Subject || '',
+        Status: orphanTask.Status || 'Not Started',
+        Priority: orphanTask.Priority || 'Normal',
+        ActivityDate: orphanTask.ActivityDate || '',
+        Description: orphanTask.Description || '',
+        OwnerId: orphanTask.OwnerId || '',
+        DriveLink: '',
+        WhatId: orphanTask.WhatId || '',
+      });
+      setExpandedTaskId(orphanTask.Id);
+    }
+  }, [isOrphanMode, orphanTask?.Id, open, editingTaskId]);
+
+  if (!opportunity && !isOrphanMode) return null;
 
   const sortByDueDate = (a: Task, b: Task) => {
     const aDate = a.ActivityDate || '9999-12-31';
@@ -357,67 +571,178 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
           },
         }}
       />
-      {/* Header - Opportunity Summary */}
-      <Box sx={{ 
-        p: 2.5, 
-        background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-        color: 'white',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
-      }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box sx={{ flex: 1, mr: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5 }}>
-              {opportunity.Name}
+      {/* Header */}
+      {isOrphanMode ? (
+        /* Orphan task header — grey, with link-to-opportunity option */
+        <Box sx={{
+          p: 2.5,
+          background: 'linear-gradient(135deg, #616161 0%, #424242 100%)',
+          color: 'white',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box sx={{ flex: 1, mr: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5 }}>
+                Unlinked Task
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                {orphanTask?.Subject || 'No Subject'}
+              </Typography>
+            </Box>
+            <IconButton onClick={onClose} size="small" sx={{ color: 'white', mt: -0.5 }}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          {/* Link to Opportunity section */}
+          {opportunities && opportunities.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" sx={{ opacity: 0.85, display: 'block', mb: 1 }}>
+                Assign to an Opportunity
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <FormControl size="small" sx={{ flex: 1 }}>
+                  <Select
+                    value={linkOppId}
+                    onChange={(e) => setLinkOppId(e.target.value)}
+                    displayEmpty
+                    sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: 'white', fontSize: '0.85rem',
+                      '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.7)' },
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                    }}
+                  >
+                    <MenuItem value="" disabled>Select Opportunity...</MenuItem>
+                    {opportunities.map(opp => (
+                      <MenuItem key={opp.Id} value={opp.Id}>{opp.Name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Tooltip title="Move task to this opportunity">
+                  <span>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={!linkOppId}
+                      onClick={() => { setLinkAction('link'); setShowLinkDialog(true); }}
+                      sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', minWidth: 'auto', px: 1.5,
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' } }}
+                      startIcon={<LinkIcon sx={{ fontSize: 16 }} />}
+                    >
+                      Link
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Create a copy linked to this opportunity (safer)">
+                  <span>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={!linkOppId}
+                      onClick={() => { setLinkAction('duplicate'); setShowLinkDialog(true); }}
+                      sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', minWidth: 'auto', px: 1.5,
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' } }}
+                      startIcon={<DuplicateIcon sx={{ fontSize: 16 }} />}
+                    >
+                      Duplicate & Link
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Box>
+            </Box>
+          )}
+        </Box>
+      ) : opportunity ? (
+        /* Normal opportunity header */
+        <Box sx={{
+          p: 2.5,
+          background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+          color: 'white',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box sx={{ flex: 1, mr: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5 }}>
+                {opportunity.Name}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                {opportunity.Account?.Name || 'No Account'}
+              </Typography>
+            </Box>
+            <IconButton onClick={onClose} size="small" sx={{ color: 'white', mt: -0.5 }}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1.5, mt: 1.5, flexWrap: 'wrap' }}>
+            <Chip
+              label={opportunity.StageName}
+              size="small"
+              sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600, fontSize: '0.75rem' }}
+            />
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              {formatCurrency(opportunity.Amount)}
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.85 }}>
-              {opportunity.Account?.Name || 'No Account'}
+            {opportunity.CloseDate && (
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Close: {formatDate(opportunity.CloseDate)}
+              </Typography>
+            )}
+            {opportunity.Owner?.Name && (
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Owner: {opportunity.Owner.Name}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Task count summary */}
+          <Box sx={{ display: 'flex', gap: 2, mt: 1.5 }}>
+            <Typography variant="caption" sx={{
+              bgcolor: 'rgba(255,255,255,0.15)', px: 1.5, py: 0.3, borderRadius: 1, fontWeight: 600
+            }}>
+              {openTasks.length} open
+            </Typography>
+            <Typography variant="caption" sx={{
+              bgcolor: 'rgba(255,255,255,0.15)', px: 1.5, py: 0.3, borderRadius: 1, fontWeight: 600
+            }}>
+              {completedTasks.length} completed
             </Typography>
           </Box>
-          <IconButton onClick={onClose} size="small" sx={{ color: 'white', mt: -0.5 }}>
-            <CloseIcon />
-          </IconButton>
         </Box>
-        
-        <Box sx={{ display: 'flex', gap: 1.5, mt: 1.5, flexWrap: 'wrap' }}>
-          <Chip 
-            label={opportunity.StageName} 
-            size="small" 
-            sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600, fontSize: '0.75rem' }}
-          />
-          <Typography variant="body2" sx={{ opacity: 0.9 }}>
-            {formatCurrency(opportunity.Amount)}
-          </Typography>
-          {opportunity.CloseDate && (
-            <Typography variant="body2" sx={{ opacity: 0.9 }}>
-              Close: {formatDate(opportunity.CloseDate)}
-            </Typography>
-          )}
-          {opportunity.Owner?.Name && (
-            <Typography variant="body2" sx={{ opacity: 0.9 }}>
-              Owner: {opportunity.Owner.Name}
-            </Typography>
-          )}
-        </Box>
-
-        {/* Task count summary */}
-        <Box sx={{ display: 'flex', gap: 2, mt: 1.5 }}>
-          <Typography variant="caption" sx={{ 
-            bgcolor: 'rgba(255,255,255,0.15)', px: 1.5, py: 0.3, borderRadius: 1, fontWeight: 600 
-          }}>
-            {openTasks.length} open
-          </Typography>
-          <Typography variant="caption" sx={{ 
-            bgcolor: 'rgba(255,255,255,0.15)', px: 1.5, py: 0.3, borderRadius: 1, fontWeight: 600 
-          }}>
-            {completedTasks.length} completed
-          </Typography>
-        </Box>
-      </Box>
+      ) : null}
 
       {/* Task Content */}
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        {isOrphanMode && orphanAsTask ? (
+          /* Orphan mode: show just the single task in edit form */
+          <TaskItem
+            key={orphanAsTask.Id}
+            task={orphanAsTask}
+            isEditing={editingTaskId === orphanAsTask.Id}
+            editTask={editTask}
+            setEditTask={setEditTask}
+            expandedTaskId={expandedTaskId}
+            setExpandedTaskId={setExpandedTaskId}
+            onToggleStatus={toggleTaskStatus}
+            onStartEdit={startEditing}
+            onSaveEdit={saveEdit}
+            onCancelEdit={() => { setEditingTaskId(null); }}
+            onDelete={(id) => { deleteTaskMutation.mutate(id); onClose(); }}
+            users={users}
+            isSaving={updateTaskMutation.isLoading}
+            opportunities={opportunities}
+            dependencies={depMap.get(orphanAsTask.Id) || []}
+            siblingTasks={[]}
+            onAddDep={(taskId, depId) => addDepMutation.mutate({ taskId, dependsOnId: depId })}
+            onRemoveDep={(depId) => removeDepMutation.mutate(depId)}
+            projects={projects}
+            onLinkToProject={(sfTaskId, projectId) => linkToProjectMutation.mutate({ sfTaskId, projectId })}
+          />
+        ) : (
+        <>
         {/* Add Task Button / Form */}
         {!showAddForm ? (
           <Button
@@ -425,7 +750,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
             onClick={() => setShowAddForm(true)}
             variant="outlined"
             fullWidth
-            sx={{ 
+            sx={{
               mb: 2, py: 1.2, borderStyle: 'dashed', borderColor: '#bdbdbd',
               color: '#666', '&:hover': { borderColor: '#1976d2', color: '#1976d2', bgcolor: '#e3f2fd' }
             }}
@@ -590,6 +915,12 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
                 users={users}
                 isSaving={updateTaskMutation.isLoading}
                 opportunities={opportunities}
+                dependencies={depMap.get(task.Id) || []}
+                siblingTasks={tasks}
+                onAddDep={(taskId, depId) => addDepMutation.mutate({ taskId, dependsOnId: depId })}
+                onRemoveDep={(depId) => removeDepMutation.mutate(depId)}
+                projects={projects}
+                onLinkToProject={(sfTaskId, projectId) => linkToProjectMutation.mutate({ sfTaskId, projectId })}
               />
             ))}
           </Box>
@@ -618,11 +949,67 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
                 users={users}
                 isSaving={updateTaskMutation.isLoading}
                 opportunities={opportunities}
+                dependencies={depMap.get(task.Id) || []}
+                siblingTasks={tasks}
+                onAddDep={(taskId, depId) => addDepMutation.mutate({ taskId, dependsOnId: depId })}
+                onRemoveDep={(depId) => removeDepMutation.mutate(depId)}
+                projects={projects}
+                onLinkToProject={(sfTaskId, projectId) => linkToProjectMutation.mutate({ sfTaskId, projectId })}
               />
             ))}
           </Box>
         )}
+        </>
+        )}
       </Box>
+
+      {/* Link/Duplicate confirmation dialog */}
+      <Dialog open={showLinkDialog} onClose={() => setShowLinkDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon color="warning" />
+          {linkAction === 'link' ? 'Link Task to Opportunity' : 'Duplicate & Link Task'}
+        </DialogTitle>
+        <DialogContent>
+          {linkAction === 'link' ? (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <strong>This will move the task</strong> to the selected opportunity's task list.
+              Changing a task's opportunity assignment is logged in Salesforce but should be avoided
+              if possible. Consider using <strong>"Duplicate & Link"</strong> instead — it creates
+              a copy linked to the opportunity while keeping the original task unchanged.
+            </Alert>
+          ) : (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              This will create a <strong>copy of this task</strong> linked to the selected opportunity.
+              The original task will remain unlinked. This is the safer option.
+            </Alert>
+          )}
+          <Typography variant="body2" color="text.secondary">
+            Opportunity: <strong>{opportunities?.find(o => o.Id === linkOppId)?.Name || 'Unknown'}</strong>
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowLinkDialog(false)}>Cancel</Button>
+          {linkAction === 'link' && (
+            <Button
+              variant="outlined"
+              startIcon={<DuplicateIcon />}
+              onClick={() => { setLinkAction('duplicate'); }}
+            >
+              Duplicate Instead
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            color={linkAction === 'link' ? 'warning' : 'primary'}
+            onClick={handleLinkConfirm}
+            disabled={linkToOpportunityMutation.isLoading || duplicateAndLinkMutation.isLoading}
+            startIcon={(linkToOpportunityMutation.isLoading || duplicateAndLinkMutation.isLoading) ?
+              <CircularProgress size={16} /> : (linkAction === 'link' ? <LinkIcon /> : <DuplicateIcon />)}
+          >
+            {linkAction === 'link' ? 'Link Task' : 'Duplicate & Link'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Drawer>
   );
 };
@@ -643,11 +1030,22 @@ interface TaskItemProps {
   onDelete: (id: string) => void;
   users?: Array<{ Id: string; Name: string }>;
   isSaving: boolean;
+  // Dependencies
+  dependencies?: Array<{ depId: string; dependsOnId: string }>;
+  siblingTasks?: Task[];
+  allInboxTasks?: Array<{ Id: string; Subject: string }>;
+  onAddDep?: (taskId: string, dependsOnId: string) => void;
+  onRemoveDep?: (depId: string) => void;
+  // Project assignment
+  projects?: Array<{ id: string; name: string }>;
+  onLinkToProject?: (sfTaskId: string, projectId: string) => void;
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({
   task, isEditing, editTask, setEditTask, expandedTaskId, setExpandedTaskId,
-  onToggleStatus, onStartEdit, onSaveEdit, onCancelEdit, onDelete, users, isSaving, opportunities
+  onToggleStatus, onStartEdit, onSaveEdit, onCancelEdit, onDelete, users, isSaving, opportunities,
+  dependencies, siblingTasks, allInboxTasks, onAddDep, onRemoveDep,
+  projects, onLinkToProject,
 }) => {
   const isCompleted = task.Status === 'Completed';
   const isExpanded = expandedTaskId === task.Id;
@@ -738,6 +1136,25 @@ const TaskItem: React.FC<TaskItemProps> = ({
           </FormControl>
         )}
 
+        {/* Assign to Project */}
+        {projects && projects.length > 0 && onLinkToProject && (
+          <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+            <InputLabel>Project</InputLabel>
+            <Select
+              value=""
+              label="Project"
+              onChange={(e) => {
+                if (e.target.value) onLinkToProject(task.Id, e.target.value as string);
+              }}
+            >
+              <MenuItem value="">No Project</MenuItem>
+              {projects.map(p => (
+                <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
         <TextField
           label="Description"
           value={editTask.Description}
@@ -759,6 +1176,52 @@ const TaskItem: React.FC<TaskItemProps> = ({
           type="url"
           sx={{ mb: 1.5 }}
         />
+
+        {/* Dependencies section */}
+        {onAddDep && (
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: '#555', mb: 0.5, display: 'block' }}>
+              Depends On
+            </Typography>
+            {/* Current dependencies */}
+            {dependencies && dependencies.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                {dependencies.map(dep => {
+                  const depTask = siblingTasks?.find(t => t.Id === dep.dependsOnId)
+                    || allInboxTasks?.find(t => t.Id === dep.dependsOnId);
+                  return (
+                    <Chip
+                      key={dep.depId}
+                      label={depTask ? depTask.Subject : dep.dependsOnId.slice(0, 10) + '...'}
+                      size="small"
+                      onDelete={onRemoveDep ? () => onRemoveDep(dep.depId) : undefined}
+                      sx={{ fontSize: '0.75rem' }}
+                    />
+                  );
+                })}
+              </Box>
+            )}
+            {/* Add dependency dropdown — shows sibling tasks */}
+            {siblingTasks && siblingTasks.filter(t => t.Id !== task.Id && !dependencies?.some(d => d.dependsOnId === t.Id)).length > 0 && (
+              <FormControl size="small" fullWidth>
+                <InputLabel>Add dependency...</InputLabel>
+                <Select
+                  value=""
+                  label="Add dependency..."
+                  onChange={(e) => {
+                    if (e.target.value) onAddDep(task.Id, e.target.value as string);
+                  }}
+                >
+                  {siblingTasks
+                    .filter(t => t.Id !== task.Id && !dependencies?.some(d => d.dependsOnId === t.Id))
+                    .map(t => (
+                      <MenuItem key={t.Id} value={t.Id}>{t.Subject}</MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+            )}
+          </Box>
+        )}
 
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <Button size="small" onClick={onCancelEdit} startIcon={<CancelIcon />}>Cancel</Button>
@@ -882,16 +1345,49 @@ const TaskItem: React.FC<TaskItemProps> = ({
           )}
           
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-            <Chip label={`Priority: ${task.Priority}`} size="small" variant="outlined" 
+            <Chip label={`Priority: ${task.Priority}`} size="small" variant="outlined"
               sx={{ borderColor: PRIORITY_COLORS[task.Priority], color: PRIORITY_COLORS[task.Priority] }} />
             {task.Type && <Chip label={task.Type} size="small" variant="outlined" />}
+            {task.TaskSubtype && <Chip label={task.TaskSubtype} size="small" variant="outlined" />}
+            {task.WhoName && (
+              <Chip label={`Contact: ${task.WhoName}`} size="small" variant="outlined"
+                sx={{ borderColor: '#7c4dff', color: '#7c4dff' }} />
+            )}
+            {task.CreatedByName && (
+              <Chip label={`Created by: ${task.CreatedByName}`} size="small" variant="outlined" sx={{ color: '#888' }} />
+            )}
             <Chip label={`Created: ${formatDate(task.CreatedDate)}`} size="small" variant="outlined" sx={{ color: '#888' }} />
+            {task.LastModifiedDate && (
+              <Chip label={`Updated: ${formatDate(task.LastModifiedDate)}`} size="small" variant="outlined" sx={{ color: '#888' }} />
+            )}
           </Box>
 
+          {/* Dependency badges in view mode */}
+          {dependencies && dependencies.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+              <Typography variant="caption" sx={{ color: '#888', mr: 0.5, lineHeight: '24px' }}>
+                Depends on:
+              </Typography>
+              {dependencies.map(dep => {
+                const depTask = siblingTasks?.find(t => t.Id === dep.dependsOnId)
+                  || allInboxTasks?.find(t => t.Id === dep.dependsOnId);
+                return (
+                  <Chip
+                    key={dep.depId}
+                    label={depTask ? depTask.Subject : dep.dependsOnId.slice(0, 10) + '...'}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '0.7rem', height: 22 }}
+                  />
+                );
+              })}
+            </Box>
+          )}
+
           <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button 
-              size="small" 
-              startIcon={<EditIcon />} 
+            <Button
+              size="small"
+              startIcon={<EditIcon />}
               onClick={() => onStartEdit(task)}
               sx={{ fontSize: '0.75rem' }}
             >

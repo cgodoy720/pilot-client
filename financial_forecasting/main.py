@@ -33,6 +33,7 @@ from data_sync import DataSyncService
 from db import init_db, close_db
 from routes.projects import router as projects_router
 from routes.auth import router as auth_router
+from routes.sf_dependencies import router as sf_deps_router
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 
@@ -88,6 +89,7 @@ app.add_middleware(
 # Routers
 app.include_router(projects_router)
 app.include_router(auth_router)
+app.include_router(sf_deps_router)
 
 # Service singletons — initialized on startup, injected via Depends()
 _services: Dict[str, Any] = {}
@@ -543,6 +545,10 @@ class TaskUpdateRequest(BaseModel):
     WhatId: Optional[str] = None
 
 
+class TaskDuplicateRequest(BaseModel):
+    WhatId: Optional[str] = None  # Opportunity to link the duplicate to
+
+
 @app.get("/api/salesforce/opportunities/{opportunity_id}/tasks")
 async def get_opportunity_tasks(
     opportunity_id: str,
@@ -555,7 +561,8 @@ async def get_opportunity_tasks(
         salesforce = client.salesforce
         query = f"""
         SELECT Id, Subject, Status, Priority, ActivityDate, Description,
-               OwnerId, Owner.Name, CreatedDate, LastModifiedDate
+               OwnerId, Owner.Name, WhoId, Who.Name, Type, TaskSubtype,
+               CreatedById, CreatedBy.Name, CreatedDate, LastModifiedDate
         FROM Task
         WHERE WhatId = '{opportunity_id}'
         ORDER BY ActivityDate DESC NULLS LAST
@@ -574,8 +581,15 @@ async def get_opportunity_tasks(
                 "Description": t.get("Description"),
                 "OwnerId": t.get("OwnerId"),
                 "OwnerName": (t.get("Owner") or {}).get("Name"),
+                "WhoId": t.get("WhoId"),
+                "WhoName": (t.get("Who") or {}).get("Name"),
+                "Type": t.get("Type"),
+                "TaskSubtype": t.get("TaskSubtype"),
+                "CreatedById": t.get("CreatedById"),
+                "CreatedByName": (t.get("CreatedBy") or {}).get("Name"),
                 "CreatedDate": t.get("CreatedDate"),
                 "LastModifiedDate": t.get("LastModifiedDate"),
+                "WhatId": t.get("WhatId"),
             })
 
         return ApiResponse(success=True, data=formatted, meta={"count": len(formatted)})
@@ -642,6 +656,56 @@ async def delete_task(
     except Exception as e:
         logger.error(f"Error deleting task: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/salesforce/tasks/{task_id}/duplicate")
+async def duplicate_task(
+    task_id: str,
+    body: TaskDuplicateRequest,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Duplicate a Salesforce task, optionally linking to a different opportunity."""
+    validate_salesforce_id(task_id, "task_id")
+    if body.WhatId is not None:
+        validate_salesforce_id(body.WhatId, "WhatId")
+    try:
+        salesforce = client.salesforce
+        # Fetch the original task (task_id already validated by validate_salesforce_id)
+        safe_id = escape_soql_string(task_id)
+        result = await salesforce.query(
+            f"SELECT Subject, Status, Priority, ActivityDate, Description, OwnerId, WhatId "
+            f"FROM Task WHERE Id = '{safe_id}'"
+        )
+        records = result.get("records", [])
+        if not records:
+            raise HTTPException(status_code=404, detail="Task not found")
+        original = records[0]
+        # Build the new task fields, copying from original
+        fields = {
+            "Subject": original.get("Subject", ""),
+            "Status": original.get("Status", "Not Started"),
+            "Priority": original.get("Priority", "Normal"),
+        }
+        if original.get("ActivityDate"):
+            fields["ActivityDate"] = original["ActivityDate"]
+        if original.get("Description"):
+            fields["Description"] = original["Description"]
+        if original.get("OwnerId"):
+            fields["OwnerId"] = original["OwnerId"]
+        # Use provided WhatId or keep original
+        if body.WhatId is not None:
+            fields["WhatId"] = body.WhatId
+        elif original.get("WhatId"):
+            fields["WhatId"] = original["WhatId"]
+        new_task = await salesforce.create_record("Task", fields)
+        new_id = new_task.get("id") or new_task.get("Id")
+        return ApiResponse(success=True, data={"id": new_id, "message": "Task duplicated"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error duplicating task: {e}")
+        raise HTTPException(status_code=500, detail="Failed to duplicate task")
 
 
 @app.get("/api/calendar/my-events")

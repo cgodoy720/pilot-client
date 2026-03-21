@@ -190,6 +190,8 @@ function CalendarInboxSplit({
   gcalCount,
   taskCount,
   setSelectedTaskId,
+  setEditOnOpen,
+  setOrphanTask,
 }: {
   calNeedsReauth: boolean;
   logout: () => Promise<void>;
@@ -209,6 +211,8 @@ function CalendarInboxSplit({
   gcalCount: number;
   taskCount: number;
   setSelectedTaskId: (id: string | null) => void;
+  setEditOnOpen: (edit: boolean) => void;
+  setOrphanTask: (task: any) => void;
 }) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'pursuit-calendar-inbox-split',
@@ -379,7 +383,9 @@ function CalendarInboxSplit({
                     LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(), OwnerId: opp.OwnerId || '',
                   } : null;
                   setTaskPanelOpp(mapped);
+                  setOrphanTask(!opp ? task : null);
                   setSelectedTaskId(task.Id);
+                  setEditOnOpen(true);
                   setTaskPanelOpen(true);
                 }}
                 onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
@@ -512,6 +518,8 @@ const MyDashboard: React.FC = () => {
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [editOnOpen, setEditOnOpen] = useState(false);
+  const [orphanTask, setOrphanTask] = useState<any>(null);
   const [filteredOpps, setFilteredOpps] = useState<{ allFiltered: PriorityOpp[]; visible: PriorityOpp[] }>({ allFiltered: [], visible: [] });
 
   useEffect(() => {
@@ -1037,6 +1045,8 @@ const MyDashboard: React.FC = () => {
           gcalCount={gcalCount}
           taskCount={taskCount}
           setSelectedTaskId={setSelectedTaskId}
+          setEditOnOpen={setEditOnOpen}
+          setOrphanTask={setOrphanTask}
         />
       ) : (
         <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -1130,7 +1140,9 @@ const MyDashboard: React.FC = () => {
                     LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(), OwnerId: opp.OwnerId || '',
                   } : null;
                   setTaskPanelOpp(mapped);
+                  setOrphanTask(!opp ? task : null);
                   setSelectedTaskId(task.Id);
+                  setEditOnOpen(true);
                   setTaskPanelOpen(true);
                 }}
                 onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
@@ -1402,9 +1414,12 @@ const MyDashboard: React.FC = () => {
       {/* Task Panel drawer */}
       <TaskPanel
         open={taskPanelOpen}
-        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); setSelectedTaskId(null); }}
+        onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); setSelectedTaskId(null); setEditOnOpen(false); setOrphanTask(null); }}
         opportunity={taskPanelOpp}
         selectedTaskId={selectedTaskId}
+        editOnOpen={editOnOpen}
+        orphanTask={orphanTask}
+        users={sfUsers}
         opportunities={allOpportunities.map((o: any) => ({ Id: o.Id, Name: o.Name }))}
       />
     </Box>

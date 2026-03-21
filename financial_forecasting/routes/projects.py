@@ -7,7 +7,9 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from auth import require_auth
 from db import get_db
+from security import validate_salesforce_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["projects"])
@@ -297,3 +299,84 @@ async def delete_project_task(task_id: str, conn=Depends(get_db)):
     tid = uuid.UUID(task_id)
     await conn.execute("DELETE FROM project_task WHERE id = $1", tid)
     return {"success": True, "data": {"message": "Task deleted"}}
+
+
+# ── Salesforce Task ↔ Project Bridge ──
+
+
+class SfTaskProjectLink(BaseModel):
+    sf_task_id: str
+    milestone_id: Optional[str] = None
+    sort_order: int = 0
+
+
+@router.post("/projects/{project_id}/sf-tasks")
+async def link_sf_task_to_project(
+    project_id: str, body: SfTaskProjectLink, user=Depends(require_auth), conn=Depends(get_db)
+):
+    """Link a Salesforce task to a project (and optionally a milestone)."""
+    pid = uuid.UUID(project_id)
+    validate_salesforce_id(body.sf_task_id, "sf_task_id")
+    mid = uuid.UUID(body.milestone_id) if body.milestone_id else None
+    try:
+        row = await conn.fetchrow(
+            "INSERT INTO sf_task_project (sf_task_id, project_id, milestone_id, sort_order) "
+            "VALUES ($1, $2, $3, $4) "
+            "ON CONFLICT (sf_task_id) DO UPDATE SET project_id = $2, milestone_id = $3, sort_order = $4, updated_at = now() "
+            "RETURNING id, sf_task_id, project_id, milestone_id, sort_order",
+            body.sf_task_id, pid, mid, body.sort_order,
+        )
+        return {"success": True, "data": dict(row)}
+    except Exception as e:
+        logger.error(f"Error linking SF task to project: {e}")
+        raise HTTPException(status_code=500, detail="Failed to link task to project")
+
+
+@router.delete("/sf-task-project/{link_id}")
+async def unlink_sf_task_from_project(link_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Remove a Salesforce task ↔ project link."""
+    lid = uuid.UUID(link_id)
+    result = await conn.execute("DELETE FROM sf_task_project WHERE id = $1", lid)
+    if result == "DELETE 0":
+        raise HTTPException(status_code=404, detail="Link not found")
+    return {"success": True, "data": {"message": "Task unlinked from project"}}
+
+
+@router.get("/projects/{project_id}/sf-tasks")
+async def get_project_sf_tasks(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Get all Salesforce task IDs linked to a project."""
+    pid = uuid.UUID(project_id)
+    rows = await conn.fetch(
+        "SELECT id, sf_task_id, milestone_id, sort_order, created_at "
+        "FROM sf_task_project WHERE project_id = $1 ORDER BY sort_order, created_at",
+        pid,
+    )
+    return {"success": True, "data": [dict(r) for r in rows]}
+
+
+@router.get("/projects/by-opportunity/{opportunity_id}")
+async def get_project_by_opportunity(opportunity_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Check if a project exists for the given opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
+    row = await conn.fetchrow(
+        "SELECT id, name, description, opportunity_id FROM project WHERE opportunity_id = $1",
+        opportunity_id,
+    )
+    if not row:
+        return {"success": True, "data": None}
+    return {"success": True, "data": dict(row)}
+
+
+@router.get("/sf-task-project/by-task/{sf_task_id}")
+async def get_sf_task_project_link(sf_task_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Get the project link for a specific Salesforce task (if any)."""
+    validate_salesforce_id(sf_task_id, "sf_task_id")
+    row = await conn.fetchrow(
+        "SELECT stp.id, stp.sf_task_id, stp.project_id, stp.milestone_id, p.name as project_name "
+        "FROM sf_task_project stp JOIN project p ON p.id = stp.project_id "
+        "WHERE stp.sf_task_id = $1",
+        sf_task_id,
+    )
+    if not row:
+        return {"success": True, "data": None}
+    return {"success": True, "data": dict(row)}
