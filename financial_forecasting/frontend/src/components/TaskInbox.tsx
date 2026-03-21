@@ -247,11 +247,6 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           >
             {task.Subject}
           </Typography>
-          {task.isUrgent && (
-            <Tooltip title="Urgent">
-              <FlagIcon sx={{ fontSize: 14, color: 'error.main' }} />
-            </Tooltip>
-          )}
           {dueBadge && task.Status !== 'Completed' && (
             <Chip
               size="small"
@@ -369,7 +364,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
               value={filterMyTasks ? 'my' : ''}
               exclusive
               onChange={(_, v) => setFilterMyTasks(v === 'my')}
-              sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.5, fontSize: '0.75rem' } }}
+              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
             >
               <ToggleButton value="my">My tasks</ToggleButton>
             </ToggleButtonGroup>
@@ -379,7 +374,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
             value={filterNext14Days ? '14d' : ''}
             exclusive
             onChange={(_, v) => setFilterNext14Days(v === '14d')}
-            sx={{ '& .MuiToggleButton-root': { px: 1, py: 0.5, fontSize: '0.75rem' } }}
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
           >
             <ToggleButton value="14d">Next 14 days</ToggleButton>
           </ToggleButtonGroup>

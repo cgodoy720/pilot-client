@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import {
   Assignment as TaskIcon,
-  Tune as TuneIcon,
+  EventAvailable as CalendarCheckIcon,
   CheckCircle as CheckCircleIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
@@ -284,7 +284,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             </ToggleButtonGroup>
           )}
           <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
-            <TuneIcon fontSize="small" />
+            <CalendarCheckIcon fontSize="small" />
           </IconButton>
           <Popover
             open={Boolean(anchorEl)}
@@ -313,8 +313,8 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
           </Popover>
 
           <ToggleButtonGroup size="small" exclusive value={viewMode} onChange={handleViewChange}>
-            <ToggleButton value="day">Day</ToggleButton>
-            <ToggleButton value="week">Week</ToggleButton>
+            <ToggleButton value="day" sx={{ textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' }}>Day</ToggleButton>
+            <ToggleButton value="week" sx={{ textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' }}>Week</ToggleButton>
           </ToggleButtonGroup>
         </Box>
       </Box>

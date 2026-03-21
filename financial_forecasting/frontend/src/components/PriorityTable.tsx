@@ -646,13 +646,13 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
   return (
     <Box>
       {/* Column-based filters */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
-        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
           Filter by:
         </Typography>
 
         {/* Stage — multi-select */}
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small" sx={{ minWidth: 100, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
           <InputLabel>Stage</InputLabel>
           <Select
             multiple
@@ -660,7 +660,6 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
             onChange={(e) => setFilters((f) => ({ ...f, stage: e.target.value as string[] }))}
             label="Stage"
             renderValue={(sel) => `${(sel as string[]).length} selected`}
-            sx={{ fontSize: '0.8rem' }}
           >
             {stages.map((s) => (
               <MenuItem key={s} value={s} dense>
@@ -673,13 +672,12 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
         </FormControl>
 
         {/* Close Date */}
-        <FormControl size="small" sx={{ minWidth: 130 }}>
+        <FormControl size="small" sx={{ minWidth: 110, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
           <InputLabel>Close Date</InputLabel>
           <Select
             value={filters.closeDateRange}
             onChange={(e) => setFilters((f) => ({ ...f, closeDateRange: e.target.value as FilterState['closeDateRange'] }))}
             label="Close Date"
-            sx={{ fontSize: '0.8rem' }}
           >
             <MenuItem value="all" dense>All</MenuItem>
             <MenuItem value="overdue" dense>Overdue</MenuItem>
@@ -690,13 +688,12 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
         </FormControl>
 
         {/* Tasks */}
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small" sx={{ minWidth: 100, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
           <InputLabel>Tasks</InputLabel>
           <Select
             value={filters.hasTasks}
             onChange={(e) => setFilters((f) => ({ ...f, hasTasks: e.target.value as FilterState['hasTasks'] }))}
             label="Tasks"
-            sx={{ fontSize: '0.8rem' }}
           >
             <MenuItem value="all" dense>All</MenuItem>
             <MenuItem value="yes" dense>Has tasks</MenuItem>
@@ -706,7 +703,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
         </FormControl>
 
         {/* Amount */}
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small" sx={{ minWidth: 100, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
           <InputLabel>Amount</InputLabel>
           <Select
             value={filters.amountMin === null ? 'all' : String(filters.amountMin)}
@@ -715,7 +712,6 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
               setFilters((f) => ({ ...f, amountMin: v === 'all' ? null : Number(v) }));
             }}
             label="Amount"
-            sx={{ fontSize: '0.8rem' }}
           >
             <MenuItem value="all" dense>All</MenuItem>
             <MenuItem value="100000" dense>&gt; $100K</MenuItem>
@@ -729,7 +725,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
           <Button
             size="small"
             onClick={() => setFilters(DEFAULT_FILTERS)}
-            sx={{ textTransform: 'none', fontSize: '0.8rem' }}
+            sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25, minWidth: 0 }}
           >
             ✕ Clear
           </Button>
@@ -743,12 +739,12 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
         </Typography>
       ) : (
       /* Table */
-      <TableContainer>
-        <Table size="small">
+      <TableContainer sx={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+        <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 36, px: 1 }}>#</TableCell>
-              <TableCell sx={{ position: 'relative', ...(oppNameWidth !== null ? { width: oppNameWidth } : {}) }}>
+              <TableCell sx={{ ...(oppNameWidth !== null ? { width: oppNameWidth } : {}) }}>
                 <TableSortLabel
                   active={oppSort.field === 'name'}
                   direction={oppSort.field === 'name' ? oppSort.dir : 'asc'}

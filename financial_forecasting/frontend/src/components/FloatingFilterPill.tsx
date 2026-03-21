@@ -101,7 +101,7 @@ const FloatingFilterPill: React.FC<FloatingFilterPillProps> = ({
     if (isMobile || !pillRef.current) return;
     const rect = pillRef.current.getBoundingClientRect();
     setCoords(positionToCoords(pos, rect.width, rect.height));
-  }, [pos, isMobile]);
+  }, [pos, isMobile, label]);
 
   useEffect(() => {
     // Initial position + resize handler
@@ -196,15 +196,27 @@ const FloatingFilterPill: React.FC<FloatingFilterPillProps> = ({
         transform: 'translateX(-50%)',
         zIndex: 1050,
       }
-    : {
+    : isDragging
+    ? {
         position: 'fixed' as const,
         left: coords.left,
         top: coords.top,
         zIndex: 1050,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        cursor: 'grabbing' as const,
         touchAction: 'none' as const,
         userSelect: 'none' as const,
-        transition: isDragging ? 'none' : 'left 0.2s ease, top 0.2s ease',
+        transition: 'none',
+      }
+    : {
+        position: 'fixed' as const,
+        // Use CSS edge properties so the browser handles sizing — no overflow
+        ...(pos.edge === 'left'   ? { left: PILL_MARGIN }   : pos.edge === 'right' ? { right: PILL_MARGIN } : { left: coords.left }),
+        ...(pos.edge === 'top'    ? { top: PILL_MARGIN }    : pos.edge === 'bottom' ? { bottom: PILL_MARGIN } : { top: coords.top }),
+        zIndex: 1050,
+        cursor: 'grab' as const,
+        touchAction: 'none' as const,
+        userSelect: 'none' as const,
+        transition: 'top 0.2s ease, left 0.2s ease',
       };
 
   return (
@@ -251,13 +263,13 @@ const FloatingFilterPill: React.FC<FloatingFilterPillProps> = ({
             value={snapshotMode}
             onChange={(_, val) => val && onSnapshotModeChange(val)}
           >
-            <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>
+            <ToggleButton value="all" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
               All Pipeline
             </ToggleButton>
-            <ToggleButton value="filtered" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>
+            <ToggleButton value="filtered" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
               All Filtered
             </ToggleButton>
-            <ToggleButton value="priorities" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem' }}>
+            <ToggleButton value="priorities" sx={{ textTransform: 'none', px: 1.5, py: 0.25, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
               Just Priorities
             </ToggleButton>
           </ToggleButtonGroup>
