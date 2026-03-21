@@ -32,6 +32,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
+import ConfirmSaveButton from '../components/ConfirmSaveButton';
 
 interface Account {
   Id: string;
@@ -790,14 +791,15 @@ const NewOpportunity: React.FC = () => {
             </Button>
 
             {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
+              <ConfirmSaveButton
+                onConfirm={handleSubmit}
+                loading={createOpportunityMutation.isLoading}
                 startIcon={<SaveIcon />}
-                disabled={createOpportunityMutation.isLoading}
+                confirmTitle="Create in Salesforce?"
+                confirmMessage="This will create a new opportunity in Salesforce. Changes are tracked in field history."
               >
-                {createOpportunityMutation.isLoading ? 'Creating...' : 'Create Opportunity'}
-              </Button>
+                Create Opportunity
+              </ConfirmSaveButton>
             ) : (
               <Button variant="contained" onClick={handleNext}>
                 Next
@@ -856,14 +858,15 @@ const NewOpportunity: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAccountDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleCreateAccount}
-            variant="contained"
-            disabled={createAccountMutation.isLoading}
-            startIcon={createAccountMutation.isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          <ConfirmSaveButton
+            onConfirm={handleCreateAccount}
+            loading={createAccountMutation.isLoading}
+            startIcon={<SaveIcon />}
+            confirmTitle="Create in Salesforce?"
+            confirmMessage="This will create a new account in Salesforce. Changes are tracked in field history."
           >
-            {createAccountMutation.isLoading ? 'Creating...' : 'Create Account'}
-          </Button>
+            Create Account
+          </ConfirmSaveButton>
         </DialogActions>
       </Dialog>
 
@@ -931,14 +934,15 @@ const NewOpportunity: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setContactDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleCreateContact}
-            variant="contained"
-            disabled={createContactMutation.isLoading}
-            startIcon={createContactMutation.isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          <ConfirmSaveButton
+            onConfirm={handleCreateContact}
+            loading={createContactMutation.isLoading}
+            startIcon={<SaveIcon />}
+            confirmTitle="Create in Salesforce?"
+            confirmMessage="This will create a new contact in Salesforce. Changes are tracked in field history."
           >
-            {createContactMutation.isLoading ? 'Creating...' : 'Create Contact'}
-          </Button>
+            Create Contact
+          </ConfirmSaveButton>
         </DialogActions>
       </Dialog>
     </Box>

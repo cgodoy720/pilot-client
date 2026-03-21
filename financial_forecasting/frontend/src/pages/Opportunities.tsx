@@ -46,6 +46,7 @@ import type { Opportunity } from './Opportunities/helpers';
 import { useOpportunityData, ViewMode } from './Opportunities/useOpportunityData';
 import { buildPipelineColumns, buildPaymentColumns, ColumnCallbacks } from './Opportunities/columns';
 import { SummaryCards } from './Opportunities/SummaryCards';
+import ConfirmSaveButton from '../components/ConfirmSaveButton';
 
 const Opportunities: React.FC = () => {
   const location = useLocation();
@@ -562,9 +563,12 @@ const Opportunities: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" disabled={updateMutation.isLoading}>
-            {updateMutation.isLoading ? <CircularProgress size={24} /> : 'Save Changes'}
-          </Button>
+          <ConfirmSaveButton
+            onConfirm={handleSave}
+            loading={updateMutation.isLoading}
+          >
+            Save Changes
+          </ConfirmSaveButton>
         </DialogActions>
       </Dialog>
 
@@ -604,11 +608,16 @@ const Opportunities: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleBulkActionConfirm}
-            disabled={bulkUpdateMutation.isLoading || (bulkAction === 'stage' && !bulkTargetStage)}
-            color={bulkAction === 'withdraw' ? 'error' : 'primary'}>
-            {bulkUpdateMutation.isLoading ? <CircularProgress size={24} /> : 'Confirm'}
-          </Button>
+          <ConfirmSaveButton
+            onConfirm={handleBulkActionConfirm}
+            loading={bulkUpdateMutation.isLoading}
+            disabled={bulkAction === 'stage' && !bulkTargetStage}
+            color={bulkAction === 'withdraw' ? 'error' : 'primary'}
+            confirmTitle={`Update ${selectedRowIds.length} opportunities in Salesforce?`}
+            confirmMessage="This will update all selected opportunities. Changes are tracked in field history."
+          >
+            Confirm
+          </ConfirmSaveButton>
         </DialogActions>
       </Dialog>
     </>

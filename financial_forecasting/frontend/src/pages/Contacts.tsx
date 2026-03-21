@@ -30,6 +30,7 @@ import {
 } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
+import ConfirmSaveButton from '../components/ConfirmSaveButton';
 
 import { apiService } from '../services/api';
 
@@ -412,14 +413,15 @@ const Contacts: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleCreateContact}
-            variant="contained"
-            disabled={createContactMutation.isLoading}
-            startIcon={createContactMutation.isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          <ConfirmSaveButton
+            onConfirm={handleCreateContact}
+            loading={createContactMutation.isLoading}
+            startIcon={<SaveIcon />}
+            confirmTitle="Create in Salesforce?"
+            confirmMessage="This will create a new contact in Salesforce. Changes are tracked in field history."
           >
-            {createContactMutation.isLoading ? 'Creating...' : 'Create Contact'}
-          </Button>
+            Create Contact
+          </ConfirmSaveButton>
         </DialogActions>
       </Dialog>
     </Box>

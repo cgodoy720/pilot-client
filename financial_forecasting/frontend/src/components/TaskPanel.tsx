@@ -43,6 +43,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
+import ConfirmSaveButton from './ConfirmSaveButton';
+import SaveStatusIndicator from './SaveStatusIndicator';
 
 interface Task {
   Id: string;
@@ -858,15 +860,16 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
               >
                 Cancel
               </Button>
-              <Button 
-                size="small" 
-                variant="contained" 
-                onClick={handleCreateTask}
-                disabled={createTaskMutation.isLoading || !newTask.Subject.trim()}
-                startIcon={createTaskMutation.isLoading ? <CircularProgress size={16} /> : <SaveIcon />}
+              <ConfirmSaveButton
+                onConfirm={handleCreateTask}
+                loading={createTaskMutation.isLoading}
+                disabled={!newTask.Subject.trim()}
+                startIcon={<SaveIcon />}
+                confirmTitle="Create in Salesforce?"
+                confirmMessage="This will create a new task in Salesforce. Changes are tracked in field history."
               >
                 Create
-              </Button>
+              </ConfirmSaveButton>
             </Box>
           </Box>
         )}
@@ -972,15 +975,16 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
         <DialogContent>
           {linkAction === 'link' ? (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              <strong>This will move the task</strong> to the selected opportunity's task list.
-              Changing a task's opportunity assignment is logged in Salesforce but should be avoided
-              if possible. Consider using <strong>"Duplicate & Link"</strong> instead — it creates
-              a copy linked to the opportunity while keeping the original task unchanged.
+              <strong>This saves to Salesforce.</strong> It will move the task to the selected
+              opportunity's task list. Changes are tracked in field history. Consider using{' '}
+              <strong>"Duplicate & Link"</strong> instead — it creates a copy linked to the
+              opportunity while keeping the original task unchanged.
             </Alert>
           ) : (
             <Alert severity="info" sx={{ mb: 2 }}>
-              This will create a <strong>copy of this task</strong> linked to the selected opportunity.
-              The original task will remain unlinked. This is the safer option.
+              <strong>This saves to Salesforce.</strong> It will create a copy of this task linked
+              to the selected opportunity. The original task will remain unlinked. Changes are
+              tracked in field history.
             </Alert>
           )}
           <Typography variant="body2" color="text.secondary">
@@ -1225,15 +1229,13 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <Button size="small" onClick={onCancelEdit} startIcon={<CancelIcon />}>Cancel</Button>
-          <Button 
-            size="small" 
-            variant="contained" 
-            onClick={onSaveEdit}
-            disabled={isSaving}
-            startIcon={isSaving ? <CircularProgress size={16} /> : <SaveIcon />}
+          <ConfirmSaveButton
+            onConfirm={onSaveEdit}
+            loading={isSaving}
+            startIcon={<SaveIcon />}
           >
             Save
-          </Button>
+          </ConfirmSaveButton>
         </Box>
       </Box>
     );
@@ -1393,19 +1395,19 @@ const TaskItem: React.FC<TaskItemProps> = ({
             >
               Edit
             </Button>
-            <Button 
-              size="small" 
-              color="error" 
+            <ConfirmSaveButton
+              onConfirm={() => onDelete(task.Id)}
+              size="small"
+              color="error"
+              variant="text"
               startIcon={<DeleteIcon />}
-              onClick={() => {
-                if (window.confirm('Delete this task?')) {
-                  onDelete(task.Id);
-                }
-              }}
+              confirmTitle="Delete from Salesforce?"
+              confirmMessage="This will permanently delete this task from Salesforce."
+              confirmLabel="Delete"
               sx={{ fontSize: '0.75rem' }}
             >
               Delete
-            </Button>
+            </ConfirmSaveButton>
           </Box>
         </Box>
       </Collapse>

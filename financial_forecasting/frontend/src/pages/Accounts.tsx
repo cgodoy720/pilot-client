@@ -39,6 +39,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import ConfirmSaveButton from '../components/ConfirmSaveButton';
 
 import { apiService } from '../services/api';
 
@@ -1150,14 +1151,15 @@ const Accounts: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateAccountDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleCreateAccount}
-            variant="contained"
-            disabled={createAccountMutation.isLoading}
-            startIcon={createAccountMutation.isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          <ConfirmSaveButton
+            onConfirm={handleCreateAccount}
+            loading={createAccountMutation.isLoading}
+            startIcon={<SaveIcon />}
+            confirmTitle="Create in Salesforce?"
+            confirmMessage="This will create a new account in Salesforce. Changes are tracked in field history."
           >
-            {createAccountMutation.isLoading ? 'Creating...' : 'Create Account'}
-          </Button>
+            Create Account
+          </ConfirmSaveButton>
         </DialogActions>
       </Dialog>
     </Box>
