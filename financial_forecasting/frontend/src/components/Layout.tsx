@@ -48,8 +48,8 @@ import toast from 'react-hot-toast';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const drawerWidth = 240;
-const collapsedDrawerWidth = 72;
+const drawerWidth = 200;
+const collapsedDrawerWidth = 48;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -180,8 +180,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div>
-      <Toolbar sx={{ justifyContent: isExpanded ? 'flex-start' : 'center', gap: 1 }}>
-        <BedrockLogo sx={{ color: theme.palette.primary.main, fontSize: 28 }} />
+      <Toolbar sx={{ justifyContent: isExpanded ? 'flex-start' : 'center', gap: 1, minHeight: '48px !important', height: 48 }}>
+        <BedrockLogo sx={{ color: theme.palette.primary.main, fontSize: 22 }} />
         {isExpanded && (
           <Typography
             variant="h6"
@@ -202,7 +202,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               onClick={() => handleMenuClick(item.path)}
               sx={{
                 justifyContent: isExpanded ? 'initial' : 'center',
-                px: 2.5,
+                px: 1.5,
+                py: 0.75,
                 '&.Mui-selected': {
                   backgroundColor: theme.palette.primary.main + '20',
                   borderRight: `3px solid ${theme.palette.primary.main}`,
@@ -219,8 +220,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <ListItemIcon
                 sx={{
                   minWidth: 0,
-                  mr: isExpanded ? 3 : 'auto',
+                  mr: isExpanded ? 2 : 'auto',
                   justifyContent: 'center',
+                  '& .MuiSvgIcon-root': { fontSize: 20 },
                 }}
               >
                 {item.icon}
@@ -249,18 +251,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
         }}
       >
-        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, height: 64 }}>
+        <Toolbar sx={{ minHeight: '48px !important', height: 48, px: { xs: 1, sm: 2 } }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ mr: 1, display: { md: 'none' } }}
+            size="small"
           >
-            <MenuIcon />
+            <MenuIcon fontSize="small" />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontSize: '0.95rem' }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'Overview'}
           </Typography>
 
@@ -268,9 +271,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <IconButton
             color="inherit"
             onClick={handleSyncMenuOpen}
-            sx={{ mr: 1 }}
+            size="small"
+            sx={{ mr: 0.5 }}
           >
-            <SyncIcon />
+            <SyncIcon fontSize="small" />
           </IconButton>
           <Menu
             anchorEl={syncAnchorEl}
@@ -321,7 +325,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     : null
                 }
               >
-                <Avatar src={user.picture} sx={{ width: 32, height: 32 }} />
+                <Avatar src={user.picture} sx={{ width: 28, height: 28 }} />
               </Badge>
             ) : (
               <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }}>
@@ -454,7 +458,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           backgroundColor: theme.palette.background.default,
         }}
       >
-        <Toolbar sx={{ minHeight: '64px !important', height: 64 }} />
+        <Toolbar sx={{ minHeight: '48px !important', height: 48 }} />
         {children}
       </Box>
     </Box>

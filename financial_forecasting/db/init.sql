@@ -82,3 +82,63 @@ BEGIN
         );
     END LOOP;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- Salesforce Task Dependencies (local storage — SF has no native dependency support)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sf_task_dependency (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    task_id         TEXT NOT NULL,
+    depends_on_id   TEXT NOT NULL,
+    external_source TEXT NOT NULL DEFAULT 'salesforce',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (task_id, depends_on_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sf_dep_task ON sf_task_dependency(task_id);
+CREATE INDEX IF NOT EXISTS idx_sf_dep_depends ON sf_task_dependency(depends_on_id);
+
+COMMENT ON TABLE sf_task_dependency IS
+  'Stores dependency edges between external CRM tasks. Salesforce Task objects '
+  'have no native dependency support, so this is stored locally. '
+  'Migration note: when moving off Salesforce, convert these edges to '
+  'project_task.depends_on UUID arrays (the native project task dependency model).';
+
+-- ---------------------------------------------------------------------------
+-- Salesforce Task ↔ Project Bridge (local link — SF tasks appear in Project views)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sf_task_project (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sf_task_id      TEXT NOT NULL,
+    external_source TEXT NOT NULL DEFAULT 'salesforce',
+    project_id      UUID NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    milestone_id    UUID REFERENCES milestone(id) ON DELETE SET NULL,
+    sort_order      INT DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (sf_task_id)
+);
+CREATE INDEX IF NOT EXISTS idx_stp_project ON sf_task_project(project_id);
+CREATE INDEX IF NOT EXISTS idx_stp_source ON sf_task_project(external_source);
+
+COMMENT ON TABLE sf_task_project IS
+  'Bridge table linking external CRM tasks (currently Salesforce) to local projects. '
+  'This is the critical coupling point between the external CRM and local project management. '
+  'When migrating off Salesforce: (1) sf_task_id maps to the external Task ID, '
+  '(2) external_source identifies which CRM system the task came from, '
+  '(3) all task data lives in the CRM — this table only stores the relationship. '
+  'Migration path: create project_task rows from CRM data, then drop this table.';
+
+COMMENT ON COLUMN sf_task_project.sf_task_id IS
+  'External CRM task identifier. Salesforce format: 00T + 12/15 alphanumeric chars. '
+  'Stored as TEXT to accommodate any CRM ID format after migration.';
+
+COMMENT ON COLUMN sf_task_project.external_source IS
+  'CRM system this task originates from. Currently always "salesforce". '
+  'Added for forward-compatibility when migrating to a different CRM.';
+
+-- Add opportunity_id to project table for opportunity-based projects
+DO $$ BEGIN
+    ALTER TABLE project ADD COLUMN opportunity_id TEXT;
+EXCEPTION
+    WHEN duplicate_column THEN NULL;
+END $$;

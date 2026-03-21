@@ -116,6 +116,19 @@ export const apiService = {
   deleteTask: (taskId: string) =>
     api.delete(`/api/salesforce/tasks/${taskId}`),
 
+  duplicateTask: (taskId: string, whatId?: string) =>
+    api.post(`/api/salesforce/tasks/${taskId}/duplicate`, { WhatId: whatId || null }),
+
+  // Salesforce Task Dependencies (stored locally)
+  getTaskDependenciesForOpp: (taskIds: string[]) =>
+    api.get('/api/salesforce/opportunities/_/task-dependencies', { params: { task_ids: taskIds.join(',') } }),
+  getTaskDependencies: (taskId: string) =>
+    api.get(`/api/salesforce/tasks/${taskId}/dependencies`),
+  addTaskDependency: (taskId: string, dependsOnId: string) =>
+    api.post(`/api/salesforce/tasks/${taskId}/dependencies`, { depends_on_id: dependsOnId }),
+  removeTaskDependency: (depId: string) =>
+    api.delete(`/api/salesforce/task-dependencies/${depId}`),
+
   // Salesforce - Accounts
   getAccounts: (params?: { limit?: number }) =>
     api.get('/api/salesforce/accounts', { params }),
@@ -440,6 +453,18 @@ export const apiService = {
 
   deleteProjectTask: (taskId: string) =>
     api.delete(`/api/project-tasks/${taskId}`),
+
+  // Salesforce Task ↔ Project Bridge
+  linkSfTaskToProject: (projectId: string, data: { sf_task_id: string; milestone_id?: string; sort_order?: number }) =>
+    api.post(`/api/projects/${projectId}/sf-tasks`, data),
+  unlinkSfTaskFromProject: (linkId: string) =>
+    api.delete(`/api/sf-task-project/${linkId}`),
+  getProjectSfTasks: (projectId: string) =>
+    api.get(`/api/projects/${projectId}/sf-tasks`),
+  getProjectByOpportunity: (opportunityId: string) =>
+    api.get(`/api/projects/by-opportunity/${opportunityId}`),
+  getSfTaskProjectLink: (sfTaskId: string) =>
+    api.get(`/api/sf-task-project/by-task/${sfTaskId}`),
 
   // Cache Management
   clearCache: () =>

@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi.testclient import TestClient
 
 from main import app, get_current_user, get_mcp_client, get_forecasting_engine, get_data_sync_service, _sync_lock, startup_event, shutdown_event
+from auth import require_auth
 
 # Disable startup/shutdown events that try to connect to real services
 app.router.on_startup.clear()
@@ -132,6 +133,7 @@ def mock_sync_service():
 def client(mock_client, mock_engine, mock_sync_service):
     """Create a TestClient with all dependencies overridden."""
     app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[require_auth] = override_get_current_user
     app.dependency_overrides[get_mcp_client] = lambda: mock_client
     app.dependency_overrides[get_forecasting_engine] = lambda: mock_engine
     app.dependency_overrides[get_data_sync_service] = lambda: mock_sync_service
@@ -278,9 +280,9 @@ class TestSalesforceOpportunities:
     def test_update_opportunity_success(self, client, mock_client):
         mock_client.salesforce.update_record.return_value = True
         response = client.put(
-            "/api/salesforce/opportunities/006TEST001",
+            "/api/salesforce/opportunities/006TESTOPPORT01",
             json={
-                "opportunity_id": "006TEST001",
+                "opportunity_id": "006TESTOPPORT01",
                 "updates": {"StageName": "Contract Creation"},
                 "user_id": "test_user",
             },
@@ -288,14 +290,14 @@ class TestSalesforceOpportunities:
         assert response.status_code == 200
         body = response.json()
         assert body["success"] is True
-        assert body["data"]["id"] == "006TEST001"
+        assert body["data"]["id"] == "006TESTOPPORT01"
 
     def test_update_opportunity_failure(self, client, mock_client):
         mock_client.salesforce.update_record.return_value = False
         response = client.put(
-            "/api/salesforce/opportunities/006TEST001",
+            "/api/salesforce/opportunities/006TESTOPPORT01",
             json={
-                "opportunity_id": "006TEST001",
+                "opportunity_id": "006TESTOPPORT01",
                 "updates": {"StageName": "Bad Stage"},
                 "user_id": "test_user",
             },
@@ -308,9 +310,9 @@ class TestSalesforceOpportunities:
     def test_update_opportunity_service_error(self, client, mock_client):
         mock_client.salesforce.update_record.side_effect = RuntimeError("write failed")
         response = client.put(
-            "/api/salesforce/opportunities/006TEST001",
+            "/api/salesforce/opportunities/006TESTOPPORT01",
             json={
-                "opportunity_id": "006TEST001",
+                "opportunity_id": "006TESTOPPORT01",
                 "updates": {"Amount": 99999},
                 "user_id": "test_user",
             },
@@ -381,11 +383,11 @@ class TestSalesforceContacts:
         mock_client.salesforce.query.return_value = {"records": []}
         response = client.get(
             "/api/salesforce/contacts",
-            params={"account_id": "001TESTACCOUNT001"},
+            params={"account_id": "001TESTACCOUNT001A"},
         )
         assert response.status_code == 200
         soql = mock_client.salesforce.query.call_args[0][0]
-        assert "AccountId = '001TESTACCOUNT001'" in soql
+        assert "AccountId = '001TESTACCOUNT001A'" in soql
 
     def test_get_contacts_service_error(self, client, mock_client):
         mock_client.salesforce.query.side_effect = RuntimeError("timeout")
@@ -434,7 +436,7 @@ class TestIntacctInvoices:
         response = client.post(
             "/api/intacct/invoices",
             json={
-                "opportunity_id": "006TEST001",
+                "opportunity_id": "006TESTOPPORT01",
                 "customer_id": "CUST-001",
                 "amount": 50000,
                 "due_date": "2026-04-15",
@@ -454,7 +456,7 @@ class TestIntacctInvoices:
         response = client.post(
             "/api/intacct/invoices",
             json={
-                "opportunity_id": "006TEST001",
+                "opportunity_id": "006TESTOPPORT01",
                 "customer_id": "CUST-001",
                 "amount": 50000,
                 "due_date": "2026-04-15",
@@ -469,7 +471,7 @@ class TestIntacctInvoices:
         response = client.post(
             "/api/intacct/invoices",
             json={
-                "opportunity_id": "006TEST001",
+                "opportunity_id": "006TESTOPPORT01",
                 "customer_id": "CUST-001",
                 "amount": 50000,
                 "due_date": "2026-04-15",
@@ -720,34 +722,37 @@ class TestInvoiceMatching:
 # ===================================================================
 
 class TestAuthEnforcement:
-    """Verify that protected endpoints reject unauthenticated requests."""
+    """Verify that protected endpoints reject unauthenticated requests.
+
+    Note: require_auth returns 401 (Unauthorized), not 403 (Forbidden).
+    """
 
     def test_opportunities_requires_auth(self, unauthed_client):
         response = unauthed_client.get("/api/salesforce/opportunities")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_accounts_requires_auth(self, unauthed_client):
         response = unauthed_client.get("/api/salesforce/accounts")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_invoices_requires_auth(self, unauthed_client):
         response = unauthed_client.get("/api/intacct/invoices")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_payments_requires_auth(self, unauthed_client):
         response = unauthed_client.get("/api/intacct/payments")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_sync_requires_auth(self, unauthed_client):
         response = unauthed_client.post("/api/sync/trigger")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     def test_matching_requires_auth(self, unauthed_client):
         response = unauthed_client.post(
             "/api/matching/save-match",
             json={"invoice_id": "x", "opportunity_id": "y"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
 
 
 # ===================================================================
