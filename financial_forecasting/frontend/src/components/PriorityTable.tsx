@@ -92,6 +92,7 @@ interface PriorityTableProps {
   showWeighted?: boolean;
   maxRows?: number;
   onFilteredChange?: (allFiltered: PriorityOpp[], visible: PriorityOpp[]) => void;
+  toolbarSlot?: React.ReactNode;
 }
 
 // ── Inline editable cell ──
@@ -372,7 +373,7 @@ const AddTaskRow: React.FC<AddTaskRowProps> = ({ oppId, users, onCreated }) => {
 
 // ── Main Component ──
 
-const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows, onFilteredChange }) => {
+const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows, onFilteredChange, toolbarSlot }) => {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [expandedOppId, setExpandedOppId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState<Record<string, boolean>>({});
@@ -645,10 +646,12 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
 
   return (
     <Box>
-      {/* Column-based filters */}
+      {/* All controls in one row — wraps on narrow screens */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+        {toolbarSlot}
+        <Box sx={{ width: '1px', height: 20, bgcolor: 'divider', mx: 0.5, display: { xs: 'none', md: 'block' } }} />
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-          Filter by:
+          Filter:
         </Typography>
 
         {/* Stage — multi-select */}

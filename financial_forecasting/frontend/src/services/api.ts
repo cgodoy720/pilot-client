@@ -110,6 +110,7 @@ export const apiService = {
     ActivityDate?: string;
     Description?: string;
     OwnerId?: string;
+    WhatId?: string;
   }) => api.put(`/api/salesforce/tasks/${taskId}`, updates),
   
   deleteTask: (taskId: string) =>

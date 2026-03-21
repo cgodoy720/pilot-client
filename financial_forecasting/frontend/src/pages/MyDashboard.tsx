@@ -292,35 +292,7 @@ function CalendarInboxSplit({
           onResize={(size) => setCalCollapsed(size.asPercentage === 0)}
         >
           <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                px: 2,
-                py: 1.5,
-                flexShrink: 0,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton
-                  size="small"
-                  onClick={() => calendarPanelRef.current?.collapse()}
-                  title="Collapse calendar"
-                >
-                  <ChevronLeftIcon fontSize="small" />
-                </IconButton>
-                <CalendarIcon color="primary" />
-                <Typography variant="h6">Weekly Calendar</Typography>
-                {(gcalCount > 0 || taskCount > 0) && (
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
-                    {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
-                  </Box>
-                )}
-              </Box>
-            </Box>
-            <CardContent sx={{ pt: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pt: 1.5 }}>
               {calNeedsReauth && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
                   Calendar access expired. Please{' '}
@@ -345,6 +317,21 @@ function CalendarInboxSplit({
                 onTaskClick={handleTaskClick}
                 timeGridHeight={prefs.calendarTimeGridHeight ?? 520}
                 onTimeGridHeightChange={(h) => setPrefs((p) => ({ ...p, calendarTimeGridHeight: h }))}
+                headerSlot={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => calendarPanelRef.current?.collapse()}
+                      title="Collapse calendar"
+                    >
+                      <ChevronLeftIcon fontSize="small" />
+                    </IconButton>
+                    <CalendarIcon color="primary" sx={{ fontSize: 20 }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Calendar</Typography>
+                    {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
+                    {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
+                  </Box>
+                }
               />
             </CardContent>
           </Card>
@@ -375,39 +362,41 @@ function CalendarInboxSplit({
           onResize={(size) => setInboxCollapsed(size.asPercentage === 0)}
         >
           <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                px: 2,
-                py: 1.5,
-                flexShrink: 0,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <InboxIcon color="primary" />
-                <Typography variant="h6">Task Inbox</Typography>
-                {openTaskCount > 0 && (
-                  <Chip label={`${openTaskCount} open`} size="small" />
-                )}
-              </Box>
-              <IconButton
-                size="small"
-                onClick={() => inboxPanelRef.current?.collapse()}
-                title="Collapse inbox"
-              >
-                <ChevronRightIcon fontSize="small" />
-              </IconButton>
-            </Box>
-            <CardContent sx={{ pt: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, pt: 1.5 }}>
               <TaskInbox
                 tasks={inboxTasks}
                 loading={tasksLoading}
                 maxHeight={prefs.taskInboxMaxHeight ?? 400}
                 currentUserId={currentUserId}
                 onToggleUrgent={onToggleUrgent}
+                onEditTask={(task) => {
+                  const opp = task.WhatId ? allOpportunities.find((o: any) => o.Id === task.WhatId) : null;
+                  const mapped: Opportunity | null = opp ? {
+                    Id: opp.Id, Name: opp.Name, AccountId: opp.Account?.Id || '',
+                    Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+                    StageName: opp.StageName, Amount: opp.Amount, Probability: opp.Probability,
+                    CloseDate: opp.CloseDate, CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                    LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(), OwnerId: opp.OwnerId || '',
+                  } : null;
+                  setTaskPanelOpp(mapped);
+                  setSelectedTaskId(task.Id);
+                  setTaskPanelOpen(true);
+                }}
                 onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
+                headerSlot={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <InboxIcon color="primary" sx={{ fontSize: 20 }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Tasks</Typography>
+                    {openTaskCount > 0 && <Chip label={`${openTaskCount} open`} size="small" />}
+                    <IconButton
+                      size="small"
+                      onClick={() => inboxPanelRef.current?.collapse()}
+                      title="Collapse inbox"
+                    >
+                      <ChevronRightIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                }
               />
             </CardContent>
           </Card>
@@ -729,6 +718,7 @@ const MyDashboard: React.FC = () => {
         attendees: ev.attendees || [],
         location: ev.location || '',
         description: ev.description || '',
+        htmlLink: ev.htmlLink || undefined,
         type: 'gcal',
       });
     }
@@ -1130,6 +1120,19 @@ const MyDashboard: React.FC = () => {
                 maxHeight={prefs.taskInboxMaxHeight ?? 400}
                 currentUserId={user?.salesforce_user_id}
                 onToggleUrgent={handleToggleUrgent}
+                onEditTask={(task) => {
+                  const opp = task.WhatId ? allOpportunities.find((o: any) => o.Id === task.WhatId) : null;
+                  const mapped: Opportunity | null = opp ? {
+                    Id: opp.Id, Name: opp.Name, AccountId: opp.Account?.Id || '',
+                    Account: opp.Account ? { Name: opp.Account.Name } : undefined,
+                    StageName: opp.StageName, Amount: opp.Amount, Probability: opp.Probability,
+                    CloseDate: opp.CloseDate, CreatedDate: opp.LastModifiedDate || new Date().toISOString(),
+                    LastModifiedDate: opp.LastModifiedDate || new Date().toISOString(), OwnerId: opp.OwnerId || '',
+                  } : null;
+                  setTaskPanelOpp(mapped);
+                  setSelectedTaskId(task.Id);
+                  setTaskPanelOpen(true);
+                }}
                 onHeightChange={(h) => setPrefs((p) => ({ ...p, taskInboxMaxHeight: Math.min(600, Math.max(200, h)) }))}
               />
             </Section>
@@ -1146,67 +1149,12 @@ const MyDashboard: React.FC = () => {
         onToggle={() => toggleSection('priorities')}
         badge={
           myOpenOpps.length > 0 ? (
-            <Chip label={`${myOpenOpps.length} open`} size="small" />
+            <Tooltip title="Opportunities in open pipeline stages (Lead Gen through Negotiating Contract) — excludes Collecting/In Effect and closed stages">
+              <Chip label={`${myOpenOpps.length} open`} size="small" />
+            </Tooltip>
           ) : undefined
         }
       >
-        {/* Controls row: User filter + Weighted toggle + top-N */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 0.75 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <FormControl size="small" sx={{ minWidth: 160, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
-              <InputLabel id="opportunity-owner-filter-label">Opportunity Owner</InputLabel>
-              <Select
-                labelId="opportunity-owner-filter-label"
-                label="Opportunity Owner"
-                value={prefs.filterUserId}
-                onChange={(e) => setPrefs((p) => ({ ...p, filterUserId: e.target.value as string }))}
-              >
-                <MenuItem value="all">All Users ({allOpenOpps.length})</MenuItem>
-                {sfUserId && <MenuItem value="me">My Opportunities ({openCountByUser.get(sfUserId) || 0})</MenuItem>}
-                {sfUsers.map((u: any) => {
-                  const cnt = openCountByUser.get(u.Id) || 0;
-                  return (
-                    <MenuItem key={u.Id} value={u.Id}>
-                      {u.Name} ({cnt})
-                    </MenuItem>
-                  );
-                })}
-              </Select>
-            </FormControl>
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={prefs.showWeighted ? 'weighted' : 'total'}
-              onChange={(_, v) => v && setPrefs((p) => ({ ...p, showWeighted: v === 'weighted' }))}
-              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
-            >
-              <ToggleButton value="total">Total</ToggleButton>
-              <ToggleButton value="weighted">Weighted</ToggleButton>
-            </ToggleButtonGroup>
-            {prefs.showWeighted && (
-              <Typography variant="caption" color="text.secondary">
-                Amount × Probability
-              </Typography>
-            )}
-          </Box>
-          <TextField
-            type="number"
-            size="small"
-            label="Rows"
-            defaultValue={prefs.topN}
-            inputProps={{ min: 1, max: 50 }}
-            sx={{ width: 64, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}
-            onBlur={(e) => {
-              const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 20));
-              e.target.value = String(v);
-              setPrefs((p) => ({ ...p, topN: v }));
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-            }}
-          />
-        </Box>
-
         {priorityOpps.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             {!user?.salesforce_connected ? (
@@ -1234,6 +1182,61 @@ const MyDashboard: React.FC = () => {
               opportunities={priorityOpps}
               maxRows={prefs.topN}
               users={[]}
+              toolbarSlot={
+                <>
+                  <FormControl size="small" sx={{ minWidth: 160, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
+                    <InputLabel id="opportunity-owner-filter-label">Opportunity Owner</InputLabel>
+                    <Select
+                      labelId="opportunity-owner-filter-label"
+                      label="Opportunity Owner"
+                      value={prefs.filterUserId}
+                      onChange={(e) => setPrefs((p) => ({ ...p, filterUserId: e.target.value as string }))}
+                    >
+                      <MenuItem value="all">All Users ({allOpenOpps.length})</MenuItem>
+                      {sfUserId && <MenuItem value="me">My Opportunities ({openCountByUser.get(sfUserId) || 0})</MenuItem>}
+                      {sfUsers.map((u: any) => {
+                        const cnt = openCountByUser.get(u.Id) || 0;
+                        return (
+                          <MenuItem key={u.Id} value={u.Id}>
+                            {u.Name} ({cnt})
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={prefs.showWeighted ? 'weighted' : 'total'}
+                    onChange={(_, v) => v && setPrefs((p) => ({ ...p, showWeighted: v === 'weighted' }))}
+                    sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
+                  >
+                    <ToggleButton value="total">Total</ToggleButton>
+                    <ToggleButton value="weighted">Weighted</ToggleButton>
+                  </ToggleButtonGroup>
+                  {prefs.showWeighted && (
+                    <Typography variant="caption" color="text.secondary">
+                      Amt × Prob
+                    </Typography>
+                  )}
+                  <TextField
+                    type="number"
+                    size="small"
+                    label="Rows"
+                    defaultValue={prefs.topN}
+                    inputProps={{ min: 1, max: 50 }}
+                    sx={{ width: 56, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}
+                    onBlur={(e) => {
+                      const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 20));
+                      e.target.value = String(v);
+                      setPrefs((p) => ({ ...p, topN: v }));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    }}
+                  />
+                </>
+              }
               showWeighted={prefs.showWeighted}
               onFilteredChange={handleFilteredChange}
               onAddTask={(opp) => {
@@ -1402,6 +1405,7 @@ const MyDashboard: React.FC = () => {
         onClose={() => { setTaskPanelOpen(false); setTaskPanelOpp(null); setSelectedTaskId(null); }}
         opportunity={taskPanelOpp}
         selectedTaskId={selectedTaskId}
+        opportunities={allOpportunities.map((o: any) => ({ Id: o.Id, Name: o.Name }))}
       />
     </Box>
   );

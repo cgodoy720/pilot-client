@@ -540,6 +540,7 @@ class TaskUpdateRequest(BaseModel):
     ActivityDate: Optional[str] = None
     Description: Optional[str] = None
     OwnerId: Optional[str] = None
+    WhatId: Optional[str] = None
 
 
 @app.get("/api/salesforce/opportunities/{opportunity_id}/tasks")

@@ -24,6 +24,7 @@ import {
   Schedule as ScheduleIcon,
   Person as PersonIcon,
   FilterList as FilterIcon,
+  OpenInNew as OpenIcon,
 } from '@mui/icons-material';
 import { format, parseISO, isBefore, startOfDay, addDays, differenceInDays } from 'date-fns';
 
@@ -51,7 +52,9 @@ interface TaskInboxProps {
   currentUserId?: string | null;
   onTaskClick?: (task: InboxTask) => void;
   onToggleUrgent?: (taskId: string, urgent: boolean) => void;
+  onEditTask?: (task: InboxTask) => void;
   onHeightChange?: (height: number) => void;
+  headerSlot?: React.ReactNode;
 }
 
 type SortField = 'ActivityDate' | 'Subject' | 'Status' | 'Priority' | 'OpportunityName';
@@ -94,7 +97,9 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   currentUserId,
   onTaskClick,
   onToggleUrgent,
+  onEditTask,
   onHeightChange,
+  headerSlot,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterMyTasks, setFilterMyTasks] = useState(false);
@@ -257,6 +262,20 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           {task.Priority === 'High' && !task.isUrgent && (
             <Chip size="small" label="High" sx={{ height: 18, fontSize: '0.65rem' }} color="warning" />
           )}
+          {onEditTask && (
+            <Tooltip title="Open task">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditTask(task);
+                }}
+                sx={{ p: 0.25 }}
+              >
+                <OpenIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              </IconButton>
+            </Tooltip>
+          )}
           {onToggleUrgent && (
             <Tooltip title={task.isUrgent ? 'Remove urgent' : 'Flag urgent'}>
               <IconButton
@@ -275,22 +294,25 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
 
         {/* Compact meta line */}
         {!compact && (
-          <Box sx={{ display: 'flex', gap: 1, ml: 2.5, mt: 0.25 }}>
+          <Box sx={{ display: 'flex', gap: 1, ml: 2.5, mt: 0.25, minWidth: 0 }}>
             {task.ActivityDate && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
                 <ScheduleIcon sx={{ fontSize: 11 }} />
                 {format(parseISO(task.ActivityDate), 'MMM d')}
               </Typography>
             )}
-            {task.OpportunityName && (
-              <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 120 }}>
-                {task.OpportunityName}
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ flex: 1, minWidth: 0, fontStyle: task.OpportunityName ? 'normal' : 'italic' }}>
+              {task.OpportunityName || 'No Opportunity'}
+            </Typography>
+            {task.OwnerName && (
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
+                <PersonIcon sx={{ fontSize: 11 }} />
+                {task.OwnerName}
               </Typography>
             )}
-            {task.CreatedByName && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                <PersonIcon sx={{ fontSize: 11 }} />
-                {task.CreatedByName}
+            {task.CreatedByName && task.CreatedByName !== task.OwnerName && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
+                Assigned by {task.CreatedByName}
               </Typography>
             )}
           </Box>
@@ -307,14 +329,18 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
                 {task.Description}
               </Typography>
             )}
-            {task.OpportunityName && (
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
-                Linked: {task.OpportunityName}
-              </Typography>
-            )}
             {task.CreatedByName && (
               <Typography variant="caption" color="text.secondary" display="block">
                 Assigned by: {task.CreatedByName}
+              </Typography>
+            )}
+            {onEditTask && (
+              <Typography
+                variant="caption"
+                sx={{ mt: 0.5, display: 'inline-block', color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                onClick={(e) => { e.stopPropagation(); onEditTask(task); }}
+              >
+                Edit Task
               </Typography>
             )}
           </Box>
@@ -327,15 +353,15 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* Filters */}
       {!compact && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+          {headerSlot}
           <FilterIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <InputLabel sx={{ fontSize: '0.75rem' }}>Status</InputLabel>
+          <FormControl size="small" sx={{ minWidth: 80, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
+            <InputLabel>Status</InputLabel>
             <Select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               label="Status"
-              sx={{ fontSize: '0.75rem' }}
             >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="open">Open</MenuItem>
@@ -344,13 +370,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
               <MenuItem value="Completed">Completed</MenuItem>
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 90 }}>
-            <InputLabel sx={{ fontSize: '0.75rem' }}>Priority</InputLabel>
+          <FormControl size="small" sx={{ minWidth: 80, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
+            <InputLabel>Priority</InputLabel>
             <Select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
               label="Priority"
-              sx={{ fontSize: '0.75rem' }}
             >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="High">High</MenuItem>
