@@ -146,7 +146,7 @@ Three 2-week sprints with measurable outcomes and decision gates.
 | JP Delivers | Team Does |
 |---|---|
 | Pebble permission guardrails implemented — or JP continues running on request | Use Pebble to prep for at least 1 real meeting |
-| Additional pages unlocked (Cashflow, Automation Review, Giving Capacity) | CEO: review Cashflow page alongside Dashboard |
+| Additional pages unlocked (Automation Review, Giving Capacity, Cashflow, Network Map) | CEO: review Cashflow page alongside Dashboard |
 | Top feature request from Sprint 2 shipped (or timeline given) | All: structured 15-minute feedback 1:1 with JP |
 | Sprint 1-2 bugs resolved | |
 
