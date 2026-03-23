@@ -38,7 +38,7 @@ export const fetchWithAuth = async (endpoint, options = {}, token) => {
 };
 
 // Chat API functions
-export const sendMessageToGPT = async (message, threadId, token, model = 'anthropic/claude-sonnet-4.5', signal = null) => {
+export const sendMessageToGPT = async (message, threadId, token, model = 'anthropic/claude-sonnet-4.6', signal = null) => {
   return fetchWithAuth('/api/chat/messages', {
     method: 'POST',
     body: JSON.stringify({
@@ -139,7 +139,7 @@ export const streamLearningMessage = async (message, taskId, token, options = {}
  * @param {AbortSignal} signal - Optional abort signal for cancellation
  * @returns {Promise<void>}
  */
-export const streamMessageToGPT = async (message, threadId, token, model = 'anthropic/claude-sonnet-4.5', onChunk, signal = null) => {
+export const streamMessageToGPT = async (message, threadId, token, model = 'anthropic/claude-sonnet-4.6', onChunk, signal = null) => {
   const url = `${API_URL}/api/chat/messages/stream`;
   
   try {

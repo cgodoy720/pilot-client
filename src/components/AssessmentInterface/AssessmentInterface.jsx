@@ -363,7 +363,7 @@ function AssessmentInterface({
             taskId: taskId,
             dayNumber: dayNumber,
             cohort: cohort,
-            conversationModel: 'anthropic/claude-sonnet-4.5',
+            conversationModel: 'anthropic/claude-sonnet-4.6',
             isPreviewMode: isPreviewMode,
           }),
         }
@@ -454,7 +454,7 @@ function AssessmentInterface({
             taskId: taskId,
             dayNumber: dayNumber,
             cohort: cohort,
-            conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.5',
+            conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.6',
             isPreviewMode: isPreviewMode,
           }),
           signal: abortController.signal,
