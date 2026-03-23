@@ -50,6 +50,8 @@
 | F16 | **Network search** (LinkedIn CSV × prospect list fuzzy match) | Partnerships IC | NetworkMatch, Contact | N/A | Post-MVP | F04, F10 |
 | F17 | **Prospect scoring** (composite score from wealth tier, network, engagement) | Partnerships IC | Contact, NetworkMatch | N/A | Post-MVP | F16 |
 | F18 | **AI prospect intelligence** (Pebble research integration) | Partnerships IC | Contact, Prospect | N/A | Backlog | F17, Integration #9 |
+
+> **Pebble Self-Service Pre-Requisite (2026-03-23):** Before enabling self-service Pebble access for the team, add RBAC permission `use_pebble_research` to the permissions system. Gate the `/pebble` nav item and Pebble API calls behind this permission. Add per-user daily research limit and a monthly budget cap per user role. The current $0.50/prospect budget cap protects per-query costs, but no per-user limits exist to prevent a new user from running dozens of queries. See also `tasks/pebble-evolution-roadmap.md`.
 | F47 | **Intelligence freshness tracking** (auto-downgrade confidence after 90 days; flag stale scores) | Partnerships IC | Contact | N/A | Post-MVP | F17 |
 | F48 | **Decision audit trail** (log pursue/pass/deprioritize decisions with rationale and intelligence snapshot) | Partnerships IC, Executive | Decision, Prospect, Opportunity | Both | MVP | F01 |
 
