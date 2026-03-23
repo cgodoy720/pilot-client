@@ -69,6 +69,10 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 
+// Platform Intake pages
+import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
+import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog';
+
 import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
@@ -516,6 +520,22 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.SPUTNIK}>
               <SalesTracker />
+            </PermissionRoute>
+          </Layout>
+        } />
+
+        {/* Platform Intake — all authenticated users */}
+        <Route path="/platform-intake" element={
+          <ProtectedRoute>
+            <PlatformIntake />
+          </ProtectedRoute>
+        } />
+
+        {/* Platform Intake Backlog — staff/admin only */}
+        <Route path="/platform-intake/backlog" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
+              <PlatformIntakeBacklog />
             </PermissionRoute>
           </Layout>
         } />
