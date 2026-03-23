@@ -6,6 +6,8 @@ Tested Pebble on "Jukay Hsu" — it missed that he's no longer CEO of Pursuit, h
 
 **Re: Correct/Incorrect buttons** — they store feedback to SQLite (`feedback` table: claim_id + bool) but the feedback is never queried, never displayed, and never consumed for learning. Stage 1 fixes this.
 
+> **Self-Service Rollout Pre-Requisite (2026-03-23):** Before opening Pebble to team self-service, add Pebble-specific permissions to the Settings page (`use_pebble_research`, `pebble_daily_limit`). The existing $0.50/prospect budget cap protects per-query costs, but no per-user limits exist. A new user could run dozens of research queries before anyone notices. Gate the `/pebble` nav item and API endpoints behind the new permission. Target: implement before Sprint 3 of the team rollout (Week 5-6). See also `product/crm-architecture/feature-register.md` F18.
+
 ---
 
 ## STAGE 1: Research Quality + UX Foundation
