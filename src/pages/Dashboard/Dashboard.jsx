@@ -64,7 +64,11 @@ function Dashboard() {
 
   // Participant Mode: staff/admin experiences the dashboard as a builder
   const [participantMode, setParticipantMode] = useState(() => {
-    return localStorage.getItem('staffParticipantMode') === 'true';
+    try {
+      return localStorage.getItem('staffParticipantMode') === 'true';
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
