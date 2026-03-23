@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor, act } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import Dashboard from '../Dashboard';
 import Layout from '../../../components/Layout/Layout';
@@ -84,8 +84,41 @@ const renderDashboardOnly = (storeState = {}) => {
   );
 };
 
+const createJsonResponse = (data, ok = true, status = 200) =>
+  Promise.resolve({
+    ok,
+    status,
+    json: async () => data,
+  });
+
+const createDefaultFetchMock = () =>
+  vi.fn((input) => {
+    const url = typeof input === 'string' ? input : input?.url || String(input);
+
+    if (url.includes('/api/learning/batch-completion-status')) {
+      return createJsonResponse({ completionStatus: {} });
+    }
+
+    if (url.includes('/api/permissions/cohorts')) {
+      return createJsonResponse({ cohorts: [] });
+    }
+
+    if (url.includes('/api/progress/dashboard-full')) {
+      return createJsonResponse({
+        day: { daily_goal: 'Default Test Goal', week: 1, level: 1, weekly_goal: 'Default Weekly Goal' },
+        timeBlocks: [],
+        taskProgress: [],
+        missedAssignmentsCount: 0,
+        weeks: [],
+      });
+    }
+
+    return createJsonResponse({});
+  });
+
 describe('Dashboard - Role-Based Access Control', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     mockNavigate.mockClear();
 
@@ -99,9 +132,7 @@ describe('Dashboard - Role-Based Access Control', () => {
       logout: vi.fn(),
     });
 
-    // Set up a fresh fetch mock (no default behavior)
-    // Each test will set up its own mock responses as needed
-    global.fetch = vi.fn();
+    global.fetch = createDefaultFetchMock();
 
     import.meta.env.VITE_API_URL = 'http://localhost:3000';
   });
@@ -165,7 +196,7 @@ describe('Dashboard - Role-Based Access Control', () => {
         json: async () => mockData
       }).mockResolvedValueOnce({
         ok: true,
-        json: async () => []
+        json: async () => ({ completionStatus: {} })
       });
 
       renderDashboardOnly({
@@ -264,9 +295,12 @@ describe('Dashboard - Role-Based Access Control', () => {
         user: { firstName: 'Jane', role: 'volunteer', active: true }
       });
 
-      // Volunteer sees special view (if Card component were available)
-      // For now, checking it doesn't show standard student dashboard
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(screen.getByText(/Welcome, Volunteer!/i)).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Go to Volunteer Feedback/i)).toBeInTheDocument();
+      // Volunteer sees special view, not the standard active student greeting
       expect(screen.queryByText(/Hey Jane. Good to see you!/i)).not.toBeInTheDocument();
     });
   });
@@ -583,21 +617,23 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).queryByText('Admin')).not.toBeInTheDocument();
 
       // Remount with admin role
-      useAuthStore.setState({
-        token: 'test-token',
-        user: { firstName: 'Admin', role: 'admin', active: true },
-        isAuthenticated: true,
-        isLoading: false,
-        _hasHydrated: true,
-        logout: vi.fn(),
+      act(() => {
+        useAuthStore.setState({
+          token: 'test-token',
+          user: { firstName: 'Admin', role: 'admin', active: true },
+          isAuthenticated: true,
+          isLoading: false,
+          _hasHydrated: true,
+          logout: vi.fn(),
+        });
+        rerender(
+          <MemoryRouter initialEntries={['/dashboard']}>
+            <Layout>
+              <Dashboard />
+            </Layout>
+          </MemoryRouter>
+        );
       });
-      rerender(
-        <MemoryRouter initialEntries={['/dashboard']}>
-          <Layout>
-            <Dashboard />
-          </Layout>
-        </MemoryRouter>
-      );
 
       // Admin should see all four dropdown triggers including Admin
       nav = screen.getAllByRole('navigation')[0];
