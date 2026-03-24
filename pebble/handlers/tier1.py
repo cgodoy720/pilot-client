@@ -101,6 +101,14 @@ async def handle_t1(
 
     # Store claims in context
     ctx.add_claims(claims)
+
+    # Classify prospect type
+    from ..prospect_type import classify_prospect
+    pt, pt_conf, pt_method = classify_prospect(crm_match, org_name, wiki_data, client)
+    ctx.prospect_type = pt.value
+    ctx.prospect_type_confidence = pt_conf
+    ctx.prospect_type_method = pt_method
+
     ctx.mark_tier_complete("T1")
 
     # Identity assessment via Haiku
@@ -141,6 +149,7 @@ async def handle_t1(
     card_parts.append(f"CRM Status: {crm_status.replace('_', ' ').title()}")
     if crm_info:
         card_parts.append(crm_info)
+    card_parts.append(f"Prospect Type: **{pt.value.upper()}** ({pt_conf:.0%} via {pt_method})")
     card_parts.append(f"Identity Confidence: **{confidence.upper()}**")
     card_parts.append(f"Data Points: {len(claims)}")
     if web_claims:
@@ -160,6 +169,8 @@ async def handle_t1(
                 "confidence": confidence,
                 "claims_count": len(claims),
                 "summary": summary,
+                "prospect_type": pt.value,
+                "prospect_type_confidence": pt_conf,
             },
         },
         sources=[c.get("source_url", "") for c in claims if c.get("source_url")][:10],

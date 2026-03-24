@@ -5,6 +5,16 @@ T1's data and only fetches the 6 remaining, T3 reads T2's accumulated
 claims and skips directly to quorum + synthesis.
 
 In-memory store keyed by prospect_id with 5-minute TTL cleanup.
+
+Concurrency model: all ctx mutations happen in the async event loop
+after awaiting thread results (asyncio.to_thread returns data, threads
+never touch ctx). asyncio's event loop is single-threaded — synchronous
+code between await points runs atomically. No locks needed.
+
+Each user request gets its own context (keyed by prospect_id), so
+concurrent users don't share state. Within a request, clusters run
+concurrently via asyncio.gather but their ctx writes are serialized
+by the event loop.
 """
 
 from __future__ import annotations
@@ -17,6 +27,8 @@ from typing import Any, Optional
 logger = logging.getLogger("pebble.research_context")
 
 # In-memory store — prospect_id → context
+# Safe for single-process asyncio (event loop serializes access).
+# If scaling to multi-worker uvicorn, swap for Redis.
 _active_contexts: dict[str, ProspectResearchContext] = {}
 
 
@@ -30,7 +42,9 @@ class ProspectResearchContext:
 
     # Raw data from sources (populated incrementally by each tier)
     # Keys: "wiki_data", "fec_data", "oc_data", "edgar_data", "usa_data",
-    #        "propublica_data", "sec_data", "web_search_data"
+    #        "propublica_data", "sec_data", "web_search_data",
+    #        "finra_data", "insider_data", "lda_lobbyists", "lda_filings",
+    #        "federal_register_data", "fec_committees_data"
     raw_data: dict[str, Any] = field(default_factory=dict)
 
     # Structured claims accumulated across tiers
@@ -41,6 +55,11 @@ class ProspectResearchContext:
 
     # Person-level enrichments (990 officer match, web search extractions, etc.)
     person_extractions: dict[str, Any] = field(default_factory=dict)
+
+    # Prospect type classification
+    prospect_type: str = ""              # ProspectType enum value
+    prospect_type_confidence: float = 0.0
+    prospect_type_method: str = ""       # "crm_record_type", "crm_account_type", "wikipedia", "heuristic", "llm", "default"
 
     # Source richness scores (from score_source_richness)
     source_scores: dict[str, float] = field(default_factory=dict)
@@ -65,9 +84,10 @@ class ProspectResearchContext:
         """Add claims, avoiding duplicates by text."""
         existing_texts = {c.get("text", "") for c in self.claims}
         for claim in new_claims:
-            if claim.get("text", "") not in existing_texts:
+            text = claim.get("text", "")
+            if text and text not in existing_texts:
                 self.claims.append(claim)
-                existing_texts.add(claim["text"])
+                existing_texts.add(text)
         self.updated_at = time.time()
 
     def mark_tier_complete(self, tier: str) -> None:
@@ -86,7 +106,7 @@ class ProspectResearchContext:
 
     def all_claims(self) -> list[dict]:
         """Get all accumulated claims including forager claims."""
-        return self.claims + self.forager_claims
+        return list(self.claims) + list(self.forager_claims)
 
 
 def get_or_create_context(

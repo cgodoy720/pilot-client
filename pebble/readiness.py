@@ -33,6 +33,8 @@ class EntityMatch:
     sf_id: str                # Salesforce record ID
     name: str                 # Display name
     detail: str = ""          # Extra context (title, stage, etc.)
+    account_type: str = ""    # Salesforce Account.Type (Corporate, Foundation, etc.)
+    account_record_type: str = ""  # Salesforce Account RecordType.Name (Organization, Household)
 
 
 @dataclass
@@ -102,6 +104,21 @@ _LABEL_FN = {
 }
 
 
+def _extract_account_fields(rec: dict, obj_type: str) -> tuple[str, str]:
+    """Extract account_type and account_record_type from a CRM record."""
+    account_type = ""
+    account_record_type = ""
+    if obj_type == "Account":
+        account_type = rec.get("Type") or ""
+        record_type = rec.get("RecordType") or {}
+        account_record_type = record_type.get("Name", "") if isinstance(record_type, dict) else ""
+    elif obj_type in ("Contact", "Opportunity"):
+        account = rec.get("Account") or {}
+        if isinstance(account, dict):
+            account_type = account.get("Type") or ""
+    return account_type, account_record_type
+
+
 def _build_matches(search_results: dict) -> dict[str, list[EntityMatch]]:
     """Convert raw SF search results into grouped EntityMatch lists."""
     groups: dict[str, list[EntityMatch]] = {}
@@ -113,11 +130,14 @@ def _build_matches(search_results: dict) -> dict[str, list[EntityMatch]]:
             sf_id = rec.get("Id", "")
             if not sf_id:
                 continue
+            acct_type, acct_record_type = _extract_account_fields(rec, obj_type)
             matches.append(EntityMatch(
                 entity_type=obj_type,
                 sf_id=sf_id,
                 name=label_fn(rec),
                 detail=rec.get("Title", "") or rec.get("StageName", ""),
+                account_type=acct_type,
+                account_record_type=acct_record_type,
             ))
         if matches:
             groups[obj_type] = matches

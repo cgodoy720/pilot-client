@@ -1,8 +1,12 @@
-"""T2 handler — Structured Intelligence. All sources + forager analysis.
+"""T2 handler — Structured Intelligence. Cluster-routed sources + forager analysis.
+
+Uses prospect type classification to route research through 3 concurrent
+clusters (Financial, Affiliation, Public Profile), each activating only
+the data sources relevant to the prospect type.
 
 Builds on T1's context if available — skips re-fetching sources T1 already got.
 Skips quorum verification and Opus synthesis (those are T3-only).
-Cost: ~$0.05/prospect. Speed: 15-30s.
+Cost: ~$0.05/prospect. Speed: 15-45s.
 """
 
 from __future__ import annotations
@@ -26,32 +30,19 @@ async def handle_t2(
 ) -> HandlerResponse:
     """Run T2 (Structured Intelligence) for a single prospect.
 
-    1. Check context for T1 data — skip already-fetched sources
-    2. Fetch remaining sources in parallel
-    3. Web search with targeted queries (boards, giving)
-    4. Template claims + person-level extraction from org data
-    5. Score source richness + activate foragers
-    6. Sonnet synthesis → structured output across 5 dimensions
+    1. Get/create ProspectResearchContext
+    2. Resolve prospect_type (from T1 context or classify now)
+    3. Run cluster research (3 concurrent clusters, source-routed)
+    4. Score source richness + activate foragers
+    5. Organize output across 5 dimensions
     """
     from ..orchestrator import (
         score_source_richness,
         activate_foragers,
         ProspectBudgetTracker,
-        _noop,
-        _safe_result,
     )
-    from ..data_sources import (
-        fetch_organization, search_organizations, fetch_company,
-        search_contributions, search_filings, search_awards,
-        fetch_full_profile, search_officers,
-    )
-    from ..data_sources.sec import search_cik
-    from ..data_sources.web_search import search_person
-    from ..claim_templates import (
-        claims_from_fec, claims_from_usaspending, claims_from_opencorporates,
-        claims_from_edgar_search, claims_from_wikipedia_infobox,
-        claims_from_web_search, claims_from_usaspending_person,
-    )
+    from ..prospect_type import ProspectType, classify_prospect
+    from ..clusters import run_cluster_research
 
     person_name = route.entities.get("person_name", "")
     org_name = route.entities.get("org_name", "")
@@ -70,104 +61,38 @@ async def handle_t2(
 
     budget = ProspectBudgetTracker(prospect_id=name)
 
-    # --- Fetch only sources NOT already in context ---
-    primary_org = org_name
-
-    # Phase 1: Independent fetches (skip what T1 already got)
-    phase1_tasks = []
-    phase1_keys = []
-
-    if not ctx.has_source("wiki_data"):
-        phase1_tasks.append(asyncio.to_thread(fetch_full_profile, name) if name else _noop())
-        phase1_keys.append("wiki_data")
-
-    if not ctx.has_source("oc_data"):
-        phase1_tasks.append(asyncio.to_thread(search_officers, name) if name else _noop())
-        phase1_keys.append("oc_data")
-
-    if not ctx.has_source("fec_data"):
-        phase1_tasks.append(asyncio.to_thread(search_contributions, name, 10) if name else _noop())
-        phase1_keys.append("fec_data")
-
-    # These are always new in T2 (T1 doesn't fetch them)
-    phase1_tasks.append(asyncio.to_thread(search_organizations, primary_org) if primary_org else _noop())
-    phase1_keys.append("ein_orgs")
-    phase1_tasks.append(asyncio.to_thread(search_cik, primary_org) if primary_org else _noop())
-    phase1_keys.append("cik_result")
-    phase1_tasks.append(asyncio.to_thread(search_filings, name) if name else _noop())
-    phase1_keys.append("edgar_data")
-    phase1_tasks.append(asyncio.to_thread(search_awards, name) if name else _noop())
-    phase1_keys.append("usa_data")
-
-    # Web search — targeted queries for T2
-    if not ctx.has_source("web_search_boards"):
-        phase1_tasks.append(asyncio.to_thread(search_person, name, org_name, "boards"))
-        phase1_keys.append("web_search_boards")
-    if not ctx.has_source("web_search_giving"):
-        phase1_tasks.append(asyncio.to_thread(search_person, name, org_name, "giving"))
-        phase1_keys.append("web_search_giving")
-
-    if phase1_tasks:
-        results = await asyncio.gather(*phase1_tasks, return_exceptions=True)
-        for key, result in zip(phase1_keys, results):
-            ctx.add_source(key, _safe_result(result))
-
-    logger.info("T2: %d sources fetched, %d from T1 context", len(phase1_tasks), len(ctx.raw_data) - len(phase1_tasks))
-
-    # Phase 2: Dependent fetches (EIN/CIK)
-    ein_orgs = ctx.raw_data.get("ein_orgs")
-    cik_result = ctx.raw_data.get("cik_result")
-    ein = (str(ein_orgs[0]["ein"]) if ein_orgs and isinstance(ein_orgs, list) and ein_orgs[0].get("ein") else None)
-    cik_val = cik_result
-
-    if not ctx.has_source("propublica_data") or not ctx.has_source("sec_data"):
-        phase2 = await asyncio.gather(
-            asyncio.to_thread(fetch_organization, ein) if ein and not ctx.has_source("propublica_data") else _noop(),
-            asyncio.to_thread(fetch_company, cik_val) if cik_val and not ctx.has_source("sec_data") else _noop(),
-            return_exceptions=True,
+    # --- Resolve prospect type ---
+    if ctx.prospect_type:
+        # T1 already classified — safely deserialize
+        try:
+            prospect_type = ProspectType(ctx.prospect_type)
+        except ValueError:
+            logger.warning("T2: invalid prospect_type '%s' in context, falling back to UNKNOWN",
+                           ctx.prospect_type)
+            prospect_type = ProspectType.UNKNOWN
+        logger.info("T2: using T1 classification: %s (%.0f%% via %s)",
+                     prospect_type.value, ctx.prospect_type_confidence * 100,
+                     ctx.prospect_type_method)
+    else:
+        # No T1 context — classify now
+        prospect_type, pt_conf, pt_method = classify_prospect(
+            crm_match, org_name, ctx.raw_data.get("wiki_data"), client
         )
-        if not ctx.has_source("propublica_data"):
-            ctx.add_source("propublica_data", _safe_result(phase2[0]))
-        if not ctx.has_source("sec_data"):
-            ctx.add_source("sec_data", _safe_result(phase2[1]))
+        ctx.prospect_type = prospect_type.value
+        ctx.prospect_type_confidence = pt_conf
+        ctx.prospect_type_method = pt_method
+        logger.info("T2: classified as %s (%.0f%% via %s)",
+                     prospect_type.value, pt_conf * 100, pt_method)
 
-    # --- Build claims from NEW sources only ---
-    new_claims = []
+    # --- Run cluster research (replaces flat fetch-all) ---
+    scratchpad, cluster_claims = await run_cluster_research(
+        ctx, person_name, org_name, prospect_type, budget, client,
+    )
 
-    # Only build claims for sources T1 didn't already process
-    if not ctx.tier_completed("T1"):
-        new_claims.extend(claims_from_wikipedia_infobox(ctx.raw_data.get("wiki_data")))
-        new_claims.extend(claims_from_opencorporates(ctx.raw_data.get("oc_data") or []))
-        new_claims.extend(claims_from_fec(ctx.raw_data.get("fec_data") or []))
+    logger.info("T2: cluster research complete — %d claims, statuses=%s",
+                len(cluster_claims), scratchpad.cluster_status)
 
-    # T2-specific sources (always new)
-    new_claims.extend(claims_from_edgar_search(ctx.raw_data.get("edgar_data") or []))
-    new_claims.extend(claims_from_usaspending(ctx.raw_data.get("usa_data") or []))
-
-    # Person-level extraction from org data
-    new_claims.extend(claims_from_usaspending_person(
-        ctx.raw_data.get("usa_data") or [], person_name, org_name
-    ))
-
-    # Web search claims — boards + giving focused queries
-    web_boards = ctx.raw_data.get("web_search_boards") or []
-    web_giving = ctx.raw_data.get("web_search_giving") or []
-    all_web = web_boards + web_giving
-    # Deduplicate by link
-    seen_links = set()
-    # Include T1's general web results too
-    t1_web = ctx.raw_data.get("web_search_data") or []
-    for r in t1_web + all_web:
-        link = r.get("link", "")
-        if link not in seen_links:
-            seen_links.add(link)
-
-    web_claims = claims_from_web_search(all_web, person_name, client)
-    new_claims.extend(web_claims)
-
-    ctx.add_claims(new_claims)
-
-    # --- Score source richness and activate foragers ---
+    # --- Score source richness ---
     source_scores = score_source_richness(
         ctx.raw_data.get("propublica_data"),
         ctx.raw_data.get("sec_data"),
@@ -176,9 +101,15 @@ async def handle_t2(
         ctx.raw_data.get("usa_data"),
         ctx.raw_data.get("wiki_data"),
         ctx.raw_data.get("oc_data"),
+        lda_data=ctx.raw_data.get("lda_lobbyists") or ctx.raw_data.get("lda_filings"),
+        finra_data=ctx.raw_data.get("finra_data"),
+        federal_register_data=ctx.raw_data.get("federal_register_data"),
+        fec_committees_data=ctx.raw_data.get("fec_committees_data"),
+        insider_data=ctx.raw_data.get("insider_data"),
     )
     ctx.source_scores = source_scores
 
+    # --- Activate foragers ---
     forager_claims = []
     if client:
         try:
@@ -193,6 +124,7 @@ async def handle_t2(
                     "wiki_data": ctx.raw_data.get("wiki_data"),
                 },
                 prospect, client, budget,
+                prospect_type=prospect_type.value,
             )
         except Exception as e:
             logger.warning("T2 forager activation failed: %s", e)
@@ -204,7 +136,9 @@ async def handle_t2(
     all_claims = ctx.all_claims()
     dimensions = _organize_by_dimension(all_claims)
 
-    text_parts = [f"**Structured Intelligence: {name}**\n"]
+    text_parts = [f"**Structured Intelligence: {name}**"]
+    text_parts.append(f"Prospect Type: {prospect_type.value.upper()} ({ctx.prospect_type_confidence:.0%})\n")
+
     dim_labels = [
         "Giving Capacity", "Organizational Affiliations",
         "Board Positions & Leadership", "Wealth Sources & Financial Footprint",
@@ -219,7 +153,16 @@ async def handle_t2(
         else:
             text_parts.append(f"\n**{label}**: No data found")
 
-    text_parts.append(f"\n{len(all_claims)} total claims from {len(source_scores)} sources.")
+    active_sources = sum(1 for s in source_scores.values() if s > 0)
+    text_parts.append(f"\n{len(all_claims)} total claims from {active_sources}/{len(source_scores)} sources.")
+
+    # Surface cluster failures so the user knows results may be incomplete
+    failed_clusters = [
+        name for name, status in scratchpad.cluster_status.items()
+        if status in ("timeout", "error")
+    ]
+    if failed_clusters:
+        text_parts.append(f"\n*Note: {', '.join(failed_clusters)} cluster(s) {'timed out' if 'timeout' in scratchpad.cluster_status.values() else 'failed'} — results may be incomplete.*")
 
     return HandlerResponse(
         text="\n".join(text_parts),
@@ -230,6 +173,8 @@ async def handle_t2(
             "dimensions": dimensions,
             "claims_count": len(all_claims),
             "source_scores": source_scores,
+            "prospect_type": prospect_type.value,
+            "cluster_status": scratchpad.cluster_status,
         },
         sources=[c.get("source_url", "") for c in all_claims if c.get("source_url")][:15],
     )
@@ -243,9 +188,10 @@ def _organize_by_dimension(claims: list[dict]) -> dict[str, list[dict]]:
     }
     giving_kw = {"contribut", "donat", "fec", "giving", "grant", "philanthrop", "gift"}
     board_kw = {"board", "director", "trustee", "advisory", "governor", "committee"}
-    wealth_kw = {"sec", "edgar", "filing", "award", "contract", "federal", "revenue", "asset", "net worth"}
+    wealth_kw = {"sec", "edgar", "filing", "award", "contract", "federal", "revenue", "asset",
+                 "net worth", "insider", "form 4", "finra", "broker"}
     affil_kw = {"officer", "president", "ceo", "cfo", "cto", "vp", "manager", "founder", "co-founder",
-                "title", "employ", "executive", "leader", "chief"}
+                "title", "employ", "executive", "leader", "chief", "lobbyist", "registrant"}
 
     for claim in claims:
         text_lower = claim.get("text", "").lower()

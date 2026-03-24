@@ -407,17 +407,39 @@ async def activate_foragers(
     prospect: dict,
     client: ModelClient,
     budget: ProspectBudgetTracker,
+    prospect_type: str = "",
 ) -> list[dict]:
-    """Division of Labor: activate specialist FORAGER agents when their signal threshold is met."""
+    """Division of Labor: activate specialist FORAGER agents when their signal threshold is met.
+
+    Thresholds are adjusted based on prospect_type:
+    - CORPORATE: lower wealth threshold (1.5 → 1.0) — wealth signals are core
+    - FOUNDATION/NONPROFIT: lower philanthropy threshold (0.5 → 0.3) — org financials are core
+    - GOVERNMENT: factor in LDA + Federal Register scores for influence assessment
+    """
     forager_claims: list[dict] = []
 
     wealth_score = source_scores.get("fec", 0) + source_scores.get("opencorporates", 0) + source_scores.get("usaspending", 0)
     philanthropy_score = source_scores.get("propublica", 0) + source_scores.get("edgar", 0) + source_scores.get("wikipedia", 0)
 
+    # Prospect-type-specific threshold adjustments
+    wealth_threshold = 1.5
+    philanthropy_threshold = 0.5
+
+    if prospect_type == "corporate":
+        wealth_threshold = 1.0
+        # Also factor in FINRA and insider transaction signals
+        wealth_score += source_scores.get("finra", 0) + source_scores.get("insider_transactions", 0)
+    elif prospect_type in ("foundation", "nonprofit", "academic"):
+        philanthropy_threshold = 0.3
+    elif prospect_type == "government":
+        # LDA + Federal Register boost the wealth score for influence assessment
+        wealth_score += source_scores.get("lda", 0) + source_scores.get("federal_register", 0)
+        wealth_threshold = 1.0
+
     tasks = []
 
-    # Wealth indicator: fires when financial signals >= 1.5
-    if wealth_score >= 1.5 and not budget.exceeded():
+    # Wealth indicator: fires when financial signals >= threshold
+    if wealth_score >= wealth_threshold and not budget.exceeded():
         source_urls = []
         if data_results.get("fec_data"):
             source_urls.append("https://api.open.fec.gov/")
@@ -438,9 +460,9 @@ async def activate_foragers(
         )
         tasks.append(("wealth_indicator_agent", spec))
 
-    # Philanthropy: fires when nonprofit signals >= 0.5 (lowered from 1.0
-    # to catch individual prospects at nonprofits where Wikipedia may be empty)
-    if philanthropy_score >= 0.5 and not budget.exceeded():
+    # Philanthropy: fires when nonprofit signals >= threshold
+    # (adjusted per prospect type — lower for foundations/nonprofits)
+    if philanthropy_score >= philanthropy_threshold and not budget.exceeded():
         source_urls = []
         if data_results.get("propublica_data"):
             ein = data_results["propublica_data"].get("organization", {}).get("ein", "")
