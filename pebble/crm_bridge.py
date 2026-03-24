@@ -238,6 +238,43 @@ async def create_contact(
         return None
 
 
+async def create_opportunity(
+    name: str, account_id: str = "", amount: float | None = None,
+    stage: str = "", close_date: str = "",
+) -> Optional[Dict]:
+    """Create a Salesforce opportunity via Bedrock.
+
+    Returns {"id": "006xx...", "message": "..."} on success, None on failure.
+    """
+    payload: Dict[str, Any] = {"Name": name}
+    if account_id:
+        payload["AccountId"] = account_id
+    if amount is not None:
+        payload["Amount"] = amount
+    if stage:
+        payload["StageName"] = stage
+    if close_date:
+        payload["CloseDate"] = close_date
+    try:
+        client = _get_client()
+        resp = await client.post("/api/salesforce/opportunities", json=payload)
+        resp.raise_for_status()
+        body = resp.json()
+        return body.get("data")
+    except httpx.TimeoutException:
+        logger.warning("CRM bridge timeout: create_opportunity name=%s", name)
+        return None
+    except httpx.HTTPStatusError as e:
+        logger.warning(
+            "CRM bridge HTTP %s: create_opportunity name=%s",
+            e.response.status_code, name,
+        )
+        return None
+    except Exception as e:
+        logger.error("CRM bridge error: create_opportunity name=%s: %s", name, e)
+        return None
+
+
 async def health() -> bool:
     """Check if the Bedrock API is reachable."""
     try:

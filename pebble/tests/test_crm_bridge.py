@@ -105,7 +105,7 @@ class TestToolSchemas:
         assert len(CRM_TOOLS) == 5
 
     def test_write_tools_count(self):
-        assert len(CRM_WRITE_TOOLS) == 2
+        assert len(CRM_WRITE_TOOLS) == 3
 
     def test_all_tools_have_required_fields(self):
         for tool in CRM_TOOLS + CRM_WRITE_TOOLS:
