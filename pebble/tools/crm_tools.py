@@ -10,6 +10,8 @@ import json
 import logging
 from typing import Any
 
+from .duplicate_check import check_for_duplicates
+
 logger = logging.getLogger("pebble.tools.crm_tools")
 
 # ---------------------------------------------------------------------------
@@ -167,6 +169,13 @@ CRM_WRITE_TOOLS: list[dict[str, Any]] = [
                     "type": "string",
                     "description": "Industry (e.g., 'Technology', 'Finance', 'Nonprofit')",
                 },
+                "_confirmed": {
+                    "type": "boolean",
+                    "description": (
+                        "Set to true only after presenting duplicate matches to the "
+                        "user and receiving explicit confirmation to proceed."
+                    ),
+                },
             },
             "required": ["name"],
         },
@@ -201,8 +210,56 @@ CRM_WRITE_TOOLS: list[dict[str, Any]] = [
                     "type": "string",
                     "description": "Email address (optional)",
                 },
+                "_confirmed": {
+                    "type": "boolean",
+                    "description": (
+                        "Set to true only after presenting duplicate matches to the "
+                        "user and receiving explicit confirmation to proceed."
+                    ),
+                },
             },
             "required": ["first_name", "last_name"],
+        },
+    },
+    {
+        "name": "crm_create_opportunity",
+        "description": (
+            "Create a new opportunity (deal/grant) in Salesforce. "
+            "Only call AFTER the user explicitly confirms they want to create this record. "
+            "Returns the new Salesforce record ID on success."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Opportunity name (required)",
+                },
+                "account_id": {
+                    "type": "string",
+                    "description": "Salesforce Account ID to associate with (optional)",
+                },
+                "amount": {
+                    "type": "number",
+                    "description": "Opportunity amount in USD (optional)",
+                },
+                "stage": {
+                    "type": "string",
+                    "description": "Stage name (e.g., 'Prospecting', 'Qualified', 'Closed Won')",
+                },
+                "close_date": {
+                    "type": "string",
+                    "description": "Expected close date in YYYY-MM-DD format (optional)",
+                },
+                "_confirmed": {
+                    "type": "boolean",
+                    "description": (
+                        "Set to true only after presenting duplicate matches to the "
+                        "user and receiving explicit confirmation to proceed."
+                    ),
+                },
+            },
+            "required": ["name"],
         },
     },
 ]
@@ -232,6 +289,37 @@ async def execute_tool(
     # Write tools require explicit permission (defense-in-depth)
     if tool_name.startswith("crm_create_") and not _check_write_permission(user_permissions):
         return json.dumps({"error": "CRM write access denied."})
+
+    # Payment block (defense-in-depth — tool not in schema, but guard the dispatch)
+    if tool_name == "crm_create_payment":
+        return json.dumps({
+            "error": "Payment creation is not available. "
+            "Payments are admin-only and managed through Sage integration."
+        })
+
+    # Duplicate check for crm_create_* tools (unless user already confirmed)
+    if tool_name.startswith("crm_create_") and not tool_input.get("_confirmed"):
+        entity_map = {
+            "crm_create_account": "account",
+            "crm_create_contact": "contact",
+            "crm_create_opportunity": "opportunity",
+        }
+        entity_type = entity_map.get(tool_name)
+        if entity_type:
+            duplicates = await check_for_duplicates(
+                entity_type, tool_input, crm_bridge,
+            )
+            if duplicates:
+                return json.dumps({
+                    "duplicate_warning": True,
+                    "existing_records": duplicates,
+                    "message": (
+                        f"Found {len(duplicates)} existing {entity_type} record(s) "
+                        f"that may match. Present these to the user and ask if they "
+                        f"still want to create a new record. If confirmed, re-call "
+                        f"this tool with _confirmed set to true."
+                    ),
+                }, default=str)
 
     try:
         result = await _dispatch(tool_name, tool_input, crm_bridge)
@@ -285,6 +373,15 @@ async def _dispatch(tool_name: str, tool_input: dict, crm_bridge) -> Any:
             account_id=tool_input.get("account_id"),
             title=tool_input.get("title", ""),
             email=tool_input.get("email", ""),
+        )
+
+    if tool_name == "crm_create_opportunity":
+        return await crm_bridge.create_opportunity(
+            name=tool_input.get("name", ""),
+            account_id=tool_input.get("account_id", ""),
+            amount=tool_input.get("amount"),
+            stage=tool_input.get("stage", ""),
+            close_date=tool_input.get("close_date", ""),
         )
 
     raise ValueError(f"Unknown tool: {tool_name}")

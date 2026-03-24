@@ -293,7 +293,7 @@ class TestWritePermissionGating:
 
     @pytest.mark.asyncio
     async def test_write_tools_included_with_permission(self):
-        """user_permissions={"crm_write": True} -> 7 tools (5 read + 2 write)."""
+        """user_permissions={"crm_write": True} -> 8 tools (5 read + 3 write)."""
         route = _make_route()
         client = MagicMock()
         client.complete_with_tools = MagicMock(
@@ -309,11 +309,12 @@ class TestWritePermissionGating:
 
         call_kwargs = client.complete_with_tools.call_args
         tools_passed = call_kwargs.kwargs.get("tools") or call_kwargs[0][3]
-        assert len(tools_passed) == 7
+        assert len(tools_passed) == 8
         assert tools_passed == CRM_TOOLS + CRM_WRITE_TOOLS
         tool_names = {t["name"] for t in tools_passed}
         assert "crm_create_account" in tool_names
         assert "crm_create_contact" in tool_names
+        assert "crm_create_opportunity" in tool_names
 
     @pytest.mark.asyncio
     async def test_system_prompt_includes_write_guidelines(self):

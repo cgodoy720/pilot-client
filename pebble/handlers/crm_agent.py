@@ -55,13 +55,31 @@ and ask the user to clarify.
 _CRM_AGENT_WRITE_GUIDELINES = """
 
 WRITE GUIDELINES:
-- You have tools to create accounts and contacts in Salesforce.
+- You have tools to create accounts, contacts, and opportunities in Salesforce.
 - NEVER create a record without explicit user confirmation.
 - Before creating, describe exactly what will be saved and ask: "Shall I save this to Salesforce?"
 - Only proceed when the user clearly confirms ("yes", "go ahead", "do it", etc.).
 - If the user declines ("no", "skip", "nevermind"), acknowledge and move on.
-- After creating a record, report the Salesforce record ID.
-- You can search first to check for duplicates before offering to create.
+
+DUPLICATE DETECTION (automatic):
+- When you call any create tool, the system automatically checks for existing records.
+- If duplicates are found, the tool returns a duplicate_warning with existing_records.
+- When you receive a duplicate_warning: present the existing records to the user, \
+explain what was found, and ask if they still want to create a new record.
+- If the user confirms despite duplicates, re-call the SAME create tool with \
+_confirmed set to true. This bypasses the duplicate check.
+- The system is fiscal-year-aware for opportunities: "FY25 - Robin Hood" and \
+"FY26 - Robin Hood" are treated as renewals, not duplicates. The system handles \
+this automatically — you do not need to check fiscal years yourself.
+
+OPPORTUNITY CREATION:
+- Use crm_create_opportunity with: name (required), account_id, amount, stage, close_date.
+- Always search for the account first to get the account_id.
+
+PAYMENT RECORDS:
+- NEVER attempt to create payment records. Payment creation is blocked by the system.
+- Payments are admin-only and managed through Sage integration.
+- If asked about payments, explain they cannot be created through Pebble.
 """
 
 _CRM_AGENT_READ_ONLY_NOTE = """
