@@ -19,7 +19,7 @@ Bedrock and Pebble exist to change that.
 
 **Bedrock** is Pursuit's fundraising command center. One place where every funder, every opportunity, every dollar, and every deadline lives — so nothing falls through the cracks. It connects to Salesforce so data entered once appears everywhere. (Integration with Sage Intacct, Slack, and other tools coming soon.)
 
-**Pebble** is an AI research assistant that lives inside Bedrock. Give it a name and organization, and it builds a sourced profile in under 30 seconds — pulling from public records, SEC filings, nonprofit databases, and news — so you walk into every meeting prepared.
+**Pebble** is an AI research assistant that lives inside Bedrock. Ask it a quick CRM question and get an instant answer, or give it a name and organization and it builds a sourced profile in under 30 seconds — pulling from public records, SEC filings, nonprofit databases, and news — so you walk into every meeting prepared.
 
 *Bedrock organizes what you know. Pebble discovers what you don't.*
 
@@ -91,12 +91,13 @@ When you edit an opportunity or create a task in Bedrock, those changes save bac
 - Grant requirements capture (track what funders require: reporting schedules, metrics, outcomes)
 - Sage Intacct invoice creation from Bedrock
 - Gmail activity integration
+- Ask Pebble — a conversational chat for instant CRM questions and tiered prospect research (quick check → structured intel → full brief)
 
 ### On the Roadmap
 *(Planned, not yet started)*
 
 - AI portfolio recommendations (who should own which opportunities based on all available context)
-- Pebble bulk research and auto-categorization
+- Pebble bulk research with tiered review (quick-check hundreds, deep-research the best fits, auto-categorize the winners)
 - Pebble warm intro paths (who on our team knows this prospect?)
 - Live Pebble assistant (proactive research and recommendations)
 - Kanban drag-and-drop pipeline view
@@ -171,7 +172,7 @@ Bedrock exists to do five things: know who we're talking to and why, track every
 Over the next 6 weeks, we'll measure progress in sprints — from first login to daily use to Pebble integration. The measurable targets: Bedrock as the primary pipeline tool, at least one retired spreadsheet, and pipeline meetings run from the Dashboard.
 
 **Coming over time:**
-- Pebble evolves from single-contact research to bulk research with auto-categorization to a live assistant that recommends actions
+- Pebble evolves from single-contact research to a conversational CRM intelligence tool — ask a quick question or run deep research — then to bulk research with auto-categorization, and finally to a live assistant that recommends actions
 - AI portfolio intelligence: recommendations for who should own which opportunities based on relationship history, workload, and funder fit
 - Bedrock merges into Pursuit's unified AI-native learning platform — one login, one system
 

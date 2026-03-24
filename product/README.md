@@ -3,6 +3,8 @@
 ## Level 0 — Orientation
 - [Overview](overview.md) — Vision, Bedrock, long-term platform
 - [Scope Constitution](crm-scope-constitution.md) — What's in/out
+- [Onboarding PRD](ONBOARDINGPRD.md) — What Bedrock & Pebble do for the team
+- [Onboarding Addendum](ONBOARDING-ADDENDUM.md) — Vision, Pebble evolution, sprint plan
 
 ## Level 1 — Architecture
 - [Entity Map](crm-architecture/entity-map.md)
@@ -12,6 +14,7 @@
 
 ## Level 2 — Specs
 - [PRD Index](crm-prds/README.md)
+- [Ask Pebble Spec](crm-prds/ask-pebble-spec.md)
 - [Phase Specs](fundraising-team/phases/)
 - [Prospect Dashboard](fundraising-team/raw-prds/prospect-dashboard/)
 

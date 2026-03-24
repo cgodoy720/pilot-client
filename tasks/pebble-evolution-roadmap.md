@@ -8,6 +8,11 @@ Tested Pebble on "Jukay Hsu" — it missed that he's no longer CEO of Pursuit, h
 
 > **Self-Service Rollout Pre-Requisite (2026-03-23):** Before opening Pebble to team self-service, add Pebble-specific permissions to the Settings page (`use_pebble_research`, `pebble_daily_limit`). The existing $0.50/prospect budget cap protects per-query costs, but no per-user limits exist. A new user could run dozens of research queries before anyone notices. Gate the `/pebble` nav item and API endpoints behind the new permission. Target: implement before Sprint 3 of the team rollout (Week 5-6). See also `product/crm-architecture/feature-register.md` F18.
 
+## Related Plans
+- **Ask Pebble Design Spec:** `product/crm-prds/ask-pebble-spec.md` — Conversational chat interface with tiered query routing (L0/L1 + T1-T4). The interaction layer that sits on top of this evolution roadmap. Design approved 2026-03-23.
+- **Onboarding PRD:** `product/ONBOARDINGPRD.md` — Team-facing description of Pebble capabilities and rollout plan.
+- **Onboarding Addendum:** `product/ONBOARDING-ADDENDUM.md` — Vision, 4-stage roadmap, bounded autonomy, sprint plan.
+
 ---
 
 ## STAGE 1: Research Quality + UX Foundation
@@ -90,6 +95,8 @@ Tested Pebble on "Jukay Hsu" — it missed that he's no longer CEO of Pursuit, h
 - New file `pebble/data_sources/bedrock_client.py` — `BedrockClient` with `find_contact(first, last, email)`, `get_contact_opportunities(id)`, `get_contact_giving_history(id)`, `get_account_by_name(name)`
 - `simple_server.py` (Bedrock) — add `GET /api/salesforce/contacts/lookup?first_name=&last_name=&email=` and `GET /api/salesforce/contacts/{id}/giving-history`
 
+> This bridge is also the foundation for Ask Pebble's CRM queries. L0 (CRM Lookup) and L1 (CRM Analysis) use the bridge for instant Salesforce lookups from the Pebble chat interface. The bridge uses an internal API key (`BEDROCK_INTERNAL_API_KEY`) for service-to-service auth and SOSL for cross-entity search. See `product/crm-prds/ask-pebble-spec.md`.
+
 ### 2B. Pre-Check: Don't Re-Research Existing Contacts
 
 **Changes**:
@@ -114,6 +121,8 @@ Tested Pebble on "Jukay Hsu" — it missed that he's no longer CEO of Pursuit, h
 - `useLinkedInContacts.ts` — migration: on mount, POST localStorage contacts to Pebble API, then clear
 - `Pebble.tsx` — LinkedIn import posts to Pebble API instead of localStorage
 
+> **T1 Enhancement (contingent on this stage):** Once LinkedIn data is server-side, T1 (ID & Triage) adds a lightweight "in-network check" — a query against `linkedin_contacts` returning team member connection count and names for the prospect. This enriches the T1 identity card without running full T4 network mapping. See `product/crm-prds/ask-pebble-spec.md` and `product/crm-prds/pebble-network-intro.md`.
+
 ### Stage 2 Verification
 1. Research a known Salesforce contact → "Already in Salesforce" badge + giving history
 2. Re-research recently researched contact → shows cached results with "Re-research" option
@@ -136,6 +145,8 @@ Tested Pebble on "Jukay Hsu" — it missed that he's no longer CEO of Pursuit, h
 - `pebble/main.py` — add `POST /api/v1/research/bulk` (returns job_id immediately), `GET /api/v1/research/jobs/{job_id}` (status), `GET /api/v1/research/jobs/{job_id}/stream` (SSE for real-time progress)
 - `Pebble.tsx` — bulk research UI: CSV upload → preview → start → progress bar with per-prospect status chips → categorized results table
 - `pebbleApi.ts` — add `startBulkResearch`, `getJobStatus`, `streamJobProgress` (EventSource)
+
+> The bulk pipeline uses a tiered approach: T1 (identity check, ~$0.005/prospect) → T2 (structured intelligence, ~$0.05/prospect) → T3 (full brief, ~$0.20-0.50/prospect), with human review gates between each tier. The user selects which prospects advance at each gate. "Run Pebble Research" button is replaced with "Start Tiered Research". Results render in a ProspectTierTable component with checkboxes, sort/filter, and "Advance Selected" buttons. See `product/crm-prds/ask-pebble-spec.md`.
 
 ### 3B. Fit Quorum (Is This Prospect Right for Pursuit?)
 
@@ -250,3 +261,4 @@ Tested Pebble on "Jukay Hsu" — it missed that he's no longer CEO of Pursuit, h
 - `product/crm-prds/README.md` — PRD #11 (Prospect Intelligence) is not yet written and should incorporate Pebble Stages 2-4 when drafted.
 - `tasks/pebble-stage1-issues.md` — Known issues and deferred items from Stage 1 testing.
 - `tasks/projects-salesforce-roadmap.md` — Pebble Stage 3 and Projects-Salesforce both create Salesforce Tasks; should share the Bedrock client API.
+- `product/crm-prds/ask-pebble-spec.md` — Ask Pebble design spec (chat interface, tiered routing, CRM bridge, orchestrator redesign, governance). Design approved 2026-03-23.

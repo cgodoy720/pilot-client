@@ -18,7 +18,7 @@
 | 6 | Google Calendar | Read only | Phase 2+ | Not started |
 | 7 | Claude API | Pebble uses Claude; Bedrock does not call Claude directly for research | Phase 2+ | Not started |
 | 8 | Learning Platform | Shared identity | Long-term | Architecture defined |
-| 9 | Pebble | Bedrock → Pebble (research requests, profiles, feedback) | Phase 2+ | Not started |
+| 9 | Pebble | Bidirectional (research + CRM bridge) | Phase 2+ | MVP live (research); CRM bridge designed, not started |
 
 ---
 
@@ -223,7 +223,7 @@ Pebble uses Claude; Bedrock does not call Claude directly for research. Claude i
 
 ### 9. Pebble (Phase 2+)
 
-**Direction:** Bedrock → Pebble (research requests, profiles, feedback)
+**Direction:** Bidirectional — Bedrock → Pebble (research requests, profiles, feedback) + Pebble → Bedrock (CRM queries via bridge API)
 
 **What flows:**
 
@@ -232,6 +232,9 @@ Pebble uses Claude; Bedrock does not call Claude directly for research. Claude i
 | Research requests | Bedrock (contact IDs) | Pebble `POST /api/v1/research/request` | Bedrock sends contact IDs; Pebble enriches, scores, generates profiles |
 | Research profiles | Pebble `GET /api/v1/research/profiles/{contact_id}` | Bedrock (display, store summary) | Profile JSON with claims, sources, confidence |
 | Human feedback | Bedrock (review UI) | Pebble `POST /api/v1/research/feedback` | claim_id, correct: bool — powers Pebble feedback loop |
+| CRM search queries | Pebble (`crm_bridge.py`) | Bedrock `GET /api/salesforce/search` (SOSL) + type-specific endpoints | Pebble queries Salesforce for instant CRM lookups (L0/L1) and multi-entity disambiguation |
+| Chat conversations | Pebble (SQLite `chat_messages` table) | — (not synced) | Chat persistence is Pebble-internal; Ask Pebble tab on Pebble page |
+| Batch research state | Pebble (SQLite `research_batches` + `batch_prospects`) | — (not synced) | Tiered batch workflow state (T1→T2→T3 advancement with review gates) |
 
 **Trigger:** User requests research for a contact; Bedrock calls Pebble. Feedback on user confirm/deny of claims.
 
@@ -241,7 +244,11 @@ Pebble uses Claude; Bedrock does not call Claude directly for research. Claude i
 
 **Current state (updated 2026-03-20):** MVP live. Pebble runs on port 8001 with 9 data sources (ProPublica 990, SEC EDGAR, FEC, USAspending, Wikipedia full article + infobox, OpenCorporates). Stage 1 additions: session history (`GET /api/v1/research/history`), text feedback with trends (`GET /api/v1/research/feedback/{contact_id}`), markdown export (`GET /api/v1/research/profiles/{id}/export`), cooperative job cancellation (`POST /api/v1/research/cancel`). See `tasks/pebble-evolution-roadmap.md` for Stages 2-4.
 
+Ask Pebble design approved 2026-03-23 (see `product/crm-prds/ask-pebble-spec.md`). New capabilities planned: tiered chat interface (L0/L1 CRM queries + T1-T3 research tiers), CRM bridge with SOSL cross-entity search for disambiguation, batch tiered research with ProspectTierTable UI, internal API key for service-to-service auth (`BEDROCK_INTERNAL_API_KEY`). Chat and batch state persist in Pebble's SQLite — not synced to Bedrock.
+
 **PII constraint:** Bedrock sends minimal context (contact_id, name, org). Pebble pulls 990/SEC/FEC etc. itself. PII never through OpenRouter or prompt-logging APIs; Pebble uses Anthropic direct + local Ollama.
+
+**Service-to-service auth:** Pebble → Bedrock uses internal API key (`BEDROCK_INTERNAL_API_KEY` env var, `X-Internal-Key` header) with `hmac.compare_digest` for timing-safe comparison. Falls back to user JWT auth if internal key is empty (dev mode). Applied only to CRM bridge endpoints, not all routes.
 
 ---
 

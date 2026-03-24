@@ -285,18 +285,18 @@ Updated: 2026-03-19 after CRM architecture docs, entity map, integration registe
 |-------|-------|
 | **Status** | Updated |
 | **Original severity** | Security |
-| **Current severity** | Low |
+| **Current severity** | Low (partially addressed) |
 
 **Original concern:** `home-page-spec.md §3.3` references "the org's Claude subscription" with no governance.
 
-**Current state (2026-03-19):**
+**Current state (2026-03-23):**
 - `integration-register.md` §7 clarifies scope: "Pebble uses Claude; Bedrock does not call Claude directly for research."
 - Pebble's architecture: Anthropic direct API + local Ollama. PII never through OpenRouter.
-- Budget, key ownership, rotation policy, and cost monitoring still undefined — but the scope is Pebble, not Bedrock directly.
+- Ask Pebble spec (`product/crm-prds/ask-pebble-spec.md`, 2026-03-23) now documents: tiered rate limiting (L0: 30/min, L1: 15/min, T1: 15/min, T2: 10/min, T3: 5/min), per-prospect budget cap ($0.50), progressive cost controls with human review gates, internal API key auth for CRM bridge, and JP-only access gate.
 
-**Remaining gap:** Pebble API governance (budget, key rotation, monitoring) is not documented.
+**Remaining gap:** Key rotation policy, cost monitoring dashboard, per-user daily/monthly budget caps, and alert thresholds are documented as requirements in the Ask Pebble spec's Governance section but not yet implemented. Target: before Sprint 3 self-service (Week 5-6).
 
-**Recommendation:** Document Pebble API governance as part of Pebble MVP stabilization.
+**Recommendation:** Implement governance controls from Ask Pebble spec before Sprint 3 self-service rollout.
 
 ---
 

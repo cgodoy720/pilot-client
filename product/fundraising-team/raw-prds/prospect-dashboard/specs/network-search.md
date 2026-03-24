@@ -92,6 +92,8 @@ Weights and tier mappings should be calibrated against real data in Phase 2.
 - "Add to Leads" — one click, pushes to [[leads-tracker]] with pre-filled data, source = "network search hit"
 - Batch operations: multi-select, bulk add to leads, export to CSV
 
+> **Note (2026-03-23):** The Phase 2/3 Pebble API additions below are superseded by the Ask Pebble tiered query design. Disambiguation is now handled by a multi-layer readiness gate (CRM multi-match → cross-entity → identity risk). Batch prospect research uses progressive tiers (T1 identity check → T2 structured intelligence → T3 full brief) with human review gates. See `product/crm-prds/ask-pebble-spec.md`.
+
 ## Phase 2 additions (Pebble API)
 
 - Natural-language prospect summary generation per match (Pebble API)

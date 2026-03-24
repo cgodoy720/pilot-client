@@ -48,6 +48,8 @@ This list is the most important part of this document. These items are **not** p
 | **Custom report *builder* (drag-and-drop, SQL)** | Over-engineered for team size; pre-built reports + basic filters are sufficient for MVP and likely long-term | Pre-built dashboards + CSV export |
 | **Real-time Slack conversations** (multi-turn, open-ended chatbot) | The Slack bot is a **structured parser**, not a chatbot — it parses one message into one proposed change with no multi-turn context | Slack bot handles parsing + in-thread confirmation (fast path); Bedrock Automation Review (see `home-page-spec.md` §3.4) handles unconfirmed proposals + automated sources from GCal, GDrive, email, transcripts |
 
+**Clarification — Ask Pebble:** The Pebble chat interface ("Ask Pebble") is a **domain-specific CRM intelligence tool**, not a general-purpose chatbot. It answers CRM data questions (contacts, accounts, opportunities, tasks) and orchestrates tiered prospect research within bounded costs. It explicitly redirects general AI tasks — drafting, analysis, scheduling, brainstorming — to Claude CoWork. This is distinct from the out-of-scope "Slack chatbot" pattern above. Ask Pebble serves **Core Job 1** (know who we're talking to and why) and **Core Job 3** (tell us what to do this week). See `product/crm-prds/ask-pebble-spec.md`.
+
 ### Boundary Rule
 
 If a proposed feature doesn't directly serve one of the 5 core jobs above, it requires explicit justification and sign-off before entering any phase other than Backlog.

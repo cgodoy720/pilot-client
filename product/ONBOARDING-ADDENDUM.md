@@ -49,10 +49,26 @@ Sourced profiles with confidence scoring, session history, human feedback, and m
 Pebble checks Salesforce before researching — if you already have a relationship with this person, Pebble tells you instead of starting from scratch. LinkedIn connections stored on the server (not just in your browser). Your own giving history enriches profiles.
 
 **Stage 3: Bulk Research + Categorization**
-Upload 100 prospect names. Pebble researches all of them, auto-categorizes each one (renewal candidate, warm intro available, insufficient giving capacity, cold prospect), and creates follow-up tasks in Salesforce for the best fits. The team reviews and acts on the recommendations.
+Upload 100 prospect names. Pebble runs a quick identity check on all of them — confirming who they are and flagging ambiguous matches. You review the results, select who's worth a deeper look, and Pebble runs structured research only on the ones you choose. The best fits get auto-categorized (renewal candidate, warm intro available, insufficient giving capacity, cold prospect), and follow-up tasks are created in Salesforce for the winners. No money wasted on the wrong person.
 
 **Stage 4: Live Assistant + Path Recommendations**
 Pebble runs proactively. New contact added? Auto-researched. Profile going stale? Flagged. Warm intro path available through your network? Surfaced before you ask. Pebble stops just reporting facts and starts recommending actions.
+
+### How You'll Talk to Pebble: Ask Pebble
+
+Today Pebble researches one prospect at a time. Ask Pebble changes that — it's a conversational interface where you type a question and Pebble decides how deep to go.
+
+**Three levels of depth:**
+
+- **Quick CRM answers** (free, instant) — "What's Jane Smith's title?" or "Show me open opportunities with Acme." Pebble checks Salesforce and responds in under a second. No AI cost.
+- **Structured research** (seconds, pennies) — "What's Jane's public giving look like?" Pebble pulls from public records, SEC filings, and nonprofit databases to build a structured profile across five dimensions: giving capacity, affiliations, board positions, wealth indicators, and comparable giving.
+- **Full research briefs** (minutes, modest cost) — "Run a full brief on Jane." Pebble runs its complete research pipeline — multiple AI agents cross-referencing sources, verifying claims, and producing a comprehensive profile with confidence ratings.
+
+**You're always in control.** Pebble never spends research budget without your say-so. It starts cheap, shows what it found, and asks if you want to go deeper. If you ask about "John Smith" and there are three in Salesforce, Pebble shows all three and asks you to pick — so it never researches the wrong person.
+
+**Pebble knows its lane.** Need to draft an email or brainstorm strategy? Pebble hands you off to CoWork, Pursuit's general AI workspace. Pebble stays focused on research and CRM intelligence — that's what it's built for.
+
+*For technical details, see the [Ask Pebble design spec](crm-prds/ask-pebble-spec.md).*
 
 ### How Pebble Works: Bounded Autonomy
 
@@ -62,7 +78,7 @@ Think of Pebble not as a single AI, but as a *team* of specialized researchers w
 - **Specialists** analyze patterns across multiple sources — wealth indicators, philanthropy signals, political connections
 - **A synthesizer** combines verified findings into a coherent profile with confidence ratings
 
-Where this is going: workers will collaborate with each other. One finds a board membership, another finds the organization's 990 filing, a third cross-references the giving history. They share findings, build on each other's work, and escalate to the manager when they're uncertain.
+Where this is going: workers organized into specialized clusters. A financial cluster cross-references political donations against nonprofit filings against federal awards. An affiliation cluster verifies board positions against Wikipedia entries against corporate registrations. Each cluster has a budget cap and time limit — they do their best within those bounds and flag anything uncertain for you to review.
 
 Every agent operates within boundaries. There's a budget cap per prospect ($0.50 today). Agents can't take new research directions without checking with the orchestrator first. If something looks promising but expensive, it escalates rather than exploring on its own.
 
@@ -176,3 +192,7 @@ Three 2-week sprints with measurable outcomes and decision gates.
 | **Claim** | A specific piece of information in a Pebble profile (e.g., "Board member of XYZ Foundation") with its source linked |
 | **Automation Review** | The queue where AI-proposed changes (from Slack, calendar, etc.) wait for human approval before being applied to Salesforce |
 | **Portfolio** | The set of opportunities a team member owns and manages |
+| **Ask Pebble** | The conversational interface for querying CRM data and requesting prospect research — from quick lookups to full research briefs. Lives on the Pebble page; eventually a floating assistant on every Bedrock page |
+| **CoWork** | Pursuit's Claude-powered AI workspace for drafting, analysis, and general tasks. Pebble handles research and CRM intelligence; CoWork handles everything else |
+| **Tiered Research** | Pebble's progressive approach — quick identity check (T1), structured intelligence across 5 dimensions (T2), full verified research brief (T3). Each tier requires your approval before spending |
+| **CRM Bridge** | The connection between Pebble and Bedrock that lets Pebble query Salesforce data directly for instant answers about contacts, accounts, and opportunities |

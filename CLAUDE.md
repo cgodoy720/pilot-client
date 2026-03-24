@@ -119,6 +119,9 @@ This project will integrate into the Pursuit AI-native learning platform. Keep t
 - **Data model:** `product/crm-architecture/entity-map.md`
 - **Feature inventory:** `product/crm-architecture/feature-register.md`
 - **PRD index:** `product/crm-prds/README.md` (14 PRDs, one per component)
+- **Onboarding PRD:** `product/ONBOARDINGPRD.md` — what Bedrock & Pebble do, team rollout guide
+- **Onboarding Addendum:** `product/ONBOARDING-ADDENDUM.md` — vision, Pebble evolution, sprint plan
+- **Ask Pebble spec:** `product/crm-prds/ask-pebble-spec.md` — tiered query router, chat interface, CRM bridge
 - **Phase specs:** `product/fundraising-team/phases/`
 - **Technical reference:** `product/reference/` (Sage, Salesforce, Slack setup)
 - **Architecture decisions:** `docs/architecture-decisions.md`

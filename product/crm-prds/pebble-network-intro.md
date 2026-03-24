@@ -1,6 +1,10 @@
 # Pebble Feature Spec — Network Intro Routing
 
 > Version: 0.1 | Status: **Future (blocked on learning platform integration)** | Date: 2026-03-19
+>
+> **Cross-reference (2026-03-23):** This feature maps to **Tier 4 (Network Intelligence)** in the Ask Pebble tiered query design. T4 runs full network mapping — ranked intro paths, shared contacts, connection strength. See `product/crm-prds/ask-pebble-spec.md`.
+>
+> **T1 Enhancement (contingent on Stage 2D):** Once LinkedIn data is server-side (Stage 2D of evolution roadmap), T1 (ID & Triage) will include a lightweight "in-network check" — a simple query against `linkedin_contacts` returning whether any team members are connected to the prospect and how many. This is NOT T4's full network mapping; it's a boolean enrichment to the identity card. T4 remains the tier for ranked intro paths, shared contacts, and connection strength analysis.
 
 ---
 
@@ -55,6 +59,7 @@ Pebble also needs to ingest the team's existing prospect research:
 | PRD #11 — Prospect Intelligence | Soft | Network search scoring, intelligence freshness infrastructure |
 | PRD #09 — Salesforce Migration | Soft | Contact data sync for dedup and enrichment |
 | Pebble MVP (current) | Prerequisite | HNWI research pipeline must be working |
+| Ask Pebble tiered design | Reference | T4 tier definition, T1 LinkedIn enhancement. See `product/crm-prds/ask-pebble-spec.md` |
 
 ---
 
