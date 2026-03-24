@@ -1,7 +1,7 @@
-"""Affiliation cluster — OpenCorporates, Wikipedia career, LDA, Federal Register.
+"""Affiliation cluster — OpenCorporates, Wikipedia career, LDA, FINRA, Federal Register.
 
 Focuses on organizational connections, board seats, officer positions,
-lobbying ties, and government relationships.
+lobbying ties, professional registrations, and government relationships.
 """
 
 from __future__ import annotations
@@ -33,18 +33,20 @@ async def run_affiliation_cluster(
 ) -> list[dict]:
     """Run the affiliation research cluster.
 
-    Sources: OpenCorporates, Wikipedia infobox/career, LDA, Federal Register.
+    Sources: OpenCorporates, Wikipedia infobox/career, LDA, FINRA, Federal Register.
     Also extracts connected_orgs from discovered board seats and officer positions.
 
     Returns list of claims.
     """
     from ..data_sources import search_officers, fetch_full_profile
     from ..data_sources.lda import search_lobbyists, search_filings as lda_search_filings
+    from ..data_sources.finra import search_individual
     from ..data_sources.federal_register import search_documents
     from ..claim_templates import (
         claims_from_opencorporates,
         claims_from_wikipedia_infobox,
         claims_from_lobbying,
+        claims_from_finra,
         claims_from_federal_register,
     )
 
@@ -87,6 +89,11 @@ async def run_affiliation_cluster(
         fr_limit = limits.get("federal_register", 10)
         tasks.append(asyncio.to_thread(search_documents, name, None, fr_limit))
         keys.append("federal_register_data")
+
+    # FINRA (professional affiliations — shares data with financial cluster)
+    if source_config.finra and not ctx.has_source("finra_data") and budget.can_call():
+        tasks.append(asyncio.to_thread(search_individual, name))
+        keys.append("finra_data")
 
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -141,6 +148,9 @@ async def run_affiliation_cluster(
     claims.extend(claims_from_federal_register(
         ctx.raw_data.get("federal_register_data"), person_name
     ))
+
+    # FINRA (professional registrations)
+    claims.extend(claims_from_finra(ctx.raw_data.get("finra_data"), person_name))
 
     # --- Extract connected orgs for Sprint 4 ---
     connected_orgs = _extract_connected_orgs(ctx)
