@@ -66,7 +66,6 @@ const PERMISSION_LABELS = {
   'page:performance': 'Performance',
   'page:pathfinder': 'Pathfinder',
   'page:assessment': 'Assessment',
-  'page:past_session': 'Past Session',
   'page:account': 'Account',
   'page:payment': 'Payment',
   'page:volunteering': 'Volunteering',

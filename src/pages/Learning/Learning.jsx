@@ -884,11 +884,12 @@ function Learning() {
 
     try {
       let receivedChunk = false;
-      const streamingMessageId = Date.now() + 1;
+      const now = Date.now();
+      const streamingMessageId = now + 1;
       const streamBuffer = createStreamBuffer();
       // Add user message to chat
       const userMessage = {
-        id: Date.now(),
+        id: now,
         content: trimmedMessage,
         sender: 'user',
         timestamp: new Date().toISOString(),
@@ -965,10 +966,17 @@ function Learning() {
               )
             );
           } else if (chunk.type === 'error') {
-            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
+            // Remove both the streaming placeholder and the optimistic user message
+            // since the backend rolls back the user message on AI failure
+            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId && msg.id !== userMessage.id));
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);
+            // Restore the user's message to the input for easy retry
+            const restoreContent = chunk.userContent || trimmedMessage;
+            if (restoreContent && textareaRef.current?.setValue) {
+              textareaRef.current.setValue(restoreContent);
+            }
             setError(chunk.error || 'Failed to send message. Please try again.');
           }
         },
@@ -1050,6 +1058,10 @@ function Learning() {
       }
       
       console.error('Error sending message:', error);
+      // Restore the user's message to the input for easy retry
+      if (textareaRef.current?.setValue) {
+        textareaRef.current.setValue(trimmedMessage);
+      }
       setError('An error occurred. Please try again.');
     } finally {
       // Only clear loading state if this request wasn't aborted

@@ -193,7 +193,7 @@ function GPT() {
   const [modalSummaryData, setModalSummaryData] = useState(null);
   
   // Model selection state
-  const [selectedModel, setSelectedModel] = useState('openai/gpt-5.2');
+  const [selectedModel, setSelectedModel] = useState('openai/gpt-5.4');
   
   // Input tray height for dynamic message container padding
   const [inputTrayHeight, setInputTrayHeight] = useState(180);
@@ -201,13 +201,12 @@ function GPT() {
   // Available LLM models - matches Learning page
   const LLM_MODELS = [
     { value: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6', description: 'Latest Claude model' },
-    { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
     { value: 'anthropic/claude-opus-4.6', label: 'Claude Opus 4.6', description: 'Most capable Claude' },
-    { value: 'openai/gpt-5.2', label: 'GPT 5.2', description: 'Latest GPT model' },
-    { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', description: 'Advanced reasoning' },
+    { value: 'openai/gpt-5.4', label: 'GPT 5.4', description: 'Latest GPT model' },
+    { value: 'google/gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', description: 'Advanced reasoning' },
     { value: 'x-ai/grok-4', label: 'Grok 4', description: 'Fast reasoning' },
     { value: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Advanced model' },
-    { value: 'minimax/minimax-m2.5', label: 'Minimax M2.5', description: 'Versatile model' },
+    { value: 'minimax/minimax-m2.7', label: 'Minimax M2.7', description: 'Versatile model' },
     { value: 'deepseek/deepseek-v3.2', label: 'Deepseek V3.2', description: 'Code specialist' }
   ];
   
