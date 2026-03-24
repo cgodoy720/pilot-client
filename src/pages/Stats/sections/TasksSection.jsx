@@ -50,15 +50,15 @@ const TasksSection = ({ tasks = [] }) => {
     setStatusFilter(event.target.value);
   };
 
-  // Handle task click - navigate to past session
+  // Handle task click - navigate to learning page
   const handleTaskClick = (task) => {
     console.log('Navigating to task:', task);
     
     // Check if we have day_id or day_number
     if (task.day_id) {
-      navigate(`/past-session?dayId=${task.day_id}`);
+      navigate(`/learning?dayId=${task.day_id}`);
     } else if (task.day_number) {
-      navigate(`/past-session?dayNumber=${task.day_number}`);
+      navigate(`/learning?dayNumber=${task.day_number}`);
     } else {
       console.error('No day_id or day_number found for this task');
     }
