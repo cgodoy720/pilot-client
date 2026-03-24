@@ -55,6 +55,24 @@ const useAuthStore = create(
         return currentUser;
       },
 
+      // Internal action: fetch fresh core user fields from server
+      _fetchAndSetUserFields: async (currentToken, currentUser) => {
+        if (!currentToken || !currentUser) return currentUser;
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/users/me`,
+            { headers: { Authorization: `Bearer ${currentToken}` } }
+          );
+          if (response.ok) {
+            const freshFields = await response.json();
+            return { ...currentUser, ...freshFields };
+          }
+        } catch (error) {
+          console.error('Error fetching current user fields:', error);
+        }
+        return currentUser;
+      },
+
       // Actions
       login: async (email, password) => {
         const { _fetchAndSetPermissions } = get();
@@ -192,14 +210,23 @@ const useAuthStore = create(
             storeSet({ isAuthenticated: true });
             localStorage.setItem('token', token);
 
-            // Fetch permissions in the background
-            const { _fetchAndSetPermissions } = storeGet();
-            _fetchAndSetPermissions(token, user)
-              .then((userWithPerms) => {
-                storeSet({ user: userWithPerms });
+            // Fetch fresh user fields and permissions in parallel (background, non-blocking)
+            const { _fetchAndSetPermissions, _fetchAndSetUserFields } = storeGet();
+            Promise.all([
+              _fetchAndSetUserFields(token, user),
+              _fetchAndSetPermissions(token, user),
+            ])
+              .then(([userWithFields, userWithPerms]) => {
+                const mergedUser = {
+                  ...user,
+                  ...userWithFields,
+                  effectivePermissions: userWithPerms.effectivePermissions,
+                  customPermissions: userWithPerms.customPermissions,
+                };
+                storeSet({ user: mergedUser });
               })
               .catch((err) => {
-                console.error('Error fetching permissions on rehydration:', err);
+                console.error('Error refreshing user data on rehydration:', err);
               });
           }
         }
