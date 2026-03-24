@@ -27,4 +27,4 @@ jobs:
             Review this pull request for code quality, correctness, security,
             and performance. Analyze the diff thoroughly. Post your findings
             as review comments. Flag any breaking changes or regressions.
-          claude_args: "--model claude-sonnet-4-6 --max-turns 5"
+          claude_args: "--model claude-sonnet-4-6 --max-turns 10 --allowedTools Bash,Read,Glob,Grep,WebSearch"
