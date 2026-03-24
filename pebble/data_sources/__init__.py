@@ -13,7 +13,7 @@ from .opencorporates import search_officers
 from .lda import search_lobbyists as lda_search_lobbyists
 from .lda import search_filings as lda_search_filings
 from .lda import search_contributions as lda_search_contributions
-from .finra import search_individual, search_firm
+from .finra import search_individual, search_firm, get_broker_detail
 from .federal_register import search_documents as search_federal_register
 
 __all__ = [
@@ -37,6 +37,7 @@ __all__ = [
     "lda_search_contributions",
     "search_individual",
     "search_firm",
+    "get_broker_detail",
     "search_federal_register",
     "download_990_xml",
     "parse_officers_from_xml",
