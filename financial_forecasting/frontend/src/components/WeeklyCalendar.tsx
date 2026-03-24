@@ -83,7 +83,7 @@ const VIEW_DAYS: Record<CalendarViewMode, number> = {
 };
 
 const DEFAULT_SOURCES: CalendarSource[] = [
-  { id: 'gcal-pbd', label: 'PBD Calendar', type: 'gcal', color: '#1976d2' },
+  { id: 'gcal-pbd', label: 'PBD Calendar', type: 'gcal', color: '#7b1fa2' },
   { id: 'sf-tasks', label: 'Salesforce Tasks', type: 'task', color: '#ed6c02' },
 ];
 
@@ -118,7 +118,7 @@ function formatTime(dateStr: string): string {
 }
 
 // Time-axis constants
-const DAY_START = 7;  // 7 AM
+const DAY_START = 8;  // 8 AM
 const DAY_END = 20;   // 8 PM
 const HOURS = Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => DAY_START + i);
 
@@ -143,6 +143,72 @@ function formatHourLabel(hour: number): string {
   if (hour < 12) return `${hour} AM`;
   if (hour === 12) return '12 PM';
   return `${hour - 12} PM`;
+}
+
+/** Lay out overlapping meetings into side-by-side columns (like GCal). */
+interface MeetingLayout {
+  event: CalendarEvent;
+  column: number;
+  totalColumns: number;
+  top: number;
+  height: number;
+}
+
+function layoutMeetings(meetings: CalendarEvent[]): MeetingLayout[] {
+  if (meetings.length === 0) return [];
+
+  // Compute position for each meeting (already sorted by start time)
+  const items = meetings.map((ev) => ({
+    event: ev,
+    top: getTimeTop(ev.start),
+    bottom: getTimeTop(ev.start) + getEventHeight(ev.start, ev.end),
+    height: getEventHeight(ev.start, ev.end),
+    column: 0,
+  }));
+
+  // Greedily assign each meeting to the leftmost column where it fits
+  const colEnds: number[] = [];
+  for (const item of items) {
+    let col = colEnds.findIndex((end) => end <= item.top + 0.1);
+    if (col === -1) {
+      col = colEnds.length;
+      colEnds.push(0);
+    }
+    colEnds[col] = item.bottom;
+    item.column = col;
+  }
+
+  // Group overlapping meetings so each group gets its own column count
+  const groups: number[][] = [];
+  let cur: number[] = [];
+  let groupBottom = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    if (cur.length === 0 || items[i].top < groupBottom - 0.1) {
+      cur.push(i);
+      groupBottom = Math.max(groupBottom, items[i].bottom);
+    } else {
+      groups.push(cur);
+      cur = [i];
+      groupBottom = items[i].bottom;
+    }
+  }
+  if (cur.length > 0) groups.push(cur);
+
+  const result: MeetingLayout[] = items.map((it) => ({
+    event: it.event,
+    column: it.column,
+    totalColumns: 1,
+    top: it.top,
+    height: it.height,
+  }));
+
+  for (const group of groups) {
+    const totalCols = Math.max(...group.map((i) => items[i].column)) + 1;
+    for (const i of group) result[i].totalColumns = totalCols;
+  }
+
+  return result;
 }
 
 const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
@@ -234,11 +300,11 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
   const minGridWidth = GUTTER_WIDTH + days.length * MIN_COL_WIDTH;
   const gridCols = `${GUTTER_WIDTH}px repeat(${days.length}, minmax(${MIN_COL_WIDTH}px, 1fr))`;
 
-  // Group events by day, split into meetings (gcal) and tasks
+  // Group events by day, split into timed meetings, all-day meetings, and tasks
   const eventsByDay = useMemo(() => {
-    const map = new Map<string, { meetings: CalendarEvent[]; tasks: CalendarEvent[] }>();
+    const map = new Map<string, { meetings: CalendarEvent[]; allDayMeetings: CalendarEvent[]; tasks: CalendarEvent[] }>();
     for (const day of days) {
-      map.set(format(day, 'yyyy-MM-dd'), { meetings: [], tasks: [] });
+      map.set(format(day, 'yyyy-MM-dd'), { meetings: [], allDayMeetings: [], tasks: [] });
     }
     for (const ev of filteredEvents) {
       if (!ev.start) continue;
@@ -248,8 +314,14 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
           if (isSameDay(evDate, day)) {
             const entry = map.get(format(day, 'yyyy-MM-dd'));
             if (entry) {
-              if (ev.type === 'task') entry.tasks.push(ev);
-              else entry.meetings.push(ev);
+              if (ev.type === 'task') {
+                entry.tasks.push(ev);
+              } else if (!ev.start.includes('T')) {
+                // Date-only start = all-day event
+                entry.allDayMeetings.push(ev);
+              } else {
+                entry.meetings.push(ev);
+              }
             }
             break;
           }
@@ -409,7 +481,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             })}
           </Box>
 
-          {/* All-day row: tasks (below day headers for alignment) */}
+          {/* All-day row: tasks */}
           {(() => {
             const allDayTasks = days.map((day) => {
               const key = format(day, 'yyyy-MM-dd');
@@ -492,6 +564,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                                 sx={{
                                   fontSize: '0.7rem',
                                   lineHeight: 1.2,
+                                  minWidth: 0,
                                   textDecoration: isCompleted ? 'line-through' : 'none',
                                   color: isCompleted ? 'text.secondary' : 'text.primary',
                                 }}
@@ -502,6 +575,86 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                           </Tooltip>
                         );
                       })}
+                    </Box>
+                  );
+                })}
+              </Box>
+            );
+          })()}
+
+          {/* All-day row: GCal all-day events (below tasks, above time grid) */}
+          {(() => {
+            const allDayMeetings = days.map((day) => {
+              const key = format(day, 'yyyy-MM-dd');
+              return eventsByDay.get(key)?.allDayMeetings || [];
+            });
+            const hasAny = allDayMeetings.some((m) => m.length > 0);
+            if (!hasAny) return null;
+            return (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: gridCols,
+                  minWidth: minGridWidth,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CalendarCheckIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                </Box>
+                {days.map((day, di) => {
+                  const key = format(day, 'yyyy-MM-dd');
+                  const meetings = eventsByDay.get(key)?.allDayMeetings || [];
+                  return (
+                    <Box
+                      key={key}
+                      sx={{
+                        px: 0.25,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0.25,
+                        py: 0.25,
+                        borderLeft: di > 0 ? '1px solid' : 'none',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      {meetings.map((ev, i) => (
+                        <Tooltip key={ev.id + i} title={ev.summary} placement="top" arrow>
+                          <Box
+                            onClick={(e) => {
+                              setSelectedEvent(ev);
+                              setEventAnchorEl(e.currentTarget as HTMLElement);
+                            }}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              px: 0.5,
+                              py: 0.25,
+                              borderRadius: 1,
+                              bgcolor: `${meetingColor}20`,
+                              cursor: 'pointer',
+                              overflow: 'hidden',
+                              '&:hover': { bgcolor: `${meetingColor}35` },
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              noWrap
+                              sx={{
+                                fontSize: '0.7rem',
+                                lineHeight: 1.2,
+                                minWidth: 0,
+                                fontWeight: 500,
+                                color: meetingColor,
+                              }}
+                            >
+                              {truncate(ev.summary, taskTruncLen)}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      ))}
                     </Box>
                   );
                 })}
@@ -598,10 +751,11 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                     />
                   )}
 
-                  {/* Meeting blocks */}
-                  {meetings.map((ev, i) => {
-                    const top = getTimeTop(ev.start);
-                    const height = getEventHeight(ev.start, ev.end);
+                  {/* Meeting blocks — side-by-side when overlapping */}
+                  {layoutMeetings(meetings).map((layout, i) => {
+                    const { event: ev, column, totalColumns, top, height } = layout;
+                    const colWidth = 100 / totalColumns;
+                    const leftPct = column * colWidth;
                     const time = formatTime(ev.start);
                     const endTime = ev.end ? formatTime(ev.end) : '';
                     const attendeeCount = (ev.attendees || []).length;
@@ -617,8 +771,8 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                           position: 'absolute',
                           top: `${top}%`,
                           height: `${height}%`,
-                          left: 2,
-                          right: 2,
+                          left: `calc(${leftPct}% + 1px)`,
+                          width: `calc(${colWidth}% - 2px)`,
                           bgcolor: `${meetingColor}18`,
                           borderLeft: `3px solid ${meetingColor}`,
                           borderRadius: 0.5,
@@ -632,15 +786,15 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
                         <Typography
                           variant="caption"
                           noWrap
-                          sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.3, display: 'block' }}
+                          sx={{ fontSize: '0.7rem', fontWeight: 600, lineHeight: 1.3, display: 'block', minWidth: 0 }}
                         >
                           {truncate(ev.summary, titleTruncLen)}
                         </Typography>
-                        <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1 }}>
+                        <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', lineHeight: 1, display: 'block', minWidth: 0 }}>
                           {time}{endTime ? ` – ${endTime}` : ''}
                         </Typography>
                         {viewMode === 'day' && attendeeCount > 0 && (
-                          <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
+                          <Typography variant="caption" noWrap sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block', minWidth: 0 }}>
                             {(ev.attendees || []).map((a: any) => a.name || a.email).filter(Boolean).slice(0, 3).join(', ')}
                             {attendeeCount > 3 ? ` +${attendeeCount - 3}` : ''}
                           </Typography>

@@ -35,7 +35,7 @@ from forecasting_engine import ForecastingEngine
 from data_sync import DataSyncService
 from db import init_db, close_db, get_db
 from routes.projects import router as projects_router
-from routes.auth import router as auth_router
+from routes.auth import router as auth_router, get_google_credentials, PBD_CALENDAR_ID
 from routes.sf_dependencies import router as sf_deps_router
 from routes.permissions import router as permissions_router, opp_router as opp_lock_router, check_permission, check_permission_or_internal, resolve_task_lock
 from routes.opportunities_extra import router as opp_extra_router
@@ -791,44 +791,84 @@ async def duplicate_task(
 
 @app.get("/api/calendar/my-events")
 async def get_my_calendar_events(
+    request: Request,
     start: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(100, le=200),
-    calendar_id: str = Query("primary", description="Calendar ID (default: primary)"),
+    calendar_id: Optional[str] = Query(None, description="Calendar ID"),
     user=Depends(require_auth),
 ):
-    """Get Google Calendar events in a date range. Supports shared calendars via calendar_id."""
-    client = _services.get("mcp_client")
-    cal_service = client.services.get("google_calendar") if client else None
-    if not cal_service or not cal_service.is_authenticated:
-        return ApiResponse(
-            success=True,
-            data=[],
-            meta={"message": "Calendar not connected"},
-        )
+    """Get Google Calendar events from the PBD shared calendar using per-user OAuth credentials."""
+    # Restrict to PBD calendar only
+    if not calendar_id or calendar_id == "primary" or calendar_id != PBD_CALENDAR_ID:
+        return {"data": [], "total": 0, "message": "Only the PBD shared calendar is supported."}
 
     try:
-        from datetime import datetime as dt
+        email = user.get("email")
+        if not email:
+            return {"data": [], "total": 0, "error": "No email in user profile.", "needs_reauth": True}
 
-        days_back = 0
-        days_forward = 14
-        if start:
-            delta = dt.now() - dt.strptime(start, "%Y-%m-%d")
-            days_back = max(0, delta.days)
-        if end:
-            delta = dt.strptime(end, "%Y-%m-%d") - dt.now()
-            days_forward = max(1, delta.days)
+        creds = get_google_credentials(email, request)
+        if not creds:
+            return {
+                "data": [],
+                "total": 0,
+                "error": "Google tokens not available. Please re-login to grant Calendar access.",
+                "needs_reauth": True,
+            }
 
-        events = await cal_service.search_events(
-            query="",
-            days_back=days_back,
-            days_forward=days_forward,
-            max_results=limit,
-            calendar_id=calendar_id,
-        )
-        return ApiResponse(success=True, data=events, meta={"count": len(events)})
+        from googleapiclient.discovery import build
+
+        loop = asyncio.get_event_loop()
+
+        def _fetch_events():
+            service = build("calendar", "v3", credentials=creds)
+            params = {
+                "calendarId": calendar_id,
+                "maxResults": limit,
+                "singleEvents": True,
+                "orderBy": "startTime",
+            }
+            if start:
+                params["timeMin"] = start if "T" in start else f"{start}T00:00:00Z"
+            if end:
+                params["timeMax"] = end if "T" in end else f"{end}T23:59:59Z"
+            result = service.events().list(**params).execute()
+            return result.get("items", [])
+
+        raw_events = await loop.run_in_executor(None, _fetch_events)
+
+        events = []
+        for ev in raw_events:
+            s = ev.get("start", {})
+            e = ev.get("end", {})
+            events.append({
+                "id": ev.get("id"),
+                "summary": ev.get("summary", "(No title)"),
+                "start": s.get("dateTime") or s.get("date"),
+                "end": e.get("dateTime") or e.get("date"),
+                "attendees": [
+                    {"email": a.get("email"), "name": a.get("displayName"), "status": a.get("responseStatus")}
+                    for a in ev.get("attendees", [])
+                ],
+                "location": ev.get("location"),
+                "description": (ev.get("description") or "")[:300],
+                "status": ev.get("status"),
+            })
+
+        return {"data": events, "total": len(events)}
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error fetching calendar events: {e}")
+        logger.error(f"Calendar my-events error: {e}")
+        if "invalid_grant" in str(e).lower() or "token" in str(e).lower():
+            return {
+                "data": [],
+                "total": 0,
+                "error": "Calendar token expired. Please re-login.",
+                "needs_reauth": True,
+            }
         raise HTTPException(status_code=500, detail=str(e))
 
 

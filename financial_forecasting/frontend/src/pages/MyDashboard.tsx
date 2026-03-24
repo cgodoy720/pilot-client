@@ -337,8 +337,8 @@ function CalendarInboxSplit({
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CalendarIcon color="primary" sx={{ fontSize: 20 }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1.1rem', whiteSpace: 'nowrap' }}>Calendar</Typography>
-                    {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
-                    {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
+                    {gcalCount > 0 && <Chip label={`${gcalCount} events this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" />}
+                    {taskCount > 0 && <Chip label={`${taskCount} tasks due this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" variant="outlined" />}
                   </Box>
                 }
               />
@@ -738,10 +738,10 @@ const MyDashboard: React.FC = () => {
       });
     }
 
-    // SF Tasks — show tasks due within the visible calendar range (before that goes to Inbox OVERDUE)
+    // SF Tasks — only tasks due within the visible calendar date range
     for (const task of sfTasks) {
       if (!task.ActivityDate) continue;
-      if (task.ActivityDate < calStart) continue;
+      if (task.ActivityDate < calStart || task.ActivityDate > calEnd) continue;
       if (task.Status === 'Completed') continue;
       events.push({
         id: task.Id || `task-${events.length}`,
@@ -757,7 +757,7 @@ const MyDashboard: React.FC = () => {
     }
 
     return events;
-  }, [calEventsData, sfTasks, oppNameMap]);
+  }, [calEventsData, sfTasks, oppNameMap, calStart, calEnd]);
 
   const gcalCount = useMemo(() => calendarEvents.filter(e => e.type === 'gcal').length, [calendarEvents]);
   const taskCount = useMemo(() => calendarEvents.filter(e => e.type === 'task').length, [calendarEvents]);
@@ -972,8 +972,8 @@ const MyDashboard: React.FC = () => {
             badge={
               (gcalCount > 0 || taskCount > 0) ? (
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
-                  {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
-                  {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
+                  {gcalCount > 0 && <Chip label={`${gcalCount} events this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" />}
+                  {taskCount > 0 && <Chip label={`${taskCount} tasks due this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" variant="outlined" />}
                 </Box>
               ) : undefined
             }
@@ -1069,8 +1069,8 @@ const MyDashboard: React.FC = () => {
               badge={
                 (gcalCount > 0 || taskCount > 0) ? (
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
-                    {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
+                    {gcalCount > 0 && <Chip label={`${gcalCount} events this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" />}
+                    {taskCount > 0 && <Chip label={`${taskCount} tasks due this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" variant="outlined" />}
                   </Box>
                 ) : undefined
               }

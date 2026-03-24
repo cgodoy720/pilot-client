@@ -243,7 +243,7 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
     }
   );
 
-  const tasks: Task[] = tasksData?.tasks || [];
+  const tasks: Task[] = tasksData?.data || tasksData?.tasks || [];
 
   // Track which task was already auto-edited to prevent re-triggers
   const autoEditedRef = useRef<string | null>(null);
