@@ -1,9 +1,8 @@
 # Bedrock & Pebble: What We Built and What It Does for You
 
-> Version: 0.2 | Date: 2026-03-23 | Author: JP
->
-> A guide for the Pursuit fundraising team. No technical background required.
-> Feedback welcome — this is a living document.
+Version: 0.3 | Date: 2026-03-24 | Author: JP
+
+A guide for the Pursuit fundraising team. No technical background required. Feedback welcome — this is a living document.
 
 ---
 
@@ -17,7 +16,7 @@ Bedrock and Pebble exist to change that.
 
 ## What These Tools Are
 
-**Bedrock** is Pursuit's fundraising command center. One place where every funder, every opportunity, every dollar, and every deadline lives — so nothing falls through the cracks. It connects to Salesforce so data entered once appears everywhere. (Integration with Sage Intacct, Slack, and other tools coming soon.)
+**Bedrock** is Pursuit's fundraising command center — every funder, opportunity, dollar, and deadline in one place. It connects to Salesforce so data entered once appears everywhere.
 
 **Pebble** is an AI research assistant that lives inside Bedrock. Ask it a quick CRM question and get an instant answer, or give it a name and organization and it builds a sourced profile in under 30 seconds — pulling from public records, SEC filings, nonprofit databases, and news — so you walk into every meeting prepared.
 
@@ -30,8 +29,8 @@ Bedrock and Pebble exist to change that.
 ### For the Development Managers
 
 | What you can do | Status |
-|---|---|
-| See your weekly priorities — deadlines, tasks, calendar, goal progress — in one view | Working today |
+| :---- | :---- |
+| See your weekly priorities — deadlines, tasks, calendar, goal progress — in one view (filter by weighted or total) | Working today |
 | Edit opportunities directly — change stage, amount, close date, owner — and it saves to Salesforce instantly | Working today |
 | Create new opportunities, accounts, and contacts without opening Salesforce | Working today |
 | Create and complete tasks — assigned, dated, tracked — saves to Salesforce | Working today |
@@ -41,17 +40,17 @@ Bedrock and Pebble exist to change that.
 ### For the AI Jobs Institute PM
 
 | What you can do | Status |
-|---|---|
+| :---- | :---- |
 | Manage AI Jobs Institute projects with Gantt charts, Kanban boards, milestones, and task dependencies | Working today |
 | See how fundraising connects to your projects — view pipeline status for grants tied to your work | Working today |
 
 ### For the CEO
 
 | What you can do | Status |
-|---|---|
+| :---- | :---- |
 | See total pipeline, weighted pipeline, cash flow by quarter, and a stage funnel — in seconds | Working today |
 | Filter by team member to see who owns what — their portfolio, tasks, and deadlines | Working today |
-| Project the Dashboard during your existing pipeline meeting (no new meeting needed) | Recommended from Week 2 |
+| Project the Dashboard during your existing pipeline meeting (no new meeting needed) | Working today |
 | Create and assign tasks to track team commitments | Working today |
 
 ### For everyone
@@ -74,80 +73,88 @@ When you edit an opportunity or create a task in Bedrock, those changes save bac
 - Lead management (import CSV, track status and priority)
 - Project management (Gantt, Kanban, List, and Executive views with task dependencies)
 - Role-based permissions (different views for different roles)
+- Duplicate detection (automatic — when creating records through Pebble, it checks for existing matches and asks before creating duplicates; fiscal-year-aware for opportunity renewals)
 - Pebble prospect research *(demo only at launch — self-service after cost guardrails are added)*
 
 ### Coming Next
+
 *(Built or being built — unlocked after MVP rollout)*
 
-- Automation Review (Slack messages parsed into proposed CRM updates — approve or reject before writing to Salesforce)
+- Automation Review (Slack messages → proposed CRM updates → approve or reject)
 - Giving capacity scoring (prospect type inference + composite wealth score)
 - Invoice matching (link Sage invoices to Salesforce opportunities)
-- Network map (visualize LinkedIn and Salesforce connections)
+- Network map (LinkedIn and Salesforce connections visualized)
 - Cashflow detail views (deeper analysis beyond the dashboard summary)
-- Activity feeds per account (Slack messages, meeting notes, and email aggregated in one view)
-- Manual activity entry (log a call or meeting note directly in Bedrock)
+- Activity feeds per account (Slack, meeting notes, email — one view)
+- Manual activity entry (log a call or meeting note in Bedrock)
 - Stale deal flagging (auto-flag opportunities with no activity for 30+ days)
 - Decision audit trail (record why you pursued or passed on a prospect)
-- Grant requirements capture (track what funders require: reporting schedules, metrics, outcomes)
-- Sage Intacct invoice creation from Bedrock
+- Grant requirements capture (reporting schedules, metrics, funder obligations)
+- Sage Intacct invoice creation
 - Gmail activity integration
-- Ask Pebble — a conversational chat for instant CRM questions and tiered prospect research (quick check → structured intel → full brief)
+- Ask Pebble — conversational CRM intelligence: instant lookups, tiered research (quick check → structured intel → full brief), and record creation with built-in duplicate safeguards
 
 ### On the Roadmap
-*(Planned, not yet started)*
 
-- AI portfolio recommendations (who should own which opportunities based on all available context)
-- Pebble bulk research with tiered review (quick-check hundreds, deep-research the best fits, auto-categorize the winners)
+*(Planned, 1-3 weeks out)*
+
+- AI portfolio recommendations (who should own which opportunities, and why)
+- Pebble bulk research (quick-check hundreds → deep-research the best fits → auto-categorize)
 - Pebble warm intro paths (who on our team knows this prospect?)
-- Live Pebble assistant (proactive research and recommendations)
+- Live Pebble assistant (proactive research and action recommendations)
 - Kanban drag-and-drop pipeline view
-- Google Calendar sync
-- Duplicate detection
+- Google Calendar sync & Chrome extension for logging in GCal and Gmail
 - Concentration risk alerts
 
 ---
 
 ## How Bedrock Fits With Your Current Tools
 
-- **Salesforce:** When you edit an opportunity in Bedrock — change the stage, update the amount, reassign the owner — that change saves to Salesforce immediately. When you create a new contact or account, it appears in Salesforce. You're not maintaining two systems. You can still open Salesforce anytime.
-- **Sage Intacct:** Integration is in progress. Invoice matching and cashflow detail will be available after the initial rollout. Sage stays the accounting system of record.
-- **Slack:** Slack integration is being built. Soon you'll be able to post pipeline updates in Slack and Bedrock will capture them automatically, propose the change, and wait for your approval.
-- **Calendar & Fireflies:** Meeting data integration is being built. Once connected, Bedrock will show meeting notes and activity history per account.
+- **Salesforce:** Every edit in Bedrock saves to Salesforce immediately. You're not maintaining two systems. You can still open Salesforce anytime.
+- **Sage Intacct:** Invoice matching and cashflow detail coming after initial rollout. Sage stays the accounting system of record.
+- **Slack:** Coming soon — post pipeline updates in Slack and Bedrock captures them automatically, proposes the change, and waits for your approval.
+- **Calendar & Fireflies:** Coming soon — meeting notes and activity history per account.
 
 **What Bedrock replaces:** The spreadsheets. The tab-switching. The "ask someone who remembers" workflow.
 
-**What Bedrock does NOT replace:** Email, your judgment about relationships, Salesforce (it's still underneath), Sage (still the financial system of record).
+**What Bedrock does NOT replace:** Email, your judgment about relationships, Salesforce (it's still underneath; although we could migrate away eventually), Sage (still the financial system of record).
 
 ---
 
-## How You'll Be Introduced
+## Getting Started
 
 ### Pre-Launch
-JP seeds Bedrock with your actual Salesforce data — you'll see real opportunities, not a demo. Accounts created with correct roles. Navigation trimmed to essentials.
 
-### Week 1: "Your Week at a Glance"
-- 30-minute 1-on-1 walkthrough with JP (your screen, your data — not a slide deck)
-- Dev Managers start with the **Priorities** page
-- CEO starts with the **Dashboard** and **Priorities**
-- PM starts with the **Projects** page
-- No expectation to enter data this week. Just look and explore.
-- End of week: JP checks in via Slack — Did you open it? What couldn't you find? What would make you open it every morning?
+JP seeds Bedrock with your actual Salesforce data — you'll see real opportunities, not a demo. Accounts created with correct roles.
 
-### Week 2-3: "Start Using for One Workflow"
-- Dev Managers: edit an opportunity or create a task in Bedrock instead of opening Salesforce
-- CEO: Dashboard projected during the existing pipeline meeting
-- PM: Projects page in active daily use for AI Jobs Institute milestones
-- JP names one spreadsheet that can be retired
+### Day 1: Click Around and Try to Break Things
 
-### Week 4-5: "Meet Pebble" (Demo Only)
-- JP demos Pebble live on a real prospect the team recognizes
-- Team watches, asks questions, gives feedback — but does not self-service yet
-- Self-service comes after permission guardrails and cost controls are in place
+- Log in, explore every page, click everything
+- Dev Managers: check your top opportunities and tasks on the **Priorities** page
+- CEO: open the **Dashboard** and **Priorities** — do the numbers match your mental model?
+- PM: open the **Projects** page — does the AI Jobs Institute structure make sense?
+- If something looks wrong or confusing, screenshot it and send to JP on Slack
 
-### Week 6+: Expand
-- Additional pages unlocked (Automation Review, Giving Capacity, Cashflow, Network Map)
-- Pebble self-service access (with usage limits) once guardrails are ready
-- Weekly Slack check-ins continue. Every feature request gets a timeline — never "maybe later."
+### Day 2: Start Cleaning Up Your Opps and Tasks
+
+- Dev Managers: edit an opportunity — update a stage, fix a close date, reassign an owner
+- Create or complete a task in Bedrock instead of Salesforce
+- Flag any records that are stale, duplicated, or wrong — a bulk cleanup tool is coming ~1 week after rollout
+- CEO: project the Dashboard during your next pipeline meeting
+
+### Day 3: Review with JP
+
+- 15-minute check-in with JP (Slack or in person)
+- Walk through any ambiguous feedback, design questions, or "I expected X but got Y" moments
+- JP prioritizes fixes and feature requests from Day 1-2 feedback
+- Pebble demo on a real prospect the team recognizes (JP runs it, team watches and gives feedback)
+
+### After Day 3
+
+- Keep using Bedrock as your primary pipeline view
+- Bulk cleanup tool ships ~1 week after rollout
+- Pebble self-service access once cost guardrails are ready
+- JP stays on Slack — every feature request gets a timeline, never "maybe later"
 
 ---
 
@@ -167,13 +174,12 @@ Being honest about where things stand builds trust faster than overpromising.
 
 ## Where This Is Going
 
-Bedrock exists to do five things: know who we're talking to and why, track every dollar through its lifecycle, tell us what to do this week, show leadership where the money stands, and keep Salesforce and Sage as sources of truth.
-
-Over the next 6 weeks, we'll measure progress in sprints — from first login to daily use to Pebble integration. The measurable targets: Bedrock as the primary pipeline tool, at least one retired spreadsheet, and pipeline meetings run from the Dashboard.
+The near-term targets: Bedrock as the primary pipeline tool, at least one retired spreadsheet, and pipeline meetings run from the Dashboard.
 
 **Coming over time:**
-- Pebble evolves from single-contact research to a conversational CRM intelligence tool — ask a quick question or run deep research — then to bulk research with auto-categorization, and finally to a live assistant that recommends actions
-- AI portfolio intelligence: recommendations for who should own which opportunities based on relationship history, workload, and funder fit
+
+- Pebble evolves from single-contact research → conversational CRM intelligence → bulk research with auto-categorization → live assistant that recommends actions
+- AI portfolio intelligence: who should own which opportunities, based on relationship history, workload, and funder fit
 - Bedrock merges into Pursuit's unified AI-native learning platform — one login, one system
 
-*For the full vision, Pebble architecture, sprint plan with measurable success criteria, and glossary, see the [Addendum](ONBOARDING-ADDENDUM.md).*
+*For the full vision, Pebble architecture, and glossary, see the [Addendum](ONBOARDING-ADDENDUM.md).*
