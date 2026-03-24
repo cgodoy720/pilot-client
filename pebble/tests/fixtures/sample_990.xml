@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Return xmlns="http://www.irs.gov/efile" returnVersion="2022v5.0">
+  <ReturnData>
+    <IRS990>
+      <Form990PartVIISectionAGrp>
+        <PersonNm>JANE DOE</PersonNm>
+        <TitleTxt>Executive Director</TitleTxt>
+        <AverageHoursPerWeekRt>40.00</AverageHoursPerWeekRt>
+        <ReportableCompFromOrgAmt>250000</ReportableCompFromOrgAmt>
+        <OtherCompensationAmt>15000</OtherCompensationAmt>
+      </Form990PartVIISectionAGrp>
+      <Form990PartVIISectionAGrp>
+        <PersonNm>JOHN SMITH</PersonNm>
+        <TitleTxt>Board Chair</TitleTxt>
+        <AverageHoursPerWeekRt>2.00</AverageHoursPerWeekRt>
+        <ReportableCompFromOrgAmt>0</ReportableCompFromOrgAmt>
+        <OtherCompensationAmt>0</OtherCompensationAmt>
+      </Form990PartVIISectionAGrp>
+      <Form990PartVIISectionAGrp>
+        <PersonNm>MARIA GARCIA</PersonNm>
+        <TitleTxt>CFO</TitleTxt>
+        <AverageHoursPerWeekRt>40.00</AverageHoursPerWeekRt>
+        <ReportableCompFromOrgAmt>185000</ReportableCompFromOrgAmt>
+        <OtherCompensationAmt>10000</OtherCompensationAmt>
+      </Form990PartVIISectionAGrp>
+    </IRS990>
+  </ReturnData>
+</Return>

@@ -1,6 +1,9 @@
 """Data sources: ProPublica 990, SEC EDGAR, FEC, EDGAR Search, USAspending, Wikipedia, OpenCorporates, LDA, FINRA BrokerCheck, Federal Register."""
 
-from .propublica import fetch_organization, search_organizations, extract_org_financials
+from .propublica import (
+    fetch_organization, search_organizations, extract_org_financials,
+    download_990_xml, parse_officers_from_xml, get_latest_object_id,
+)
 from .sec import fetch_company, search_cik, search_person_cik
 from .fec import search_contributions, search_committees, search_independent_expenditures, search_disbursements
 from .edgar_search import search_filings
@@ -35,4 +38,7 @@ __all__ = [
     "search_individual",
     "search_firm",
     "search_federal_register",
+    "download_990_xml",
+    "parse_officers_from_xml",
+    "get_latest_object_id",
 ]

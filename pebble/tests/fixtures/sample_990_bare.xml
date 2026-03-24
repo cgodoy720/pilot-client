@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Return>
+  <ReturnData>
+    <IRS990>
+      <Form990PartVIISectionAGrp>
+        <PersonNm>ALICE JOHNSON</PersonNm>
+        <TitleTxt>President</TitleTxt>
+        <AverageHoursPerWeekRt>35.00</AverageHoursPerWeekRt>
+        <ReportableCompFromOrgAmt>300000</ReportableCompFromOrgAmt>
+        <OtherCompensationAmt>20000</OtherCompensationAmt>
+      </Form990PartVIISectionAGrp>
+    </IRS990>
+  </ReturnData>
+</Return>

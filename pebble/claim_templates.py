@@ -380,6 +380,57 @@ def claims_from_propublica_officers(
 
 
 # ---------------------------------------------------------------------------
+# ProPublica 990 org officers — ALL officers (Sprint 4: org intelligence)
+# ---------------------------------------------------------------------------
+
+def claims_from_org_officers(
+    officers: list[dict],
+    org_name: str,
+    ein: str = "",
+    tax_year: int | str | None = None,
+) -> list[dict]:
+    """Generate claims for ALL officers at an organization.
+
+    Unlike claims_from_propublica_officers (which fuzzy-matches a single
+    person), this returns one claim per officer. Used by org intelligence
+    to surface key people at connected organizations.
+    """
+    if not officers or not org_name:
+        return []
+
+    claims = []
+    source_url = f"https://projects.propublica.org/nonprofits/organizations/{ein}" if ein else ""
+    year_str = str(tax_year) if tax_year else ""
+
+    for officer in officers:
+        name = officer.get("name")
+        if not name:
+            continue
+
+        title = officer.get("title") or "Officer"
+        comp = officer.get("compensation") or 0
+
+        text = f"{name} is {title} at {org_name}"
+        if year_str:
+            text += f" ({year_str} Form 990)"
+        else:
+            text += " (IRS Form 990)"
+        if comp and float(comp) > 0:
+            text += f", compensation ${float(comp):,.0f}"
+
+        claims.append({
+            "text": text,
+            "source_url": source_url,
+            "confidence": "high",
+            "origin": "template",
+            "data_as_of": year_str or None,
+            "source_currency": "delayed",
+        })
+
+    return claims[:MAX_CLAIMS]
+
+
+# ---------------------------------------------------------------------------
 # USAspending person affiliation (person context from org awards)
 # ---------------------------------------------------------------------------
 

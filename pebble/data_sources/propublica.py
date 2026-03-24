@@ -1,8 +1,15 @@
-"""ProPublica Nonprofit Explorer API v2. GET /organizations/:ein.json"""
+"""ProPublica Nonprofit Explorer API v2. GET /organizations/:ein.json
 
+Also: IRS 990 XML download from S3 + officer parsing.
+"""
+
+import logging
 import time
+import xml.etree.ElementTree as ET
 
 import httpx
+
+logger = logging.getLogger("pebble.data_sources.propublica")
 
 BASE = "https://projects.propublica.org/nonprofits/api/v2"
 
@@ -82,3 +89,146 @@ def extract_org_financials(org_data: dict | None) -> dict | None:
         "officer_compensation_total": f.get("compnsatncurrofcr"),
         "investment_income": f.get("invstmntinc"),
     }
+
+
+# ---------------------------------------------------------------------------
+# 990 XML download + officer parsing (Sprint 4)
+# ---------------------------------------------------------------------------
+
+_IRS_S3_BASE = "https://s3.amazonaws.com/irs-form-990"
+
+# IRS e-file XML namespace variants (varies by schema year)
+_IRS_NAMESPACES = [
+    "urn:us:gov:treasury:irs:ext:efile",
+    "http://www.irs.gov/efile",
+]
+
+
+def get_latest_object_id(org_data: dict | None) -> str | None:
+    """Extract the latest filing object_id from a ProPublica org response.
+
+    The field lives on the top-level organization object, NOT on individual
+    filings_with_data entries. Returns None if the field is absent.
+    """
+    if not org_data:
+        return None
+    return org_data.get("organization", {}).get("latest_object_id")
+
+
+def download_990_xml(object_id: str) -> str | None:
+    """Download a 990 XML filing from IRS S3 by object_id.
+
+    Checks the api_cache first (30-day TTL). Returns the raw XML string
+    or None on failure.
+    """
+    from ..storage.cache import get_cached, set_cached
+
+    # Cache check
+    cached = get_cached("propublica_990_xml", object_id)
+    if cached is not None:
+        logger.info("990 XML cache hit: object_id=%s", object_id)
+        return cached.get("xml")
+
+    # Download from IRS S3
+    url = f"{_IRS_S3_BASE}/{object_id}_public.xml"
+    r = _get_with_retry(url)
+    if not r:
+        logger.warning("990 XML download failed: object_id=%s", object_id)
+        return None
+
+    xml_text = r.text
+    # Cache for 30 days (2,592,000 seconds)
+    set_cached("propublica_990_xml", object_id, {"xml": xml_text}, ttl_seconds=2_592_000)
+    logger.info("990 XML downloaded and cached: object_id=%s (%d bytes)", object_id, len(xml_text))
+    return xml_text
+
+
+def parse_officers_from_xml(xml_content: str) -> list[dict]:
+    """Parse officers from IRS 990 XML (Part VII, Section A).
+
+    Handles multiple namespace variants used across filing years.
+    Returns list of {name, title, hours_per_week, compensation, other_compensation}.
+    """
+    if not xml_content:
+        return []
+
+    try:
+        root = ET.fromstring(xml_content)
+    except ET.ParseError as e:
+        logger.warning("990 XML parse error: %s", e)
+        return []
+
+    officers = []
+
+    # Try each namespace variant, plus bare (no namespace)
+    tag_patterns = [
+        f"{{{ns}}}Form990PartVIISectionAGrp" for ns in _IRS_NAMESPACES
+    ] + ["Form990PartVIISectionAGrp"]
+
+    elements = []
+    for pattern in tag_patterns:
+        elements = root.iter(pattern)
+        # iter() returns a generator — peek to check if any exist
+        first = next(elements, None)
+        if first is not None:
+            elements = [first] + list(elements)
+            break
+    else:
+        # Also try with .//, which traverses all descendants
+        for pattern in tag_patterns:
+            found = root.findall(f".//{pattern}")
+            if found:
+                elements = found
+                break
+
+    if not elements:
+        return []
+
+    for elem in elements:
+        officer = _extract_officer_fields(elem, root)
+        if officer.get("name"):
+            officers.append(officer)
+
+    return officers
+
+
+def _extract_officer_fields(elem: ET.Element, root: ET.Element) -> dict:
+    """Extract officer fields from a Form990PartVIISectionAGrp element.
+
+    Tries namespaced and bare tag names for each field.
+    """
+    fields = {
+        "name": ["PersonNm", "BusinessNameLine1Txt"],
+        "title": ["TitleTxt"],
+        "hours_per_week": ["AverageHoursPerWeekRt"],
+        "compensation": ["ReportableCompFromOrgAmt"],
+        "other_compensation": ["OtherCompensationAmt"],
+    }
+
+    result: dict = {}
+    for key, tag_names in fields.items():
+        value = None
+        for tag in tag_names:
+            # Try bare
+            child = elem.find(tag)
+            if child is not None and child.text:
+                value = child.text.strip()
+                break
+            # Try with each namespace
+            for ns in _IRS_NAMESPACES:
+                child = elem.find(f"{{{ns}}}{tag}")
+                if child is not None and child.text:
+                    value = child.text.strip()
+                    break
+            if value:
+                break
+
+        if key in ("compensation", "other_compensation", "hours_per_week"):
+            try:
+                value = float(value) if value else 0.0
+            except (ValueError, TypeError):
+                value = 0.0
+
+        result[key] = value
+
+    return result
