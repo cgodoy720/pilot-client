@@ -101,8 +101,9 @@ class SalesforceMCPService(BaseMCPService):
                 )
             
             # Test connection by getting user info
+            safe_username = self.username.replace("\\", "\\\\").replace("'", "\\'")
             user_info = await loop.run_in_executor(
-                None, lambda: self.sf_client.query("SELECT Id, Name FROM User WHERE Username = '{}'".format(self.username))
+                None, lambda: self.sf_client.query(f"SELECT Id, Name FROM User WHERE Username = '{safe_username}'")
             )
             
             if user_info["totalSize"] > 0:

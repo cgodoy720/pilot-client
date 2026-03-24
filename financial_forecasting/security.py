@@ -22,6 +22,21 @@ def validate_salesforce_id(value: str, field_name: str = "id") -> str:
     return value
 
 
+# SOSL reserved characters that must be backslash-escaped
+_SOSL_RESERVED = re.compile(r'([?&|!{}\[\]()^~*:\\\"\'+\-])')
+
+
+def escape_sosl_string(value: str) -> str:
+    """Escape a string value for safe inclusion in a SOSL FIND clause.
+
+    SOSL has different reserved characters than SOQL:
+    ? & | ! { } [ ] ( ) ^ ~ * : \\ " ' + -
+    """
+    if not value:
+        return value
+    return _SOSL_RESERVED.sub(r'\\\1', value)
+
+
 def escape_soql_string(value: str) -> str:
     """Escape a string value for safe inclusion in a SOQL query.
 

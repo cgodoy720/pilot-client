@@ -20,6 +20,7 @@ from auth import (
     IS_PRODUCTION,
     FRONTEND_URL,
 )
+from security import validate_salesforce_id
 from config import SALESFORCE_CONFIG
 
 logger = logging.getLogger(__name__)
@@ -259,6 +260,7 @@ async def auth_salesforce_callback(request: Request, code: str = None, error: st
         # Get SF user name
         sf_user_name = None
         if sf_user_id:
+            validate_salesforce_id(sf_user_id, "sf_user_id")
             try:
                 instance = token_data["instance_url"].replace("https://", "")
                 temp_sf = Salesforce(instance=instance, session_id=token_data["access_token"])

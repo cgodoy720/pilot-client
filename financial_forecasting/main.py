@@ -46,6 +46,7 @@ from routes.prospects import router as prospects_router
 from routes.activity_intelligence import router as activity_intel_router
 from routes.slack_routes import router as slack_router
 from routes.ai import router as ai_router
+from routes.salesforce_search import router as sf_search_router
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 from services.crm_parser import refresh_opp_cache as _refresh_opp_cache
@@ -97,7 +98,7 @@ app.add_middleware(
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cookie"],
+    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "X-Internal-Key", "Cookie"],
 )
 
 # Routers
@@ -115,6 +116,7 @@ app.include_router(prospects_router)
 app.include_router(activity_intel_router)
 app.include_router(slack_router)
 app.include_router(ai_router)
+app.include_router(sf_search_router)
 
 # Service singletons — shared with dependencies.py so route files can use
 # Depends(get_mcp_client) without circular imports.
@@ -243,7 +245,10 @@ async def health_check():
 
 
 @app.get("/health/services")
-async def services_health_check(client: UnifiedMCPClient = Depends(get_mcp_client)):
+async def services_health_check(
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
     """Check health of connected services."""
     health_status = {}
 

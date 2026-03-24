@@ -72,8 +72,63 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_sessions_contact ON research_sessions(contact_id);
             CREATE INDEX IF NOT EXISTS idx_sessions_created ON research_sessions(created_at DESC);
+
+            -- Ask Pebble chat tables
+            CREATE TABLE IF NOT EXISTS chat_conversations (
+                id TEXT PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                title TEXT,
+                total_cost_usd REAL DEFAULT 0.0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                tier TEXT,
+                cost_usd REAL DEFAULT 0.0,
+                metadata_json TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_conv
+                ON chat_messages(conversation_id, created_at);
+
+            -- Ask Pebble batch research tables
+            CREATE TABLE IF NOT EXISTS research_batches (
+                id TEXT PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                total_prospects INTEGER NOT NULL DEFAULT 0,
+                completed_prospects INTEGER DEFAULT 0,
+                target_tier TEXT NOT NULL DEFAULT 'T1',
+                status TEXT DEFAULT 'pending',
+                total_cost_usd REAL DEFAULT 0.0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS batch_prospects (
+                id TEXT PRIMARY KEY,
+                batch_id TEXT NOT NULL,
+                prospect_name TEXT,
+                prospect_org TEXT,
+                current_tier TEXT DEFAULT 'pending',
+                identity_confidence TEXT DEFAULT 'none',
+                crm_status TEXT DEFAULT 'unknown',
+                result_json TEXT,
+                cost_usd REAL DEFAULT 0.0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (batch_id) REFERENCES research_batches(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_batch_prospects_batch
+                ON batch_prospects(batch_id);
         """)
         conn.commit()
+
+        # Enable WAL mode for concurrent read/write safety (chat + research)
+        conn.execute("PRAGMA journal_mode=WAL")
 
         # Migrate feedback table — add columns if missing
         try:
@@ -319,5 +374,244 @@ def get_session(session_id: str) -> dict | None:
         result = dict(row)
         result["profile"] = json.loads(result.pop("profile_json"))
         return result
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Chat persistence (Ask Pebble)
+# ---------------------------------------------------------------------------
+
+def ensure_conversation(conversation_id: str, user_email: str) -> None:
+    """Create a conversation record if it doesn't exist."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT OR IGNORE INTO chat_conversations (id, user_email)
+               VALUES (?, ?)""",
+            (conversation_id, user_email),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_chat_message(
+    message_id: str,
+    conversation_id: str,
+    role: str,
+    content: str,
+    tier: str | None = None,
+    cost_usd: float = 0.0,
+    metadata: dict | None = None,
+) -> None:
+    """Save a chat message and update conversation cost."""
+    conn = get_db()
+    try:
+        metadata_json = json.dumps(metadata) if metadata else None
+        conn.execute(
+            """INSERT INTO chat_messages
+               (id, conversation_id, role, content, tier, cost_usd, metadata_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (message_id, conversation_id, role, content, tier, cost_usd, metadata_json),
+        )
+        if cost_usd > 0:
+            conn.execute(
+                """UPDATE chat_conversations
+                   SET total_cost_usd = total_cost_usd + ?,
+                       updated_at = datetime('now')
+                   WHERE id = ?""",
+                (cost_usd, conversation_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_conversation_messages(
+    conversation_id: str, limit: int = 50
+) -> list[dict]:
+    """Get recent messages for a conversation."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT id, role, content, tier, cost_usd, metadata_json, created_at
+               FROM chat_messages
+               WHERE conversation_id = ?
+               ORDER BY created_at ASC
+               LIMIT ?""",
+            (conversation_id, limit),
+        ).fetchall()
+        results = []
+        for r in rows:
+            msg = dict(r)
+            if msg.get("metadata_json"):
+                msg["metadata"] = json.loads(msg.pop("metadata_json"))
+            else:
+                msg.pop("metadata_json", None)
+                msg["metadata"] = None
+            results.append(msg)
+        return results
+    finally:
+        conn.close()
+
+
+def get_recent_conversations(
+    user_email: str | None = None, limit: int = 20
+) -> list[dict]:
+    """Get recent conversations, optionally filtered by user."""
+    conn = get_db()
+    try:
+        if user_email:
+            rows = conn.execute(
+                """SELECT id, user_email, title, total_cost_usd, created_at, updated_at
+                   FROM chat_conversations
+                   WHERE user_email = ?
+                   ORDER BY updated_at DESC
+                   LIMIT ?""",
+                (user_email, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT id, user_email, title, total_cost_usd, created_at, updated_at
+                   FROM chat_conversations
+                   ORDER BY updated_at DESC
+                   LIMIT ?""",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_conversation_context(conversation_id: str) -> dict | None:
+    """Get the last assistant message's metadata for context resolution."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """SELECT metadata_json FROM chat_messages
+               WHERE conversation_id = ? AND role = 'assistant'
+               ORDER BY created_at DESC LIMIT 1""",
+            (conversation_id,),
+        ).fetchone()
+        if row and row["metadata_json"]:
+            return json.loads(row["metadata_json"])
+        return None
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Batch research persistence (Ask Pebble Phase 4)
+# ---------------------------------------------------------------------------
+
+def create_batch(batch_id: str, user_email: str, prospects: list[dict]) -> None:
+    """Create a batch and its prospect rows."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO research_batches (id, user_email, total_prospects)
+               VALUES (?, ?, ?)""",
+            (batch_id, user_email, len(prospects)),
+        )
+        for p in prospects:
+            conn.execute(
+                """INSERT INTO batch_prospects
+                   (id, batch_id, prospect_name, prospect_org)
+                   VALUES (?, ?, ?, ?)""",
+                (p["id"], batch_id, p.get("name", ""), p.get("organization", "")),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_batch_prospect(
+    prospect_id: str,
+    current_tier: str,
+    identity_confidence: str = "none",
+    crm_status: str = "unknown",
+    result_json: str | None = None,
+    cost_usd: float = 0.0,
+) -> None:
+    """Update a prospect's tier result in a batch."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """UPDATE batch_prospects
+               SET current_tier = ?, identity_confidence = ?, crm_status = ?,
+                   result_json = ?, cost_usd = ?, updated_at = datetime('now')
+               WHERE id = ?""",
+            (current_tier, identity_confidence, crm_status, result_json, cost_usd, prospect_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_batch_status(
+    batch_id: str,
+    status: str,
+    completed_prospects: int | None = None,
+    total_cost_usd: float | None = None,
+) -> None:
+    """Update batch-level status."""
+    conn = get_db()
+    try:
+        updates = ["status = ?", "updated_at = datetime('now')"]
+        params: list = [status]
+        if completed_prospects is not None:
+            updates.append("completed_prospects = ?")
+            params.append(completed_prospects)
+        if total_cost_usd is not None:
+            updates.append("total_cost_usd = ?")
+            params.append(total_cost_usd)
+        params.append(batch_id)
+        conn.execute(
+            f"UPDATE research_batches SET {', '.join(updates)} WHERE id = ?",
+            params,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_batch_status(batch_id: str) -> dict | None:
+    """Get batch status and summary."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """SELECT id, user_email, total_prospects, completed_prospects,
+                      target_tier, status, total_cost_usd, created_at, updated_at
+               FROM research_batches WHERE id = ?""",
+            (batch_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_batch_prospects(batch_id: str) -> list[dict]:
+    """Get all prospects in a batch."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT id, prospect_name, prospect_org, current_tier,
+                      identity_confidence, crm_status, result_json, cost_usd
+               FROM batch_prospects
+               WHERE batch_id = ?
+               ORDER BY prospect_name ASC""",
+            (batch_id,),
+        ).fetchall()
+        results = []
+        for r in rows:
+            item = dict(r)
+            if item.get("result_json"):
+                item["result"] = json.loads(item.pop("result_json"))
+            else:
+                item.pop("result_json", None)
+                item["result"] = None
+            results.append(item)
+        return results
     finally:
         conn.close()

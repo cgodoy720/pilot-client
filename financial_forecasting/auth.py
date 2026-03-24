@@ -1,5 +1,6 @@
 """Authentication utilities — JWT, Fernet encryption, user extraction from cookies."""
 
+import hmac
 import os
 import json
 import secrets
@@ -126,3 +127,29 @@ async def require_auth(request: Request) -> Dict:
 async def get_current_user_dep(request: Request) -> Optional[Dict]:
     """FastAPI Depends() wrapper — returns user dict or None (allows unauthenticated)."""
     return await get_current_user(request)
+
+
+# ---------------------------------------------------------------------------
+# Internal service-to-service auth (CRM bridge: Pebble → Bedrock)
+# ---------------------------------------------------------------------------
+
+_BEDROCK_INTERNAL_API_KEY = os.getenv("BEDROCK_INTERNAL_API_KEY", "")
+
+
+async def require_auth_or_internal(request: Request) -> Dict:
+    """Authorize via internal API key (service-to-service) or user JWT.
+
+    If X-Internal-Key header matches BEDROCK_INTERNAL_API_KEY, returns a
+    synthetic service user dict.  Otherwise falls back to require_auth.
+    Dev mode: if BEDROCK_INTERNAL_API_KEY is empty, internal key check
+    is skipped and only JWT auth is tried.
+    """
+    internal_key = request.headers.get("X-Internal-Key", "")
+    if _BEDROCK_INTERNAL_API_KEY and internal_key:
+        if hmac.compare_digest(internal_key, _BEDROCK_INTERNAL_API_KEY):
+            return {
+                "user_id": "service:pebble",
+                "email": "pebble@internal",
+                "is_service": True,
+            }
+    return await require_auth(request)

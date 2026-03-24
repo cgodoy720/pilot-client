@@ -27,6 +27,11 @@ import {
   Typography,
   Chip,
   Alert,
+  ToggleButton,
+  ToggleButtonGroup,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -36,10 +41,15 @@ import {
   Download as DownloadIcon,
   History as HistoryIcon,
   ChevronRight as ChevronRightIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
-import { pebbleService, type ProspectInput, type Profile, type ResearchSession } from '../services/pebbleApi';
+import { pebbleService, type ProspectInput, type Profile, type ResearchSession, type TieredResearchResponse } from '../services/pebbleApi';
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../contexts/PermissionsContext';
+import PebbleChat from '../components/pebble/PebbleChat';
+import ProspectTierTable from '../components/pebble/ProspectTierTable';
 import toast from 'react-hot-toast';
 
 const TARGET_FIELDS = [
@@ -51,6 +61,9 @@ const TARGET_FIELDS = [
 ];
 
 const Pebble: React.FC = () => {
+  const { user } = useAuth();
+  const { can } = usePermissions();
+  const hasAskPebble = can('use_pebble_chat');
   const [tab, setTab] = useState(0);
 
   // ── Research tab state ──
@@ -58,8 +71,10 @@ const Pebble: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [organization, setOrganization] = useState('');
+  const [selectedTier, setSelectedTier] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [tierResults, setTierResults] = useState<Array<{ tier: string; result: TieredResearchResponse; timestamp: number }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastContactId, setLastContactId] = useState<string>('');
   const abortRef = useRef<AbortController | null>(null);
@@ -86,6 +101,13 @@ const Pebble: React.FC = () => {
   } | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [batchProspects, setBatchProspects] = useState<Array<{
+    id: string; name: string; organization: string;
+    crm_status: 'in_crm' | 'not_in_crm' | 'ambiguous' | 'not_found';
+    identity_confidence: 'high' | 'medium' | 'low' | 'none';
+    current_tier: 'pending' | 'T1' | 'T2' | 'T3';
+  }>>([]);
 
   // ── History panel state ──
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -142,88 +164,63 @@ const Pebble: React.FC = () => {
   // ── Research handlers ──
   const handleRequestResearch = async () => {
     const id = contactId.trim() || `p-${Date.now()}`;
-    const jid = crypto.randomUUID();
     setLastContactId(id);
-    jobIdRef.current = jid;
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const prospects: ProspectInput[] = [
-      {
-        id,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        organization: organization.trim(),
-      },
-    ];
 
     setLoading(true);
     setError(null);
-    setProfile(null);
+
+    // T3 replaces all prior tier results; T1/T2 accumulate
+    if (selectedTier === 3) {
+      setTierResults([]);
+      setProfile(null);
+    }
 
     try {
-      const res = await pebbleService.requestResearch(
-        { contact_ids: [id], prospects, job_id: jid },
-        controller.signal,
+      const res = await pebbleService.tieredResearch({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        organization: organization.trim(),
+        contact_id: id,
+        tier: selectedTier,
+      });
+      const data = res.data;
+
+      // Accumulate tier results (T1/T2 stack, T3 replaces)
+      setTierResults((prev) =>
+        selectedTier === 3
+          ? [{ tier: data.tier, result: data, timestamp: Date.now() }]
+          : [...prev, { tier: data.tier, result: data, timestamp: Date.now() }],
       );
-      if (res.data.status === 'completed') {
-        const profileRes = await pebbleService.getProfile(id);
-        setProfile(profileRes.data.profile || null);
-        // Fetch previous feedback for this contact
+
+      // For T3, also fetch the full profile for the legacy profile display
+      if (selectedTier === 3) {
         try {
-          const fbRes = await pebbleService.getContactFeedback(id);
+          const profileRes = await pebbleService.getProfile(data.contact_id || id);
+          setProfile(profileRes.data.profile || null);
+          const fbRes = await pebbleService.getContactFeedback(data.contact_id || id);
           setFeedbackHistory(fbRes.data.feedback || []);
         } catch {
           setFeedbackHistory([]);
         }
-        // Refresh session history
         fetchHistory();
-        toast.success('Research completed');
-      } else if (res.data.status === 'cancelled') {
-        toast('Research was cancelled');
-      } else {
-        toast.success('Research queued');
       }
+
+      const tierLabel = `T${selectedTier}`;
+      const costStr = data.cost_usd > 0 ? ` ($${data.cost_usd.toFixed(3)})` : '';
+      toast.success(`${tierLabel} complete in ${data.elapsed_seconds.toFixed(1)}s${costStr}`);
     } catch (err: any) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
-        // User clicked Stop — try to fetch partial results
-        try {
-          const profileRes = await pebbleService.getProfile(id);
-          if (profileRes.data.profile) {
-            setProfile(profileRes.data.profile);
-            // Fetch previous feedback for partial results too
-            try {
-              const fbRes = await pebbleService.getContactFeedback(id);
-              setFeedbackHistory(fbRes.data.feedback || []);
-            } catch {
-              setFeedbackHistory([]);
-            }
-            toast('Research stopped — showing partial results');
-          } else {
-            toast('Research stopped');
-          }
-        } catch {
-          toast('Research stopped');
-        }
-      } else {
-        const msg = err.response?.data?.detail || err.message || 'Pebble request failed';
-        setError(msg);
-        toast.error(msg);
-      }
+      const msg = err.response?.data?.detail || err.message || 'Tiered research failed';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
-      abortRef.current = null;
-      jobIdRef.current = '';
     }
   };
 
   const handleStop = async () => {
-    // Tell the backend to stop
     if (jobIdRef.current) {
       pebbleService.cancelResearch(jobIdRef.current).catch(() => {});
     }
-    // Abort the HTTP request
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -325,6 +322,7 @@ const Pebble: React.FC = () => {
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab label="Research" />
         <Tab label="Bulk Import" />
+        {hasAskPebble && <Tab label="Ask Pebble" />}
       </Tabs>
 
       {/* ── Tab 0: Single-Prospect Research ── */}
@@ -360,26 +358,36 @@ const Pebble: React.FC = () => {
                   sx={{ minWidth: 200 }}
                 />
               </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                <ToggleButtonGroup
+                  value={selectedTier}
+                  exclusive
+                  onChange={(_, v) => v !== null && setSelectedTier(v)}
+                  size="small"
+                >
+                  <ToggleButton value={1}>Quick ID</ToggleButton>
+                  <ToggleButton value={2}>Structured</ToggleButton>
+                  <ToggleButton value={3}>Full Research</ToggleButton>
+                </ToggleButtonGroup>
                 <Button
                   variant="contained"
                   startIcon={loading ? <CircularProgress size={16} /> : <SearchIcon />}
                   onClick={handleRequestResearch}
                   disabled={loading || (!firstName && !lastName && !organization)}
                 >
-                  {loading ? 'Researching...' : 'Request Research'}
+                  {loading ? 'Running...' : `Run T${selectedTier}`}
                 </Button>
                 {loading && (
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<StopIcon />}
-                    onClick={handleStop}
-                  >
+                  <Button variant="contained" color="error" startIcon={<StopIcon />} onClick={handleStop}>
                     Stop
                   </Button>
                 )}
               </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                {selectedTier === 1 && 'Quick ID & Triage — ~5s, ~$0.005'}
+                {selectedTier === 2 && 'Structured Intelligence — ~20s, ~$0.05'}
+                {selectedTier === 3 && 'Full Research Brief — ~1min, ~$0.20'}
+              </Typography>
             </CardContent>
           </Card>
 
@@ -387,6 +395,76 @@ const Pebble: React.FC = () => {
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
               {error}
             </Alert>
+          )}
+
+          {/* ── Tier Results (T1/T2 accumulate, T3 replaces) ── */}
+          {tierResults.length > 0 && (
+            <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {tierResults.map((tr, idx) => (
+                <Card key={idx} variant="outlined">
+                  <CardContent sx={{ pb: '12px !important' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Chip
+                        label={`${tr.tier} \u00b7 ${tr.result.elapsed_seconds.toFixed(1)}s${tr.result.cost_usd > 0 ? ` \u00b7 $${tr.result.cost_usd.toFixed(3)}` : ''}`}
+                        size="small"
+                        color={tr.tier === 'T1' ? 'primary' : tr.tier === 'T2' ? 'secondary' : 'warning'}
+                        variant="outlined"
+                      />
+                      {tr.result.sources.length > 0 && (
+                        <Typography variant="caption" color="text.secondary">
+                          {tr.result.sources.length} sources
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {/* T1: Identity card */}
+                    {tr.tier === 'T1' && tr.result.data?.identity_card && (
+                      <Box>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{tr.result.text}</Typography>
+                      </Box>
+                    )}
+
+                    {/* T2: 5 dimensions in accordions */}
+                    {tr.tier === 'T2' && tr.result.data?.dimensions && (
+                      <Box>
+                        <Typography variant="body2" sx={{ mb: 1 }}>{tr.result.data.claims_count} claims across 5 dimensions</Typography>
+                        {Object.entries(tr.result.data.dimensions as Record<string, Array<{ text: string; source_url?: string }>>).map(([dim, claims]) => (
+                          <Accordion key={dim} disableGutters variant="outlined" sx={{ '&:before': { display: 'none' } }}>
+                            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 36, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                                {dim.replace(/_/g, ' ')} ({claims.length})
+                              </Typography>
+                            </AccordionSummary>
+                            <AccordionDetails sx={{ pt: 0 }}>
+                              {claims.length > 0 ? claims.map((c, i) => (
+                                <Typography key={i} variant="body2" sx={{ pl: 1, borderLeft: '2px solid', borderColor: 'divider', mb: 0.5, fontSize: '0.85rem' }}>
+                                  {c.text}
+                                </Typography>
+                              )) : (
+                                <Typography variant="body2" color="text.secondary">No data found</Typography>
+                              )}
+                            </AccordionDetails>
+                          </Accordion>
+                        ))}
+                      </Box>
+                    )}
+
+                    {/* T1/T2 fallback: plain text */}
+                    {!((tr.tier === 'T1' && tr.result.data?.identity_card) || (tr.tier === 'T2' && tr.result.data?.dimensions)) && tr.tier !== 'T3' && (
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{tr.result.text}</Typography>
+                    )}
+
+                    {/* T3: summary teaser (full profile renders below) */}
+                    {tr.tier === 'T3' && (
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{tr.result.text}</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+              <Button size="small" onClick={() => { setTierResults([]); setProfile(null); }} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+                Clear Results
+              </Button>
+            </Box>
           )}
 
           {profile && (
@@ -732,27 +810,38 @@ const Pebble: React.FC = () => {
                       if (!parsed?.persons?.length) return;
                       setImportLoading(true);
                       try {
-                        const prospects = parsed.persons.slice(0, 5).map((p) => ({
-                          id: p.id,
-                          first_name: p.first_name,
-                          last_name: p.last_name,
-                          organization: p.affiliations?.[0]?.org_name,
-                          organizations: p.affiliations?.map((a) => a.org_name).filter(Boolean),
+                        const prospects = parsed.persons.map((p) => ({
+                          name: `${p.first_name} ${p.last_name}`.trim(),
+                          organization: p.affiliations?.[0]?.org_name || '',
                         }));
-                        await pebbleService.requestResearch({
-                          contact_ids: prospects.map((x) => x.id),
+                        const res = await pebbleService.batchResearch({
                           prospects,
+                          target_tier: 1,
+                          user_email: user?.email,
                         });
-                        toast.success('Research completed — switch to Research tab for profiles');
+                        setBatchId(res.data.batch_id);
+                        // Fetch batch prospects for table
+                        const batchRes = await pebbleService.getBatchStatus(res.data.batch_id);
+                        setBatchProspects(
+                          (batchRes.data.prospects || []).map((p: any) => ({
+                            id: p.id,
+                            name: p.prospect_name || '',
+                            organization: p.prospect_org || '',
+                            crm_status: p.crm_status || 'unknown',
+                            identity_confidence: p.identity_confidence || 'none',
+                            current_tier: p.current_tier || 'pending',
+                          })),
+                        );
+                        toast.success(`T1 complete — ${res.data.completed} prospects identified`);
                       } catch (err: any) {
-                        toast.error(err.response?.data?.detail || 'Pebble request failed');
+                        toast.error(err.response?.data?.detail || 'Batch research failed');
                       } finally {
                         setImportLoading(false);
                       }
                     }}
                     disabled={importLoading || !parsed?.persons?.length}
                   >
-                    Research with Pebble (first 5)
+                    Start Tiered Research (T1)
                   </Button>
                 </Box>
                 <Table size="small">
@@ -787,7 +876,64 @@ const Pebble: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* ── Batch Tier Results (ProspectTierTable) ── */}
+          {batchProspects.length > 0 && (
+            <Card sx={{ mt: 2 }}>
+              <CardContent>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Tiered Research Results
+                </Typography>
+                <ProspectTierTable
+                  prospects={batchProspects}
+                  loading={importLoading}
+                  onAdvanceSelected={async (selectedIds, targetTier) => {
+                    if (!batchId) return;
+                    setImportLoading(true);
+                    try {
+                      const tier = targetTier === 20 ? 2 : 3;
+                      await pebbleService.batchResearch({
+                        prospects: [],
+                        target_tier: tier,
+                        batch_id: batchId,
+                        selected_ids: selectedIds,
+                      } as any);
+                      // Refresh batch data
+                      const batchRes = await pebbleService.getBatchStatus(batchId);
+                      setBatchProspects(
+                        (batchRes.data.prospects || []).map((p: any) => ({
+                          id: p.id,
+                          name: p.prospect_name || '',
+                          organization: p.prospect_org || '',
+                          crm_status: p.crm_status || 'unknown',
+                          identity_confidence: p.identity_confidence || 'none',
+                          current_tier: p.current_tier || 'pending',
+                        })),
+                      );
+                      toast.success(`T${tier} complete for ${selectedIds.length} prospects`);
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.detail || 'Advance failed');
+                    } finally {
+                      setImportLoading(false);
+                    }
+                  }}
+                  onViewProfile={(prospectId) => {
+                    setLastContactId(prospectId);
+                    setTab(0);
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
         </>
+      )}
+      {/* ── Tab 2: Ask Pebble (permission-gated) ── */}
+      {tab === 2 && hasAskPebble && (
+        <Card>
+          <CardContent>
+            <PebbleChat mode="embedded" userEmail={user?.email} />
+          </CardContent>
+        </Card>
       )}
       {/* ── History Drawer ── */}
       <Drawer

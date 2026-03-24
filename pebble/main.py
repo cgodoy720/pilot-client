@@ -1,10 +1,8 @@
 """Pebble API: prospect research pipeline. Integration #9."""
 
-import asyncio
 import hmac
 import logging
 import os
-import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -34,11 +32,12 @@ async def verify_api_key(request: Request):
     if not provided or not hmac.compare_digest(provided, _PEBBLE_API_KEY):
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
+from . import crm_bridge
 from .schemas import ResearchRequest, ResearchFeedback, CancelRequest
 from .storage.db import (
-    init_db, save_profile, get_profile, save_feedback,
+    init_db, get_profile, save_feedback,
     get_feedback_for_contact, get_feedback_trends,
-    save_session, get_recent_sessions, get_session,
+    get_recent_sessions, get_session,
 )
 from .export import render_profile_markdown
 
@@ -46,15 +45,6 @@ from .export import render_profile_markdown
 _cancel_flags: set[str] = set()
 
 logger = logging.getLogger("pebble.main")
-
-
-async def _noop():
-    return None
-
-
-def _safe_result(val):
-    """Return None if val is an Exception (from gather return_exceptions)."""
-    return None if isinstance(val, BaseException) else val
 
 
 @asynccontextmanager
@@ -71,6 +61,7 @@ async def lifespan(app: FastAPI):
         "set" if os.getenv("FEC_API_KEY") else "MISSING",
     )
     yield
+    await crm_bridge.close()
 
 
 app = FastAPI(
@@ -121,6 +112,307 @@ def _is_cancelled(job_id: str | None) -> bool:
     return job_id is not None and job_id in _cancel_flags
 
 
+# ---------------------------------------------------------------------------
+# Ask Pebble — chat endpoint
+# ---------------------------------------------------------------------------
+
+_CHAT_ALLOWED_EMAILS = set(
+    e.strip()
+    for e in os.getenv("PEBBLE_CHAT_ALLOWED_EMAILS", "jp@pursuit.org,nick@pursuit.org").split(",")
+    if e.strip()
+)
+
+
+@app.post("/api/v1/chat/query", dependencies=[Depends(verify_api_key)])
+@limiter.limit("30/minute")
+async def chat_query(request: Request, body: dict):
+    """Ask Pebble chat endpoint — classify → disambiguate → handle → respond."""
+    import time
+    import uuid as _uuid
+    from .schemas.chat import ChatQueryRequest, ChatQueryResponse
+    from .router import classify_query
+    from .handlers import dispatch_handler
+    from .storage.db import ensure_conversation, save_chat_message
+
+    start = time.time()
+
+    # Parse and validate request
+    try:
+        req = ChatQueryRequest(**body)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    # Access gate (defense-in-depth — primary gate is frontend permission)
+    if req.user_email and req.user_email not in _CHAT_ALLOWED_EMAILS:
+        raise HTTPException(status_code=403, detail="Chat access not enabled for this user")
+
+    # Ensure conversation exists
+    conversation_id = req.conversation_id or str(_uuid.uuid4())
+    ensure_conversation(conversation_id, req.user_email or "unknown")
+
+    # Save user message
+    save_chat_message(
+        message_id=str(_uuid.uuid4()),
+        conversation_id=conversation_id,
+        role="user",
+        content=req.query,
+    )
+
+    # Classify query
+    client = None
+    if os.getenv("ANTHROPIC_API_KEY"):
+        from .model_client import ModelClient
+        client = ModelClient()
+
+    route = await classify_query(req.query, req.mode, client=client)
+
+    # Dispatch to handler
+    response = await dispatch_handler(
+        route=route,
+        crm_bridge=crm_bridge,
+        client=client,
+    )
+
+    elapsed = time.time() - start
+
+    # Save assistant message
+    metadata = {
+        "intent": response.intent,
+        "data": response.data,
+        "sources": response.sources,
+    }
+    if response.requires_clarification:
+        metadata["clarification_options"] = [
+            o.model_dump() for o in (response.clarification_options or [])
+        ]
+    if response.redirect_target:
+        metadata["redirect_target"] = response.redirect_target
+
+    tier_label = {-1: "redirect", 0: "L0", 1: "L1", 10: "T1", 20: "T2", 30: "T3"}.get(
+        response.level, f"L{response.level}"
+    )
+    save_chat_message(
+        message_id=str(_uuid.uuid4()),
+        conversation_id=conversation_id,
+        role="assistant",
+        content=response.text,
+        tier=tier_label,
+        cost_usd=response.cost_usd,
+        metadata=metadata,
+    )
+
+    return ChatQueryResponse(
+        answer=response.text,
+        level=response.level,
+        intent=response.intent,
+        data=response.data,
+        sources=response.sources,
+        cost_usd=response.cost_usd,
+        elapsed_seconds=elapsed,
+        conversation_id=conversation_id,
+        redirect_target=response.redirect_target,
+        redirect_reason=response.redirect_reason,
+        requires_clarification=response.requires_clarification,
+        clarification_options=response.clarification_options,
+    )
+
+
+@app.get("/api/v1/chat/history", dependencies=[Depends(verify_api_key)])
+async def chat_history(
+    conversation_id: str | None = None,
+    user_email: str | None = None,
+    limit: int = 20,
+):
+    """Get chat history — conversation list or messages for a conversation."""
+    from .storage.db import get_conversation_messages, get_recent_conversations
+
+    if conversation_id:
+        messages = get_conversation_messages(conversation_id, limit=50)
+        return {"conversation_id": conversation_id, "messages": messages}
+    else:
+        conversations = get_recent_conversations(user_email, limit=limit)
+        return {"conversations": conversations}
+
+
+@app.post("/api/v1/research/tiered", dependencies=[Depends(verify_api_key)])
+@limiter.limit("15/minute")
+async def tiered_research(request: Request, body: dict):
+    """Single-prospect tiered research — pick T1, T2, or T3."""
+    import time
+    import uuid as _uuid
+
+    from .schemas.profile import TieredResearchRequest
+    from .handlers.tier1 import handle_t1
+    from .handlers.tier2 import handle_t2
+    from .handlers.tier3 import handle_t3
+    from .router import RouteResult
+
+    try:
+        req = TieredResearchRequest(**body)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    start = time.time()
+    contact_id = req.contact_id or f"{req.first_name}_{req.last_name}".strip("_").lower() or str(_uuid.uuid4())
+    name = f"{req.first_name} {req.last_name}".strip()
+
+    tier_map = {1: (10, handle_t1), 2: (20, handle_t2), 3: (30, handle_t3)}
+    level, handler = tier_map[req.tier]
+    tier_label = f"T{req.tier}"
+
+    route = RouteResult(
+        level=level,
+        intent=f"tiered_{tier_label.lower()}",
+        entities={
+            "person_name": name,
+            "org_name": req.organization,
+        },
+    )
+
+    client = None
+    if os.getenv("ANTHROPIC_API_KEY"):
+        from .model_client import ModelClient
+        client = ModelClient()
+
+    response = await handler(route, crm_bridge, client)
+    elapsed = time.time() - start
+
+    return {
+        "tier": tier_label,
+        "text": response.text,
+        "data": response.data,
+        "cost_usd": response.cost_usd,
+        "elapsed_seconds": elapsed,
+        "sources": response.sources,
+        "contact_id": contact_id,
+    }
+
+
+@app.post("/api/v1/research/batch", dependencies=[Depends(verify_api_key)])
+@limiter.limit("2/minute")
+async def batch_research(request: Request, body: dict):
+    """Batch tiered research — run T1/T2/T3 on a list of prospects."""
+    import asyncio
+    import json
+    import uuid as _uuid
+
+    from .handlers.tier1 import handle_t1
+    from .handlers.tier2 import handle_t2
+    from .handlers.tier3 import handle_t3
+    from .router import RouteResult
+    from .storage.db import (
+        create_batch, update_batch_prospect, update_batch_status,
+        get_batch_status, get_batch_prospects,
+    )
+
+    prospects = body.get("prospects", [])
+    target_tier = body.get("target_tier", 1)
+    batch_id = body.get("batch_id") or str(_uuid.uuid4())
+    selected_ids = body.get("selected_ids")
+    user_email = body.get("user_email", "unknown")
+
+    if len(prospects) > 500:
+        raise HTTPException(400, "Maximum 500 prospects per batch")
+    if target_tier not in (1, 2, 3):
+        raise HTTPException(400, "target_tier must be 1, 2, or 3")
+
+    # Create or resume batch
+    existing = get_batch_status(batch_id)
+    if not existing and prospects:
+        batch_prospects = [
+            {"id": str(_uuid.uuid4()), "name": p.get("name", ""), "organization": p.get("organization", "")}
+            for p in prospects
+        ]
+        create_batch(batch_id, user_email, batch_prospects)
+
+    # Get prospect list (filter to selected_ids if advancing)
+    batch_rows = get_batch_prospects(batch_id)
+    if selected_ids:
+        batch_rows = [r for r in batch_rows if r["id"] in selected_ids]
+
+    # Set up model client
+    client = None
+    if os.getenv("ANTHROPIC_API_KEY"):
+        from .model_client import ModelClient
+        client = ModelClient()
+
+    tier_map = {1: 10, 2: 20, 3: 30}
+    tier_level = tier_map.get(target_tier, 10)
+    tier_label = f"T{target_tier}"
+
+    handler = {10: handle_t1, 20: handle_t2, 30: handle_t3}[tier_level]
+
+    completed = 0
+    total_cost = 0.0
+    results = []
+
+    # Process in chunks of 10
+    for i in range(0, len(batch_rows), 10):
+        chunk = batch_rows[i:i + 10]
+
+        async def process_one(row):
+            route = RouteResult(
+                level=tier_level,
+                intent=f"batch_{tier_label.lower()}",
+                entities={
+                    "person_name": row.get("prospect_name", ""),
+                    "org_name": row.get("prospect_org", ""),
+                },
+            )
+            resp = await handler(route, crm_bridge, client)
+            return row["id"], resp
+
+        chunk_results = await asyncio.gather(
+            *(process_one(row) for row in chunk),
+            return_exceptions=True,
+        )
+
+        for cr in chunk_results:
+            if isinstance(cr, BaseException):
+                logger.error("Batch prospect failed: %s", cr)
+                continue
+            prospect_id, resp = cr
+            completed += 1
+            total_cost += resp.cost_usd
+
+            update_batch_prospect(
+                prospect_id=prospect_id,
+                current_tier=tier_label,
+                identity_confidence=resp.data.get("identity_card", {}).get("confidence", "none") if resp.data else "none",
+                crm_status="unknown",
+                result_json=json.dumps(resp.data) if resp.data else None,
+                cost_usd=resp.cost_usd,
+            )
+            results.append({
+                "prospect_id": prospect_id,
+                "tier": tier_label,
+                "cost_usd": resp.cost_usd,
+            })
+
+    update_batch_status(batch_id, "completed", completed, total_cost)
+
+    return {
+        "batch_id": batch_id,
+        "status": "completed",
+        "completed": completed,
+        "total": len(batch_rows),
+        "total_cost_usd": total_cost,
+        "results": results,
+    }
+
+
+@app.get("/api/v1/research/batch/{batch_id}", dependencies=[Depends(verify_api_key)])
+async def get_batch(batch_id: str):
+    """Get batch status and prospect results."""
+    from .storage.db import get_batch_status, get_batch_prospects
+
+    status = get_batch_status(batch_id)
+    if not status:
+        raise HTTPException(404, "Batch not found")
+    prospects = get_batch_prospects(batch_id)
+    return {"batch": status, "prospects": prospects}
+
+
 @app.post("/api/v1/research/request", dependencies=[Depends(verify_api_key)])
 @limiter.limit("10/minute")
 async def research_request(request: Request, body: ResearchRequest):
@@ -140,35 +432,8 @@ async def research_request(request: Request, body: ResearchRequest):
         if cid not in prospect_map:
             prospect_map[cid] = {"id": cid, "first_name": "", "last_name": "", "organization": "", "ein": None}
 
-    from .orchestrator import (
-        stage1_enrich_prospect,
-        score_source_richness,
-        activate_foragers,
-        quorum_verify_claims,
-        synthesize_profile,
-        verify_urls,
-        ProspectBudgetTracker,
-    )
-    from .storage.db import save_source_scores
+    from .orchestrator import research_single_prospect
     from .model_client import ModelClient
-    from .data_sources import (
-        fetch_organization,
-        search_organizations,
-        fetch_company,
-        search_contributions,
-        search_filings,
-        search_awards,
-        fetch_full_profile,
-        search_officers,
-    )
-    from .data_sources.sec import search_cik
-    from .claim_templates import (
-        claims_from_fec,
-        claims_from_usaspending,
-        claims_from_opencorporates,
-        claims_from_edgar_search,
-        claims_from_wikipedia_infobox,
-    )
 
     client = ModelClient()
     results = []
@@ -183,181 +448,17 @@ async def research_request(request: Request, body: ResearchRequest):
             break
 
         prospect = prospect_map.get(cid, {"id": cid, "first_name": "", "last_name": "", "organization": "", "ein": None, "organizations": None})
-        budget = ProspectBudgetTracker(prospect_id=cid)
 
-        try:
-            # Collect org names: organizations list, or single organization
-            org_names = list(prospect.get("organizations") or [])
-            if prospect.get("organization") and prospect["organization"] not in org_names:
-                org_names.insert(0, prospect["organization"])
-            primary_org = org_names[0] if org_names else prospect.get("organization")
-
-            ein = prospect.get("ein")
-            name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip() or primary_org or ""
-
-            # Phase 1: All independent fetches in parallel
-            phase1 = await asyncio.gather(
-                asyncio.to_thread(search_organizations, primary_org) if primary_org and not ein else _noop(),
-                asyncio.to_thread(search_cik, primary_org) if primary_org else _noop(),
-                asyncio.to_thread(search_contributions, name, 10) if name else _noop(),
-                asyncio.to_thread(search_filings, name) if name else _noop(),
-                asyncio.to_thread(search_awards, name) if name else _noop(),
-                asyncio.to_thread(fetch_full_profile, name) if name else _noop(),
-                asyncio.to_thread(search_officers, name) if name else _noop(),
-                return_exceptions=True,
-            )
-            ein_orgs, cik_result, fec_data, edgar_data, usa_data, wiki_data, oc_data = [_safe_result(r) for r in phase1]
-
-            # Cancel checkpoint: after data fetches, before dependent fetches
-            if _is_cancelled(job_id):
-                logger.info("Job %s cancelled after phase 1 for %s", job_id, cid)
-                cancelled = True
-                break
-
-            # Phase 2: Dependent fetches (need EIN / CIK from phase 1)
-            ein = ein or (str(ein_orgs[0]["ein"]) if ein_orgs and ein_orgs[0].get("ein") else None)
-            cik_val = cik_result
-            phase2 = await asyncio.gather(
-                asyncio.to_thread(fetch_organization, ein) if ein else _noop(),
-                asyncio.to_thread(fetch_company, cik_val) if cik_val else _noop(),
-                return_exceptions=True,
-            )
-            propublica_data, sec_data = [_safe_result(r) for r in phase2]
-
-            # Score source richness (waggle dance)
-            source_scores = score_source_richness(
-                propublica_data, sec_data, fec_data, edgar_data,
-                usa_data, wiki_data, oc_data,
-            )
-            save_source_scores(cid, source_scores)
-            logger.info("Source scores for %s: %s", cid, source_scores)
-
-            # Build structured claims from templates (no LLM)
-            structured_claims = []
-            structured_claims.extend(claims_from_fec(fec_data or []))
-            structured_claims.extend(claims_from_usaspending(usa_data or []))
-            structured_claims.extend(claims_from_opencorporates(oc_data or []))
-            structured_claims.extend(claims_from_edgar_search(edgar_data or []))
-            structured_claims.extend(claims_from_wikipedia_infobox(wiki_data))
-
-            # Cancel checkpoint: before LLM-heavy stages
-            if _is_cancelled(job_id):
-                logger.info("Job %s cancelled before foragers for %s", job_id, cid)
-                save_profile(cid, {"claims": structured_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
-                results.append({"contact_id": cid, "claims_count": len(structured_claims)})
-                cancelled = True
-                break
-
-            # Activate specialist foragers (conditional on richness thresholds)
-            forager_claims = await activate_foragers(
-                source_scores,
-                {
-                    "fec_data": fec_data,
-                    "oc_data": oc_data,
-                    "usa_data": usa_data,
-                    "propublica_data": propublica_data,
-                    "edgar_data": edgar_data,
-                    "wiki_data": wiki_data,
-                },
-                prospect, client, budget,
-            )
-
-            # Stage 1: LLM extraction for ProPublica + SEC only
-            enriched = stage1_enrich_prospect(prospect, structured_claims, propublica_data, sec_data, client, budget)
-            llm_claims = [c for c in enriched.get("claims", []) if isinstance(c, dict) and c.get("source_url")]
-
-            # Merge all claims: template + forager + llm-extracted
-            all_claims = llm_claims + forager_claims
-            logger.info(
-                "Claim pool for %s: %d template, %d forager, %d llm = %d total",
-                cid, len(structured_claims), len(forager_claims),
-                len(llm_claims) - len(structured_claims), len(all_claims),
-            )
-
-            # Cancel checkpoint: before verification and synthesis
-            if _is_cancelled(job_id):
-                logger.info("Job %s cancelled before verification for %s", job_id, cid)
-                save_profile(cid, {"claims": all_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
-                results.append({"contact_id": cid, "claims_count": len(all_claims)})
-                cancelled = True
-                break
-
-            # URL pre-filter: drop claims with dead source URLs
-            if all_claims and not budget.exceeded():
-                all_claims, dropped = await verify_urls(all_claims)
-                if dropped:
-                    logger.info(
-                        "URL pre-filter dropped %d claims: %s",
-                        len(dropped), [c.get("source_url") for c in dropped],
-                    )
-
-            # Quorum verification (replaces single Opus fact-check)
-            # Build enriched Wikipedia context: full text + infobox summary
-            wikipedia_context = None
-            if wiki_data:
-                parts = []
-                if wiki_data.get("full_text"):
-                    parts.append(wiki_data["full_text"][:3000])
-                elif wiki_data.get("extract"):
-                    parts.append(wiki_data["extract"])
-                infobox = wiki_data.get("infobox", {})
-                if infobox:
-                    infobox_summary = ", ".join(f"{k}: {v}" for k, v in infobox.items())
-                    parts.append(f"Infobox: {infobox_summary}")
-                wikipedia_context = "\n\n".join(parts) if parts else None
-            verified_claims = all_claims
-            if all_claims and not budget.exceeded():
-                verified_claims = await quorum_verify_claims(all_claims, prospect, client, budget)
-
-            # Cancel checkpoint: before synthesis (most expensive LLM call)
-            if _is_cancelled(job_id):
-                logger.info("Job %s cancelled before synthesis for %s", job_id, cid)
-                save_profile(cid, {"claims": verified_claims, "summary": "", "confidence_score": "medium", "partial": True, "failed_agents": ["cancelled"]})
-                results.append({"contact_id": cid, "claims_count": len(verified_claims)})
-                cancelled = True
-                break
-
-            # Synthesis (Opus, with pre-verified origin-tagged claims)
-            if verified_claims and not budget.exceeded():
-                profile_data = synthesize_profile(verified_claims, prospect, client, budget, wikipedia_context=wikipedia_context)
-                profile = {
-                    "claims": profile_data.get("claims", verified_claims),
-                    "summary": profile_data.get("summary", ""),
-                    "confidence_score": profile_data.get("confidence_score", "medium"),
-                    "partial": profile_data.get("partial", False),
-                    "failed_agents": profile_data.get("failed_agents", []),
-                }
-            else:
-                profile = {
-                    "claims": verified_claims,
-                    "summary": "",
-                    "confidence_score": "medium",
-                    "partial": enriched.get("partial", False),
-                    "failed_agents": enriched.get("failed_agents", []),
-                }
-        except Exception as e:
-            logger.exception("Prospect %s failed: %s", cid, e)
-            profile = {
-                "claims": [],
-                "summary": "",
-                "confidence_score": "low",
-                "partial": True,
-                "failed_agents": ["pipeline_error"],
-            }
-
-        save_profile(cid, profile)
-        # Save session history entry
-        session_status = "cancelled" if _is_cancelled(job_id) else "completed"
-        save_session(
-            session_id=str(uuid.uuid4()),
+        result = await research_single_prospect(
+            prospect=prospect,
             contact_id=cid,
-            profile=profile,
-            prospect_name=name,
-            prospect_org=primary_org or "",
-            cost_usd=budget.total_cost if hasattr(budget, "total_cost") else None,
-            status=session_status,
+            client=client,
+            cancel_check=lambda: _is_cancelled(job_id),
         )
-        results.append({"contact_id": cid, "claims_count": len(profile["claims"])})
+        results.append(result)
+        if result.get("cancelled"):
+            cancelled = True
+            break
 
     # Clean up cancel flag
     if job_id:
