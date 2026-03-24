@@ -7,6 +7,9 @@ Status of all plans in `.cursor/plans/`. Use this to find which plans are still 
 | Plan | Remaining Items |
 |------|-----------------|
 | Google OAuth Sprint Setup | Add FRONTEND_URL to env.production.template; create OAUTH_SPRINT_CHECKLIST.md; change post-login redirect from /overview to /priorities |
+| Sprint 6 — Agentic alignment + test coverage | In progress: scratchpad enrichment, sufficiency retry, conflict detection, test coverage |
+| Sprint 7 — UX polish | Planned |
+| Sprint 8 — Team enablement | Planned |
 
 ## Completed
 
@@ -23,6 +26,7 @@ Status of all plans in `.cursor/plans/`. Use this to find which plans are still 
 | Pipeline Scenario Cards |
 | Revenue vs Cashflow Layout |
 | Notification Bell Dropdown |
+| Stage B Sprint 1 — LDA/FINRA/affiliation |
 
 ## Superseded
 

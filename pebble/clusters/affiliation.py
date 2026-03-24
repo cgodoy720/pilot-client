@@ -98,8 +98,11 @@ async def run_affiliation_cluster(
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for key, result in zip(keys, results):
-            safe = _safe_result(result)
-            ctx.add_source(key, safe)
+            if isinstance(result, BaseException):
+                logger.warning("Affiliation cluster API call failed for %s: %s", key, result)
+                budget.failed_sources.append(key)
+            else:
+                ctx.add_source(key, result)
             budget.record_call()
 
     logger.info("Affiliation cluster: %d sources fetched", len(tasks))

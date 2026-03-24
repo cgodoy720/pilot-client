@@ -61,6 +61,7 @@ async def run_public_profile_cluster(
 
             ctx.add_source("wiki_data", wiki_data)
         except Exception as e:
+            budget.failed_sources.append("wiki_data")
             logger.warning("Wikipedia fetch failed: %s", e)
 
     # --- Web search — targeted queries ---
@@ -78,8 +79,11 @@ async def run_public_profile_cluster(
     if web_tasks:
         results = await asyncio.gather(*web_tasks, return_exceptions=True)
         for key, result in zip(web_keys, results):
-            safe = _safe_result(result)
-            ctx.add_source(key, safe)
+            if isinstance(result, BaseException):
+                logger.warning("Public profile cluster API call failed for %s: %s", key, result)
+                budget.failed_sources.append(key)
+            else:
+                ctx.add_source(key, result)
             budget.record_call()
 
     # --- Build claims from web search ---

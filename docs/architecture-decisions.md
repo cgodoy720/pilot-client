@@ -327,3 +327,24 @@ Then decide on simplifications or enhancements.
 **Resolution**: PostgreSQL table `automation_queue` with columns:
 `id`, `source`, `raw_text`, `parsed_json`, `status`, `created_at`, `reviewed_by`, `reviewed_at`
 
+---
+
+## 🤖 Agentic Alignment (Sprint 6)
+
+### Scratchpad Enrichment
+**Decision:** Extend ResearchScratchpad beyond budget tracking to include source outcomes, skipped sources, and findings summary.
+**Reason:** Agentic principle requires explicit plan/progress/conclusions tracking at every iteration. Budget-only scratchpad hid failures.
+
+### Sufficiency Assessment + Retry
+**Decision:** After initial cluster research, check if critical sources (per prospect type) returned data. Retry failed clusters with 1.5x timeout budget.
+**Reason:** Agentic resilience principle — workers must never fail silently. Critical source failures warrant a retry before giving up.
+**Trade-off:** Retry adds latency (up to 90s extra). Acceptable because it only triggers when type-specific critical sources fail, not common sources.
+
+### Conflict Detection
+**Decision:** Heuristic regex-based conflict detection across claims, not ML.
+**Reason:** All claim text is template-generated with predictable patterns. Regex is correct for structured input. ML would be over-engineering for ~36 known patterns.
+
+### Conclusion Extraction (condense)
+**Decision:** condense() extracts structured conclusions from claims but does NOT clear raw_data.
+**Reason:** T2 and T3 handlers read ctx.raw_data after clusters complete (source scoring, forager activation, wiki context for synthesis). Clearing mid-pipeline would break these reads. The 5-minute context TTL handles cleanup.
+

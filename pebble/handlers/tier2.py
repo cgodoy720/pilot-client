@@ -171,6 +171,10 @@ async def handle_t2(
     if failed_clusters:
         text_parts.append(f"\n*Note: {', '.join(failed_clusters)} cluster(s) {'timed out' if 'timeout' in scratchpad.cluster_status.values() else 'failed'} — results may be incomplete.*")
 
+    if scratchpad.skipped_sources:
+        source_list = ", ".join(sorted(set(scratchpad.skipped_sources)))
+        text_parts.append(f"\n*Data unavailable from: {source_list}. Results may be incomplete.*")
+
     return HandlerResponse(
         text="\n".join(text_parts),
         level=20,

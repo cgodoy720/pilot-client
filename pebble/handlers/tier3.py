@@ -105,6 +105,12 @@ async def handle_t3(
                     parts.append("Infobox: " + ", ".join(f"{k}: {v}" for k, v in infobox.items()))
                 wikipedia_context = "\n\n".join(parts) if parts else None
 
+            # Conflict detection
+            from ..clusters.conflict_detector import detect_conflicts
+            conflicts = detect_conflicts(all_claims, person_name)
+            if conflicts:
+                logger.info("T3: detected %d claim conflicts", len(conflicts))
+
             # Quorum verification
             verified_claims = await quorum_verify_claims(all_claims, prospect, model_client, budget)
 
@@ -112,6 +118,8 @@ async def handle_t3(
             profile_data = synthesize_profile(
                 verified_claims, prospect, model_client, budget,
                 wikipedia_context=wikipedia_context,
+                conflicts=conflicts if conflicts else None,
+                skipped_sources=ctx.skipped_sources if ctx.skipped_sources else None,
             )
             profile = {
                 "claims": profile_data.get("claims", verified_claims),

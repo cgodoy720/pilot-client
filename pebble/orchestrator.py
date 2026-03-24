@@ -624,6 +624,8 @@ def synthesize_profile(
     client: ModelClient,
     budget: ProspectBudgetTracker,
     wikipedia_context: str | None = None,
+    conflicts: list[dict] | None = None,
+    skipped_sources: list[str] | None = None,
 ) -> dict:
     """Synthesis: Opus produces summary + confidence from pre-verified, origin-tagged claims.
 
@@ -656,6 +658,12 @@ def synthesize_profile(
         "unless evidence shows the position is active. Use 'formerly served as' for past positions. "
         "Output valid JSON only, no markdown fences."
     )
+
+    if conflicts:
+        conflict_desc = "; ".join(c["description"] for c in conflicts[:5])
+        system += f" Data conflicts detected: {conflict_desc}. Address discrepancies in your analysis."
+    if skipped_sources:
+        system += f" Unavailable sources: {', '.join(skipped_sources)}. Note any gaps."
 
     prompt = (
         f"Write a 2-3 sentence research brief for a development officer about {name}. "
