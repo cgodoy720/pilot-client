@@ -1,5 +1,7 @@
 # 🏗️ Architecture Decisions & Questions
 
+## 💰 Invoicing & Payments Decisions
+
 ## ⚠️ **Flagged for Review**
 
 ### **1. Invoice__c Object - Is it needed?**
@@ -229,6 +231,8 @@ When partial payment received, split into:
 | Manual invoice creation | 2025-11-13 | ✅ Accepted | Finance Team |
 | Create invoice in Sage first | 2025-11-13 | 🔄 To Implement | Dev |
 | Simple customer matching | 2025-11-13 | ✅ Accepted (MVP) | Finance Team |
+| Ask Pebble tiered query router | 2026-03-23 | ✅ Designed | JP |
+| CRM bridge — internal API key auth | 2026-03-23 | ✅ Designed | JP |
 
 ---
 
@@ -241,6 +245,45 @@ Schedule architecture review after:
 - [ ] Common pain points identified
 
 Then decide on simplifications or enhancements.
+
+---
+
+## 🔍 Pebble Architecture Decisions
+
+### **8. Ask Pebble — Tiered Query Architecture**
+
+**Current Decision:** Hybrid regex → Haiku LLM classifier routes queries to the appropriate depth.
+
+**Alternatives Considered:**
+- (A) Single-depth research for all queries — current model, wastes $0.20+ on simple CRM lookups
+- (B) Manual mode selection only — user picks tier, bad UX since they don't know which tier is right
+
+**Reason:** 80%+ of queries will be CRM lookups (L0/L1, free). Running full research on these is wasteful. The regex layer catches obvious patterns for free; Haiku ($0.001, <1s) handles ambiguous queries. Progressive cost control — expensive research only when the user explicitly asks.
+
+**Date:** 2026-03-23
+
+**Status:** Design approved, implementation pending
+
+**Reference:** `product/crm-prds/ask-pebble-spec.md`
+
+---
+
+### **9. CRM Bridge — Service-to-Service Authentication**
+
+**Current Decision:** Internal API key (`BEDROCK_INTERNAL_API_KEY` env var) for Pebble → Bedrock calls. SOSL for cross-entity search.
+
+**Alternatives Considered:**
+- (A) Shared database access — breaks service separation, couples Pebble to Bedrock's DB
+- (B) OAuth between services — overhead for internal services on the same machine
+- (C) Service mesh/API gateway — premature for 2-service architecture
+
+**Reason:** Preserves service separation; reuses existing Salesforce endpoints; simple single-env-var configuration. SOSL is already supported by `simple-salesforce` (`salesforce.py:339-362`).
+
+**Date:** 2026-03-23
+
+**Status:** Design approved, implementation pending
+
+**Reference:** `product/crm-prds/ask-pebble-spec.md`
 
 ---
 

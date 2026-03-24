@@ -49,9 +49,11 @@
 | F15 | **Prospect → Opportunity conversion** | Partnerships IC | Prospect, Opportunity | Both | Post-MVP | F14, F01 |
 | F16 | **Network search** (LinkedIn CSV × prospect list fuzzy match) | Partnerships IC | NetworkMatch, Contact | N/A | Post-MVP | F04, F10 |
 | F17 | **Prospect scoring** (composite score from wealth tier, network, engagement) | Partnerships IC | Contact, NetworkMatch | N/A | Post-MVP | F16 |
-| F18 | **AI prospect intelligence** (Pebble research integration) | Partnerships IC | Contact, Prospect | N/A | Backlog | F17, Integration #9 |
+| F18 | **AI prospect intelligence** — Ask Pebble conversational interface (L0/L1 CRM queries + T1-T3 tiered research + batch workflow) | Partnerships IC | Contact, Prospect | N/A | Backlog | F17, Integration #9 |
 
 > **Pebble Self-Service Pre-Requisite (2026-03-23):** Before enabling self-service Pebble access for the team, add RBAC permission `use_pebble_research` to the permissions system. Gate the `/pebble` nav item and Pebble API calls behind this permission. Add per-user daily research limit and a monthly budget cap per user role. The current $0.50/prospect budget cap protects per-query costs, but no per-user limits exist to prevent a new user from running dozens of queries. See also `tasks/pebble-evolution-roadmap.md`.
+>
+> **Interim access control (2026-03-23):** Ask Pebble tab is JP-only gated (frontend email check + backend `PEBBLE_CHAT_ALLOWED_EMAILS` env var with `hmac.compare_digest`). This covers the demo-only period. Full RBAC permission (`use_pebble_research`) needed before Sprint 3 self-service. Design spec: `product/crm-prds/ask-pebble-spec.md`.
 | F47 | **Intelligence freshness tracking** (auto-downgrade confidence after 90 days; flag stale scores) | Partnerships IC | Contact | N/A | Post-MVP | F17 |
 | F48 | **Decision audit trail** (log pursue/pass/deprioritize decisions with rationale and intelligence snapshot) | Partnerships IC, Executive | Decision, Prospect, Opportunity | Both | MVP | F01 |
 

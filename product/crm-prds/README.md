@@ -21,7 +21,7 @@
 | **08 — User Roles & Permissions** | Role definitions, visibility rules, access control | MVP | F42, F43 | Not started |
 | **09 — Salesforce Migration & Sync** | Initial data import, field mapping, transformation rules, validation, ongoing bidirectional sync | MVP | F38, F40, F45 | Partially exists (sync code in `data_sync.py`) |
 | **10 — Unified Home Page** | Calendar view, tasks grouped by parent opp, top prospects, stale detection, 14-day window | MVP | F09, F12, F13, F06 | **Draft** (`10-home.md`) |
-| **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, intelligence freshness, AI enrichment | Post-MVP | F14, F15, F16, F17, F18, F47 | Not started |
+| **11 — Prospect Intelligence** | Prospect tracker, conversion, network search, scoring, intelligence freshness, AI enrichment | Post-MVP | F14, F15, F16, F17, F18, F47 | Design spec exists (see `ask-pebble-spec.md` in future feature specs below) |
 | **12 — Activity & Interaction Logging** | Manual logging, Slack ingest, timeline view, transcript pipeline | MVP (manual) / Post-MVP (Slack) | F34, F35, F36, F37 | MCP Client exists for Slack |
 | **13 — Grant Programmatic Requirements** | Grant date range, reporting schedule, program inputs/outputs/outcomes, metrics dashboard | MVP (capture) / Post-MVP (reporting) | F49, F50, F51 | Not started |
 | **14 — Decision Audit Trail** | Decision logging with rationale, intelligence snapshot, outcome tracking | MVP | F48 | Not started |
@@ -138,6 +138,7 @@ while ensuring the vision isn't lost.
 
 | Spec | Depends On | Status |
 |------|-----------|--------|
+| [Ask Pebble Tiered Query Router](ask-pebble-spec.md) | Pebble Stage 2 CRM bridge (partial); standalone for chat + L0/L1 | Design approved 2026-03-23 — covers PRD 11 scope for chat, disambiguation, tiered research, batch workflow |
 | [Pebble Network Intro Routing](pebble-network-intro.md) | Learning platform integration (LinkedIn contacts) | Future — blocked |
 
 ---
