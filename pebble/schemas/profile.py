@@ -47,6 +47,16 @@ class CancelRequest(BaseModel):
     job_id: str
 
 
+class TieredResearchRequest(BaseModel):
+    """Request body for POST /api/v1/research/tiered — single-prospect tiered research."""
+
+    first_name: str = ""
+    last_name: str = ""
+    organization: str = ""
+    contact_id: str | None = None
+    tier: int = Field(1, ge=1, le=3)
+
+
 class ResearchFeedback(BaseModel):
     """Request body for POST /api/v1/research/feedback."""
 

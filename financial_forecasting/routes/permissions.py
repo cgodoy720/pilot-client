@@ -24,6 +24,7 @@ PERMISSION_KEYS = [
     "view_sage_invoices_payments", "create_sage_invoices",
     "match_invoices", "manage_payment_schedules", "generate_financial_reports",
     "trigger_data_sync", "manage_users_roles",
+    "use_pebble_chat",
 ]
 
 
@@ -55,7 +56,13 @@ async def get_user_permissions(email: str, db) -> Dict[str, Any]:
     )
     if row:
         result = dict(row)
-        result["permissions"] = _parse_perms(result.get("permissions"))
+        perms = _parse_perms(result.get("permissions"))
+        # Admin profiles get all permissions by default — new keys are
+        # automatically granted without requiring a DB update.
+        if result.get("profile_name") == "Admin":
+            for key in PERMISSION_KEYS:
+                perms.setdefault(key, True)
+        result["permissions"] = perms
         return result
     # Auto-provision: first user ever gets Admin, everyone else gets default profile
     user_count = await db.fetchval("SELECT COUNT(*) FROM app_user")

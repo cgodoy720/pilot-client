@@ -87,6 +87,26 @@ export const pebbleService = {
     pebbleApi.get<ResearchSessionDetail>(`/api/v1/research/history/${sessionId}`),
 
   health: () => pebbleApi.get('/health'),
+
+  // Ask Pebble chat
+  chatQuery: (body: ChatQueryRequest) =>
+    pebbleApi.post<ChatQueryResponse>('/api/v1/chat/query', body),
+
+  getChatHistory: (conversationId?: string, userEmail?: string) =>
+    pebbleApi.get('/api/v1/chat/history', {
+      params: { conversation_id: conversationId, user_email: userEmail },
+    }),
+
+  // Tiered single-prospect research
+  tieredResearch: (body: { first_name: string; last_name: string; organization: string; contact_id?: string; tier: number }) =>
+    pebbleApi.post<TieredResearchResponse>('/api/v1/research/tiered', body),
+
+  // Batch research
+  batchResearch: (body: { prospects: Array<{ name: string; organization?: string }>; target_tier?: number; batch_id?: string; user_email?: string }) =>
+    pebbleApi.post('/api/v1/research/batch', body),
+
+  getBatchStatus: (batchId: string) =>
+    pebbleApi.get(`/api/v1/research/batch/${batchId}`),
 };
 
 export interface ResearchSession {
@@ -98,6 +118,46 @@ export interface ResearchSession {
   claims_count: number;
   confidence_score: string;
   created_at: string;
+}
+
+export interface ChatQueryRequest {
+  query: string;
+  mode?: string;
+  conversation_id?: string;
+  user_email?: string;
+  selected_option?: string;
+}
+
+export interface ClarificationOption {
+  label: string;
+  value: string;
+  description?: string | null;
+}
+
+export interface ChatQueryResponse {
+  answer: string;
+  level: number;
+  intent: string;
+  data?: Record<string, any> | null;
+  sources?: string[];
+  cost_usd: number;
+  elapsed_seconds: number;
+  conversation_id: string;
+  redirect_target?: string | null;
+  redirect_reason?: string | null;
+  requires_clarification: boolean;
+  clarification_options?: ClarificationOption[] | null;
+  blocked_reason?: string | null;
+}
+
+export interface TieredResearchResponse {
+  tier: string;
+  text: string;
+  data: Record<string, any> | null;
+  cost_usd: number;
+  elapsed_seconds: number;
+  sources: string[];
+  contact_id: string;
 }
 
 export interface ResearchSessionDetail {

@@ -93,6 +93,7 @@
 
 - **Simplicity First**: Make every change as simple as possible. Impact minimal code.
 - **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **No Demo Versions**: Build production-ready from the start. When tempted to hardcode, gate behind flags, or build "for now" shortcuts, push back and clarify the production approach instead. Only build a demo version if explicitly confirmed twice.
 - **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
 
 ## Target Platform Compatibility

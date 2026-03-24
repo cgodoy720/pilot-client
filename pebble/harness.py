@@ -163,6 +163,10 @@ def _tpl_philanthropy(data: dict, source_urls: list[str]) -> tuple[str, str]:
     system = (
         "You are a philanthropy research specialist. Analyze nonprofit data and biographical info "
         "to produce claims about philanthropic activity, board service, and nonprofit affiliations. "
+        "IMPORTANT: When org-level data (990 filings, awards) is available but person-level data is sparse, "
+        "extract what the org data implies about the person's role, influence, and affiliations. "
+        "For example, if a person is CEO of an org that filed a 990 showing $5M revenue, note their "
+        "leadership of a significant nonprofit. If 990 lists officers, match the prospect's name. "
         "Every claim must have a source_url. Output valid JSON only, no markdown fences. "
         "When data mentions positions with date ranges, indicate whether they are current or former. "
         "If no end date is stated and the source uses present tense, mark as current."
@@ -215,6 +219,104 @@ def _tpl_verifier_crossref(data: dict, source_urls: list[str]) -> tuple[str, str
     system = (
         "You check cross-references. Approve claims corroborated by other claims or from "
         "authoritative standalone sources. Reject unsupported low-confidence claims. "
+        "Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
+# ---------------------------------------------------------------------------
+# Ask Pebble chat agent templates
+# ---------------------------------------------------------------------------
+
+@register_template("query_classifier")
+def _tpl_query_classifier(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    """Haiku fallback classifier for ambiguous chat queries."""
+    query = data.get("query", "")
+    prompt = f"<user_query>{query}</user_query>"
+    system = (
+        "You classify user queries for a CRM intelligence assistant called Pebble. "
+        "Pebble handles: prospect research, CRM lookups, fundraising data analysis. "
+        "It does NOT handle: email drafting, CRM writes, scheduling, general AI tasks.\n\n"
+        "Classify the query inside <user_query> tags into JSON:\n"
+        '{"level": int, "intent": str, "entities": {}, "confidence": float}\n\n'
+        "Levels: -1=redirect (out of scope), 0=CRM lookup, 1=CRM analysis, "
+        "10=ID & triage, 20=structured research, 30=full research\n"
+        "If redirect, include: redirect_target (cowork|bedrock_pipeline|bedrock_priorities), redirect_reason\n"
+        "Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
+@register_template("l1_synthesizer")
+def _tpl_l1_synthesizer(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    """Haiku synthesis for L1 CRM analysis queries."""
+    prompt = data.get("prompt", "")
+    system = data.get("system", (
+        "You are Pebble, a CRM intelligence assistant. Given CRM data, "
+        "provide a concise, actionable analysis. Be specific with numbers "
+        "and dates. Use markdown formatting (bold for names and amounts)."
+    ))
+    return prompt, system
+
+
+@register_template("t1_identity_assessor")
+def _tpl_t1_identity(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    """Haiku identity confidence assessment for T1 triage."""
+    claims_text = data.get("claims_text", "")
+    prospect = data.get("prospect", {})
+    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
+    org = prospect.get("organization", "")
+    prompt = (
+        f"Assess identity confidence for this prospect:\n"
+        f"Name: {name}\nOrganization: {org}\n\n"
+        f"Evidence found:\n{claims_text}\n\n"
+        f"Return JSON: {{\"confidence\": \"high|medium|low\", "
+        f"\"summary\": \"one-sentence identity assessment\", "
+        f"\"likely_correct_person\": true|false}}"
+    )
+    system = (
+        "You assess whether public data findings match the intended person. "
+        "Consider name uniqueness, organizational affiliation, and source consistency. "
+        "Output valid JSON only, no markdown fences."
+    )
+    return prompt, system
+
+
+@register_template("web_search_extractor")
+def _tpl_web_search_extractor(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    """Haiku extraction of structured claims from web search snippets."""
+    prompt = data.get("prompt", "")
+    system = data.get("system", (
+        "Extract factual claims about this person from web search results. "
+        "Focus on: current role/title, organization, board positions, "
+        "philanthropic activity, education, career history, notable achievements. "
+        "Each claim must include a source_url from the search result it came from. "
+        "Output JSON only, no markdown fences."
+    ))
+    return prompt, system
+
+
+@register_template("t2_structured_synthesizer", max_data_sources=9)
+def _tpl_t2_synthesizer(data: dict, source_urls: list[str]) -> tuple[str, str]:
+    """Sonnet structured synthesis for T2 intelligence queries."""
+    claims_text = data.get("claims_text", "")
+    prospect = data.get("prospect", {})
+    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
+    org = prospect.get("organization", "")
+    prompt = (
+        f"Synthesize structured intelligence for: {name} at {org}\n\n"
+        f"Evidence:\n{claims_text}\n\n"
+        f"Organize findings into these 5 dimensions:\n"
+        f"1. Giving capacity (donations, grants, political contributions)\n"
+        f"2. Organizational affiliations (titles, employer, sector)\n"
+        f"3. Board positions & leadership\n"
+        f"4. Wealth sources & financial footprint\n"
+        f"5. Comparable giving to similar organizations\n\n"
+        f"Return JSON with a key per dimension, each containing findings and confidence."
+    )
+    system = (
+        "You synthesize public data into structured prospect intelligence across "
+        "5 research dimensions. Be balanced — cover all dimensions, flag gaps. "
         "Output valid JSON only, no markdown fences."
     )
     return prompt, system

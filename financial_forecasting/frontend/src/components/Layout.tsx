@@ -73,6 +73,7 @@ const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', 
 
 // Map nav paths to required permissions (undefined = no permission needed)
 const NAV_PERMISSIONS: Record<string, string | undefined> = {
+  '/pebble': 'use_pebble_chat',
   '/cashflow': 'view_cashflow_forecasts',
   '/settings': undefined, // visible to all, tabs gated inside
 };

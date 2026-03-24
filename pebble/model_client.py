@@ -73,6 +73,12 @@ AGENT_TIERS = {
     "verifier_crossref": ModelTier.WORKER,
     "fact_check_agent": ModelTier.QUEEN,
     "profile_synthesizer": ModelTier.QUEEN,
+    # Ask Pebble chat agents
+    "query_classifier": ModelTier.WORKER,
+    "l1_synthesizer": ModelTier.WORKER,
+    "t1_identity_assessor": ModelTier.WORKER,
+    "t2_structured_synthesizer": ModelTier.FORAGER,
+    "web_search_extractor": ModelTier.WORKER,
 }
 
 # OpenRouter free model fallback chain for worker/drone tiers

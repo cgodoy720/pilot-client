@@ -90,6 +90,12 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
+    label: 'Pebble',
+    keys: [
+      { key: 'use_pebble_chat', label: 'Use Ask Pebble (Chat & Tiered Research)' },
+    ],
+  },
+  {
     label: 'System',
     keys: [
       { key: 'trigger_data_sync', label: 'Trigger Data Sync' },
@@ -645,6 +651,30 @@ const Settings: React.FC = () => {
             control={<Checkbox checked={editDefault} onChange={(e) => setEditDefault(e.target.checked)} size="small" />}
             label="Default"
           />
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              const all: Record<string, boolean> = {};
+              PERMISSION_GROUPS.forEach((g) => g.keys.forEach(({ key }) => { all[key] = true; }));
+              setEditPerms(all);
+            }}
+          >
+            Select All
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              const none: Record<string, boolean> = {};
+              PERMISSION_GROUPS.forEach((g) => g.keys.forEach(({ key }) => { none[key] = false; }));
+              setEditPerms(none);
+            }}
+          >
+            Deselect All
+          </Button>
         </Box>
         {PERMISSION_GROUPS.map((group) => (
           <Box key={group.label} sx={{ mb: 2 }}>
