@@ -162,7 +162,10 @@ test-results/
 financial_forecasting/frontend/test-results/
 
 # Claude Code local config (agents, settings, plans)
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/gstack
 
 # Data files (financial data, exports)
 *.csv
