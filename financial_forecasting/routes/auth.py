@@ -59,6 +59,68 @@ PBD_CALENDAR_ID = os.getenv(
 
 
 # ---------------------------------------------------------------------------
+# Google credential helper (used by calendar/gmail endpoints in main.py)
+# ---------------------------------------------------------------------------
+
+def get_google_credentials(email: str, request: Request = None):
+    """Build google.oauth2.credentials.Credentials for a user.
+
+    Checks in-memory cache first, then falls back to encrypted cookie.
+    Proactively refreshes expired tokens if a refresh_token is available.
+    """
+    from google.oauth2.credentials import Credentials
+    import google.auth.transport.requests
+
+    tokens = _google_tokens.get(email)
+
+    # If not in memory, try to restore from encrypted cookie
+    if (not tokens or not tokens.get('access_token')) and request:
+        cookie = request.cookies.get("google_tokens")
+        if cookie:
+            try:
+                restored = decrypt_tokens(cookie)
+                if restored and restored.get('access_token'):
+                    tokens = restored
+                    _google_tokens[email] = tokens
+                    has_refresh = bool(restored.get('refresh_token'))
+                    logger.info(f"Restored Google tokens from cookie for {email} (has refresh_token: {has_refresh})")
+                else:
+                    logger.warning(f"Google cookie decrypted but missing access_token for {email}")
+            except Exception as e:
+                logger.warning(f"Failed to decrypt Google tokens cookie for {email}: {e}")
+        else:
+            logger.info(f"No google_tokens cookie found for {email} — user needs to re-login via Google")
+
+    if not tokens or not tokens.get('access_token'):
+        logger.warning(f"No Google tokens available for {email}")
+        return None
+
+    refresh_token = tokens.get('refresh_token')
+    if not refresh_token:
+        logger.warning(f"No refresh_token for {email} - Google APIs will fail if access token is expired. User needs to re-login.")
+
+    creds = Credentials(
+        token=tokens['access_token'],
+        refresh_token=refresh_token,
+        token_uri='https://oauth2.googleapis.com/token',
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+    )
+
+    # Proactively refresh if the token is expired and we have a refresh token
+    if creds.expired and refresh_token:
+        try:
+            creds.refresh(google.auth.transport.requests.Request())
+            tokens['access_token'] = creds.token
+            _google_tokens[email] = tokens
+            logger.info(f"Proactively refreshed Google access token for {email}")
+        except Exception as e:
+            logger.warning(f"Failed to refresh Google token for {email}: {e}")
+
+    return creds
+
+
+# ---------------------------------------------------------------------------
 # Google OAuth endpoints
 # ---------------------------------------------------------------------------
 
