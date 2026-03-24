@@ -420,10 +420,11 @@ function AssessmentInterface({
     sendMessageAbortControllerRef.current = abortController;
 
     try {
-      const streamingMessageId = Date.now() + 1;
+      const now = Date.now();
+      const streamingMessageId = now + 1;
       // Add user message to chat
       const userMessage = {
-        id: Date.now(),
+        id: now,
         content: trimmedMessage,
         sender: 'user',
         timestamp: new Date().toISOString(),
