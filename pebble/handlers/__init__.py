@@ -141,6 +141,8 @@ async def dispatch_handler(
                 "type": readiness.primary_match.entity_type,
                 "id": readiness.primary_match.sf_id,
                 "name": readiness.primary_match.name,
+                "account_type": readiness.primary_match.account_type,
+                "account_record_type": readiness.primary_match.account_record_type,
             }
 
     # Dispatch to level-specific handler

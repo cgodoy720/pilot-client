@@ -57,13 +57,16 @@ async def search_all(
     Used by Pebble's readiness module for multi-layer disambiguation.
     """
     safe_q = escape_sosl_string(q.strip())
+    # RecordType.Name in Account RETURNING: standard relationship field,
+    # should work in most SF orgs. If your org restricts RecordType access,
+    # remove it — readiness.py handles missing RecordType gracefully.
     sosl = (
         f"FIND {{{safe_q}}} IN ALL FIELDS RETURNING "
         f"Contact(Id, FirstName, LastName, Name, Email, Title, "
-        f"AccountId, Account.Name LIMIT {limit}), "
-        f"Account(Id, Name, Type, Industry LIMIT {limit}), "
+        f"AccountId, Account.Name, Account.Type LIMIT {limit}), "
+        f"Account(Id, Name, Type, Industry, RecordType.Name LIMIT {limit}), "
         f"Opportunity(Id, Name, StageName, Amount, CloseDate, "
-        f"Account.Name, Owner.Name LIMIT {limit})"
+        f"Account.Name, Account.Type, Owner.Name LIMIT {limit})"
     )
     try:
         salesforce = client.salesforce
