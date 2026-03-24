@@ -69,14 +69,20 @@ PRs 2, 4✓, 8✓, 9, 10✓ ship independently.
 - [x] Orchestrator updated: `execute_task()` + `TaskSpec` for sub-Queen, `harness_config_for_agent()` for all
 - [ ] Manual verification: startup + curl tests
 
-## Pebble: Known Issues for Follow-up
+## Pebble: Blocking — Must Resolve Before Production
+
+> These items prevent features from working correctly. Code is built but cannot be fully tested or used until these are resolved.
+
+- [ ] **Web search APIs need setup (team admin)** — Pebble supports two web search backends (Google CSE + Serper.dev). Neither is configured. Without at least one, all web search returns empty — no biographical info, no board positions, no news results. Setup: `pebble/README.md` → "Web search setup." *JP + team admin.*
+- [ ] **OpenCorporates needs API key** — Code ready, cache in place. `search_officers()` returns empty without credentials. No officer/director data until configured.
+- [ ] **Sync LLM calls block event loop** — `harness.execute()` / `execute_task()` are synchronous; server freezes for concurrent users. Wrap in `asyncio.to_thread()` or switch to async Anthropic client. *Must fix before multi-user testing.*
+
+## Pebble: Resolved
 
 - [x] **SEC CIK caching** — API response cache layer added (Stage 1C). SQLite TTL cache in `pebble/storage/cache.py`.
-- [ ] **Sync LLM calls block event loop** — `harness.execute()` / `execute_task()` are synchronous; server freezes for concurrent users. Wrap in `asyncio.to_thread()` or switch to async Anthropic client. *Address before multi-user testing.*
-- [ ] **OpenCorporates needs API key** — Code ready, cache in place. `search_officers()` returns empty without credentials. *Configure when credentials are available.*
-- [x] **Google OAuth configured** — Set up 2026-03-20. See `tasks/google-oauth-setup.md` (DONE).
-- [ ] **No unit/integration tests** — Zero test coverage for pipeline, data sources, harness. *Address after pipeline behavior is validated and stable — shape tests around real failure modes.*
+- [x] **Google OAuth configured** — Set up 2026-03-20. See `tasks/google-oauth-setup.md`.
 - [x] **Frontend UX gaps** — Resolved in Stage 1: research history sidebar, text feedback, download export, stop button, previous feedback display on reopen. Remaining: cost display, failed_agents visibility.
+- [x] **No unit/integration tests** — 236 tests now passing across data sources, clusters, router, CRM agent, and web search.
 
 ## Pebble Stage 1 Complete (2026-03-20)
 
