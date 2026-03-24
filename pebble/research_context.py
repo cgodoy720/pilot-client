@@ -67,6 +67,12 @@ class ProspectResearchContext:
     # Forager claims (kept separate for T3 to merge)
     forager_claims: list[dict] = field(default_factory=list)
 
+    # Structured conclusions (populated by condense())
+    conclusions: dict[str, Any] = field(default_factory=dict)
+
+    # Sources that failed or returned no data for critical queries
+    skipped_sources: list[str] = field(default_factory=list)
+
     # Timestamps
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -107,6 +113,69 @@ class ProspectResearchContext:
     def all_claims(self) -> list[dict]:
         """Get all accumulated claims including forager claims."""
         return list(self.claims) + list(self.forager_claims)
+
+    def condense(self) -> None:
+        """Extract structured conclusions from accumulated claims.
+
+        Populates self.conclusions with:
+        - person_roles: list of (title, org, source_url) tuples
+        - financial_summary: dict of metric -> amount
+        - org_connections: list of connected org dicts
+        - source_count: number of sources that returned data
+
+        Does NOT clear raw_data — downstream handlers still need it.
+        """
+        import re
+
+        roles: list[tuple[str, str, str]] = []
+        financials: dict[str, float] = {}
+
+        _role_re = re.compile(
+            r"(.+?)\s+(?:serves as|is recorded as|is|was listed as|served as|has served as)"
+            r"\s+(.+?)\s+at\s+(.+?)(?:\s*\(|\s+in\s+the\s|\s+with\s|,\s|$)"
+        )
+        _amount_re = re.compile(r"\$([\d,.]+)")
+
+        for claim in self.claims:
+            text = claim.get("text", "")
+            source_url = claim.get("source_url", "")
+
+            # Extract roles
+            m = _role_re.match(text)
+            if m:
+                roles.append((m.group(2).strip(), m.group(3).strip(), source_url))
+
+            # Extract financial totals
+            if "contributed" in text and "$" in text:
+                amt_match = _amount_re.search(text)
+                if amt_match:
+                    try:
+                        val = float(amt_match.group(1).replace(",", ""))
+                        financials["contributions"] = financials.get("contributions", 0) + val
+                    except ValueError:
+                        pass
+            if "in revenue" in text:
+                amt_match = re.search(r"\$([\d,.]+)\s+in revenue", text)
+                if amt_match:
+                    try:
+                        financials["revenue"] = float(amt_match.group(1).replace(",", ""))
+                    except ValueError:
+                        pass
+            if "in total assets" in text:
+                amt_match = re.search(r"\$([\d,.]+)\s+in total assets", text)
+                if amt_match:
+                    try:
+                        financials["total_assets"] = float(amt_match.group(1).replace(",", ""))
+                    except ValueError:
+                        pass
+
+        self.conclusions = {
+            "person_roles": roles,
+            "financial_summary": financials,
+            "org_connections": self.raw_data.get("connected_orgs", []),
+            "source_count": sum(1 for v in self.raw_data.values() if v is not None),
+        }
+        self.updated_at = time.time()
 
 
 def get_or_create_context(

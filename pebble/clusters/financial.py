@@ -97,8 +97,11 @@ async def run_financial_cluster(
     if phase1_tasks:
         results = await asyncio.gather(*phase1_tasks, return_exceptions=True)
         for key, result in zip(phase1_keys, results):
-            safe = _safe_result(result)
-            ctx.add_source(key, safe)
+            if isinstance(result, BaseException):
+                logger.warning("Financial cluster API call failed for %s: %s", key, result)
+                budget.failed_sources.append(key)
+            else:
+                ctx.add_source(key, result)
             budget.record_call()
 
     logger.info("Financial cluster phase 1: %d sources fetched", len(phase1_tasks))
@@ -154,8 +157,11 @@ async def run_financial_cluster(
     if phase2_tasks:
         results = await asyncio.gather(*phase2_tasks, return_exceptions=True)
         for key, result in zip(phase2_keys, results):
-            safe = _safe_result(result)
-            ctx.add_source(key, safe)
+            if isinstance(result, BaseException):
+                logger.warning("Financial cluster API call failed for %s: %s", key, result)
+                budget.failed_sources.append(key)
+            else:
+                ctx.add_source(key, result)
             budget.record_call()
 
     logger.info("Financial cluster phase 2: %d sources fetched", len(phase2_tasks))

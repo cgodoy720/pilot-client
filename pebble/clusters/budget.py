@@ -20,6 +20,7 @@ class ClusterBudget:
     max_seconds: float
     api_calls_used: int = 0
     started_at: float = 0.0
+    failed_sources: list[str] = field(default_factory=list)
 
     def start(self) -> None:
         """Mark the start time for this cluster."""
@@ -66,6 +67,9 @@ class ResearchScratchpad:
         }
     )
     connected_orgs: list[dict] = field(default_factory=list)
+    findings_summary: str = ""
+    skipped_sources: list[str] = field(default_factory=list)
+    source_outcomes: dict[str, str] = field(default_factory=dict)
 
     def mark_running(self, cluster: str) -> None:
         self.cluster_status[cluster] = "running"
