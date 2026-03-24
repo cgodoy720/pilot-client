@@ -1,11 +1,10 @@
-"""Google Custom Search API — web search for prospect research.
+"""Web search for prospect research — Google CSE + Serper.dev.
 
-Uses Google's Programmable Search Engine (CSE) to find biographical info,
-board positions, news articles, and organizational affiliations that
-other data sources miss.
+Google CSE searches 50 curated philanthropy/government/news domains.
+Serper.dev adds unrestricted Google-quality results for the long tail.
+Results merge and deduplicate before flowing into claim extraction.
 
-Setup: Set GOOGLE_CSE_API_KEY and GOOGLE_CSE_CX in pebble/.env.
-Free tier: 100 queries/day. $5/1,000 queries after.
+Setup: Set GOOGLE_CSE_API_KEY, GOOGLE_CSE_CX, and SERPER_API_KEY in pebble/.env.
 """
 
 import logging
@@ -14,6 +13,8 @@ from typing import Optional
 
 import requests
 
+from .serper_search import search_serper
+
 logger = logging.getLogger("pebble.data_sources.web_search")
 
 _API_KEY = os.getenv("GOOGLE_CSE_API_KEY", "")
@@ -21,10 +22,10 @@ _CX = os.getenv("GOOGLE_CSE_CX", "")
 _ENDPOINT = "https://www.googleapis.com/customsearch/v1"
 
 
-def search_web(query: str, num_results: int = 10) -> list[dict]:
-    """Execute a Google Custom Search query.
+def _search_cse(query: str, num_results: int = 10) -> list[dict]:
+    """Execute a Google Custom Search query (curated 50 domains).
 
-    Returns a list of results, each with: title, link, snippet.
+    Returns a list of results, each with: title, link, snippet, display_link.
     Returns empty list on failure (never raises).
     """
     if not _API_KEY or not _CX:
@@ -64,6 +65,45 @@ def search_web(query: str, num_results: int = 10) -> list[dict]:
     except Exception as e:
         logger.error("Google CSE error for query %s: %s", query[:50], e)
         return []
+
+
+def _merge_results(
+    cse_results: list[dict],
+    serper_results: list[dict],
+    num_results: int = 10,
+) -> list[dict]:
+    """Merge and deduplicate results from CSE and Serper.
+
+    CSE results come first (curated domains = higher signal).
+    Serper fills gaps. Deduplicates by normalized link (trailing slash stripped).
+    """
+    seen: set[str] = set()
+    merged: list[dict] = []
+
+    for result in cse_results + serper_results:
+        link = result.get("link", "").rstrip("/")
+        if not link or link in seen:
+            continue
+        seen.add(link)
+        merged.append(result)
+        if len(merged) >= num_results:
+            break
+
+    return merged
+
+
+def search_web(query: str, num_results: int = 10) -> list[dict]:
+    """Search the web using Google CSE and Serper.dev.
+
+    Merges results from both backends, deduplicates by link.
+    If one backend fails, the other's results are still returned.
+
+    Returns a list of results, each with: title, link, snippet, display_link.
+    Returns empty list on failure (never raises).
+    """
+    cse_results = _search_cse(query, num_results)
+    serper_results = search_serper(query, num_results)
+    return _merge_results(cse_results, serper_results, num_results)
 
 
 def search_person(

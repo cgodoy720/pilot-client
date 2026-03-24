@@ -44,11 +44,26 @@ Bedrock (financial_forecasting) runs on 8000. Set `REACT_APP_PEBBLE_API_URL=http
 
 ## Env Vars
 
+Copy `pebble/.env.example` to `pebble/.env` and fill in values.
+
 | Var | Required | Description |
 |-----|----------|-------------|
 | ANTHROPIC_API_KEY | Yes | Anthropic API key |
+| OPENROUTER_API_KEY | No | Free worker-tier models (falls back to Anthropic Haiku) |
 | FEC_API_KEY | No | FEC API key (use DEMO_KEY for testing) |
+| OPENCORPORATES_API_KEY | No | Officer search (free tier: 500 req/month) |
+| GOOGLE_CSE_API_KEY | No | Google Custom Search API key — see setup note below |
+| GOOGLE_CSE_CX | No | Programmable Search Engine ID — see setup note below |
+| SERPER_API_KEY | No | Serper.dev unrestricted web search (free tier: 2,500 queries/month) |
 | PEBBLE_API_KEY | No | If set, Bedrock must send X-Api-Key header |
+
+### Web search setup (TODO — team admin)
+
+Pebble uses two web search backends. Both are optional but at least one should be configured for web search to return results.
+
+1. **Google Custom Search (curated domains)** — Requires a Google Cloud project with the Custom Search API enabled, plus a Programmable Search Engine configured with curated domains. Create an API key in Cloud Console > APIs & Services > Credentials, and get the CX from [Programmable Search Engine](https://programmablesearchengine.google.com/). Set `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX`.
+
+2. **Serper.dev (unrestricted)** — Sign up at [serper.dev](https://serper.dev), copy the API key from the dashboard. Set `SERPER_API_KEY`. Free tier: 2,500 queries/month.
 
 ## Architecture
 
