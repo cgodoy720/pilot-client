@@ -144,6 +144,7 @@ async def run_affiliation_cluster(
 
     # --- Extract connected orgs for Sprint 4 ---
     connected_orgs = _extract_connected_orgs(ctx)
+    ctx.add_source("connected_orgs", connected_orgs)
 
     logger.info("Affiliation cluster: %d claims, %d connected orgs, %d API calls",
                 len(claims), len(connected_orgs), budget.api_calls_used)

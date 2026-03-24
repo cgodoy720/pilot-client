@@ -153,8 +153,15 @@ async def handle_t2(
         else:
             text_parts.append(f"\n**{label}**: No data found")
 
+    # Note connected orgs (store-only — Sprint 4)
+    connected_orgs = ctx.raw_data.get("connected_orgs", [])
+    connected_orgs_count = len(connected_orgs)
+
     active_sources = sum(1 for s in source_scores.values() if s > 0)
     text_parts.append(f"\n{len(all_claims)} total claims from {active_sources}/{len(source_scores)} sources.")
+
+    if connected_orgs_count > 0:
+        text_parts.append(f"{connected_orgs_count} connected organizations available for investigation.")
 
     # Surface cluster failures so the user knows results may be incomplete
     failed_clusters = [
@@ -175,6 +182,7 @@ async def handle_t2(
             "source_scores": source_scores,
             "prospect_type": prospect_type.value,
             "cluster_status": scratchpad.cluster_status,
+            "connected_orgs_count": connected_orgs_count,
         },
         sources=[c.get("source_url", "") for c in all_claims if c.get("source_url")][:15],
     )

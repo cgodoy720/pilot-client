@@ -69,6 +69,24 @@ async def handle_t3(
                 level=30, intent=route.intent,
             )
 
+        # --- Org intelligence (after clusters, before verification) ---
+        from ..clusters.org_intelligence import investigate_connected_orgs
+        from ..clusters.budget import ClusterBudget
+
+        recommendations = []
+        org_budget = ClusterBudget(max_api_calls=10, max_seconds=30.0)
+        try:
+            recommendations, officer_claims = await investigate_connected_orgs(
+                ctx, person_name, crm_bridge, org_budget,
+                max_orgs=5, enable_xml=True,
+            )
+            all_claims.extend(officer_claims)  # local list — no double-counting
+            ctx.add_source("org_recommendations", recommendations)
+            logger.info("T3: org intelligence — %d recommendations, %d officer claims",
+                        len(recommendations), len(officer_claims))
+        except Exception as e:
+            logger.warning("T3 org intelligence failed: %s", e)
+
         try:
             # URL verification
             all_claims, dropped = await verify_urls(all_claims)
@@ -102,6 +120,8 @@ async def handle_t3(
                 "partial": profile_data.get("partial", False),
                 "failed_agents": profile_data.get("failed_agents", []),
             }
+            if recommendations:
+                profile["recommendations"] = recommendations
         except Exception as e:
             logger.error("T3 quorum/synthesis failed for %s: %s", name, e)
             profile = {
