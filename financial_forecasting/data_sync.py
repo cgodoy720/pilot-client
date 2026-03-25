@@ -23,17 +23,25 @@ class DataSyncService:
         self.customer_mappings = {}  # Salesforce Account ID -> Intacct Customer ID
         self.opportunity_mappings = {}  # Opportunity ID -> Invoice mappings
         
+    def _intacct_available(self) -> bool:
+        """Check if Sage Intacct service is connected."""
+        return "sage_intacct" in self.mcp_client.connected_services
+
     async def sync_all_data(self):
         """Perform complete data synchronization."""
+        if not self._intacct_available():
+            logger.info("Skipping data sync — Sage Intacct not connected")
+            return
+
         logger.info("Starting complete data synchronization...")
-        
+
         try:
             # Sync customer/account mappings first
             await self.sync_customer_mappings()
-            
+
             # Sync opportunities that need invoicing
             await self.sync_opportunity_invoicing()
-            
+
             # Update payment status for existing invoices
             await self.update_payment_statuses()
             
@@ -99,8 +107,12 @@ class DataSyncService:
 
     async def sync_customer_mappings(self):
         """Synchronize customer mappings between Salesforce Accounts and Intacct Customers."""
+        if not self._intacct_available():
+            logger.debug("Skipping customer mappings — Sage Intacct not connected")
+            return
+
         logger.info("Syncing customer mappings...")
-        
+
         try:
             # Get Salesforce accounts
             salesforce = self.mcp_client.services["salesforce"]
@@ -237,6 +249,10 @@ class DataSyncService:
 
     async def sync_opportunity_invoicing(self):
         """Sync opportunities that are ready for invoicing."""
+        if not self._intacct_available():
+            logger.debug("Skipping opportunity invoicing — Sage Intacct not connected")
+            return
+
         logger.info("Syncing opportunity invoicing...")
         
         try:
@@ -352,6 +368,10 @@ class DataSyncService:
 
     async def update_payment_statuses(self):
         """Update payment statuses from Intacct back to Salesforce."""
+        if not self._intacct_available():
+            logger.debug("Skipping payment status sync — Sage Intacct not connected")
+            return
+
         logger.info("Updating payment statuses...")
         
         try:
@@ -483,6 +503,10 @@ class DataSyncService:
 
     async def sync_customer_data_to_salesforce(self):
         """Sync customer financial data from Intacct to Salesforce."""
+        if not self._intacct_available():
+            logger.debug("Skipping customer data sync — Sage Intacct not connected")
+            return
+
         logger.info("Syncing customer financial data to Salesforce...")
         
         try:

@@ -1,11 +1,25 @@
 """Salesforce MCP service integration."""
 
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Callable, Dict, List, Optional
 import asyncio
 from simple_salesforce import Salesforce
-from simple_salesforce.exceptions import SalesforceAuthenticationFailed
+from simple_salesforce.exceptions import (
+    SalesforceAuthenticationFailed,
+    SalesforceExpiredSession,
+)
 
 from .base import BaseMCPService
+
+logger = logging.getLogger(__name__)
+
+
+def _is_session_error(exc: Exception) -> bool:
+    """Check if an exception indicates the Salesforce session has expired."""
+    if isinstance(exc, SalesforceExpiredSession):
+        return True
+    msg = str(exc).lower()
+    return "invalid_session_id" in msg or "session expired" in msg
 
 
 class SalesforceMCPService(BaseMCPService):
@@ -29,11 +43,12 @@ class SalesforceMCPService(BaseMCPService):
         self.client_secret = client_secret or self.get_config_value("SALESFORCE_CLIENT_SECRET")
         self.domain = domain or self.get_config_value("SALESFORCE_DOMAIN", "login")
         self.sf_client: Optional[Salesforce] = None
-        
+        self._reauth_lock = asyncio.Lock()
+
         # Check if we have either security token method or OAuth method
         has_security_token = all([self.username, self.password, self.security_token])
         has_oauth = all([self.username, self.password, self.client_id, self.client_secret])
-        
+
         if not (has_security_token or has_oauth):
             raise ValueError("Salesforce credentials are required: either (username, password, security_token) or (username, password, client_id, client_secret)")
 
@@ -42,30 +57,30 @@ class SalesforceMCPService(BaseMCPService):
         try:
             # Run in thread pool since simple_salesforce is synchronous
             loop = asyncio.get_event_loop()
-            
+
             # Try OAuth first if client_id and client_secret are provided
             if self.client_id and self.client_secret:
                 # Use OAuth 2.0 Client Credentials flow
                 import requests
-                
+
                 # Determine the correct OAuth endpoint
                 oauth_url = f"https://{self.domain}.salesforce.com/services/oauth2/token" if self.domain != 'login' else "https://login.salesforce.com/services/oauth2/token"
-                
+
                 # Get OAuth token
                 oauth_data = {
                     'grant_type': 'client_credentials',
                     'client_id': self.client_id,
                     'client_secret': self.client_secret
                 }
-                
+
                 oauth_response = await loop.run_in_executor(
                     None,
                     lambda: requests.post(oauth_url, data=oauth_data)
                 )
-                
+
                 if oauth_response.status_code == 200:
                     token_data = oauth_response.json()
-                    
+
                     self.sf_client = await loop.run_in_executor(
                         None,
                         lambda: Salesforce(
@@ -99,13 +114,13 @@ class SalesforceMCPService(BaseMCPService):
                         domain=self.domain,
                     )
                 )
-            
+
             # Test connection by getting user info
             safe_username = self.username.replace("\\", "\\\\").replace("'", "\\'")
             user_info = await loop.run_in_executor(
                 None, lambda: self.sf_client.query(f"SELECT Id, Name FROM User WHERE Username = '{safe_username}'")
             )
-            
+
             if user_info["totalSize"] > 0:
                 self._authenticated = True
                 self._config.update({
@@ -114,11 +129,12 @@ class SalesforceMCPService(BaseMCPService):
                     "instance_url": self.sf_client.sf_instance,
                     "session_id": self.sf_client.session_id,
                 })
+                logger.info(f"Salesforce authenticated as {self._config['user_name']}")
                 return True
             return False
-            
+
         except SalesforceAuthenticationFailed as e:
-            print(f"Salesforce authentication failed: {e}")
+            logger.warning(f"Salesforce authentication failed: {e}")
             # Last resort: SalesforceLogin without security token
             if self.username and self.password:
                 try:
@@ -134,19 +150,70 @@ class SalesforceMCPService(BaseMCPService):
                     )
                     self.sf_client = Salesforce(instance=instance, session_id=session_id)
                     self._authenticated = True
-                    print(f"Salesforce connected via SalesforceLogin fallback: {self.username}")
+                    logger.info(f"Salesforce connected via SalesforceLogin fallback: {self.username}")
                     return True
                 except Exception as fallback_err:
-                    print(f"Salesforce fallback auth also failed: {fallback_err}")
+                    logger.error(f"Salesforce fallback auth also failed: {fallback_err}")
             return False
         except Exception as e:
-            print(f"Salesforce connection error: {e}")
+            logger.error(f"Salesforce connection error: {e}")
             return False
+
+    async def _reauthenticate(self) -> bool:
+        """Re-authenticate after session expiry.
+
+        Uses a lock so concurrent callers don't stampede the OAuth endpoint.
+        If another coroutine already re-authenticated while we waited for the
+        lock, we skip the duplicate work.
+        """
+        async with self._reauth_lock:
+            # Another caller may have refreshed while we waited for the lock
+            if self._authenticated:
+                # Optimistic: the other caller already refreshed.  We'll find
+                # out on the very next API call if it actually worked.
+                return True
+            logger.info("Salesforce session expired — re-authenticating...")
+            success = await self.authenticate()
+            if success:
+                logger.info("Salesforce re-authentication succeeded")
+            else:
+                logger.error("Salesforce re-authentication failed")
+            return success
+
+    async def _call_with_refresh(self, operation: Callable, error_label: str):
+        """Execute a Salesforce operation with automatic session refresh on expiry.
+
+        1. Ensure authenticated
+        2. Run the operation
+        3. If session expired: reset auth, re-authenticate, retry once
+        4. If retry also fails: raise
+        """
+        await self.ensure_authenticated()
+
+        try:
+            return await operation()
+        except Exception as first_err:
+            if not _is_session_error(first_err):
+                raise Exception(f"{error_label}: {first_err}") from first_err
+
+        # Session expired — reset flag and re-authenticate
+        logger.warning(f"Salesforce session expired during {error_label}")
+        self._authenticated = False
+        if not await self._reauthenticate():
+            raise Exception(
+                f"{error_label}: session expired and re-authentication failed"
+            )
+
+        # Retry once with fresh session
+        try:
+            return await operation()
+        except Exception as retry_err:
+            raise Exception(f"{error_label} (after re-auth): {retry_err}") from retry_err
 
     async def get_service_info(self) -> Dict[str, Any]:
         """Get Salesforce service information."""
         await self.ensure_authenticated()
-        
+
         return {
             "service": "salesforce",
             "authenticated": self._authenticated,
@@ -166,198 +233,144 @@ class SalesforceMCPService(BaseMCPService):
 
     async def query(self, soql: str) -> Dict[str, Any]:
         """Execute SOQL query."""
-        await self.ensure_authenticated()
-        
-        try:
+        async def _do():
             # Use MCP tool if available
             if self.client and "salesforce_query" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_query",
                     {"query": soql}
                 )
-            
             # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None, lambda: self.sf_client.query(soql)
                 )
-                return result
-            
             raise Exception("No Salesforce client available")
-            
-        except Exception as e:
-            raise Exception(f"Failed to execute query: {e}")
+
+        return await self._call_with_refresh(_do, "Failed to execute query")
 
     async def query_all(self, soql: str) -> Dict[str, Any]:
         """Execute SOQL query with automatic pagination (returns all records)."""
-        await self.ensure_authenticated()
-        try:
+        async def _do():
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None, lambda: self.sf_client.query_all(soql)
                 )
-                return result
             raise Exception("No Salesforce client available")
-        except Exception as e:
-            raise Exception(f"Failed to execute query: {e}")
+
+        return await self._call_with_refresh(_do, "Failed to execute query_all")
 
     async def create_record(self, sobject: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new record."""
-        await self.ensure_authenticated()
-        
-        try:
-            # Use MCP tool if available
+        async def _do():
             if self.client and "salesforce_create" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_create",
                     {"sobject": sobject, "data": data}
                 )
-            
-            # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
                 sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None, lambda: sobject_client.create(data)
                 )
-                return result
-            
             raise Exception("No Salesforce client available")
-            
-        except Exception as e:
-            raise Exception(f"Failed to create record: {e}")
+
+        return await self._call_with_refresh(_do, f"Failed to create {sobject}")
 
     async def update_record(
         self, sobject: str, record_id: str, data: Dict[str, Any]
     ) -> bool:
         """Update an existing record."""
-        await self.ensure_authenticated()
-        
-        try:
-            # Use MCP tool if available
+        async def _do():
             if self.client and "salesforce_update" in self.client.available_tools:
                 result = await self.client.call_tool(
                     "salesforce_update",
                     {"sobject": sobject, "id": record_id, "data": data}
                 )
                 return result.get("success", False)
-            
-            # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
                 sobject_client = getattr(self.sf_client, sobject)
                 result = await loop.run_in_executor(
                     None, lambda: sobject_client.update(record_id, data)
                 )
-                return result == 204  # HTTP 204 No Content indicates success
-            
+                return result == 204
             raise Exception("No Salesforce client available")
-            
-        except Exception as e:
-            raise Exception(f"Failed to update record: {e}")
+
+        return await self._call_with_refresh(_do, f"Failed to update {sobject}")
 
     async def delete_record(self, sobject: str, record_id: str) -> bool:
         """Delete a record."""
-        await self.ensure_authenticated()
-        
-        try:
-            # Use MCP tool if available
+        async def _do():
             if self.client and "salesforce_delete" in self.client.available_tools:
                 result = await self.client.call_tool(
                     "salesforce_delete",
                     {"sobject": sobject, "id": record_id}
                 )
                 return result.get("success", False)
-            
-            # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
                 sobject_client = getattr(self.sf_client, sobject)
                 result = await loop.run_in_executor(
                     None, lambda: sobject_client.delete(record_id)
                 )
-                return result == 204  # HTTP 204 No Content indicates success
-            
+                return result == 204
             raise Exception("No Salesforce client available")
-            
-        except Exception as e:
-            raise Exception(f"Failed to delete record: {e}")
+
+        return await self._call_with_refresh(_do, f"Failed to delete {sobject}")
 
     async def get_record(self, sobject: str, record_id: str) -> Dict[str, Any]:
         """Get a record by ID."""
-        await self.ensure_authenticated()
-        
-        try:
-            # Use MCP tool if available
+        async def _do():
             if self.client and "salesforce_get" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_get",
                     {"sobject": sobject, "id": record_id}
                 )
-            
-            # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
                 sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None, lambda: sobject_client.get(record_id)
                 )
-                return result
-            
             raise Exception("No Salesforce client available")
-            
-        except Exception as e:
-            raise Exception(f"Failed to get record: {e}")
+
+        return await self._call_with_refresh(_do, f"Failed to get {sobject}")
 
     async def describe_sobject(self, sobject: str) -> Dict[str, Any]:
         """Describe an SObject (get metadata)."""
-        await self.ensure_authenticated()
-        
-        try:
-            # Use MCP tool if available
+        async def _do():
             if self.client and "salesforce_describe" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_describe",
                     {"sobject": sobject}
                 )
-            
-            # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
                 sobject_client = getattr(self.sf_client, sobject)
-                result = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None, lambda: sobject_client.describe()
                 )
-                return result
-            
             raise Exception("No Salesforce client available")
-            
-        except Exception as e:
-            raise Exception(f"Failed to describe SObject: {e}")
+
+        return await self._call_with_refresh(_do, f"Failed to describe {sobject}")
 
     async def search(self, sosl: str) -> Dict[str, Any]:
         """Execute SOSL search."""
-        await self.ensure_authenticated()
-        
-        try:
-            # Use MCP tool if available
+        async def _do():
             if self.client and "salesforce_search" in self.client.available_tools:
                 return await self.client.call_tool(
                     "salesforce_search",
                     {"query": sosl}
                 )
-            
-            # Fallback to direct API call
             if self.sf_client:
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
+                return await loop.run_in_executor(
                     None, lambda: self.sf_client.search(sosl)
                 )
-                return result
-            
             raise Exception("No Salesforce client available")
-            
-        except Exception as e:
-            raise Exception(f"Failed to execute search: {e}")
+
+        return await self._call_with_refresh(_do, "Failed to execute search")
