@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Dashboard as DashboardIcon,
+  TableChart as TableChartIcon,
   TrendingUp as TrendingUpIcon,
   AttachMoney as AttachMoneyIcon,
   BuildCircle as ToolsIcon,
@@ -58,8 +58,8 @@ interface LayoutProps {
 
 const ALL_MENU_ITEMS = [
   { text: 'Priorities', icon: <HomeIcon />, path: '/priorities' },
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-  { text: 'Pipeline', icon: <TrendingUpIcon />, path: '/pipeline' },
+  { text: 'Dashboard', icon: <TrendingUpIcon />, path: '/dashboard' },
+  { text: 'Pipeline', icon: <TableChartIcon />, path: '/pipeline' },
   { text: 'Auto Review', icon: <ReviewIcon />, path: '/automation-review' },
   { text: 'Research', icon: <ResearchIcon />, path: '/research' },
   { text: 'Pebble', icon: <SearchIcon />, path: '/pebble' },

@@ -42,6 +42,7 @@ import toast from 'react-hot-toast';
 import ConfirmSaveButton from '../components/ConfirmSaveButton';
 
 import { apiService } from '../services/api';
+import { getStageHexColor } from '../types/salesforce';
 
 interface Account {
   Id?: string;  // Uppercase for Salesforce format
@@ -256,13 +257,6 @@ const Accounts: React.FC = () => {
 
   // Using formatDollarMillions from utils instead
 
-  const getStageColor = (stage: string) => {
-    if (stage.includes('Closed Won') || stage.includes('Completed')) return 'success';
-    if (stage.includes('Closed Lost') || stage.includes('Withdrawn')) return 'error';
-    if (stage.includes('Collecting') || stage.includes('In Collection')) return 'info';
-    if (stage.includes('Proposal') || stage.includes('Negotiation')) return 'warning';
-    return 'default';
-  };
 
   // Pre-calculate metrics for all accounts (performance optimization)
   const accountMetricsMap = React.useMemo(() => {
@@ -535,8 +529,8 @@ const Accounts: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => (
         <Chip
           label={params.value}
-          color={getStageColor(params.value as string)}
           size="small"
+          sx={{ bgcolor: getStageHexColor(params.value as string), color: '#fff', fontWeight: 600 }}
         />
       ),
     },
