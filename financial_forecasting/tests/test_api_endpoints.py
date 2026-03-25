@@ -349,7 +349,9 @@ class TestSalesforceOpportunities:
                 "user_id": "test_user",
             },
         )
-        assert response.status_code == 500
+        # Phase 0: SF errors now surface as 400 with the actual error message
+        assert response.status_code == 400
+        assert "write failed" in response.json()["detail"]
 
 
 # ===================================================================

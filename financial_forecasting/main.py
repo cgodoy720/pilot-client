@@ -302,7 +302,11 @@ async def get_opportunities(
                PaymentDate__c, Earliest_Scheduled_Payment__c,
                RecordType.Name, Active_Opportunity__c,
                Payment_Terms__c, Contract_Start_Date__c, Contract_End_Date__c,
-               Billing_Frequency__c, ExpectedRevenue
+               Billing_Frequency__c, ExpectedRevenue,
+               npe01__Amount_Outstanding__c, npe01__Amount_Written_Off__c,
+               npsp__Next_Grant_Deadline_Due_Date__c, Application_Due_Date__c,
+               Total_Risk_Adjusted_Projection__c, Amount_Due_to_Date__c,
+               Account_Owner__c
         FROM Opportunity
         """
 
@@ -395,8 +399,9 @@ async def update_opportunity(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating opportunity: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update opportunity")
+        error_msg = str(e)
+        logger.error(f"Error updating opportunity {opportunity_id}: {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
 
 
 @app.get("/api/salesforce/accounts")
@@ -410,14 +415,36 @@ async def get_accounts(
         salesforce = client.salesforce
 
         query = f"""
-        SELECT Id, Name, Type, Industry
+        SELECT Id, Name, Type, Industry, Phone, Fax, Website, Description,
+               BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry,
+               AnnualRevenue, NumberOfEmployees, AccountSource, OwnerId, Owner.Name,
+               ParentId, RecordTypeId, RecordType.Name,
+               CreatedDate, LastModifiedDate, LastActivityDate,
+               Account_Tier__c, Active__c, Company_Size__c,
+               npsp__Grantmaker__c, npsp__Funding_Focus__c,
+               Philanthropy__c, Fee_For_Service__c, Hiring__c, Investment__c,
+               Volunteering__c, Fellow_Recruitment__c, Media_Marketing__c,
+               Influence__c, Startup__c, Organization_Focus_Area_s__c,
+               npo02__TotalOppAmount__c, npo02__NumberOfClosedOpps__c,
+               npo02__AverageAmount__c, npo02__LargestAmount__c, npo02__SmallestAmount__c,
+               npo02__FirstCloseDate__c, npo02__LastCloseDate__c,
+               npo02__OppAmountThisYear__c, npo02__OppAmountLastYear__c,
+               npo02__Best_Gift_Year__c, npo02__Best_Gift_Year_Total__c,
+               npsp__Matching_Gift_Company__c, npsp__Matching_Gift_Percent__c,
+               npsp__Matching_Gift_Amount_Max__c, npsp__Matching_Gift_Amount_Min__c,
+               npsp__Matching_Gift_Annual_Employee_Max__c,
+               npsp__Matching_Gift_Administrator_Name__c, npsp__Matching_Gift_Email__c,
+               npsp__Matching_Gift_Phone__c, npsp__Matching_Gift_Comments__c,
+               npsp__Matching_Gift_Info_Updated__c, npsp__Matching_Gift_Request_Deadline__c,
+               Total_Revenue_Generated__c,
+               Last_Activity_Date__c, Date_of_First_Pursuit_Hire__c
         FROM Account
         ORDER BY Name ASC
         LIMIT {limit}
         """
-        
+
         result = await salesforce.query(query)
-        
+
         return result.get("records", [])
         
     except Exception as e:
@@ -429,7 +456,7 @@ async def get_accounts(
 async def create_account(
     account_data: Dict[str, Any],
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(check_permission_or_internal("create_opportunities"))
+    user = Depends(check_permission_or_internal("create_accounts"))
 ):
     """Create a new Salesforce account."""
     try:
@@ -461,9 +488,23 @@ async def get_contacts(
         salesforce = client.salesforce
 
         query = f"""
-        SELECT Id, FirstName, LastName, Name, AccountId, Account.Name, Title, Email, Phone,
+        SELECT Id, AccountId, Account.Name, FirstName, LastName, Name,
+               Salutation, Title, Department, Email, Phone, MobilePhone,
+               MailingStreet, MailingCity, MailingState, MailingPostalCode, MailingCountry,
+               OwnerId, Owner.Name, LeadSource, Birthdate, Description,
+               DoNotCall, HasOptedOutOfEmail, RecordTypeId, RecordType.Name,
+               CreatedDate, LastModifiedDate, LastActivityDate,
                npsp__Primary_Affiliation__c, npsp__Primary_Affiliation__r.Name,
-               CreatedDate, LastModifiedDate
+               npsp__Deceased__c, npsp__Do_Not_Contact__c,
+               npe01__WorkEmail__c, npe01__HomeEmail__c, npe01__AlternateEmail__c,
+               npe01__WorkPhone__c, npe01__PreferredPhone__c, npe01__Preferred_Email__c,
+               npe01__Primary_Address_Type__c,
+               Preferred_Name__c, Pronouns__c, Gender__c, LinkedIn_URL__c,
+               Philanthropic_Contact__c, Philanthropy__c, Board_Status__c,
+               Volunteer__c, Added_to_Slack__c, Last_Touchpoint__c,
+               Last_Activity_Date__c, Days_Since_Last_Activity__c,
+               Primary_Affiliation_Entity__c, Primary_Affiliation_Name__c,
+               GW_Volunteers__Volunteer_Hours__c, GW_Volunteers__Last_Volunteer_Date__c
         FROM Contact
         """
 
@@ -490,7 +531,7 @@ async def get_contacts(
 async def create_contact(
     contact_data: Dict[str, Any],
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(check_permission_or_internal("create_opportunities"))
+    user = Depends(check_permission_or_internal("create_contacts"))
 ):
     """Create a new Salesforce contact."""
     try:
@@ -508,6 +549,164 @@ async def create_contact(
     except Exception as e:
         logger.error(f"Error creating contact: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Payment SOQL (shared by both payment GET endpoints) ──────────────────
+
+PAYMENT_SOQL_FIELDS = """
+    Id, Name, npe01__Opportunity__c, npe01__Opportunity__r.Name,
+    npe01__Opportunity__r.Account.Name,
+    npe01__Payment_Amount__c, npe01__Scheduled_Date__c,
+    npe01__Payment_Date__c, npe01__Paid__c,
+    npe01__Payment_Method__c, npe01__Check_Reference_Number__c,
+    npe01__Written_Off__c, Write_off_reason__c,
+    Amount_Received__c, Department__c, GL_Account__c,
+    GL_Payment_Received__c, Reconciled_with_Finance__c,
+    Batch_Name__c, Payment_Estimate__c, Invoice__c,
+    Affiliation__c, CreatedDate, LastModifiedDate,
+    Payment_Status__c, Delinquent__c, Paid_Status__c,
+    Amount_Formula__c, Amount_Minus_Received__c
+"""
+
+
+@app.get("/api/salesforce/payments")
+async def get_payments(
+    opportunity_id: Optional[str] = None,
+    limit: int = Query(500, le=2000),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(require_auth),
+):
+    """Get Salesforce payments, optionally filtered by opportunity."""
+    try:
+        salesforce = client.salesforce
+        query = f"SELECT {PAYMENT_SOQL_FIELDS} FROM npe01__OppPayment__c"
+
+        if opportunity_id:
+            validate_salesforce_id(opportunity_id, "opportunity_id")
+            query += f" WHERE npe01__Opportunity__c = '{opportunity_id}'"
+
+        query += f" ORDER BY npe01__Scheduled_Date__c DESC NULLS LAST LIMIT {limit}"
+
+        result = await salesforce.query(query)
+        return result.get("records", [])
+
+    except Exception as e:
+        logger.error(f"Error fetching payments: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/opportunities/{opportunity_id}/payments")
+async def get_opportunity_payments(
+    opportunity_id: str,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(require_auth),
+):
+    """Get all payments for a specific opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
+    try:
+        salesforce = client.salesforce
+        query = f"""
+        SELECT {PAYMENT_SOQL_FIELDS}
+        FROM npe01__OppPayment__c
+        WHERE npe01__Opportunity__c = '{opportunity_id}'
+        ORDER BY npe01__Scheduled_Date__c ASC NULLS LAST
+        """
+
+        result = await salesforce.query(query)
+        return result.get("records", [])
+
+    except Exception as e:
+        logger.error(f"Error fetching payments for opportunity {opportunity_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Update endpoints for Account, Contact, Payment ──────────────────────
+
+class AccountUpdateRequest(BaseModel):
+    updates: Dict[str, Any]
+    reason: Optional[str] = None
+
+
+class ContactUpdateRequest(BaseModel):
+    updates: Dict[str, Any]
+    reason: Optional[str] = None
+
+
+class PaymentUpdateRequest(BaseModel):
+    updates: Dict[str, Any]
+    reason: Optional[str] = None
+
+
+@app.put("/api/salesforce/accounts/{account_id}")
+async def update_account(
+    account_id: str,
+    update_request: AccountUpdateRequest,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(check_permission("edit_accounts")),
+):
+    """Update a Salesforce account."""
+    validate_salesforce_id(account_id, "account_id")
+    try:
+        salesforce = client.salesforce
+        success = await salesforce.update_record("Account", account_id, update_request.updates)
+        if not success:
+            raise HTTPException(400, "Salesforce rejected the update")
+        logger.info(f"Account {account_id} updated by {user['user_id']}")
+        return ApiResponse(success=True, data={"id": account_id, "message": "Account updated"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error updating account {account_id}: {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
+
+
+@app.put("/api/salesforce/contacts/{contact_id}")
+async def update_contact(
+    contact_id: str,
+    update_request: ContactUpdateRequest,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(check_permission("edit_contacts")),
+):
+    """Update a Salesforce contact."""
+    validate_salesforce_id(contact_id, "contact_id")
+    try:
+        salesforce = client.salesforce
+        success = await salesforce.update_record("Contact", contact_id, update_request.updates)
+        if not success:
+            raise HTTPException(400, "Salesforce rejected the update")
+        logger.info(f"Contact {contact_id} updated by {user['user_id']}")
+        return ApiResponse(success=True, data={"id": contact_id, "message": "Contact updated"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error updating contact {contact_id}: {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
+
+
+@app.put("/api/salesforce/payments/{payment_id}")
+async def update_payment(
+    payment_id: str,
+    update_request: PaymentUpdateRequest,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(check_permission("edit_payments")),
+):
+    """Update a Salesforce payment (npe01__OppPayment__c)."""
+    validate_salesforce_id(payment_id, "payment_id")
+    try:
+        salesforce = client.salesforce
+        success = await salesforce.update_record("npe01__OppPayment__c", payment_id, update_request.updates)
+        if not success:
+            raise HTTPException(400, "Salesforce rejected the update")
+        logger.info(f"Payment {payment_id} updated by {user['user_id']}")
+        return ApiResponse(success=True, data={"id": payment_id, "message": "Payment updated"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error updating payment {payment_id}: {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
 
 
 @app.get("/api/salesforce/users")

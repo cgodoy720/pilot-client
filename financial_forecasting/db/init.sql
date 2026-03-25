@@ -268,3 +268,31 @@ VALUES (
 UPDATE permission_profile
 SET permissions = permissions || '{"reassign_opportunities": true}'::jsonb
 WHERE NOT (permissions ? 'reassign_opportunities');
+
+-- Backfill: add Account/Contact/Payment permissions to existing profiles
+-- Fundraisers: Account/Contact edit yes, Payment edit no (finance-sensitive)
+UPDATE permission_profile
+SET permissions = permissions || '{
+    "edit_accounts": true, "create_accounts": true,
+    "edit_contacts": true, "create_contacts": true,
+    "edit_payments": false, "create_payments": false
+}'::jsonb
+WHERE name = 'Fundraiser' AND NOT (permissions ? 'edit_accounts');
+
+-- Manager: full CRM access including payments
+UPDATE permission_profile
+SET permissions = permissions || '{
+    "edit_accounts": true, "create_accounts": true,
+    "edit_contacts": true, "create_contacts": true,
+    "edit_payments": true, "create_payments": true
+}'::jsonb
+WHERE name = 'Manager' AND NOT (permissions ? 'edit_accounts');
+
+-- Admin: auto-granted via code (permissions.py line 61-65), but explicit for DB clarity
+UPDATE permission_profile
+SET permissions = permissions || '{
+    "edit_accounts": true, "create_accounts": true,
+    "edit_contacts": true, "create_contacts": true,
+    "edit_payments": true, "create_payments": true
+}'::jsonb
+WHERE name = 'Admin' AND NOT (permissions ? 'edit_accounts');

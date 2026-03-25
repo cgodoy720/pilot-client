@@ -43,3 +43,21 @@ export interface OpportunityCreatePayload {
   CloseDate?: string;
   [key: string]: string | number | boolean | undefined;
 }
+
+/** Request shape for updating an Account. */
+export interface AccountUpdatePayload {
+  updates: Record<string, string | number | boolean | null>;
+  reason?: string;
+}
+
+/** Request shape for updating a Contact. */
+export interface ContactUpdatePayload {
+  updates: Record<string, string | number | boolean | null>;
+  reason?: string;
+}
+
+/** Request shape for updating a Payment. */
+export interface PaymentUpdatePayload {
+  updates: Record<string, string | number | boolean | null>;
+  reason?: string;
+}
