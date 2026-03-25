@@ -121,12 +121,72 @@ export interface SalesforceAccount {
   Name: string;
   Type: string | null;
   Industry: string | null;
+  Phone: string | null;
+  Fax: string | null;
+  Website: string | null;
+  Description: string | null;
+  BillingStreet: string | null;
+  BillingCity: string | null;
+  BillingState: string | null;
+  BillingPostalCode: string | null;
+  BillingCountry: string | null;
   AnnualRevenue: number | null;
   NumberOfEmployees: number | null;
-  Phone: string | null;
-  Website: string | null;
+  AccountSource: string | null;
+  OwnerId: string | null;
+  ParentId: string | null;
+  RecordTypeId: string | null;
   CreatedDate: string | null;
   LastModifiedDate: string | null;
+  LastActivityDate: string | null;
+  // Pursuit custom
+  Account_Tier__c: string | null;
+  Active__c: boolean | null;
+  Company_Size__c: string | null;
+  npsp__Grantmaker__c: boolean | null;
+  npsp__Funding_Focus__c: string | null;
+  Philanthropy__c: boolean | null;
+  Fee_For_Service__c: boolean | null;
+  Hiring__c: boolean | null;
+  Investment__c: boolean | null;
+  Volunteering__c: boolean | null;
+  Fellow_Recruitment__c: boolean | null;
+  Media_Marketing__c: boolean | null;
+  Influence__c: boolean | null;
+  Startup__c: boolean | null;
+  Organization_Focus_Area_s__c: string | null;
+  // NPSP giving rollups (read-only)
+  npo02__TotalOppAmount__c: number | null;
+  npo02__NumberOfClosedOpps__c: number | null;
+  npo02__AverageAmount__c: number | null;
+  npo02__LargestAmount__c: number | null;
+  npo02__SmallestAmount__c: number | null;
+  npo02__FirstCloseDate__c: string | null;
+  npo02__LastCloseDate__c: string | null;
+  npo02__OppAmountThisYear__c: number | null;
+  npo02__OppAmountLastYear__c: number | null;
+  npo02__Best_Gift_Year__c: string | null;
+  npo02__Best_Gift_Year_Total__c: number | null;
+  // Matching gift
+  npsp__Matching_Gift_Company__c: boolean | null;
+  npsp__Matching_Gift_Percent__c: number | null;
+  npsp__Matching_Gift_Amount_Max__c: number | null;
+  npsp__Matching_Gift_Amount_Min__c: number | null;
+  npsp__Matching_Gift_Annual_Employee_Max__c: number | null;
+  npsp__Matching_Gift_Administrator_Name__c: string | null;
+  npsp__Matching_Gift_Email__c: string | null;
+  npsp__Matching_Gift_Phone__c: string | null;
+  npsp__Matching_Gift_Comments__c: string | null;
+  npsp__Matching_Gift_Info_Updated__c: string | null;
+  npsp__Matching_Gift_Request_Deadline__c: string | null;
+  Total_Revenue_Generated__c: number | null;
+  // Formula fields (read-only)
+  Last_Activity_Date__c: string | null;
+  Date_of_First_Pursuit_Hire__c: string | null;
+  // Nested relationship fields
+  Owner?: { Name: string; Id?: string };
+  Parent?: { Name: string; Id?: string };
+  RecordType?: { Name: string };
 }
 
 export interface SalesforceContact {
@@ -134,12 +194,95 @@ export interface SalesforceContact {
   AccountId: string | null;
   FirstName: string | null;
   LastName: string;
-  Email: string | null;
-  Phone: string | null;
+  Name: string | null;
+  Salutation: string | null;
   Title: string | null;
   Department: string | null;
-  Primary_Affiliation__c: string | null;
+  Email: string | null;
+  Phone: string | null;
+  MobilePhone: string | null;
+  MailingStreet: string | null;
+  MailingCity: string | null;
+  MailingState: string | null;
+  MailingPostalCode: string | null;
+  MailingCountry: string | null;
+  OwnerId: string | null;
+  LeadSource: string | null;
+  Birthdate: string | null;
+  Description: string | null;
+  DoNotCall: boolean | null;
+  HasOptedOutOfEmail: boolean | null;
+  RecordTypeId: string | null;
   CreatedDate: string | null;
+  LastModifiedDate: string | null;
+  LastActivityDate: string | null;
+  // NPSP
+  npsp__Primary_Affiliation__c: string | null;
+  npsp__Deceased__c: boolean | null;
+  npsp__Do_Not_Contact__c: boolean | null;
+  npe01__WorkEmail__c: string | null;
+  npe01__HomeEmail__c: string | null;
+  npe01__AlternateEmail__c: string | null;
+  npe01__WorkPhone__c: string | null;
+  npe01__PreferredPhone__c: string | null;
+  npe01__Preferred_Email__c: string | null;
+  npe01__Primary_Address_Type__c: string | null;
+  // Pursuit custom
+  Preferred_Name__c: string | null;
+  Pronouns__c: string | null;
+  Gender__c: string | null;
+  LinkedIn_URL__c: string | null;
+  Philanthropic_Contact__c: boolean | null;
+  Philanthropy__c: boolean | null;
+  Board_Status__c: string | null;
+  Volunteer__c: boolean | null;
+  Added_to_Slack__c: boolean | null;
+  Last_Touchpoint__c: string | null;
+  // Formula fields (read-only)
+  Last_Activity_Date__c: string | null;
+  Days_Since_Last_Activity__c: number | null;
+  Primary_Affiliation_Entity__c: string | null;
+  Primary_Affiliation_Name__c: string | null;
+  GW_Volunteers__Volunteer_Hours__c: number | null;
+  GW_Volunteers__Last_Volunteer_Date__c: string | null;
+  // Nested relationship fields
+  Account?: { Name: string; Id?: string };
+  Owner?: { Name: string; Id?: string };
+  RecordType?: { Name: string };
+  npsp__Primary_Affiliation__r?: { Name: string };
+}
+
+export interface SalesforcePayment {
+  Id: string;
+  Name: string;
+  npe01__Opportunity__c: string | null;
+  npe01__Payment_Amount__c: number | null;
+  npe01__Scheduled_Date__c: string | null;
+  npe01__Payment_Date__c: string | null;
+  npe01__Paid__c: boolean | null;
+  npe01__Payment_Method__c: string | null;
+  npe01__Check_Reference_Number__c: string | null;
+  npe01__Written_Off__c: boolean | null;
+  Write_off_reason__c: string | null;
+  Amount_Received__c: number | null;
+  Department__c: string | null;
+  GL_Account__c: string | null;
+  GL_Payment_Received__c: string | null;
+  Reconciled_with_Finance__c: boolean | null;
+  Batch_Name__c: string | null;
+  Payment_Estimate__c: boolean | null;
+  Invoice__c: string | null;
+  Affiliation__c: string | null;
+  CreatedDate: string | null;
+  LastModifiedDate: string | null;
+  // Formula fields (read-only)
+  Payment_Status__c: string | null;
+  Delinquent__c: boolean | null;
+  Paid_Status__c: string | null;
+  Amount_Formula__c: number | null;
+  Amount_Minus_Received__c: number | null;
+  // Nested relationship fields
+  npe01__Opportunity__r?: { Name: string; Account?: { Name: string } };
 }
 
 export interface SalesforceTask {

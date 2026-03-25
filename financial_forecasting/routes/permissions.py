@@ -26,6 +26,9 @@ PERMISSION_KEYS = [
     "match_invoices", "manage_payment_schedules", "generate_financial_reports",
     "trigger_data_sync", "manage_users_roles",
     "use_pebble_chat",
+    "edit_accounts", "create_accounts",
+    "edit_contacts", "create_contacts",
+    "edit_payments", "create_payments",
 ]
 
 

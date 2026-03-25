@@ -3,7 +3,13 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import type { OpportunityCreatePayload, OpportunityUpdatePayload } from '../types/api';
+import type {
+  OpportunityCreatePayload,
+  OpportunityUpdatePayload,
+  AccountUpdatePayload,
+  ContactUpdatePayload,
+  PaymentUpdatePayload,
+} from '../types/api';
 
 // Create axios instance with default config
 const api: AxiosInstance = axios.create({
@@ -129,9 +135,19 @@ export const apiService = {
   removeTaskDependency: (depId: string) =>
     api.delete(`/api/salesforce/task-dependencies/${depId}`),
 
+  // Salesforce - Schema Describe (picklist values, field metadata)
+  getSchemaDescribe: (sobject: string) =>
+    api.get(`/api/salesforce/schema/${sobject}`),
+
   // Salesforce - Accounts
   getAccounts: (params?: { limit?: number }) =>
     api.get('/api/salesforce/accounts', { params }),
+
+  updateAccount: (accountId: string, updates: Record<string, string | number | boolean | null>) =>
+    api.put(`/api/salesforce/accounts/${accountId}`, {
+      updates,
+      reason: 'Updated via Revenue Hub',
+    } satisfies AccountUpdatePayload),
 
   // Sage Intacct Master Data
   getSageCustomers: () =>
@@ -181,6 +197,25 @@ export const apiService = {
     Phone?: string;
     Primary_Affiliation__c?: string;
   }) => api.post('/api/salesforce/contacts', data),
+
+  updateContact: (contactId: string, updates: Record<string, string | number | boolean | null>) =>
+    api.put(`/api/salesforce/contacts/${contactId}`, {
+      updates,
+      reason: 'Updated via Revenue Hub',
+    } satisfies ContactUpdatePayload),
+
+  // Salesforce - Payments (npe01__OppPayment__c)
+  getSfPayments: (params?: { opportunity_id?: string; limit?: number }) =>
+    api.get('/api/salesforce/payments', { params }),
+
+  getSfOpportunityPayments: (opportunityId: string) =>
+    api.get(`/api/salesforce/opportunities/${opportunityId}/payments`),
+
+  updateSfPayment: (paymentId: string, updates: Record<string, string | number | boolean | null>) =>
+    api.put(`/api/salesforce/payments/${paymentId}`, {
+      updates,
+      reason: 'Updated via Revenue Hub',
+    } satisfies PaymentUpdatePayload),
 
   // Salesforce - Users
   getUsers: (params?: { limit?: number }) =>

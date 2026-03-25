@@ -302,7 +302,7 @@ class TestPermissionGating:
             json={"opportunity_id": OPP_ID, "updates": {"Amount": 100}, "user_id": "test"},
         )
         # Should succeed since fundraiser has edit_own_opportunities
-        assert resp.status_code in (200, 500)  # 500 if SF not connected, but NOT 403
+        assert resp.status_code in (200, 400, 500)  # 400/500 if SF not connected, but NOT 403
 
     def test_sync_requires_trigger_permission(self, fundraiser_client, mock_db):
         mock_db.fetchrow = AsyncMock(return_value=make_fundraiser_user())

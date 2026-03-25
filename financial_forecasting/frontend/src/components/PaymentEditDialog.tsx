@@ -1,0 +1,558 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Grid,
+  Typography,
+  Divider,
+  Alert,
+  InputAdornment,
+  Box,
+  Button,
+  FormControlLabel,
+  Switch,
+  Chip,
+} from '@mui/material';
+import { useQueryClient } from 'react-query';
+import toast from 'react-hot-toast';
+import ConfirmSaveButton from './ConfirmSaveButton';
+import { apiService } from '../services/api';
+import { usePermissions } from '../contexts/PermissionsContext';
+
+// ── Types ───────────────────────────────────────────────────────────────────
+
+interface PaymentEditDialogProps {
+  open: boolean;
+  onClose: () => void;
+  paymentId: string | null;
+  initialData?: Record<string, any>;
+  onSaved?: (paymentId: string, updates: Record<string, any>) => void;
+}
+
+interface PicklistValue {
+  value: string;
+  label: string;
+  active: boolean;
+}
+
+// ── Constants ───────────────────────────────────────────────────────────────
+
+/** Nested relationship objects that must never be sent to the update API. */
+const SKIP_FIELDS = new Set([
+  'npe01__Opportunity__r', 'Affiliation__r', 'Invoice__r', 'attributes',
+]);
+
+/** Formula/calculated fields — display only, never send in updates. */
+const FORMULA_FIELDS = new Set([
+  'Payment_Status__c',
+  'Delinquent__c',
+  'Paid_Status__c',
+  'Amount_Formula__c',
+  'Amount_Minus_Received__c',
+  'NameFormula__c',
+  'Payment_for_Month_Of__c',
+]);
+
+/** Non-updateable system fields. */
+const READONLY_FIELDS = new Set([
+  'Id', 'Name', 'CreatedDate', 'LastModifiedDate',
+  'IsDeleted', 'SystemModstamp',
+  'npe01__Opportunity__c', // Parent opportunity — not changeable via edit
+]);
+
+// Hardcoded fallback picklist values
+const FALLBACK_PAYMENT_METHODS = [
+  'ACH', 'Benevity', 'Cash', 'Check', 'Credit Card',
+  'Cryptocurrency', 'Direct Pay', 'Loan Forgiveness', 'PayPal', 'QuickBooks',
+];
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+}
+
+function formatCurrency(val: number | null | undefined): string {
+  if (val == null) return '—';
+  return `$${Number(val).toLocaleString()}`;
+}
+
+function extractPicklistValues(fields: any[], fieldName: string): string[] {
+  const field = fields.find((f: any) => f.name === fieldName);
+  if (!field?.picklistValues) return [];
+  return field.picklistValues
+    .filter((pv: PicklistValue) => pv.active)
+    .map((pv: PicklistValue) => pv.value);
+}
+
+// ── Component ───────────────────────────────────────────────────────────────
+
+const PaymentEditDialog: React.FC<PaymentEditDialogProps> = ({
+  open,
+  onClose,
+  paymentId,
+  initialData,
+  onSaved,
+}) => {
+  const queryClient = useQueryClient();
+  const { can, isAdmin } = usePermissions();
+
+  // ── Local state ─────────────────────────────────────────────────────────
+  const [editForm, setEditForm] = useState<Record<string, any>>({});
+  const [originalRecord, setOriginalRecord] = useState<Record<string, any> | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Picklist values from SF schema
+  const [paymentMethodValues, setPaymentMethodValues] = useState<string[]>(FALLBACK_PAYMENT_METHODS);
+  const [departmentValues, setDepartmentValues] = useState<string[]>([]);
+  const [glAccountValues, setGlAccountValues] = useState<string[]>([]);
+
+  // ── Permission checks ───────────────────────────────────────────────────
+  const canEdit = isAdmin || can('edit_payments');
+
+  // ── Resolve payment data on open ────────────────────────────────────────
+  useEffect(() => {
+    if (!open || !paymentId) {
+      setOriginalRecord(null);
+      setEditForm({});
+      return;
+    }
+
+    if (initialData && initialData.Id === paymentId) {
+      setOriginalRecord({ ...initialData });
+      setEditForm({ ...initialData });
+    } else {
+      setOriginalRecord(null);
+      setEditForm({});
+    }
+  }, [open, paymentId, initialData]);
+
+  // ── Fetch picklists when dialog opens ──────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+
+    apiService.getSchemaDescribe('npe01__OppPayment__c')
+      .then((res) => {
+        if (cancelled) return;
+        const fields = res.data?.fields || [];
+        const extract = (name: string) => extractPicklistValues(fields, name);
+        const methods = extract('npe01__Payment_Method__c');
+        if (methods.length) setPaymentMethodValues(methods);
+        const depts = extract('Department__c');
+        if (depts.length) setDepartmentValues(depts);
+        const gls = extract('GL_Account__c');
+        if (gls.length) setGlAccountValues(gls);
+      })
+      .catch(() => { /* Use fallback values */ });
+
+    return () => { cancelled = true; };
+  }, [open]);
+
+  // ── Field change handler ────────────────────────────────────────────────
+  const handleFieldChange = useCallback((field: string, value: any) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  // ── Save handler ────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!paymentId || !originalRecord) return;
+
+    // Diff: only send changed fields
+    const updates: Record<string, any> = {};
+    for (const key of Object.keys(editForm)) {
+      if (SKIP_FIELDS.has(key) || FORMULA_FIELDS.has(key) || READONLY_FIELDS.has(key)) continue;
+      const newVal = editForm[key];
+      const oldVal = originalRecord[key];
+      if (newVal !== oldVal) {
+        updates[key] = newVal;
+      }
+    }
+
+    // Numeric parsing
+    if ('npe01__Payment_Amount__c' in updates) {
+      updates.npe01__Payment_Amount__c = parseFloat(updates.npe01__Payment_Amount__c) || 0;
+    }
+    if ('Amount_Received__c' in updates) {
+      updates.Amount_Received__c = parseFloat(updates.Amount_Received__c) || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      toast('No changes detected');
+      onClose();
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await apiService.updateSfPayment(paymentId, updates);
+      toast.success('Payment saved!');
+      // Invalidate opportunities cache — payment rollup fields on Opportunity change
+      queryClient.invalidateQueries('opportunities');
+      if (onSaved) onSaved(paymentId, updates);
+      onClose();
+    } catch (error: any) {
+      const detail =
+        error?.response?.data?.detail ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Failed to save payment';
+      toast.error(detail);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Not-found state ─────────────────────────────────────────────────────
+  const notFound = open && paymentId && !originalRecord;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        Edit Payment
+        {originalRecord?.Name && (
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.25 }}>
+            {originalRecord.Name}
+          </Typography>
+        )}
+      </DialogTitle>
+
+      <DialogContent dividers>
+        {notFound && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Payment not found.
+          </Alert>
+        )}
+
+        {!canEdit && originalRecord && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            You don't have permission to edit payments.
+          </Alert>
+        )}
+
+        {originalRecord && (
+          <>
+            {/* ── Section 1: Payment Details ───────────────────────── */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Payment Amount"
+                  fullWidth
+                  size="small"
+                  type="number"
+                  disabled={!canEdit}
+                  value={editForm.npe01__Payment_Amount__c ?? ''}
+                  onChange={(e) => handleFieldChange('npe01__Payment_Amount__c', e.target.value)}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Scheduled Date"
+                  fullWidth
+                  size="small"
+                  type="date"
+                  disabled={!canEdit}
+                  value={editForm.npe01__Scheduled_Date__c || ''}
+                  onChange={(e) => handleFieldChange('npe01__Scheduled_Date__c', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Payment Date"
+                  fullWidth
+                  size="small"
+                  type="date"
+                  disabled={!canEdit}
+                  value={editForm.npe01__Payment_Date__c || ''}
+                  onChange={(e) => handleFieldChange('npe01__Payment_Date__c', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={!!editForm.npe01__Paid__c}
+                      onChange={(e) => handleFieldChange('npe01__Paid__c', e.target.checked)}
+                      size="small"
+                      disabled={!canEdit}
+                    />
+                  }
+                  label="Paid"
+                  sx={{ mt: 0.5 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Payment Method"
+                  fullWidth
+                  size="small"
+                  select
+                  disabled={!canEdit}
+                  value={editForm.npe01__Payment_Method__c || ''}
+                  onChange={(e) => handleFieldChange('npe01__Payment_Method__c', e.target.value)}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {paymentMethodValues.map((v) => (
+                    <MenuItem key={v} value={v}>{v}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Check/Reference #"
+                  fullWidth
+                  size="small"
+                  disabled={!canEdit}
+                  value={editForm.npe01__Check_Reference_Number__c || ''}
+                  onChange={(e) => handleFieldChange('npe01__Check_Reference_Number__c', e.target.value)}
+                />
+              </Grid>
+            </Grid>
+
+            {/* ── Section 2: Status (read-only formula fields) ─────── */}
+            {(originalRecord.Payment_Status__c || originalRecord.Delinquent__c != null) && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                  Status
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  {originalRecord.Payment_Status__c && (
+                    <Chip
+                      label={`Status: ${originalRecord.Payment_Status__c}`}
+                      size="small"
+                      color={originalRecord.Payment_Status__c === 'Paid' ? 'success' : 'default'}
+                      variant="outlined"
+                    />
+                  )}
+                  {originalRecord.Paid_Status__c && (
+                    <Chip
+                      label={originalRecord.Paid_Status__c}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                  {originalRecord.Delinquent__c && (
+                    <Chip
+                      label="Delinquent"
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                    />
+                  )}
+                  {originalRecord.Amount_Minus_Received__c != null && (
+                    <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                      <strong>Remaining:</strong> {formatCurrency(originalRecord.Amount_Minus_Received__c)}
+                    </Typography>
+                  )}
+                </Box>
+              </>
+            )}
+
+            {/* ── Section 3: Financial ────────────────────────────── */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+              Financial
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Amount Received"
+                  fullWidth
+                  size="small"
+                  type="number"
+                  disabled={!canEdit}
+                  value={editForm.Amount_Received__c ?? ''}
+                  onChange={(e) => handleFieldChange('Amount_Received__c', e.target.value)}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  }}
+                />
+              </Grid>
+              {departmentValues.length > 0 && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Department"
+                    fullWidth
+                    size="small"
+                    select
+                    disabled={!canEdit}
+                    value={editForm.Department__c || ''}
+                    onChange={(e) => handleFieldChange('Department__c', e.target.value)}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {departmentValues.map((v) => (
+                      <MenuItem key={v} value={v}>{v}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              )}
+              {glAccountValues.length > 0 && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="GL Account"
+                    fullWidth
+                    size="small"
+                    select
+                    disabled={!canEdit}
+                    value={editForm.GL_Account__c || ''}
+                    onChange={(e) => handleFieldChange('GL_Account__c', e.target.value)}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {glAccountValues.map((v) => (
+                      <MenuItem key={v} value={v}>{v}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              )}
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="GL Payment Received"
+                  fullWidth
+                  size="small"
+                  type="date"
+                  disabled={!canEdit}
+                  value={editForm.GL_Payment_Received__c || ''}
+                  onChange={(e) => handleFieldChange('GL_Payment_Received__c', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={!!editForm.Reconciled_with_Finance__c}
+                      onChange={(e) => handleFieldChange('Reconciled_with_Finance__c', e.target.checked)}
+                      size="small"
+                      disabled={!canEdit}
+                    />
+                  }
+                  label={<Typography variant="body2">Reconciled</Typography>}
+                />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={!!editForm.Payment_Estimate__c}
+                      onChange={(e) => handleFieldChange('Payment_Estimate__c', e.target.checked)}
+                      size="small"
+                      disabled={!canEdit}
+                    />
+                  }
+                  label={<Typography variant="body2">Estimate</Typography>}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Batch Name"
+                  fullWidth
+                  size="small"
+                  disabled={!canEdit}
+                  value={editForm.Batch_Name__c || ''}
+                  onChange={(e) => handleFieldChange('Batch_Name__c', e.target.value)}
+                />
+              </Grid>
+            </Grid>
+
+            {/* ── Section 4: Write-Off ────────────────────────────── */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+              Write-Off
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={!!editForm.npe01__Written_Off__c}
+                      onChange={(e) => handleFieldChange('npe01__Written_Off__c', e.target.checked)}
+                      size="small"
+                      disabled={!canEdit}
+                    />
+                  }
+                  label="Written Off"
+                />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextField
+                  label="Write-Off Notes"
+                  fullWidth
+                  size="small"
+                  multiline
+                  rows={2}
+                  disabled={!canEdit}
+                  value={editForm.Write_off_reason__c || ''}
+                  onChange={(e) => handleFieldChange('Write_off_reason__c', e.target.value)}
+                />
+              </Grid>
+            </Grid>
+
+            {/* ── Section 5: Relationship (read-only links) ──────── */}
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+              Relationship
+            </Typography>
+            <Grid container spacing={1.5}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Opportunity:</strong>{' '}
+                  {originalRecord.npe01__Opportunity__r?.Name || '—'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Account:</strong>{' '}
+                  {originalRecord.npe01__Opportunity__r?.Account?.Name || '—'}
+                </Typography>
+              </Grid>
+              {originalRecord.Invoice__c && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Invoice:</strong> {originalRecord.Invoice__c}
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+
+            {/* ── Read-only footer ────────────────────────────────── */}
+            <Box sx={{ mt: 2.5, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              <Typography variant="caption" color="text.secondary">
+                Payment #: {originalRecord.Name || '—'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Created: {formatDate(originalRecord.CreatedDate)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Last Modified: {formatDate(originalRecord.LastModifiedDate)}
+              </Typography>
+            </Box>
+          </>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 1.5 }}>
+        <Button onClick={onClose}>Cancel</Button>
+        <ConfirmSaveButton
+          onConfirm={handleSave}
+          loading={saving}
+          disabled={!canEdit || !originalRecord}
+        >
+          Save
+        </ConfirmSaveButton>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default PaymentEditDialog;
