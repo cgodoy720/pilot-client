@@ -68,13 +68,6 @@ export function computeUrgency(opp: PriorityOpp): UrgencyScore {
     reasons.push(`${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}`);
   }
 
-  // No open tasks — nobody is actively working this opportunity
-  const openTasks = (opp.tasks || []).filter((t) => t.Status !== 'Completed');
-  if (openTasks.length === 0) {
-    score += 10;
-    reasons.push('No tasks assigned');
-  }
-
   // Stale / Quiet — use whichever date is OLDER (more stale) between LastModifiedDate and LastActivityDate
   // LastModifiedDate updates on any field change (including automation); LastActivityDate tracks actual tasks/events
   const staleDates: Date[] = [];
@@ -118,7 +111,14 @@ export function computeUrgency(opp: PriorityOpp): UrgencyScore {
     else if (r.includes('upsell')) { score += 5; reasons.push('Upsell'); }
   }
 
-  // Higher amount = slight urgency boost
+  // No open tasks — always last in alert order (least urgent)
+  const openTasks = (opp.tasks || []).filter((t) => t.Status !== 'Completed');
+  if (openTasks.length === 0) {
+    score += 10;
+    reasons.push('No tasks assigned');
+  }
+
+  // Higher amount = slight urgency boost (no chip)
   if (opp.Amount > 500000) score += 5;
   if (opp.Amount > 1000000) score += 5;
 

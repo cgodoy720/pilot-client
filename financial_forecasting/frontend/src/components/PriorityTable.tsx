@@ -577,7 +577,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
     if (/overdue/i.test(reason)) return '#e65100';
     if (/closing in/i.test(reason)) return '#2e7d32';
     if (/quiet/i.test(reason)) return '#e65100';
-    if (/renewal|upsell/i.test(reason)) return '#7b1fa2';
+    if (/renewal|upsell/i.test(reason)) return '#2e7d32';
     return '#1565c0';
   };
 
@@ -842,7 +842,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                     <TableCell sx={{ px: 1 }}>
                       <Box
                         sx={{
-                          bgcolor: overdueTasks > 0 ? '#e65100' : urgency.reasons.some((r: string) => /closing in/i.test(r)) ? '#2e7d32' : urgency.reasons.length > 0 ? '#1565c0' : 'grey.200',
+                          bgcolor: overdueTasks > 0 ? '#e65100' : urgency.reasons.some((r: string) => /closing in|renewal|upsell/i.test(r)) ? '#2e7d32' : urgency.reasons.length > 0 ? '#1565c0' : 'grey.200',
                           color: overdueTasks > 0 || urgency.reasons.length > 0 ? 'white' : 'text.secondary',
                           borderRadius: '50%',
                           width: 24,
