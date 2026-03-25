@@ -14,13 +14,15 @@ import {
   InputAdornment,
   Box,
   Button,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import { useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import ConfirmSaveButton from './ConfirmSaveButton';
 import { apiService } from '../services/api';
 import { usePermissions } from '../contexts/PermissionsContext';
-import { OPPORTUNITY_STAGES } from '../types/salesforce';
+import { OPPORTUNITY_STAGES, COLLECTING_STAGES, CLOSED_STAGES } from '../types/salesforce';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,6 +44,17 @@ interface AccountOption {
   Id: string;
   Name: string;
 }
+
+// ── Constants ───────────────────────────────────────────────────────────────
+
+/** Stages where the Payment Summary section is shown (Collecting + all Closed). */
+const PAYMENT_SUMMARY_STAGES = new Set<string>([
+  ...COLLECTING_STAGES,
+  ...CLOSED_STAGES,
+]);
+
+/** Nested relationship objects that must never be sent to the update API. */
+const SKIP_FIELDS = new Set(['Account', 'Owner', 'RecordType', 'attributes']);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -191,9 +204,10 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
   const handleSave = async () => {
     if (!opportunityId || !originalOpp) return;
 
-    // Diff: only send changed fields
+    // Diff: only send changed fields (skip nested relationship objects)
     const updates: Record<string, any> = {};
     for (const key of Object.keys(editForm)) {
+      if (SKIP_FIELDS.has(key)) continue;
       const newVal = editForm[key];
       const oldVal = originalOpp[key];
       if (newVal !== oldVal) {
@@ -359,6 +373,37 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
                   onChange={(e) => handleFieldChange('Type', e.target.value)}
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Renewal / Repeat"
+                  fullWidth
+                  size="small"
+                  select
+                  disabled={!canEdit}
+                  value={editForm.RenewalRepeat__c || ''}
+                  onChange={(e) => handleFieldChange('RenewalRepeat__c', e.target.value)}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  <MenuItem value="New">New</MenuItem>
+                  <MenuItem value="Renewal">Renewal</MenuItem>
+                  <MenuItem value="Upsell">Upsell</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={!!editForm.Active_Opportunity__c}
+                      onChange={(e) =>
+                        handleFieldChange('Active_Opportunity__c', e.target.checked)
+                      }
+                      size="small"
+                      disabled={!canEdit}
+                    />
+                  }
+                  label="Active Opportunity"
+                />
+              </Grid>
             </Grid>
 
             {/* ── Section 2: Details ──────────────────────────────────── */}
@@ -416,7 +461,70 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
               </Grid>
             </Grid>
 
-            {/* ── Section 3: Ownership & Contract ─────────────────────── */}
+            {/* ── Section 3: Payment Summary (Collecting+ stages only) ── */}
+            {PAYMENT_SUMMARY_STAGES.has(originalOpp.StageName) && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                  Payment Summary
+                </Typography>
+                <Grid container spacing={1.5}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Payments Received:</strong>{' '}
+                      {editForm.npe01__Payments_Made__c != null
+                        ? `$${Number(editForm.npe01__Payments_Made__c).toLocaleString()}`
+                        : '—'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Outstanding:</strong>{' '}
+                      {editForm.Outstanding_Payments__c != null
+                        ? `$${Number(editForm.Outstanding_Payments__c).toLocaleString()}`
+                        : '—'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Payment Count:</strong>{' '}
+                      {editForm.Number_of_Payments_Received__c != null ||
+                      editForm.npe01__Number_of_Payments__c != null
+                        ? `${editForm.Number_of_Payments_Received__c ?? 0} / ${editForm.npe01__Number_of_Payments__c ?? 0}`
+                        : '—'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Last Payment:</strong>{' '}
+                      {editForm.Last_Actual_Payment__c != null
+                        ? `$${Number(editForm.Last_Actual_Payment__c).toLocaleString()}`
+                        : '—'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Most Recent Payment:</strong>{' '}
+                      {formatDate(editForm.Most_Recent_Payment_Date__c)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>First Payment:</strong>{' '}
+                      {formatDate(editForm.PaymentDate__c)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Next Scheduled:</strong>{' '}
+                      {formatDate(editForm.Earliest_Scheduled_Payment__c)}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </>
+            )}
+
+            {/* ── Section 4: Ownership & Contract ─────────────────────── */}
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
               Ownership & Contract
@@ -519,12 +627,18 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
             </Grid>
 
             {/* ── Read-only footer ────────────────────────────────────── */}
-            <Box sx={{ mt: 2.5, display: 'flex', gap: 3 }}>
+            <Box sx={{ mt: 2.5, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
               <Typography variant="caption" color="text.secondary">
                 Created: {formatDate(originalOpp.CreatedDate)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Last Modified: {formatDate(originalOpp.LastModifiedDate)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Record Type: {originalOpp.RecordType?.Name || '—'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Last Activity: {formatDate(originalOpp.LastActivityDate)}
               </Typography>
             </Box>
           </>
