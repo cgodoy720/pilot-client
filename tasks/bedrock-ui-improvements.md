@@ -6,9 +6,9 @@
 
 ## Small (1 PR each, no planning needed)
 
-### S1. Stage colors in Priority Opportunities table
-`getStageHexColor` is imported in PriorityTable.tsx but never used. Stage names render as plain Chips. Apply color to stage Chips in the table rows and stage selector filter.
-- **Files**: `PriorityTable.tsx`
+### S1. Stage colors in Pipeline page tables
+Priorities page already has the correct stage color scheme. Pipeline page tables (Opportunities, Accounts, Contacts, Leads) render stage names as plain uncolored Chips. Apply the same `getStageHexColor` coloring from Priorities to Pipeline's table views. Do NOT change Priorities page colors.
+- **Files**: Pipeline sub-page components
 
 ### S2. Stage selector: ordered + ROYGBIV progression
 Stage filter currently shows stages in random order. Show them in pipeline order (Lead Gen -> New Lead -> Qualifying -> ... -> Collecting). Update colors to progress ROYGBIV: red for New Leads, through orange/yellow/green, to indigo/purple for Collecting and completed stages.
