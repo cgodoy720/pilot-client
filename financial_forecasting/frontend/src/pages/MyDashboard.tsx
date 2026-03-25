@@ -55,6 +55,7 @@ import WeeklyCalendar, { CalendarEvent, CalendarViewMode } from '../components/W
 import PriorityTable, { PriorityOpp } from '../components/PriorityTable';
 import TaskInbox, { InboxTask } from '../components/TaskInbox';
 import TaskPanel from '../components/TaskPanel';
+import OpportunityEditDialog from '../components/OpportunityEditDialog';
 import GoalTracker from '../components/GoalTracker';
 import DateRangeSelector, { type DateRangeValue } from '../components/DateRangeSelector';
 import type { Opportunity } from './Opportunities/helpers';
@@ -531,6 +532,7 @@ const MyDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [prefs, setPrefs] = useState<DashboardPrefs>(loadPrefs);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [editOpp, setEditOpp] = useState<any>(null);
   const [taskPanelOpp, setTaskPanelOpp] = useState<Opportunity | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [editOnOpen, setEditOnOpen] = useState(false);
@@ -1299,6 +1301,11 @@ const MyDashboard: React.FC = () => {
                 setTaskPanelOpp(mapped);
                 setTaskPanelOpen(true);
               }}
+              onOppClick={(priorityOpp) => {
+                // Look up full Salesforce record — PriorityOpp drops many fields
+                const fullOpp = allOpportunities.find((o: any) => o.Id === priorityOpp.Id);
+                setEditOpp(fullOpp || priorityOpp);
+              }}
               onOpenTaskDrawer={(opp, _taskId) => {
                 const mapped: Opportunity = {
                   Id: opp.Id,
@@ -1458,6 +1465,21 @@ const MyDashboard: React.FC = () => {
         orphanTask={orphanTask}
         users={sfUsers}
         opportunities={allOpportunities.map((o: any) => ({ Id: o.Id, Name: o.Name }))}
+      />
+
+      {/* Opportunity Edit Dialog */}
+      <OpportunityEditDialog
+        open={!!editOpp}
+        onClose={() => setEditOpp(null)}
+        opportunityId={editOpp?.Id ?? null}
+        initialData={editOpp}
+        onSaved={() => setEditOpp(null)}
+        onStageClosedCompleted={(opp) => {
+          setEditOpp(null);
+          navigate(`/payment-schedule/${opp.Id}`, {
+            state: { fromStageChange: true, targetStage: 'Closed / Completed', opportunityId: opp.Id },
+          });
+        }}
       />
     </Box>
   );

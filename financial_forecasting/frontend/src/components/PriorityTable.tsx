@@ -93,6 +93,7 @@ interface PriorityTableProps {
   maxRows?: number;
   onFilteredChange?: (allFiltered: PriorityOpp[], visible: PriorityOpp[]) => void;
   toolbarSlot?: React.ReactNode;
+  onOppClick?: (opp: PriorityOpp) => void;
 }
 
 // ── Inline editable cell ──
@@ -373,7 +374,7 @@ const AddTaskRow: React.FC<AddTaskRowProps> = ({ oppId, users, onCreated }) => {
 
 // ── Main Component ──
 
-const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows, onFilteredChange, toolbarSlot }) => {
+const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows, onFilteredChange, toolbarSlot, onOppClick }) => {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [expandedOppId, setExpandedOppId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState<Record<string, boolean>>({});
@@ -860,7 +861,16 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
 
                     {/* Opportunity name + account */}
                     <TableCell sx={{ maxWidth: oppNameWidth ?? 220 }}>
-                      <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        sx={{
+                          fontWeight: 500,
+                          cursor: onOppClick ? 'pointer' : 'default',
+                          '&:hover': onOppClick ? { textDecoration: 'underline', color: 'primary.main' } : {},
+                        }}
+                        onClick={onOppClick ? () => onOppClick(opp) : undefined}
+                      >
                         {opp.Name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" noWrap>

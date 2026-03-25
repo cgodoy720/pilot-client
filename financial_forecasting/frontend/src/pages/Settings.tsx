@@ -66,6 +66,7 @@ const PERMISSION_GROUPS = [
       { key: 'create_opportunities', label: 'Create Opportunities' },
       { key: 'bulk_update_opportunities', label: 'Bulk Update Opportunities' },
       { key: 'lock_own_opportunities', label: 'Lock/Unlock Own Opportunities' },
+      { key: 'reassign_opportunities', label: 'Reassign Opportunities' },
     ],
   },
   {

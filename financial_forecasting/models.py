@@ -343,7 +343,7 @@ class OpportunityUpdateRequest(BaseModel):
     """Request model for updating opportunities."""
     opportunity_id: str
     updates: Dict[str, Any]
-    user_id: str
+    user_id: Optional[str] = None
     reason: Optional[str] = None
 
 

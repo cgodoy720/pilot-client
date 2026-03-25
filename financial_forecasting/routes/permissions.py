@@ -15,10 +15,11 @@ from security import validate_salesforce_id, escape_soql_string
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/permissions", tags=["permissions"])
 
-# All 19 permission keys — used for validation
+# All 21 permission keys — used for validation
 PERMISSION_KEYS = [
     "view_opportunities", "edit_own_opportunities", "edit_all_opportunities",
     "create_opportunities", "bulk_update_opportunities", "lock_own_opportunities",
+    "reassign_opportunities",
     "view_tasks", "edit_own_tasks", "edit_all_tasks", "create_tasks",
     "view_revenue_dashboard", "view_cashflow_forecasts",
     "view_sage_invoices_payments", "create_sage_invoices",

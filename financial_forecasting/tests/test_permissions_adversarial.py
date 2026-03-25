@@ -30,6 +30,7 @@ OPP_ID = "006TESTOPPORT01"
 FUNDRAISER_PERMS = json.dumps({
     "view_opportunities": True, "edit_own_opportunities": True, "edit_all_opportunities": False,
     "create_opportunities": True, "bulk_update_opportunities": False, "lock_own_opportunities": True,
+    "reassign_opportunities": True,
     "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": False, "create_tasks": True,
     "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
     "view_sage_invoices_payments": False, "create_sage_invoices": False,
@@ -423,3 +424,107 @@ class TestTaskLockVectors:
             json={"Status": "Completed"},
         )
         assert resp.status_code == 503
+
+
+# ===========================================================================
+# OWNERSHIP ENFORCEMENT: edit_own only edits your own opportunities
+# ===========================================================================
+
+
+class TestOwnershipEnforcement:
+    """Fundraiser with edit_own_opportunities can only edit opportunities they own."""
+
+    def test_fundraiser_blocked_from_editing_others_opp(self, fundraiser_client, mock_client, mock_db):
+        """Fundraiser without edit_all cannot edit another user's opportunity."""
+        # Mock: no lock, ownership query returns OTHER user as owner
+        async def smart_fetchrow(query, *args):
+            if "opportunity_lock" in query:
+                return None
+            return fundraiser_row()
+        mock_db.fetchrow = AsyncMock(side_effect=smart_fetchrow)
+        mock_client.salesforce.query = AsyncMock(return_value={
+            "records": [{"OwnerId": OTHER_SF_USER_ID}]
+        })
+
+        resp = fundraiser_client.put(
+            f"/api/salesforce/opportunities/{OPP_ID}",
+            json={"opportunity_id": OPP_ID, "updates": {"Amount": 50000}, "user_id": "test"},
+        )
+        assert resp.status_code == 403
+        assert "only edit opportunities you own" in resp.json()["detail"]
+
+    def test_fundraiser_can_edit_own_opp(self, fundraiser_client, mock_client, mock_db):
+        """Fundraiser can edit an opportunity they own."""
+        async def smart_fetchrow(query, *args):
+            if "opportunity_lock" in query:
+                return None
+            return fundraiser_row()
+        mock_db.fetchrow = AsyncMock(side_effect=smart_fetchrow)
+        # Ownership query returns THIS user as owner
+        mock_client.salesforce.query = AsyncMock(return_value={
+            "records": [{"OwnerId": SF_USER_ID}]
+        })
+        mock_client.salesforce.update_record = AsyncMock(return_value=True)
+
+        resp = fundraiser_client.put(
+            f"/api/salesforce/opportunities/{OPP_ID}",
+            json={"opportunity_id": OPP_ID, "updates": {"Amount": 50000}, "user_id": "test"},
+        )
+        assert resp.status_code == 200
+
+
+# ===========================================================================
+# REASSIGNMENT: OwnerId changes require reassign_opportunities permission
+# ===========================================================================
+
+
+class TestReassignmentPermission:
+    """OwnerId changes are gated by the reassign_opportunities permission."""
+
+    def test_fundraiser_can_reassign_own_opp(self, fundraiser_client, mock_client, mock_db):
+        """Fundraiser with reassign_opportunities can change OwnerId on own opp."""
+        async def smart_fetchrow(query, *args):
+            if "opportunity_lock" in query:
+                return None
+            return fundraiser_row()
+        mock_db.fetchrow = AsyncMock(side_effect=smart_fetchrow)
+        mock_client.salesforce.query = AsyncMock(return_value={
+            "records": [{"OwnerId": SF_USER_ID}]
+        })
+        mock_client.salesforce.update_record = AsyncMock(return_value=True)
+
+        resp = fundraiser_client.put(
+            f"/api/salesforce/opportunities/{OPP_ID}",
+            json={"opportunity_id": OPP_ID, "updates": {"OwnerId": OTHER_SF_USER_ID}, "user_id": "test"},
+        )
+        assert resp.status_code == 200
+
+    def test_fundraiser_without_reassign_blocked(self, fundraiser_client, mock_client, mock_db):
+        """Fundraiser without reassign_opportunities cannot change OwnerId."""
+        # Build a user with reassign_opportunities = False
+        no_reassign_perms = json.dumps({
+            **json.loads(FUNDRAISER_PERMS), "reassign_opportunities": False,
+        })
+
+        def no_reassign_row():
+            return MockDBRow(
+                id=USER_ID, sf_user_id=SF_USER_ID, email="fundraiser@pursuit.org",
+                name="Fundraiser", is_active=True, permissions=no_reassign_perms,
+                profile_name="Fundraiser", profile_id=FUNDRAISER_PROFILE_ID,
+            )
+
+        async def smart_fetchrow(query, *args):
+            if "opportunity_lock" in query:
+                return None
+            return no_reassign_row()
+        mock_db.fetchrow = AsyncMock(side_effect=smart_fetchrow)
+        mock_client.salesforce.query = AsyncMock(return_value={
+            "records": [{"OwnerId": SF_USER_ID}]
+        })
+
+        resp = fundraiser_client.put(
+            f"/api/salesforce/opportunities/{OPP_ID}",
+            json={"opportunity_id": OPP_ID, "updates": {"OwnerId": OTHER_SF_USER_ID}, "user_id": "test"},
+        )
+        assert resp.status_code == 403
+        assert "reassign" in resp.json()["detail"].lower()

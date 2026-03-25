@@ -46,6 +46,7 @@ import type { Opportunity } from './Opportunities/helpers';
 import { useOpportunityData, ViewMode } from './Opportunities/useOpportunityData';
 import { buildPipelineColumns, buildPaymentColumns, ColumnCallbacks } from './Opportunities/columns';
 import { SummaryCards } from './Opportunities/SummaryCards';
+import OpportunityEditDialog from '../components/OpportunityEditDialog';
 import ConfirmSaveButton from '../components/ConfirmSaveButton';
 import { usePermissions } from '../contexts/PermissionsContext';
 
@@ -74,7 +75,6 @@ const Opportunities: React.FC = () => {
   // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
 
   // Payment schedule modal
   const [paymentScheduleOpen, setPaymentScheduleOpen] = useState(false);
@@ -144,37 +144,6 @@ const Opportunities: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
-
-  const handleSave = () => {
-    if (!selectedOpp) return;
-    const updates: any = {};
-    if (editForm.Name !== selectedOpp.Name) updates.Name = editForm.Name;
-    if (editForm.StageName !== selectedOpp.StageName) updates.StageName = editForm.StageName;
-    if (editForm.Amount !== selectedOpp.Amount) updates.Amount = parseFloat(editForm.Amount);
-    if (editForm.Probability !== selectedOpp.Probability) updates.Probability = parseInt(editForm.Probability);
-    if (editForm.CloseDate !== selectedOpp.CloseDate) updates.CloseDate = editForm.CloseDate;
-
-    if (Object.keys(updates).length === 0) {
-      toast('No changes detected');
-      setEditDialogOpen(false);
-      return;
-    }
-
-    const stageChangedToCompleted = updates.StageName?.includes('Closed / Completed') && !selectedOpp.StageName.includes('Closed / Completed');
-    updateMutation.mutate(
-      { oppId: selectedOpp.Id, updates },
-      {
-        onSuccess: () => {
-          setEditDialogOpen(false);
-          if (stageChangedToCompleted) {
-            const updatedOpp = { ...selectedOpp, ...updates };
-            setPaymentScheduleOpp(updatedOpp);
-            setPaymentScheduleOpen(true);
-          }
-        },
-      },
-    );
-  };
 
   const handleBulkAction = (action: 'withdraw' | 'stage') => {
     if (selectedRowIds.length === 0) { toast.error('Please select opportunities first'); return; }
@@ -562,32 +531,18 @@ const Opportunities: React.FC = () => {
       />
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          Edit Opportunity
-          {selectedOpp && <Typography variant="body2" color="textSecondary">{selectedOpp.Name}</Typography>}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField label="Opportunity Name" fullWidth value={editForm.Name || ''} onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })} />
-            <TextField label="Stage" fullWidth select value={editForm.StageName || ''} onChange={(e) => setEditForm({ ...editForm, StageName: e.target.value })}>
-              {OPPORTUNITY_STAGES.map((stage) => <MenuItem key={stage} value={stage}>{stage}</MenuItem>)}
-            </TextField>
-            <TextField label="Amount" fullWidth type="number" value={editForm.Amount || ''} onChange={(e) => setEditForm({ ...editForm, Amount: e.target.value })} InputProps={{ startAdornment: '$' }} />
-            <TextField label="Probability (%)" fullWidth type="number" value={editForm.Probability || ''} onChange={(e) => setEditForm({ ...editForm, Probability: e.target.value })} inputProps={{ min: 0, max: 100 }} />
-            <TextField label="Close Date" fullWidth type="date" value={editForm.CloseDate || ''} onChange={(e) => setEditForm({ ...editForm, CloseDate: e.target.value })} InputLabelProps={{ shrink: true }} />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <ConfirmSaveButton
-            onConfirm={handleSave}
-            loading={updateMutation.isLoading}
-          >
-            Save Changes
-          </ConfirmSaveButton>
-        </DialogActions>
-      </Dialog>
+      <OpportunityEditDialog
+        open={editDialogOpen}
+        onClose={() => { setEditDialogOpen(false); setSelectedOpp(null); }}
+        opportunityId={selectedOpp?.Id ?? null}
+        initialData={selectedOpp ?? undefined}
+        onSaved={() => { setEditDialogOpen(false); setSelectedOpp(null); }}
+        onStageClosedCompleted={(opp) => {
+          setEditDialogOpen(false);
+          setPaymentScheduleOpp(opp as any);
+          setPaymentScheduleOpen(true);
+        }}
+      />
 
       {/* Payment Schedule Modal */}
       {paymentScheduleOpp && (

@@ -188,6 +188,7 @@ VALUES (
         "create_opportunities": true,
         "bulk_update_opportunities": true,
         "lock_own_opportunities": true,
+        "reassign_opportunities": true,
         "view_tasks": true,
         "edit_own_tasks": true,
         "edit_all_tasks": true,
@@ -216,6 +217,7 @@ VALUES (
         "create_opportunities": true,
         "bulk_update_opportunities": false,
         "lock_own_opportunities": true,
+        "reassign_opportunities": true,
         "view_tasks": true,
         "edit_own_tasks": true,
         "edit_all_tasks": false,
@@ -231,3 +233,38 @@ VALUES (
         "manage_users_roles": false
     }'::jsonb
 ) ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO permission_profile (name, description, is_default, permissions)
+VALUES (
+    'Manager',
+    'Full CRM access — edit and reassign all opportunities, manage all tasks, view financials',
+    false,
+    '{
+        "view_opportunities": true,
+        "edit_own_opportunities": true,
+        "edit_all_opportunities": true,
+        "create_opportunities": true,
+        "bulk_update_opportunities": true,
+        "lock_own_opportunities": true,
+        "reassign_opportunities": true,
+        "view_tasks": true,
+        "edit_own_tasks": true,
+        "edit_all_tasks": true,
+        "create_tasks": true,
+        "view_revenue_dashboard": true,
+        "view_cashflow_forecasts": true,
+        "view_sage_invoices_payments": true,
+        "create_sage_invoices": false,
+        "match_invoices": false,
+        "manage_payment_schedules": false,
+        "generate_financial_reports": true,
+        "trigger_data_sync": false,
+        "manage_users_roles": false,
+        "use_pebble_chat": true
+    }'::jsonb
+) ON CONFLICT (name) DO NOTHING;
+
+-- Backfill: add reassign_opportunities to existing profiles that lack it
+UPDATE permission_profile
+SET permissions = permissions || '{"reassign_opportunities": true}'::jsonb
+WHERE NOT (permissions ? 'reassign_opportunities');
