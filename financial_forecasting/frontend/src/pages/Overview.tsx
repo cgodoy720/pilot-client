@@ -523,14 +523,14 @@ const Dashboard: React.FC = () => {
       </Grid>
 
       {/* Current Quarter Focus */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
             <ScheduleIcon sx={{ mr: 1 }} />
             Current Quarter ({format(startOfQuarter(new Date()), 'QQQ yyyy')})
           </Typography>
-          
-          <Grid container spacing={3} sx={{ mt: 1 }}>
+
+          <Grid container spacing={2} sx={{ mt: 0 }}>
             <Grid item xs={12} sm={6} md={3}>
               <Box>
                 <Typography variant="caption" color="textSecondary">
