@@ -51,7 +51,7 @@ from routes.salesforce_schema import router as sf_schema_router
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 from services.crm_parser import refresh_opp_cache as _refresh_opp_cache
-from services.cache import cache
+from services.cache import cache, CACHE_TTL_OPPORTUNITIES, CACHE_TTL_ACCOUNTS, CACHE_TTL_USERS, CACHE_TTL_CASHFLOW
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -131,7 +131,10 @@ _sync_lock = asyncio.Lock()
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
-    logger.info("Starting up Financial Forecasting API...")
+    logger.info("=" * 60)
+    logger.info("  BEDROCK API — main.py (production server)")
+    logger.info("  simple_server.py is DEPRECATED — do not use")
+    logger.info("=" * 60)
 
     # Initialize PostgreSQL (non-blocking — app works without it)
     await init_db()
@@ -282,31 +285,35 @@ VALID_STAGES = {s.value for s in OpportunityStage}
 async def get_opportunities(
     stage: Optional[OpportunityStage] = None,
     stages: Optional[List[str]] = Query(None),
-    limit: int = Query(500, le=2000),
+    limit: Optional[int] = Query(None, le=2000),
+    record_type: Optional[str] = Query(None, description="Filter by RecordType.Name (e.g. 'Philanthropy')"),
+    opp_type: Optional[str] = Query(None, description="Filter by Opportunity Type field"),
+    active_only: bool = Query(False, description="Only return Active_Opportunity__c = true"),
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user = Depends(require_auth)
 ):
-    """Get Salesforce opportunities."""
+    """Get Salesforce opportunities with optional server-side filtering."""
     try:
+        # Server-side cache — key encodes all filter params
+        stage_val = stage.value if stage else None
+        stages_key = ",".join(sorted(stages)) if stages else None
+        cache_key = f"opps:{stage_val}:{stages_key}:{record_type}:{opp_type}:{active_only}:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         salesforce = client.salesforce
 
-        # Build SOQL query
+        # Build SOQL query — field list matches proven simple_server.py query
         query = """
         SELECT Id, AccountId, Account.Name, Name, StageName, Amount, Probability,
                CloseDate, ForecastCategory, LeadSource, NextStep,
                Description, Type, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
-               LastActivityDate, RenewalRepeat__c,
                npe01__Payments_Made__c, Outstanding_Payments__c,
                Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,
                Last_Actual_Payment__c, npe01__Number_of_Payments__c,
                PaymentDate__c, Earliest_Scheduled_Payment__c,
-               RecordType.Name, Active_Opportunity__c,
-               Payment_Terms__c, Contract_Start_Date__c, Contract_End_Date__c,
-               Billing_Frequency__c, ExpectedRevenue,
-               npe01__Amount_Outstanding__c, npe01__Amount_Written_Off__c,
-               npsp__Next_Grant_Deadline_Due_Date__c, Application_Due_Date__c,
-               Total_Risk_Adjusted_Projection__c, Amount_Due_to_Date__c,
-               Account_Owner__c
+               RecordType.Name, Active_Opportunity__c
         FROM Opportunity
         """
 
@@ -318,20 +325,29 @@ async def get_opportunities(
             if validated:
                 stage_list = ", ".join(f"'{s}'" for s in validated)
                 where_clauses.append(f"StageName IN ({stage_list})")
+        if record_type:
+            where_clauses.append(f"RecordType.Name = '{escape_soql_string(record_type)}'")
+        if opp_type:
+            where_clauses.append(f"Type = '{escape_soql_string(opp_type)}'")
+        if active_only:
+            where_clauses.append("Active_Opportunity__c = true")
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
 
         query += " ORDER BY CloseDate DESC"
+        if limit is not None:
+            query += f" LIMIT {limit}"
 
-        # Use query_all to get ALL records with automatic pagination
+        # Use query_all for automatic pagination
         result = await salesforce.query_all(query)
         records = result.get("records", [])
 
-        # Refresh entity cache for Slack parser
+        # Cache the result and refresh entity cache for Slack parser
+        cache.set(cache_key, records, CACHE_TTL_OPPORTUNITIES)
         _refresh_opp_cache(records)
 
         return records
-        
+
     except Exception as e:
         logger.error(f"Error fetching opportunities: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -391,6 +407,8 @@ async def update_opportunity(
         )
 
         if success:
+            cache.invalidate_prefix("opps:")
+            cache.invalidate("stage_history:30")
             logger.info(f"Opportunity {opportunity_id} updated by {user['user_id']}")
             return ApiResponse(success=True, data={"id": opportunity_id, "message": "Opportunity updated successfully"})
         else:
@@ -412,6 +430,11 @@ async def get_accounts(
 ):
     """Get Salesforce accounts."""
     try:
+        cache_key = f"accounts:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         salesforce = client.salesforce
 
         query = f"""
@@ -444,9 +467,10 @@ async def get_accounts(
         """
 
         result = await salesforce.query(query)
+        records = result.get("records", [])
+        cache.set(cache_key, records, CACHE_TTL_ACCOUNTS)
+        return records
 
-        return result.get("records", [])
-        
     except Exception as e:
         logger.error(f"Error fetching accounts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -461,11 +485,12 @@ async def create_account(
     """Create a new Salesforce account."""
     try:
         salesforce = client.salesforce
-        
+
         # Create the account
         result = await salesforce.create_record("Account", account_data)
-        
+
         if result and result.get("id"):
+            cache.invalidate_prefix("accounts:")
             logger.info(f"Account created with ID: {result['id']} by {user['user_id']}")
             return ApiResponse(success=True, data={"id": result["id"], "message": "Account created successfully"})
         else:
@@ -485,6 +510,11 @@ async def get_contacts(
 ):
     """Get Salesforce contacts, optionally filtered by account."""
     try:
+        cache_key = f"contacts:{account_id}:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         salesforce = client.salesforce
 
         query = f"""
@@ -515,13 +545,10 @@ async def get_contacts(
         query += f" ORDER BY LastName ASC LIMIT {limit}"
         
         result = await salesforce.query(query)
-        
-        contacts = []
-        for record in result.get("records", []):
-            contacts.append(record)
-        
+        contacts = result.get("records", [])
+        cache.set(cache_key, contacts, CACHE_TTL_ACCOUNTS)
         return contacts
-        
+
     except Exception as e:
         logger.error(f"Error fetching contacts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -541,6 +568,7 @@ async def create_contact(
         result = await salesforce.create_record("Contact", contact_data)
         
         if result and result.get("id"):
+            cache.invalidate_prefix("contacts:")
             logger.info(f"Contact created with ID: {result['id']} by {user['user_id']}")
             return ApiResponse(success=True, data={"id": result["id"], "message": "Contact created successfully"})
         else:
@@ -578,6 +606,11 @@ async def get_payments(
 ):
     """Get Salesforce payments, optionally filtered by opportunity."""
     try:
+        cache_key = f"payments:{opportunity_id}:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         salesforce = client.salesforce
         query = f"SELECT {PAYMENT_SOQL_FIELDS} FROM npe01__OppPayment__c"
 
@@ -588,7 +621,9 @@ async def get_payments(
         query += f" ORDER BY npe01__Scheduled_Date__c DESC NULLS LAST LIMIT {limit}"
 
         result = await salesforce.query(query)
-        return result.get("records", [])
+        records = result.get("records", [])
+        cache.set(cache_key, records, CACHE_TTL_OPPORTUNITIES)
+        return records
 
     except Exception as e:
         logger.error(f"Error fetching payments: {e}")
@@ -604,6 +639,11 @@ async def get_opportunity_payments(
     """Get all payments for a specific opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
+        cache_key = f"opp-payments:{opportunity_id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         salesforce = client.salesforce
         query = f"""
         SELECT {PAYMENT_SOQL_FIELDS}
@@ -613,7 +653,9 @@ async def get_opportunity_payments(
         """
 
         result = await salesforce.query(query)
-        return result.get("records", [])
+        records = result.get("records", [])
+        cache.set(cache_key, records, CACHE_TTL_OPPORTUNITIES)
+        return records
 
     except Exception as e:
         logger.error(f"Error fetching payments for opportunity {opportunity_id}: {e}")
@@ -651,6 +693,7 @@ async def update_account(
         success = await salesforce.update_record("Account", account_id, update_request.updates)
         if not success:
             raise HTTPException(400, "Salesforce rejected the update")
+        cache.invalidate_prefix("accounts:")
         logger.info(f"Account {account_id} updated by {user['user_id']}")
         return ApiResponse(success=True, data={"id": account_id, "message": "Account updated"})
     except HTTPException:
@@ -675,6 +718,7 @@ async def update_contact(
         success = await salesforce.update_record("Contact", contact_id, update_request.updates)
         if not success:
             raise HTTPException(400, "Salesforce rejected the update")
+        cache.invalidate_prefix("contacts:")
         logger.info(f"Contact {contact_id} updated by {user['user_id']}")
         return ApiResponse(success=True, data={"id": contact_id, "message": "Contact updated"})
     except HTTPException:
@@ -699,6 +743,8 @@ async def update_payment(
         success = await salesforce.update_record("npe01__OppPayment__c", payment_id, update_request.updates)
         if not success:
             raise HTTPException(400, "Salesforce rejected the update")
+        cache.invalidate_prefix("payments:")
+        cache.invalidate_prefix("opp-payments:")
         logger.info(f"Payment {payment_id} updated by {user['user_id']}")
         return ApiResponse(success=True, data={"id": payment_id, "message": "Payment updated"})
     except HTTPException:
@@ -717,8 +763,13 @@ async def get_users(
 ):
     """Get Salesforce users."""
     try:
+        cache_key = f"users:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         salesforce = client.salesforce
-        
+
         query = f"""
         SELECT Id, Name, Email, IsActive
         FROM User
@@ -726,15 +777,12 @@ async def get_users(
         ORDER BY Name ASC
         LIMIT {limit}
         """
-        
+
         result = await salesforce.query(query)
-        
-        users = []
-        for record in result.get("records", []):
-            users.append(record)
-        
+        users = result.get("records", [])
+        cache.set(cache_key, users, CACHE_TTL_USERS)
         return users
-        
+
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -754,6 +802,11 @@ async def get_my_tasks(
 ):
     """Get current user's Salesforce Tasks in a date range."""
     try:
+        cache_key = f"my-tasks:{start}:{end}:{limit}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         salesforce = client.salesforce
 
         where_clauses = ["IsClosed = false"]
@@ -774,7 +827,9 @@ async def get_my_tasks(
 
         result = await salesforce.query(query)
         tasks = result.get("records", [])
-        return ApiResponse(success=True, data=tasks, meta={"count": len(tasks)})
+        response = ApiResponse(success=True, data=tasks, meta={"count": len(tasks)})
+        cache.set(cache_key, response, 120)  # 2 min TTL — tasks change frequently
+        return response
 
     except Exception as e:
         logger.error(f"Error fetching tasks: {e}")
@@ -881,6 +936,7 @@ async def create_opportunity_task(
         fields = {"WhatId": opportunity_id, **task_data.model_dump(exclude_none=True)}
         result = await salesforce.create_record("Task", fields)
         task_id = result.get("id") or result.get("Id")
+        cache.invalidate_prefix("my-tasks:")
         return ApiResponse(success=True, data={"id": task_id, "message": "Task created"})
     except Exception as e:
         logger.error(f"Error creating task: {e}")
@@ -918,6 +974,7 @@ async def update_task(
                 raise HTTPException(403, "This task's opportunity is locked")
 
         await salesforce.update_record("Task", task_id, fields)
+        cache.invalidate_prefix("my-tasks:")
         return ApiResponse(success=True, data={"message": "Task updated"})
     except HTTPException:
         raise
@@ -942,6 +999,7 @@ async def delete_task(
         if lock_info["is_locked"] and not lock_info["is_lock_owner"] and not lock_info["is_admin"]:
             raise HTTPException(403, "Cannot delete tasks from a locked opportunity")
         await salesforce.delete_record("Task", task_id)
+        cache.invalidate_prefix("my-tasks:")
         return ApiResponse(success=True, data={"message": "Task deleted"})
     except HTTPException:
         raise
@@ -1008,6 +1066,7 @@ async def duplicate_task(
             fields["WhatId"] = original["WhatId"]
         new_task = await salesforce.create_record("Task", fields)
         new_id = new_task.get("id") or new_task.get("Id")
+        cache.invalidate_prefix("my-tasks:")
         return ApiResponse(success=True, data={"id": new_id, "message": "Task duplicated"})
     except HTTPException:
         raise

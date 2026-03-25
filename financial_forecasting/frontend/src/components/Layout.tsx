@@ -106,7 +106,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Prefetch opportunities when authenticated so Priorities/Dashboard load instantly
   useEffect(() => {
     if (!user) return;
-    queryClient.prefetchQuery('opportunities', () => apiService.getOpportunities());
+    queryClient.prefetchQuery('opportunities', async () => {
+      const response = await apiService.getOpportunities();
+      return response.data;
+    });
   }, [user, queryClient]);
   const [drawerHovered, setDrawerHovered] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
