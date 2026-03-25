@@ -523,13 +523,13 @@ function App() {
           </ProtectedRoute>
         } />
 
-        {/* Platform Intake Backlog — staff/admin only */}
+        {/* Platform Intake Backlog — all authenticated users */}
         <Route path="/platform-intake/backlog" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
+          <ProtectedRoute>
+            <Layout>
               <PlatformIntakeBacklog />
-            </PermissionRoute>
-          </Layout>
+            </Layout>
+          </ProtectedRoute>
         } />
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
