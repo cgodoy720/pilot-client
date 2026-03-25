@@ -97,9 +97,23 @@ export interface SalesforceOpportunity {
   Contract_Start_Date__c: string | null;
   Contract_End_Date__c: string | null;
   Billing_Frequency__c: string | null;
+  // Pursuit custom fields
+  RenewalRepeat__c: string | null;
+  Active_Opportunity__c: boolean | null;
+  LastActivityDate: string | null;
+  // NPSP payment rollup fields (read-only in Salesforce — formula/rollup)
+  npe01__Payments_Made__c: number | null;
+  Outstanding_Payments__c: number | null;
+  Number_of_Payments_Received__c: number | null;
+  Most_Recent_Payment_Date__c: string | null;
+  Last_Actual_Payment__c: string | null;
+  npe01__Number_of_Payments__c: number | null;
+  PaymentDate__c: string | null;
+  Earliest_Scheduled_Payment__c: string | null;
   // Nested relationship fields (from SOQL joins)
   Account?: { Name: string; Id?: string };
   Owner?: { Name: string; Id?: string };
+  RecordType?: { Name: string };
 }
 
 export interface SalesforceAccount {

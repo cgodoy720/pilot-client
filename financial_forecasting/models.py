@@ -130,7 +130,23 @@ class SalesforceOpportunity(BaseModel):
     contract_start_date: Optional[date] = Field(None, alias="Contract_Start_Date__c")
     contract_end_date: Optional[date] = Field(None, alias="Contract_End_Date__c")
     billing_frequency: Optional[str] = Field(None, alias="Billing_Frequency__c")
-    
+
+    # Pursuit custom fields
+    renewal_repeat: Optional[str] = Field(None, alias="RenewalRepeat__c")
+    active_opportunity: Optional[bool] = Field(None, alias="Active_Opportunity__c")
+    type: Optional[str] = Field(None, alias="Type")
+    last_activity_date: Optional[date] = Field(None, alias="LastActivityDate")
+
+    # NPSP payment rollup fields (read-only in Salesforce)
+    payments_made: Optional[Decimal] = Field(None, alias="npe01__Payments_Made__c")
+    outstanding_payments: Optional[Decimal] = Field(None, alias="Outstanding_Payments__c")
+    number_of_payments_received: Optional[int] = Field(None, alias="Number_of_Payments_Received__c")
+    most_recent_payment_date: Optional[date] = Field(None, alias="Most_Recent_Payment_Date__c")
+    last_actual_payment: Optional[Decimal] = Field(None, alias="Last_Actual_Payment__c")
+    number_of_payments: Optional[int] = Field(None, alias="npe01__Number_of_Payments__c")
+    payment_date: Optional[date] = Field(None, alias="PaymentDate__c")
+    earliest_scheduled_payment: Optional[date] = Field(None, alias="Earliest_Scheduled_Payment__c")
+
     class Config:
         allow_population_by_field_name = True
 
@@ -343,7 +359,7 @@ class OpportunityUpdateRequest(BaseModel):
     """Request model for updating opportunities."""
     opportunity_id: str
     updates: Dict[str, Any]
-    user_id: str
+    user_id: Optional[str] = None
     reason: Optional[str] = None
 
 

@@ -47,6 +47,7 @@ from routes.activity_intelligence import router as activity_intel_router
 from routes.slack_routes import router as slack_router
 from routes.ai import router as ai_router
 from routes.salesforce_search import router as sf_search_router
+from routes.salesforce_schema import router as sf_schema_router
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 from services.crm_parser import refresh_opp_cache as _refresh_opp_cache
@@ -117,6 +118,7 @@ app.include_router(activity_intel_router)
 app.include_router(slack_router)
 app.include_router(ai_router)
 app.include_router(sf_search_router)
+app.include_router(sf_schema_router)
 
 # Service singletons — shared with dependencies.py so route files can use
 # Depends(get_mcp_client) without circular imports.
@@ -298,7 +300,9 @@ async def get_opportunities(
                Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,
                Last_Actual_Payment__c, npe01__Number_of_Payments__c,
                PaymentDate__c, Earliest_Scheduled_Payment__c,
-               RecordType.Name, Active_Opportunity__c
+               RecordType.Name, Active_Opportunity__c,
+               Payment_Terms__c, Contract_Start_Date__c, Contract_End_Date__c,
+               Billing_Frequency__c, ExpectedRevenue
         FROM Opportunity
         """
 
@@ -341,19 +345,41 @@ async def update_opportunity(
     """Update a Salesforce opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
     try:
+        # Extract permission context (shared by lock, ownership, and reassignment checks)
+        perms = user.get("_permissions", {})
+        sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
+        is_admin = perms.get("manage_users_roles", False)
+        has_edit_all = perms.get("edit_all_opportunities", False)
+        salesforce = client.salesforce
+
         # Enforce opportunity lock — only owner or admin can edit locked opportunities
         lock = await db.fetchrow(
             "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
         )
         if lock:
-            perms = user.get("_permissions", {})
-            sf_user_id = (user.get("_app_user") or {}).get("sf_user_id")
             is_lock_owner = (lock["locked_by"] == sf_user_id)
-            is_admin = perms.get("manage_users_roles", False)
             if not is_lock_owner and not is_admin:
                 raise HTTPException(status_code=403, detail="This opportunity is locked by its owner")
 
-        salesforce = client.salesforce
+        # Ownership enforcement — edit_own vs edit_all
+        if not is_admin and not has_edit_all:
+            # User only has edit_own — verify they own this opportunity
+            if sf_user_id:
+                current_opp = await salesforce.query(
+                    f"SELECT OwnerId FROM Opportunity WHERE Id = '{opportunity_id}' LIMIT 1"
+                )
+                records = current_opp.get("records", [])
+                if records:
+                    current_owner = records[0].get("OwnerId")
+                    if current_owner != sf_user_id:
+                        raise HTTPException(status_code=403, detail="You can only edit opportunities you own")
+
+        # OwnerId reassignment requires reassign_opportunities permission
+        if "OwnerId" in update_request.updates:
+            if not is_admin:
+                if not perms.get("reassign_opportunities", False):
+                    raise HTTPException(status_code=403, detail="You don't have permission to reassign opportunities")
+
         success = await salesforce.update_record(
             "Opportunity",
             opportunity_id,

@@ -137,6 +137,7 @@ def mock_db():
     all_perms = json.dumps({
         "view_opportunities": True, "edit_own_opportunities": True, "edit_all_opportunities": True,
         "create_opportunities": True, "bulk_update_opportunities": True, "lock_own_opportunities": True,
+        "reassign_opportunities": True,
         "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": True, "create_tasks": True,
         "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
         "view_sage_invoices_payments": True, "create_sage_invoices": True,

@@ -67,4 +67,15 @@ export interface Opportunity {
   RecordType?: { Name: string };
   Active_Opportunity__c?: boolean;
   Type?: string;
+  RenewalRepeat__c?: string;
+  LastActivityDate?: string;
+  LeadSource?: string;
+  NextStep?: string;
+  Description?: string;
+  ForecastCategory?: string;
+  ExpectedRevenue?: number;
+  Payment_Terms__c?: string;
+  Contract_Start_Date__c?: string;
+  Contract_End_Date__c?: string;
+  Billing_Frequency__c?: string;
 }
