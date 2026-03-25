@@ -7,9 +7,11 @@ Status of all plans in `.cursor/plans/`. Use this to find which plans are still 
 | Plan | Remaining Items |
 |------|-----------------|
 | Google OAuth Sprint Setup | Add FRONTEND_URL to env.production.template; create OAUTH_SPRINT_CHECKLIST.md; change post-login redirect from /overview to /priorities |
-| Sprint 6 — Agentic alignment + test coverage | In progress: scratchpad enrichment, sufficiency retry, conflict detection, test coverage |
-| Sprint 7 — UX polish | Planned |
-| Sprint 8 — Team enablement | Planned |
+| Sprint 9 — Schema qualification (Track A) | Prefix 93 SQL statements with `bedrock.`, test against segundo-db |
+| Sprint 10 — Pebble PostgreSQL + async (Track A) | SQLite -> asyncpg, 12 tables, 7 core + 26 dependent files |
+| Sprint 11 — Pebble persistence + CRM bridge (Track A) | Wire conflict_log, scratchpad; add PATCH/PUT to CRM bridge (blocked on SF field definition) |
+| Sprint 12 — Pebble access control (Track B) | `use_pebble_research` RBAC, per-user daily cost limits |
+| Sprint 13 — SF required fields audit + UX polish (Track B) | Validate SF org fields in frontend, cost display, failed agents visibility |
 
 ## Completed
 
@@ -27,12 +29,18 @@ Status of all plans in `.cursor/plans/`. Use this to find which plans are still 
 | Revenue vs Cashflow Layout |
 | Notification Bell Dropdown |
 | Stage B Sprint 1 — LDA/FINRA/affiliation |
+| Sprint 6 — Agentic alignment + test coverage |
+| Sprint 7 — Opportunity edit dialog + permissions |
+| Sprint 7.5 — SF field audit + NPSP payment summary |
+| Sprint 8 — Multi-object editing (Account, Contact, Payment) |
 
 ## Superseded
 
 | Plan | Superseded By |
 |------|---------------|
 | Funnel Net Indicator Polish | Funnel Polish and AI |
+| Sprint 7 — UX polish (original Pebble roadmap) | Sprint 7 became Opportunity edit dialog; UX items moved to Sprint 13 |
+| Sprint 8 — Team enablement (original Pebble roadmap) | Sprint 8 became multi-object editing; team items moved to Sprint 12 |
 
 ## Reference (strategic, no implementation)
 

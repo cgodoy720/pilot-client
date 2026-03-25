@@ -75,13 +75,12 @@ PRs 2, 4✓, 8✓, 9, 10✓ ship independently.
 
 - [ ] **Web search APIs need setup (team admin)** — Pebble supports two web search backends (Google CSE + Serper.dev). Neither is configured. Without at least one, all web search returns empty — no biographical info, no board positions, no news results. Setup: `pebble/README.md` → "Web search setup." *JP + team admin.*
 - [ ] **OpenCorporates needs API key** — Code ready, cache in place. `search_officers()` returns empty without credentials. No officer/director data until configured.
-- [ ] **Sync LLM calls block event loop** — `harness.execute()` / `execute_task()` are synchronous; server freezes for concurrent users. Wrap in `asyncio.to_thread()` or switch to async Anthropic client. *Must fix before multi-user testing.*
-
 ## Pebble: Resolved
 
 - [x] **SEC CIK caching** — API response cache layer added (Stage 1C). SQLite TTL cache in `pebble/storage/cache.py`.
 - [x] **Google OAuth configured** — Set up 2026-03-20. See `tasks/google-oauth-setup.md`.
 - [x] **Frontend UX gaps** — Resolved in Stage 1: research history sidebar, text feedback, download export, stop button, previous feedback display on reopen. Remaining: cost display, failed_agents visibility.
+- [x] **Sync LLM calls block event loop** — Resolved in Sprint 6. All harness calls wrapped in `asyncio.to_thread()` (orchestrator.py:503, 556). Data source fetches also wrapped. Thread pool handles concurrency.
 - [x] **No unit/integration tests** — 236 tests now passing across data sources, clusters, router, CRM agent, and web search.
 
 ## Pebble Stage 1 Complete (2026-03-20)
