@@ -567,9 +567,18 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
   }, [sortedFiltered, displayed, onFilteredChange]);
 
   const urgencyBgColor = (score: number) => {
-    if (score >= 40) return 'error.main';
-    if (score >= 20) return 'warning.main';
+    if (score >= 40) return '#d32f2f';
+    if (score >= 20) return '#f57c00';
     return 'grey.400';
+  };
+
+  /** Alert chip colors by type */
+  const alertChipColor = (reason: string) => {
+    if (/overdue/i.test(reason)) return '#e65100';
+    if (/closing in/i.test(reason)) return '#2e7d32';
+    if (/quiet/i.test(reason)) return '#e65100';
+    if (/renewal|upsell/i.test(reason)) return '#7b1fa2';
+    return '#1565c0';
   };
 
   const hasActiveFilters = filters.stage.length > 0 || filters.closeDateRange !== 'all' || filters.hasTasks !== 'all' || filters.amountMin !== null;
@@ -650,9 +659,6 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
         {toolbarSlot}
         <Box sx={{ width: '1px', height: 20, bgcolor: 'divider', mx: 0.5, display: { xs: 'none', md: 'block' } }} />
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-          Filter:
-        </Typography>
 
         {/* Stage — multi-select */}
         <FormControl size="small" sx={{ minWidth: 100, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
@@ -836,8 +842,8 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                     <TableCell sx={{ px: 1 }}>
                       <Box
                         sx={{
-                          bgcolor: urgencyBgColor(urgency.score),
-                          color: urgency.score >= 20 ? 'white' : 'text.primary',
+                          bgcolor: overdueTasks > 0 ? '#e65100' : urgency.reasons.some((r: string) => /closing in/i.test(r)) ? '#2e7d32' : urgency.reasons.length > 0 ? '#1565c0' : 'grey.200',
+                          color: overdueTasks > 0 || urgency.reasons.length > 0 ? 'white' : 'text.secondary',
                           borderRadius: '50%',
                           width: 24,
                           height: 24,
@@ -888,7 +894,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                     <TableCell>
                       <Typography
                         variant="body2"
-                        sx={{ color: isOverdue ? 'error.main' : 'text.primary', fontWeight: isOverdue ? 600 : 400 }}
+                        sx={{ color: isOverdue ? '#e65100' : 'text.primary', fontWeight: isOverdue ? 600 : 400 }}
                       >
                         {opp.CloseDate ? format(parseISO(opp.CloseDate), 'MMM d') : '-'}
                       </Typography>
@@ -910,9 +916,13 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                             icon={<WarningIcon sx={{ fontSize: '12px !important' }} />}
                             label={reason}
                             size="small"
-                            color={urgency.score >= 40 ? 'error' : urgency.score >= 20 ? 'warning' : 'default'}
                             variant="outlined"
-                            sx={{ height: 20, fontSize: '0.65rem', maxWidth: 180 }}
+                            sx={{
+                              height: 20, fontSize: '0.65rem', maxWidth: 180,
+                              borderColor: alertChipColor(reason),
+                              color: alertChipColor(reason),
+                              '& .MuiChip-icon': { color: 'inherit' },
+                            }}
                           />
                         ))}
                         {overflowCount > 0 && (
@@ -929,13 +939,13 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                         <Chip
                           label={allTasks.length}
                           size="small"
-                          color={overdueTasks > 0 ? 'error' : 'default'}
                           onClick={() => handleTaskCountClick(opp.Id)}
                           sx={{
                             height: 20,
                             fontSize: '0.7rem',
                             minWidth: 28,
                             cursor: 'pointer',
+                            ...(overdueTasks > 0 ? { bgcolor: '#e65100', color: '#fff' } : {}),
                             fontWeight: isExpanded ? 700 : 400,
                             border: isExpanded ? '2px solid' : undefined,
                             borderColor: isExpanded ? 'primary.main' : undefined,
@@ -1051,7 +1061,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                                 return (
                                   <TableRow key={task.Id} sx={{ '&:last-child td': { borderBottom: 0 } }}>
                                     <TableCell sx={{ px: 0.5 }}>
-                                      <UncheckedIcon sx={{ fontSize: 16, color: taskOverdue ? 'error.main' : 'text.disabled' }} />
+                                      <UncheckedIcon sx={{ fontSize: 16, color: taskOverdue ? '#e65100' : 'text.disabled' }} />
                                     </TableCell>
                                     <TableCell>
                                       <EditableCell

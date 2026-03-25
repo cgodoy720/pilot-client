@@ -124,3 +124,57 @@ Bedrock is being built to eventually merge into Pursuit's unified AI-native lear
 | **CoWork** | Pursuit's Claude-powered AI workspace for drafting, analysis, and general tasks. Pebble handles research and CRM intelligence; CoWork handles everything else |
 | **Tiered Research** | Pebble's progressive approach — quick identity check (T1), structured intelligence across 5 dimensions (T2), full verified research brief (T3). Each tier requires your approval before spending |
 | **CRM Bridge** | The connection between Pebble and Bedrock that lets Pebble query Salesforce data directly for instant answers about contacts, accounts, and opportunities |
+
+---
+
+## E. How Priority Opportunities Scoring Works
+
+The Priorities page ranks your open opportunities using **two separate systems** that serve different purposes.
+
+### Rank Order (the # column)
+
+This controls the sort position — which deals appear at the top of the table.
+
+- **"Total" mode:** Sorted by dollar Amount, biggest first. A $5M deal always ranks above a $100K deal.
+- **"Weighted" mode:** Sorted by Amount x Probability, with a slight log-scale bonus for very large deals. A $1M deal at 50% probability (~$500K weighted) ranks above a $500K deal at 80% (~$400K weighted).
+
+The # is purely a position indicator — it tells you where the deal falls in your portfolio by financial impact.
+
+### Urgency Alerts (the Alerts column)
+
+This surfaces what needs your attention *right now*. Each condition adds points to an urgency score and shows a colored chip. Multiple alerts can stack on the same opportunity.
+
+| Alert | What it means | Points | Color |
+|-------|--------------|--------|-------|
+| Overdue by X days | Close date has passed | +40 | Amber |
+| Closing in X days | Close date within 7 or 30 days | +15 to +30 | Green |
+| X overdue tasks | Tasks past their due date | +20 | Amber |
+| No tasks assigned | No open tasks — nobody has a next action | +10 | Blue |
+| Stale — X days | No activity (modification or task/event) in 30+ days | +15 | Blue |
+| Quiet Xd+ ($Ym) | Large deal ($250K+) with no activity, escalating severity | +10 to +30 | Amber |
+| Meeting in X days | Upcoming meeting — time to prep | +10 | Blue |
+| Renewal | Opportunity marked as renewal (RenewalRepeat field) | +5 | Purple |
+| Upsell | Opportunity marked as upsell | +5 | Purple |
+
+**The urgency score determines the rank dot color** (the circle around the # number), not the sort order:
+- **Amber dot** — has overdue tasks (something is late)
+- **Green dot** — closing soon (deal is progressing toward close)
+- **Blue dot** — has informational alerts (stale, no tasks, meeting prep)
+- **Gray dot** — no alerts
+
+### Color System
+
+Alerts use a consistent color language across the entire application:
+
+- **Red** = Priority/severity (High priority tasks, critical issues)
+- **Amber** = Temporal pressure (overdue, time-sensitive — something is late or stalling)
+- **Green** = Closing momentum (deal approaching Collecting / In Effect stage)
+- **Blue** = Informational (no tasks, stale, meeting prep — things to know, not alarms)
+- **Purple** = Relationship tags (Renewal, Upsell — protecting existing revenue)
+
+### Why Two Systems?
+
+The rank order answers: *"Which deals matter most financially?"*
+The urgency alerts answer: *"Which deals need action right now?"*
+
+A $20M deal with no alerts still ranks #1 — it's your biggest opportunity. But a $100K deal with overdue tasks and a stale pipeline gets amber chips screaming for attention. Both signals are useful; combining them into one score would blur the distinction.

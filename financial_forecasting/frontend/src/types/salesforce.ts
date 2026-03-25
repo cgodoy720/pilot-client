@@ -25,21 +25,21 @@ export const OPPORTUNITY_STAGES = [
 
 export type OpportunityStage = (typeof OPPORTUNITY_STAGES)[number];
 
-/** Per-stage colors progressing from cool (early pipeline) → warm (late) → accent (closed). */
+/** Per-stage colors: blue (early) → teal → green (closing) → dark green (won) → maroon (lost). */
 export const STAGE_COLORS: Record<OpportunityStage, string> = {
   '--None--':                    '#9E9E9E',
-  'Lead Gen':                    '#42A5F5',
-  'New Lead':                    '#29B6F6',
-  'Qualifying':                  '#26C6DA',
-  'Design / Proposal Creation':  '#66BB6A',
-  'Proposal Negotiation':        '#FFA726',
-  'Contract Creation':           '#FF7043',
-  'Negotiating Contract':        '#EF5350',
-  'Collecting / In Effect':      '#AB47BC',
-  'Closed / Did not Fulfill':    '#78909C',
-  'Closed / Completed':          '#4CAF50',
-  'Closed Lost':                 '#E53935',
-  'Withdrawn':                   '#BDBDBD',
+  'Lead Gen':                    '#5c6bc0',
+  'New Lead':                    '#42a5f5',
+  'Qualifying':                  '#26c6da',
+  'Design / Proposal Creation':  '#26a69a',
+  'Proposal Negotiation':        '#66bb6a',
+  'Contract Creation':           '#43a047',
+  'Negotiating Contract':        '#388e3c',
+  'Collecting / In Effect':      '#2e7d32',
+  'Closed / Did not Fulfill':    '#7b1a2c',
+  'Closed / Completed':          '#1b5e20',
+  'Closed Lost':                 '#7b1a2c',
+  'Withdrawn':                   '#8d6e63',
 };
 
 /** Pipeline-order index for sorting stages (lower = earlier in pipeline). */

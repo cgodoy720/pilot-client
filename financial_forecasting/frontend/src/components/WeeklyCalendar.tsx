@@ -84,7 +84,7 @@ const VIEW_DAYS: Record<CalendarViewMode, number> = {
 
 const DEFAULT_SOURCES: CalendarSource[] = [
   { id: 'gcal-pbd', label: 'PBD Calendar', type: 'gcal', color: '#7b1fa2' },
-  { id: 'sf-tasks', label: 'Salesforce Tasks', type: 'task', color: '#ed6c02' },
+  { id: 'sf-tasks', label: 'Salesforce Tasks', type: 'task', color: '#1565c0' },
 ];
 
 const MAX_VISIBLE_ITEMS = 6;
@@ -99,17 +99,9 @@ function truncate(str: string, len: number): string {
 
 function getTaskBorderColor(ev: CalendarEvent): string {
   if (ev.status === 'Completed') return '#4caf50';
-  const now = startOfDay(new Date());
-  if (ev.start) {
-    try {
-      const due = parseISO(ev.start);
-      const diff = differenceInDays(due, now);
-      if (isBefore(due, now)) return '#d32f2f';
-      if (diff <= 1) return '#ed6c02';
-    } catch {}
-  }
-  if (ev.priority === 'High') return '#ed6c02';
-  return '#bdbdbd';
+  if (ev.priority === 'High') return '#d32f2f';
+  if (ev.priority === 'Normal') return '#e57373';
+  return '#9e9e9e';
 }
 
 function formatTime(dateStr: string): string {

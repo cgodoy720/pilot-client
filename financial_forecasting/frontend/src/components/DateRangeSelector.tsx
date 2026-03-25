@@ -74,7 +74,7 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({ value, onChange }
 
   return (
     <>
-      <FormControl size="small" sx={{ minWidth: 160 }} ref={anchorRef}>
+      <FormControl size="small" sx={{ minWidth: 130, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }} ref={anchorRef}>
         <Select
           value={value.preset}
           onChange={(e) => handleSelectChange(e.target.value)}

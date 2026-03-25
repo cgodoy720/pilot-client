@@ -6,14 +6,13 @@ import {
   IconButton,
   Tooltip,
   Collapse,
-  TextField,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Divider,
-  ToggleButton,
-  ToggleButtonGroup,
+  Popover,
+  Button,
 } from '@mui/material';
 import {
   Flag as FlagIcon,
@@ -23,10 +22,10 @@ import {
   RadioButtonUnchecked as UncheckedIcon,
   Schedule as ScheduleIcon,
   Person as PersonIcon,
-  FilterList as FilterIcon,
   OpenInNew as OpenIcon,
 } from '@mui/icons-material';
 import { format, parseISO, isBefore, startOfDay, addDays, differenceInDays } from 'date-fns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 export interface InboxTask {
   Id: string;
@@ -50,6 +49,7 @@ interface TaskInboxProps {
   compact?: boolean;
   maxHeight?: number;
   currentUserId?: string | null;
+  users?: Array<{ Id: string; Name: string }>;
   onTaskClick?: (task: InboxTask) => void;
   onToggleUrgent?: (taskId: string, urgent: boolean) => void;
   onEditTask?: (task: InboxTask) => void;
@@ -80,9 +80,9 @@ export function getDueBadge(task: InboxTask): { label: string; color: string } |
   const due = parseISO(task.ActivityDate);
   const diff = differenceInDays(due, now);
 
-  if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: '#d32f2f' };
-  if (diff === 0) return { label: 'Due today', color: '#ed6c02' };
-  if (diff <= 1) return { label: 'Due tomorrow', color: '#ed6c02' };
+  if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: '#e65100' };
+  if (diff === 0) return { label: 'Due today', color: '#f57c00' };
+  if (diff <= 1) return { label: 'Due tomorrow', color: '#f57c00' };
   return null;
 }
 
@@ -95,6 +95,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   compact = false,
   maxHeight = 400,
   currentUserId,
+  users = [],
   onTaskClick,
   onToggleUrgent,
   onEditTask,
@@ -102,8 +103,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   headerSlot,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filterMyTasks, setFilterMyTasks] = useState(false);
-  const [filterNext14Days, setFilterNext14Days] = useState(false);
+  const [filterUserId, setFilterUserId] = useState<string>(currentUserId || '');
+  const [taskDatePreset, setTaskDatePreset] = useState<string>('all');
+  const [customStart, setCustomStart] = useState<Date | null>(null);
+  const [customEnd, setCustomEnd] = useState<Date | null>(null);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const dateAnchorRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<{ active: boolean; startY: number; startHeight: number }>({ active: false, startY: 0, startHeight: 0 });
 
   const handleResizeStart = useCallback(
@@ -150,22 +155,32 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
       items = items.filter((t) => t.Priority === filterPriority);
     }
 
-    if (filterMyTasks && currentUserId) {
-      items = items.filter((t) => t.OwnerId === currentUserId);
+    if (filterUserId) {
+      items = items.filter((t) => t.OwnerId === filterUserId);
     }
 
-    if (filterNext14Days) {
+    if (taskDatePreset !== 'all') {
       const now = startOfDay(new Date());
-      const cutoff = addDays(now, 14);
-      items = items.filter((t) => {
-        if (!t.ActivityDate) return false;
-        const d = parseISO(t.ActivityDate);
-        return d >= now && d <= cutoff;
-      });
+      let rangeStart = now;
+      let rangeEnd: Date | null = null;
+      if (taskDatePreset === 'next7') rangeEnd = addDays(now, 7);
+      else if (taskDatePreset === 'next14') rangeEnd = addDays(now, 14);
+      else if (taskDatePreset === 'next30') rangeEnd = addDays(now, 30);
+      else if (taskDatePreset === 'custom' && customStart && customEnd) {
+        rangeStart = startOfDay(customStart);
+        rangeEnd = startOfDay(customEnd);
+      }
+      if (rangeEnd) {
+        items = items.filter((t) => {
+          if (!t.ActivityDate) return false;
+          const d = parseISO(t.ActivityDate);
+          return d >= rangeStart && d <= rangeEnd!;
+        });
+      }
     }
 
     return items;
-  }, [tasks, filterStatus, filterPriority, filterMyTasks, filterNext14Days, currentUserId]);
+  }, [tasks, filterStatus, filterPriority, filterUserId, taskDatePreset, customStart, customEnd]);
 
   const { urgent, overdue, assigned } = useMemo(() => {
     const u: InboxTask[] = [];
@@ -215,15 +230,13 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   const renderTask = (task: InboxTask) => {
     const isExpanded = expandedId === task.Id;
     const dueBadge = getDueBadge(task);
-    const isOverdue = task.ActivityDate && isBefore(parseISO(task.ActivityDate), startOfDay(new Date()));
-    const isDueSoon = task.ActivityDate && differenceInDays(parseISO(task.ActivityDate), startOfDay(new Date())) <= 1;
 
     return (
       <Box
         key={task.Id}
         sx={{
           borderLeft: '3px solid',
-          borderLeftColor: isOverdue && task.Status !== 'Completed' ? '#d32f2f' : isDueSoon && task.Status !== 'Completed' ? '#ed6c02' : 'transparent',
+          borderLeftColor: task.Status !== 'Completed' && (task.isUrgent || task.Priority === 'High') ? '#d32f2f' : 'transparent',
           py: 0.75,
           px: 1,
           '&:hover': { bgcolor: 'action.hover' },
@@ -260,7 +273,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
             />
           )}
           {task.Priority === 'High' && !task.isUrgent && (
-            <Chip size="small" label="High" sx={{ height: 18, fontSize: '0.65rem' }} color="warning" />
+            <Chip size="small" label="High" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#d32f2f', color: '#fff' }} />
           )}
           {onEditTask && (
             <Tooltip title="Open task">
@@ -277,7 +290,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
             </Tooltip>
           )}
           {onToggleUrgent && (
-            <Tooltip title={task.isUrgent ? 'Remove urgent' : 'Flag urgent'}>
+            <Tooltip title={task.isUrgent ? 'Remove high priority' : 'Flag high priority'}>
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -355,7 +368,10 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
       {!compact && (
         <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap', pr: 4 }}>
           {headerSlot}
-          <FilterIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+          <Chip
+            label={`${filtered.filter((t) => t.Status !== 'Completed').length} open`}
+            size="small"
+          />
           <FormControl size="small" sx={{ minWidth: 80, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
             <InputLabel>Status</InputLabel>
             <Select
@@ -383,32 +399,95 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
               <MenuItem value="Low">Low</MenuItem>
             </Select>
           </FormControl>
-          {currentUserId && (
-            <ToggleButtonGroup
-              size="small"
-              value={filterMyTasks ? 'my' : ''}
-              exclusive
-              onChange={(_, v) => setFilterMyTasks(v === 'my')}
-              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
+          <FormControl size="small" sx={{ minWidth: 110, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
+            <InputLabel>Owner</InputLabel>
+            <Select
+              value={filterUserId}
+              onChange={(e) => setFilterUserId(e.target.value)}
+              label="Owner"
             >
-              <ToggleButton value="my">My tasks</ToggleButton>
-            </ToggleButtonGroup>
-          )}
-          <ToggleButtonGroup
-            size="small"
-            value={filterNext14Days ? '14d' : ''}
-            exclusive
-            onChange={(_, v) => setFilterNext14Days(v === '14d')}
-            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
+              <MenuItem value="">All Users</MenuItem>
+              {currentUserId && <MenuItem value={currentUserId}>My Tasks</MenuItem>}
+              {users.filter((u) => u.Id !== currentUserId).map((u) => (
+                <MenuItem key={u.Id} value={u.Id}>{u.Name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" ref={dateAnchorRef} sx={{ minWidth: 90, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
+            <InputLabel>Due</InputLabel>
+            <Select
+              value={taskDatePreset}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === 'custom') {
+                  if (!customStart) setCustomStart(new Date());
+                  if (!customEnd) setCustomEnd(addDays(new Date(), 14));
+                  setDatePopoverOpen(true);
+                } else {
+                  setTaskDatePreset(v);
+                }
+              }}
+              label="Due"
+              renderValue={(v) => {
+                if (v === 'custom' && customStart && customEnd) {
+                  try {
+                    return `${format(customStart, 'MMM d')} – ${format(customEnd, 'MMM d')}`;
+                  } catch { return 'Custom'; }
+                }
+                const labels: Record<string, string> = { all: 'All dates', next7: 'Next 7d', next14: 'Next 14d', next30: 'Next 30d', custom: 'Custom' };
+                return labels[v] || v;
+              }}
+            >
+              <MenuItem value="all">All dates</MenuItem>
+              <MenuItem value="next7">Next 7 days</MenuItem>
+              <MenuItem value="next14">Next 14 days</MenuItem>
+              <MenuItem value="next30">Next 30 days</MenuItem>
+              <MenuItem value="custom">Custom...</MenuItem>
+            </Select>
+          </FormControl>
+          <Popover
+            open={datePopoverOpen}
+            anchorEl={dateAnchorRef.current}
+            onClose={() => setDatePopoverOpen(false)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
           >
-            <ToggleButton value="14d">Next 14 days</ToggleButton>
-          </ToggleButtonGroup>
+            <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 260 }}>
+              <Typography variant="subtitle2">Custom Date Range</Typography>
+              <DatePicker
+                label="From"
+                value={customStart}
+                onChange={setCustomStart}
+                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+              />
+              <DatePicker
+                label="To"
+                value={customEnd}
+                onChange={setCustomEnd}
+                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                <Button size="small" onClick={() => setDatePopoverOpen(false)}>Cancel</Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={!customStart || !customEnd}
+                  onClick={() => {
+                    setTaskDatePreset('custom');
+                    setDatePopoverOpen(false);
+                  }}
+                >
+                  Apply
+                </Button>
+              </Box>
+            </Box>
+          </Popover>
         </Box>
       )}
 
       <Box sx={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <Box sx={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
-        {/* Urgent section */}
+        {/* High Priority section */}
         {urgent.length > 0 && (
           <Box sx={{ mb: 1 }}>
             <Typography
@@ -416,7 +495,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
               sx={{ fontWeight: 700, color: 'error.main', px: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}
             >
               <FlagIcon sx={{ fontSize: 14 }} />
-              URGENT ({urgent.length})
+              HIGH PRIORITY ({urgent.length})
             </Typography>
             {urgent.map(renderTask)}
           </Box>
@@ -429,7 +508,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           <Box sx={{ mb: 1 }}>
             <Typography
               variant="caption"
-              sx={{ fontWeight: 700, color: '#d32f2f', px: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}
+              sx={{ fontWeight: 700, color: '#f57c00', px: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}
             >
               <ScheduleIcon sx={{ fontSize: 14 }} />
               OVERDUE ({overdue.length})
