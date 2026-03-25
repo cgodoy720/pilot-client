@@ -2,6 +2,7 @@
 
 import os
 import logging
+from datetime import datetime, timezone
 from typing import Dict, Optional
 from urllib.parse import quote, quote_plus
 
@@ -99,12 +100,24 @@ def get_google_credentials(email: str, request: Request = None):
     if not refresh_token:
         logger.warning(f"No refresh_token for {email} - Google APIs will fail if access token is expired. User needs to re-login.")
 
+    # Convert expires_at (unix timestamp from Authlib) to naive UTC datetime.
+    # google-auth uses datetime.utcnow() internally — expiry MUST be naive
+    # or the comparison raises TypeError.
+    expiry = None
+    expires_at = tokens.get('expires_at')
+    if expires_at:
+        try:
+            expiry = datetime.fromtimestamp(float(expires_at), tz=timezone.utc).replace(tzinfo=None)
+        except (ValueError, TypeError, OSError):
+            logger.warning(f"Invalid expires_at for {email}: {expires_at}")
+
     creds = Credentials(
         token=tokens['access_token'],
         refresh_token=refresh_token,
         token_uri='https://oauth2.googleapis.com/token',
         client_id=GOOGLE_CLIENT_ID,
         client_secret=GOOGLE_CLIENT_SECRET,
+        expiry=expiry,
     )
 
     # Proactively refresh if the token is expired and we have a refresh token
@@ -112,6 +125,10 @@ def get_google_credentials(email: str, request: Request = None):
         try:
             creds.refresh(google.auth.transport.requests.Request())
             tokens['access_token'] = creds.token
+            if creds.expiry:
+                # creds.expiry is naive UTC; .replace(tz=utc).timestamp() converts correctly
+                # (bare .timestamp() would interpret as local time — wrong)
+                tokens['expires_at'] = creds.expiry.replace(tzinfo=timezone.utc).timestamp()
             _google_tokens[email] = tokens
             logger.info(f"Proactively refreshed Google access token for {email}")
         except Exception as e:

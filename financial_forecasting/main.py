@@ -803,7 +803,11 @@ async def get_my_calendar_events(
     """Get Google Calendar events from the PBD shared calendar using per-user OAuth credentials."""
     # Restrict to PBD calendar only
     if not calendar_id or calendar_id == "primary" or calendar_id != PBD_CALENDAR_ID:
-        return {"data": [], "total": 0, "message": "Only the PBD shared calendar is supported."}
+        return {
+            "data": [],
+            "total": 0,
+            "error": "Calendar ID mismatch — only the PBD shared calendar is supported.",
+        }
 
     try:
         email = user.get("email")
@@ -856,6 +860,7 @@ async def get_my_calendar_events(
                 "location": ev.get("location"),
                 "description": (ev.get("description") or "")[:300],
                 "status": ev.get("status"),
+                "htmlLink": ev.get("htmlLink"),
             })
 
         return {"data": events, "total": len(events)}
@@ -864,14 +869,20 @@ async def get_my_calendar_events(
         raise
     except Exception as e:
         logger.error(f"Calendar my-events error: {e}")
-        if "invalid_grant" in str(e).lower() or "token" in str(e).lower():
+        err_str = str(e).lower()
+        if "invalid_grant" in err_str or "token" in err_str or "credentials" in err_str:
             return {
                 "data": [],
                 "total": 0,
                 "error": "Calendar token expired. Please re-login.",
                 "needs_reauth": True,
             }
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return structured error instead of 500 so frontend can display it
+        return {
+            "data": [],
+            "total": 0,
+            "error": f"Calendar error: {e}",
+        }
 
 
 # Sage Intacct endpoints
