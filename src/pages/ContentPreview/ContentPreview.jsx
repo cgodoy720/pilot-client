@@ -471,17 +471,55 @@ function ContentPreview() {
 
       const addText = (text, fontSize, isBold = false, color = [30, 30, 30]) => {
         doc.setFontSize(fontSize);
-        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
         doc.setTextColor(...color);
-        const lines = doc.splitTextToSize(text, usableWidth);
         const lineHeight = fontSize * 1.4;
-        for (const line of lines) {
-          if (y + lineHeight > pageHeight - margin) {
-            doc.addPage();
-            y = margin;
+
+        // Check if text contains **bold** markers
+        if (/\*\*[^*]+\*\*/.test(text)) {
+          // Split into segments: normal and bold
+          const segments = text.split(/(\*\*[^*]+\*\*)/);
+          const lines = doc.splitTextToSize(text.replace(/\*\*/g, ''), usableWidth);
+          // Render line by line with inline bold
+          let remaining = segments.map(s => {
+            const bold = s.startsWith('**') && s.endsWith('**');
+            return { text: bold ? s.slice(2, -2) : s, bold };
+          });
+
+          // Flatten into wrapped lines with bold tracking
+          for (const wrappedLine of lines) {
+            if (y + lineHeight > pageHeight - margin) {
+              doc.addPage();
+              y = margin;
+            }
+            // Render each segment in this line
+            let x = margin;
+            let charsLeft = wrappedLine.length;
+            for (const seg of remaining) {
+              if (charsLeft <= 0) break;
+              const chunk = seg.text.slice(0, charsLeft);
+              if (chunk) {
+                doc.setFont('helvetica', seg.bold ? 'bold' : (isBold ? 'bold' : 'normal'));
+                doc.text(chunk, x, y);
+                x += doc.getTextWidth(chunk);
+                charsLeft -= chunk.length;
+              }
+              seg.text = seg.text.slice(chunk.length);
+            }
+            // Remove consumed empty segments
+            remaining = remaining.filter(s => s.text.length > 0);
+            y += lineHeight;
           }
-          doc.text(line, margin, y);
-          y += lineHeight;
+        } else {
+          doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+          const lines = doc.splitTextToSize(text, usableWidth);
+          for (const line of lines) {
+            if (y + lineHeight > pageHeight - margin) {
+              doc.addPage();
+              y = margin;
+            }
+            doc.text(line, margin, y);
+            y += lineHeight;
+          }
         }
       };
 
@@ -522,7 +560,7 @@ function ContentPreview() {
           addSpacing(2);
         }
         // Section labels — render just the label bold, then the content on the next line at normal weight
-        else if (/^(Facilitator sets context|Facilitator notes|Tool notes)\s*:/i.test(trimmed)) {
+        else if (/^(Facilitator sets context|Facilitator notes|Platform notes|Tool notes)\s*:/i.test(trimmed)) {
           const colonIdx = trimmed.indexOf(':');
           const label = trimmed.slice(0, colonIdx + 1);
           const content = trimmed.slice(colonIdx + 1).trim();
