@@ -61,6 +61,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAssessmentGrades && { to: '/admin/assessment-grades', label: 'Assessments' },
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Stats' },
+    canViewContent && { to: '/content', label: 'Curriculum' },
     canViewContentPreview && { to: '/content-preview', label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', label: 'External Cohorts' },
   ].filter(Boolean) : [];
@@ -99,6 +100,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
     // Enterprise Admin is rendered as an explicit nav link (not in customGrantedItems) to avoid duplication
+    canViewContent && { to: '/content', icon: Target, label: 'Curriculum' },
     canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
     canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },
@@ -488,6 +490,9 @@ const Layout = ({ children, isLoading = false }) => {
             <path d="M1 17V15C1 13.9391 1.42143 12.9217 2.17157 12.1716C2.92172 11.4214 3.93913 11 5 11H9C10.0609 11 11.0783 11.4214 11.8284 12.1716C12.5786 12.9217 13 13.9391 13 15V17" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         ), 'Account')} */}
+
+        {/* Platform Intake — visible to all authenticated users */}
+        {renderNavLink('/platform-intake', <FileText className="h-4 w-4 text-[#E3E3E3]" />, 'Platform Intake')}
 
         {/* Logout */}
         {(isMobile && isMobileNavbarOpen) || !isMobile ? (
