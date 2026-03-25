@@ -56,8 +56,7 @@ import PriorityTable, { PriorityOpp } from '../components/PriorityTable';
 import TaskInbox, { InboxTask } from '../components/TaskInbox';
 import TaskPanel from '../components/TaskPanel';
 import GoalTracker from '../components/GoalTracker';
-import { type DateRangeValue } from '../components/DateRangeSelector';
-import FloatingFilterPill, { type PillPosition } from '../components/FloatingFilterPill';
+import DateRangeSelector, { type DateRangeValue } from '../components/DateRangeSelector';
 import type { Opportunity } from './Opportunities/helpers';
 
 const PREFS_KEY = 'pursuit-priorities-prefs';
@@ -84,7 +83,6 @@ interface DashboardPrefs {
   calendarTimeGridHeight?: number;
   weekOffset?: number;
   showWeekends?: boolean;
-  filterPillPosition?: PillPosition;
 }
 
 function loadPrefs(): DashboardPrefs {
@@ -193,6 +191,7 @@ function CalendarInboxSplit({
   setSelectedTaskId,
   setEditOnOpen,
   setOrphanTask,
+  sfUsers,
 }: {
   calNeedsReauth: boolean;
   logout: () => Promise<void>;
@@ -214,6 +213,7 @@ function CalendarInboxSplit({
   setSelectedTaskId: (id: string | null) => void;
   setEditOnOpen: (edit: boolean) => void;
   setOrphanTask: (task: any) => void;
+  sfUsers: Array<{ Id: string; Name: string }>;
 }) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'pursuit-calendar-inbox-split',
@@ -337,8 +337,8 @@ function CalendarInboxSplit({
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CalendarIcon color="primary" sx={{ fontSize: 20 }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1.1rem', whiteSpace: 'nowrap' }}>Calendar</Typography>
-                    {gcalCount > 0 && <Chip label={`${gcalCount} events this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" />}
-                    {taskCount > 0 && <Chip label={`${taskCount} tasks due this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" variant="outlined" />}
+                    {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
+                    {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
                   </Box>
                 }
               />
@@ -386,6 +386,7 @@ function CalendarInboxSplit({
                 loading={tasksLoading}
                 maxHeight={prefs.taskInboxMaxHeight ?? 400}
                 currentUserId={currentUserId}
+                users={sfUsers}
                 onToggleUrgent={onToggleUrgent}
                 onEditTask={(task) => {
                   const opp = task.WhatId ? allOpportunities.find((o: any) => o.Id === task.WhatId) : null;
@@ -407,7 +408,6 @@ function CalendarInboxSplit({
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <InboxIcon color="primary" sx={{ fontSize: 20 }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1.1rem', whiteSpace: 'nowrap' }}>Tasks</Typography>
-                    {openTaskCount > 0 && <Chip label={`${openTaskCount} open`} size="small" />}
                   </Box>
                 }
               />
@@ -782,8 +782,11 @@ const MyDashboard: React.FC = () => {
       CloseDate: opp.CloseDate || '',
       Probability: opp.Probability || 0,
       OwnerId: opp.OwnerId,
+      Type: opp.Type || '',
+      RenewalRepeat: opp.RenewalRepeat__c || opp.RenewalRepeat || '',
       Account: opp.Account,
       LastModifiedDate: opp.LastModifiedDate,
+      LastActivityDate: opp.LastActivityDate || null,
       tasks: (tasksByOppId.get(opp.Id) || []).map((t: any) => ({
         Id: t.Id,
         Subject: t.Subject,
@@ -879,19 +882,6 @@ const MyDashboard: React.FC = () => {
     return parts.join(' \u00b7 ');
   }, [prefs.snapshotMode, prefs.topN, prefs.dateRange, resolvedFilterId, sfUsers, myOpenOpps, filteredOpps]);
 
-  const pillLabel = useMemo(() => {
-    const dateLabels: Record<string, string> = {
-      currentFY: 'FY', next30: 'Next 30d', next60: 'Next 60d',
-      next90: 'Next 90d', thisQuarter: 'Quarter', all: 'All dates',
-    };
-    const dr = prefs.dateRange;
-    const datePart = dr.preset === 'custom'
-      ? `${format(parseISO(dr.start), 'MMM d')}\u2013${format(parseISO(dr.end), 'MMM d')}`
-      : dateLabels[dr.preset] || '';
-    const modeLabels = { all: 'All', filtered: 'Filtered', priorities: 'Priorities' };
-    return `${datePart} \u00b7 ${modeLabels[prefs.snapshotMode]}`;
-  }, [prefs.dateRange, prefs.snapshotMode]);
-
   // Navigate to Pipeline with pre-applied filters from hero card click
   const navigateToPipeline = useCallback((card: 'total' | 'weighted' | 'closing') => {
     const owners = resolvedFilterId !== 'all' ? [resolvedFilterId] : [];
@@ -953,12 +943,11 @@ const MyDashboard: React.FC = () => {
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ mb: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          {format(new Date(), 'EEEE, MMMM d')} &middot; {myOpenOpps.length} open opportunit{myOpenOpps.length === 1 ? 'y' : 'ies'}
-        </Typography>
-      </Box>
+
+      {/* Section header: On the docket */}
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem', mb: 1 }}>
+        On the docket
+      </Typography>
 
       {/* Row 1: Calendar + Task Inbox side-by-side (resizable on desktop) */}
       {prefs.collapsed['inbox'] ? (
@@ -972,8 +961,8 @@ const MyDashboard: React.FC = () => {
             badge={
               (gcalCount > 0 || taskCount > 0) ? (
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
-                  {gcalCount > 0 && <Chip label={`${gcalCount} events this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" />}
-                  {taskCount > 0 && <Chip label={`${taskCount} tasks due this ${prefs.calendarView === 'day' ? 'day' : 'week'}`} size="small" variant="outlined" />}
+                  {gcalCount > 0 && <Chip label={`${gcalCount} events`} size="small" />}
+                  {taskCount > 0 && <Chip label={`${taskCount} tasks`} size="small" variant="outlined" />}
                 </Box>
               ) : undefined
             }
@@ -1056,6 +1045,7 @@ const MyDashboard: React.FC = () => {
           setSelectedTaskId={setSelectedTaskId}
           setEditOnOpen={setEditOnOpen}
           setOrphanTask={setOrphanTask}
+          sfUsers={sfUsers}
         />
       ) : (
         <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -1140,6 +1130,7 @@ const MyDashboard: React.FC = () => {
                 loading={tasksLoading}
                 maxHeight={prefs.taskInboxMaxHeight ?? 400}
                 currentUserId={user?.salesforce_user_id}
+                users={sfUsers}
                 onToggleUrgent={handleToggleUrgent}
                 onEditTask={(task) => {
                   const opp = task.WhatId ? allOpportunities.find((o: any) => o.Id === task.WhatId) : null;
@@ -1162,6 +1153,11 @@ const MyDashboard: React.FC = () => {
           </Grid>
         </Grid>
       )}
+
+      {/* Section header: Get Prioritized */}
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem', mt: 2, mb: 1 }}>
+        Get Prioritized
+      </Typography>
 
       {/* Row 2: Priority Opportunities */}
       <Section
@@ -1219,6 +1215,10 @@ const MyDashboard: React.FC = () => {
                       })}
                     </Select>
                   </FormControl>
+                  <DateRangeSelector
+                    value={prefs.dateRange}
+                    onChange={(dateRange) => setPrefs((p) => ({ ...p, dateRange }))}
+                  />
                   <ToggleButtonGroup
                     size="small"
                     exclusive
@@ -1300,7 +1300,25 @@ const MyDashboard: React.FC = () => {
         icon={<TrendingUpIcon color="primary" />}
         collapsed={!!prefs.collapsed['revenue']}
         onToggle={() => toggleSection('revenue')}
+        badge={
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={prefs.snapshotMode}
+            onChange={(e, v) => { e.stopPropagation(); v && setPrefs((p) => ({ ...p, snapshotMode: v })); }}
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', px: 1, py: 0.25, fontSize: '0.75rem' } }}
+          >
+            <ToggleButton value="all" onClick={(e) => e.stopPropagation()}>All Pipeline</ToggleButton>
+            <ToggleButton value="filtered" onClick={(e) => e.stopPropagation()}>Filtered</ToggleButton>
+            <ToggleButton value="priorities" onClick={(e) => e.stopPropagation()}>Top Priorities</ToggleButton>
+          </ToggleButtonGroup>
+        }
       >
+        {snapshotDescription && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, px: 0.5 }}>
+            {snapshotDescription}
+          </Typography>
+        )}
         <Grid container spacing={2}>
           <Grid item xs={12} md={5}>
             <GoalTracker
@@ -1401,18 +1419,6 @@ const MyDashboard: React.FC = () => {
           </Grid>
         </Grid>
       </Section>
-
-      {/* Floating filter pill — date range + snapshot mode */}
-      <FloatingFilterPill
-        dateRange={prefs.dateRange}
-        onDateRangeChange={(dateRange) => setPrefs((p) => ({ ...p, dateRange }))}
-        snapshotMode={prefs.snapshotMode}
-        onSnapshotModeChange={(snapshotMode) => setPrefs((p) => ({ ...p, snapshotMode }))}
-        snapshotDescription={snapshotDescription}
-        label={pillLabel}
-        position={prefs.filterPillPosition}
-        onPositionChange={(filterPillPosition) => setPrefs((p) => ({ ...p, filterPillPosition }))}
-      />
 
       {/* Task Panel drawer */}
       <TaskPanel

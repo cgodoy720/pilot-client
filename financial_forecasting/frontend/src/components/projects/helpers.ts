@@ -285,9 +285,9 @@ export function formatRelativeDeadline(deadline: string): { text: string; color:
   const target = startOfDay(d);
   const diff = differenceInDays(target, today);
 
-  if (diff === 0) return { text: 'today', color: '#ed6c02' };
-  if (diff > 0) return { text: `in ${diff}d`, color: diff <= 3 ? '#ed6c02' : '#666' };
-  return { text: `${Math.abs(diff)}d overdue`, color: '#d32f2f' };
+  if (diff === 0) return { text: 'today', color: '#f57c00' };
+  if (diff > 0) return { text: `in ${diff}d`, color: diff <= 3 ? '#f57c00' : '#666' };
+  return { text: `${Math.abs(diff)}d overdue`, color: '#e65100' };
 }
 
 // ── Weekend detection for Gantt grid ──

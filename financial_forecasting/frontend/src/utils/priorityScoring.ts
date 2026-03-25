@@ -11,8 +11,11 @@ export interface PriorityOpp {
   CloseDate: string;
   Probability: number;
   OwnerId?: string;
+  Type?: string;
+  RenewalRepeat?: string;
   Account?: { Name: string; Id?: string };
   LastModifiedDate?: string;
+  LastActivityDate?: string;
   tasks?: Array<{ Id: string; Subject: string; ActivityDate: string; Priority: string; Status: string; OwnerId?: string; OwnerName?: string; Description?: string }>;
   nextEvent?: { summary: string; start: string };
 }
@@ -65,12 +68,35 @@ export function computeUrgency(opp: PriorityOpp): UrgencyScore {
     reasons.push(`${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}`);
   }
 
-  // Stale (no activity in 30+ days)
-  if (opp.LastModifiedDate) {
-    const daysSinceActivity = differenceInDays(now, parseISO(opp.LastModifiedDate));
+  // No open tasks — nobody is actively working this opportunity
+  const openTasks = (opp.tasks || []).filter((t) => t.Status !== 'Completed');
+  if (openTasks.length === 0) {
+    score += 10;
+    reasons.push('No tasks assigned');
+  }
+
+  // Stale / Quiet — use whichever date is OLDER (more stale) between LastModifiedDate and LastActivityDate
+  // LastModifiedDate updates on any field change (including automation); LastActivityDate tracks actual tasks/events
+  const staleDates: Date[] = [];
+  if (opp.LastModifiedDate) staleDates.push(parseISO(opp.LastModifiedDate));
+  if (opp.LastActivityDate) staleDates.push(parseISO(opp.LastActivityDate));
+  if (staleDates.length > 0) {
+    // Use the MORE RECENT of the two as the "last touched" date
+    const lastTouched = staleDates.reduce((a, b) => (a > b ? a : b));
+    const daysSinceActivity = differenceInDays(now, lastTouched);
     if (daysSinceActivity > 30) {
       score += 15;
       reasons.push(`Stale — ${daysSinceActivity} days since activity`);
+    }
+
+    // High value stalled — escalating thresholds for large deals
+    if (opp.Amount >= 250000) {
+      if (daysSinceActivity > 365) { score += 30; reasons.push('Quiet >1yr'); }
+      else if (daysSinceActivity > 180) { score += 25; reasons.push('Quiet >180d'); }
+      else if (daysSinceActivity > 90) { score += 20; reasons.push('Quiet >90d'); }
+      else if (daysSinceActivity > 60) { score += 15; reasons.push('Quiet >60d'); }
+      else if (daysSinceActivity > 30) { score += 10; reasons.push('Quiet >30d'); }
+      else if (daysSinceActivity > 15) { score += 5; reasons.push('Quiet >15d'); }
     }
   }
 
@@ -82,6 +108,14 @@ export function computeUrgency(opp: PriorityOpp): UrgencyScore {
       score += 10;
       reasons.push(`Meeting in ${daysUntilEvent} day${daysUntilEvent > 1 ? 's' : ''}: ${opp.nextEvent.summary}`);
     }
+  }
+
+  // Renewal / Upsell tag — protecting existing revenue
+  // Uses RenewalRepeat__c custom field from Salesforce
+  if (opp.RenewalRepeat) {
+    const r = opp.RenewalRepeat.toLowerCase();
+    if (r.includes('renewal') || r.includes('repeat')) { score += 5; reasons.push('Renewal'); }
+    else if (r.includes('upsell')) { score += 5; reasons.push('Upsell'); }
   }
 
   // Higher amount = slight urgency boost

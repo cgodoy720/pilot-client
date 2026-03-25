@@ -6,10 +6,10 @@ export const MILESTONE_STATUSES: MilestoneStatus[] = ['On Track', 'At Risk', 'Ne
 
 export const TASK_STATUS_COLOR: Record<string, string> = {
   'Not Started': '#9e9e9e',
-  'In Progress': '#1976d2',
+  'In Progress': '#1565c0',
   'Completed': '#4caf50',
   'Blocked': '#d32f2f',
-  'On Hold': '#ed6c02',
+  'On Hold': '#bdbdbd',
 };
 
 export const STATUS_CHIP: Record<string, { color: 'success' | 'warning' | 'error' | 'default'; icon: string }> = {

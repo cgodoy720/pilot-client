@@ -293,6 +293,7 @@ async def get_opportunities(
         SELECT Id, AccountId, Account.Name, Name, StageName, Amount, Probability,
                CloseDate, ForecastCategory, LeadSource, NextStep,
                Description, Type, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
+               LastActivityDate, RenewalRepeat__c,
                npe01__Payments_Made__c, Outstanding_Payments__c,
                Number_of_Payments_Received__c, Most_Recent_Payment_Date__c,
                Last_Actual_Payment__c, npe01__Number_of_Payments__c,
@@ -326,6 +327,7 @@ async def get_opportunities(
     except Exception as e:
         logger.error(f"Error fetching opportunities: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.put("/api/salesforce/opportunities/{opportunity_id}")

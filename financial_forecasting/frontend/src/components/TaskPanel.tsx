@@ -103,15 +103,15 @@ interface TaskPanelProps {
 
 const STATUS_COLORS: Record<string, string> = {
   'Not Started': '#9e9e9e',
-  'In Progress': '#2196f3',
+  'In Progress': '#1565c0',
   'Completed': '#4caf50',
-  'Deferred': '#ff9800',
+  'Deferred': '#bdbdbd',
   'No Status': '#bdbdbd',
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  'High': '#f44336',
-  'Normal': '#2196f3',
+  'High': '#d32f2f',
+  'Normal': '#e57373',
   'Low': '#9e9e9e',
 };
 
@@ -1324,7 +1324,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
               <Typography 
                 variant="caption" 
                 sx={{ 
-                  color: overdue ? '#f44336' : '#888',
+                  color: overdue ? '#e65100' : '#888',
                   fontWeight: overdue ? 600 : 400,
                   display: 'flex', alignItems: 'center', gap: 0.3,
                 }}
@@ -1346,7 +1346,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
         {/* Priority flag */}
         {task.Priority === 'High' && (
           <Tooltip title="High Priority">
-            <FlagIcon sx={{ fontSize: 18, color: '#f44336', mr: 0.5 }} />
+            <FlagIcon sx={{ fontSize: 18, color: '#d32f2f', mr: 0.5 }} />
           </Tooltip>
         )}
 
