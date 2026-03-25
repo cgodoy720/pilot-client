@@ -7,6 +7,7 @@ Status of all plans in `.cursor/plans/`. Use this to find which plans are still 
 | Plan | Remaining Items |
 |------|-----------------|
 | Google OAuth Sprint Setup | Add FRONTEND_URL to env.production.template; create OAUTH_SPRINT_CHECKLIST.md; change post-login redirect from /overview to /priorities |
+| Bedrock UI improvements (Track C) | 5 small, 7 medium, 3 large — see `tasks/bedrock-ui-improvements.md`. Parallel with all other tracks. |
 | Sprint 9 — Schema qualification (Track A) | Prefix 93 SQL statements with `bedrock.`, test against segundo-db |
 | Sprint 10 — Pebble PostgreSQL + async (Track A) | SQLite -> asyncpg, 12 tables, 7 core + 26 dependent files |
 | Sprint 11 — Pebble persistence + CRM bridge (Track A) | Wire conflict_log, scratchpad; add PATCH/PUT to CRM bridge (blocked on SF field definition) |
