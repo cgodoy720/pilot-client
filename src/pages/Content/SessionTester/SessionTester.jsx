@@ -8,7 +8,7 @@ const SessionTester = ({ sharedData, updateSharedData }) => {
   const [jsonInput, setJsonInput] = useState('');
   const [error, setError] = useState('');
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
-  const [previewMode, setPreviewMode] = useState('learning'); // 'learning' or 'past-session'
+  const [previewMode, setPreviewMode] = useState('learning'); // 'learning'
   const [tasks, setTasks] = useState([]);
   const [currentDay, setCurrentDay] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);

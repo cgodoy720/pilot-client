@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow
 } from '../../../../components/ui/table';
-import { Pencil, Trash2, Plus, Users, Search, Download, X } from 'lucide-react';
+import { Pencil, Trash2, Plus, Users, Search, Download, X, ArrowRight, Check } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -48,6 +48,20 @@ function EnrollmentsTab({ token, setLoading }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const userSearchRef = useRef(null);
   const dropdownRef = useRef(null);
+  // Bulk dialog state
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [bulkStep, setBulkStep] = useState(1);
+  const [sourceCohortId, setSourceCohortId] = useState('');
+  const [destinationCohortId, setDestinationCohortId] = useState('');
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [bulkBuilderSearch, setBulkBuilderSearch] = useState('');
+  const [bulkFormData, setBulkFormData] = useState({
+    enrolled_date: new Date().toISOString().split('T')[0],
+    status: 'in_progress',
+    is_active: false,
+    notes: ''
+  });
+
   const [formData, setFormData] = useState({
     user_id: '',
     cohort_id: '',
@@ -327,6 +341,96 @@ function EnrollmentsTab({ token, setLoading }) {
     }
   };
 
+  // Bulk dialog handlers
+  const handleBulkOpen = () => {
+    setIsBulkDialogOpen(true);
+    setBulkStep(1);
+    setSourceCohortId('');
+    setDestinationCohortId('');
+    setSelectedUserIds([]);
+    setBulkBuilderSearch('');
+    setBulkFormData({
+      enrolled_date: new Date().toISOString().split('T')[0],
+      status: 'in_progress',
+      is_active: false,
+      notes: ''
+    });
+  };
+
+  const sourceCohortBuilders = (() => {
+    if (!sourceCohortId) return [];
+    const seen = new Set();
+    return allEnrollments
+      .filter(e => e.cohort_id?.toString() === sourceCohortId && e.is_active === true)
+      .filter(e => {
+        if (seen.has(e.user_id)) return false;
+        seen.add(e.user_id);
+        return true;
+      });
+  })();
+
+  const filteredBulkBuilders = sourceCohortBuilders.filter(e => {
+    if (!bulkBuilderSearch.trim()) return true;
+    const q = bulkBuilderSearch.toLowerCase();
+    return (
+      e.first_name?.toLowerCase().includes(q) ||
+      e.last_name?.toLowerCase().includes(q) ||
+      e.user_email?.toLowerCase().includes(q)
+    );
+  });
+
+  const destEnrolledUserIds = new Set(
+    allEnrollments
+      .filter(e => e.cohort_id?.toString() === destinationCohortId)
+      .map(e => e.user_id)
+  );
+
+  const handleToggleUser = (userId) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const visibleIds = filteredBulkBuilders.map(e => e.user_id);
+    const allSelected = visibleIds.every(id => selectedUserIds.includes(id));
+    if (allSelected) {
+      setSelectedUserIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedUserIds(prev => [...new Set([...prev, ...visibleIds])]);
+    }
+  };
+
+  const handleBulkSubmit = async () => {
+    if (!destinationCohortId || selectedUserIds.length === 0) return;
+
+    try {
+      setLoading(true);
+      setIsBulkDialogOpen(false);
+
+      await axios.post(
+        `${API_URL}/api/admin/organization-management/enrollments/bulk-create`,
+        {
+          user_ids: selectedUserIds.map(id => parseInt(id)),
+          cohort_id: destinationCohortId,
+          enrolled_date: bulkFormData.enrolled_date,
+          status: bulkFormData.status,
+          is_active: bulkFormData.is_active,
+          source_cohort_id: sourceCohortId
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      Swal.fire('Success', `${selectedUserIds.length} enrollment(s) created successfully`, 'success');
+      fetchEnrollments();
+    } catch (error) {
+      console.error('Error bulk creating enrollments:', error);
+      Swal.fire('Error', error.response?.data?.error || 'Failed to create bulk enrollments', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredEnrollments = allEnrollments.filter(enrollment => {
     // Apply search filter
     const matchesSearch = enrollment.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -393,7 +497,15 @@ function EnrollmentsTab({ token, setLoading }) {
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button 
+          <Button
+            onClick={handleBulkOpen}
+            variant="outline"
+            className="font-proxima"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Bulk Add Enrollments
+          </Button>
+          <Button
             onClick={handleCreate}
             className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
           >
@@ -539,12 +651,12 @@ function EnrollmentsTab({ token, setLoading }) {
               {editingEnrollment ? 'Edit Enrollment' : 'Create Enrollment'}
             </DialogTitle>
             <DialogDescription className="font-proxima">
-              {editingEnrollment 
-                ? 'Update enrollment details below' 
+              {editingEnrollment
+                ? 'Update enrollment details below'
                 : 'Fill in the details to create a new enrollment'}
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -655,7 +767,7 @@ function EnrollmentsTab({ token, setLoading }) {
                     className="font-proxima"
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="status" className="font-proxima">Status</Label>
                   <Select
@@ -749,7 +861,7 @@ function EnrollmentsTab({ token, setLoading }) {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 type="submit"
                 className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
               >
@@ -757,6 +869,259 @@ function EnrollmentsTab({ token, setLoading }) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Add Enrollments Dialog */}
+      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-proxima text-xl">
+              Bulk Add Enrollments
+            </DialogTitle>
+            <DialogDescription className="font-proxima">
+              {bulkStep === 1
+                ? 'Step 1: Select a source cohort and choose builders to enroll'
+                : 'Step 2: Select the destination cohort and confirm'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {bulkStep === 1 && (
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label className="font-proxima">
+                  Source Cohort <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={sourceCohortId}
+                  onValueChange={(value) => {
+                    setSourceCohortId(value);
+                    setSelectedUserIds([]);
+                    setBulkBuilderSearch('');
+                  }}
+                >
+                  <SelectTrigger className="font-proxima">
+                    <SelectValue placeholder="Select source cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.map(cohort => (
+                      <SelectItem key={cohort.cohort_id} value={cohort.cohort_id.toString()} className="font-proxima">
+                        {cohort.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {sourceCohortId && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700 font-proxima">
+                      {selectedUserIds.length} of {sourceCohortBuilders.length} selected
+                    </span>
+                    <div className="relative w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        type="text"
+                        placeholder="Search builders..."
+                        value={bulkBuilderSearch}
+                        onChange={(e) => setBulkBuilderSearch(e.target.value)}
+                        className="pl-10 font-proxima"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead className="w-12">
+                            <input
+                              type="checkbox"
+                              checked={filteredBulkBuilders.length > 0 && filteredBulkBuilders.every(e => selectedUserIds.includes(e.user_id))}
+                              onChange={handleSelectAll}
+                              className="h-4 w-4 text-[#4242EA] rounded"
+                            />
+                          </TableHead>
+                          <TableHead className="font-proxima font-semibold">Builder</TableHead>
+                          <TableHead className="font-proxima font-semibold">Email</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredBulkBuilders.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-6 text-slate-500 font-proxima">
+                              No builders found in this cohort
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredBulkBuilders.map(enrollment => (
+                            <TableRow
+                              key={enrollment.user_id}
+                              className="hover:bg-slate-50 cursor-pointer"
+                              onClick={() => handleToggleUser(enrollment.user_id)}
+                            >
+                              <TableCell>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedUserIds.includes(enrollment.user_id)}
+                                  onChange={() => handleToggleUser(enrollment.user_id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-4 w-4 text-[#4242EA] rounded"
+                                />
+                              </TableCell>
+                              <TableCell className="font-proxima font-medium">
+                                {enrollment.first_name} {enrollment.last_name}
+                              </TableCell>
+                              <TableCell className="font-proxima text-sm text-slate-600">
+                                {enrollment.user_email}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsBulkDialogOpen(false)}
+                  className="font-proxima"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setBulkStep(2)}
+                  disabled={selectedUserIds.length === 0}
+                  className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
+                >
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {bulkStep === 2 && (
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label className="font-proxima">
+                  Destination Cohort <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={destinationCohortId}
+                  onValueChange={setDestinationCohortId}
+                >
+                  <SelectTrigger className="font-proxima">
+                    <SelectValue placeholder="Select destination cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts
+                      .filter(c => c.cohort_id.toString() !== sourceCohortId)
+                      .map(cohort => (
+                        <SelectItem key={cohort.cohort_id} value={cohort.cohort_id.toString()} className="font-proxima">
+                          {cohort.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-proxima">Enrolled Date</Label>
+                  <Input
+                    type="date"
+                    value={bulkFormData.enrolled_date}
+                    onChange={(e) => setBulkFormData({ ...bulkFormData, enrolled_date: e.target.value })}
+                    className="font-proxima"
+                  />
+                </div>
+                <div>
+                  <Label className="font-proxima">Status</Label>
+                  <Select
+                    value={bulkFormData.status}
+                    onValueChange={(value) => setBulkFormData({ ...bulkFormData, status: value })}
+                  >
+                    <SelectTrigger className="font-proxima">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="in_progress" className="font-proxima">In Progress</SelectItem>
+                      <SelectItem value="completed" className="font-proxima">Completed</SelectItem>
+                      <SelectItem value="withdrawn" className="font-proxima">Withdrawn</SelectItem>
+                      <SelectItem value="deferred" className="font-proxima">Deferred</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="bulk_is_active"
+                  checked={bulkFormData.is_active}
+                  onChange={(e) => setBulkFormData({ ...bulkFormData, is_active: e.target.checked })}
+                  className="h-4 w-4 text-[#4242EA] rounded"
+                />
+                <Label htmlFor="bulk_is_active" className="font-proxima cursor-pointer">
+                  Active enrollment
+                </Label>
+              </div>
+
+              <div>
+                <Label className="font-proxima">Notes</Label>
+                <Textarea
+                  value={bulkFormData.notes}
+                  onChange={(e) => setBulkFormData({ ...bulkFormData, notes: e.target.value })}
+                  placeholder="Additional notes for all enrollments..."
+                  rows={2}
+                  className="font-proxima"
+                />
+              </div>
+
+              {destinationCohortId && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="font-proxima text-sm font-medium text-slate-700">
+                    Enrolling {selectedUserIds.length} builder{selectedUserIds.length !== 1 ? 's' : ''} into{' '}
+                    <span className="font-semibold text-[#4242EA]">
+                      {cohorts.find(c => c.cohort_id.toString() === destinationCohortId)?.name}
+                    </span>
+                  </p>
+                  {selectedUserIds.some(id => destEnrolledUserIds.has(id)) && (
+                    <p className="font-proxima text-xs text-amber-600 mt-2">
+                      Note: {selectedUserIds.filter(id => destEnrolledUserIds.has(id)).length} builder(s) are already enrolled in this cohort and will be skipped by the server.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setBulkStep(1)}
+                  className="font-proxima"
+                >
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleBulkSubmit}
+                  disabled={!destinationCohortId || selectedUserIds.length === 0}
+                  className="bg-[#4242EA] hover:bg-[#3535BA] text-white font-proxima"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Create {selectedUserIds.length} Enrollment{selectedUserIds.length !== 1 ? 's' : ''}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

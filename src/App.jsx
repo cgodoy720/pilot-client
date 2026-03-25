@@ -6,7 +6,6 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
-import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AdminAttendanceDashboard from './pages/AdminAttendanceDashboard/AdminAttendanceDashboard';
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
@@ -193,13 +192,6 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.LEARNING}>
               <Learning />
-            </PermissionRoute>
-          </Layout>
-        } />
-        <Route path="/past-session" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.PAST_SESSION}>
-              <PastSession />
             </PermissionRoute>
           </Layout>
         } />

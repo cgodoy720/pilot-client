@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Dashboard from '../Dashboard';
 import useAuthStore from '../../../stores/authStore';
@@ -70,8 +70,41 @@ const renderDashboard = (storeState = {}) => {
   );
 };
 
+const createJsonResponse = (data, ok = true, status = 200) =>
+  Promise.resolve({
+    ok,
+    status,
+    json: async () => data,
+  });
+
+const createDefaultFetchMock = () =>
+  vi.fn((input) => {
+    const url = typeof input === 'string' ? input : input?.url || String(input);
+
+    if (url.includes('/api/learning/batch-completion-status')) {
+      return createJsonResponse({ completionStatus: {} });
+    }
+
+    if (url.includes('/api/permissions/cohorts')) {
+      return createJsonResponse({ cohorts: [] });
+    }
+
+    if (url.includes('/api/progress/dashboard-full')) {
+      return createJsonResponse({
+        day: { daily_goal: 'Default Test Goal', week: 1, level: 1, weekly_goal: 'Default Weekly Goal' },
+        timeBlocks: [],
+        taskProgress: [],
+        missedAssignmentsCount: 0,
+        weeks: [],
+      });
+    }
+
+    return createJsonResponse({});
+  });
+
 describe('Dashboard Component', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     // Clear all mocks before each test
     vi.clearAllMocks();
     mockNavigate.mockClear();
@@ -87,7 +120,7 @@ describe('Dashboard Component', () => {
     });
 
     // Mock fetch globally
-    global.fetch = vi.fn();
+    global.fetch = createDefaultFetchMock();
 
     // Mock environment variable
     import.meta.env.VITE_API_URL = 'http://localhost:3000';
@@ -640,7 +673,7 @@ describe('Dashboard Component', () => {
 
       global.fetch
         .mockResolvedValueOnce({ ok: true, json: async () => mockData })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({}) }); // completion status
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ completionStatus: {} }) }); // completion status
 
       const { container } = renderDashboard();
 
@@ -678,7 +711,7 @@ describe('Dashboard Component', () => {
 
       global.fetch
         .mockResolvedValueOnce({ ok: true, json: async () => mockData })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({}) }); // completion status
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ completionStatus: {} }) }); // completion status
 
       const { container } = renderDashboard();
 
@@ -717,7 +750,7 @@ describe('Dashboard Component', () => {
 
   describe('Dashboard Data Loading', () => {
     beforeEach(() => {
-      global.fetch = vi.fn();
+      global.fetch = createDefaultFetchMock();
     });
 
     it('should make API call to fetch dashboard data on mount', async () => {
@@ -867,7 +900,7 @@ describe('Dashboard Component', () => {
 
     it('should show tasks for current day', async () => {
       // Also mock the batch completion status fetch
-      global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ completionStatus: {} }) });
 
       renderDashboard();
 
@@ -895,7 +928,7 @@ describe('Dashboard Component', () => {
           ...mockDashboardData,
           weeks: [{ weekNumber: 1, weeklyGoal: 'Master Testing', days: [pastDayWithDeliverable] }]
         })})
-        .mockResolvedValueOnce({ ok: true, json: async () => ({}) }); // completion status
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ completionStatus: {} }) }); // completion status
 
       const { container } = renderDashboard();
 
@@ -921,7 +954,7 @@ describe('Dashboard Component', () => {
           ...mockDashboardData,
           weeks: [{ weekNumber: 1, weeklyGoal: 'Master Testing', days: [pastDayIncomplete] }]
         })})
-        .mockResolvedValueOnce({ ok: true, json: async () => ({}) }); // completion status
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ completionStatus: {} }) }); // completion status
 
       const { container } = renderDashboard();
 
@@ -1067,7 +1100,7 @@ describe('Dashboard Component', () => {
 
   describe('Dashboard Edge Cases', () => {
     beforeEach(() => {
-      global.fetch = vi.fn();
+      global.fetch = createDefaultFetchMock();
     });
 
     it('should handle empty API response gracefully', async () => {
@@ -1181,15 +1214,17 @@ describe('Dashboard Component', () => {
       const { rerender } = renderDashboard();
 
       // Change auth token
-      useAuthStore.setState({
-        token: 'new-token',
-        user: { firstName: 'John', role: 'builder', active: true },
+      act(() => {
+        useAuthStore.setState({
+          token: 'new-token',
+          user: { firstName: 'John', role: 'builder', active: true },
+        });
+        rerender(
+          <BrowserRouter>
+            <Dashboard />
+          </BrowserRouter>
+        );
       });
-      rerender(
-        <BrowserRouter>
-          <Dashboard />
-        </BrowserRouter>
-      );
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
@@ -1216,15 +1251,17 @@ describe('Dashboard Component', () => {
       const { rerender } = renderDashboard();
 
       // Change user role
-      useAuthStore.setState({
-        token: 'test-token',
-        user: { firstName: 'John', role: 'admin', active: true },
+      act(() => {
+        useAuthStore.setState({
+          token: 'test-token',
+          user: { firstName: 'John', role: 'admin', active: true },
+        });
+        rerender(
+          <BrowserRouter>
+            <Dashboard />
+          </BrowserRouter>
+        );
       });
-      rerender(
-        <BrowserRouter>
-          <Dashboard />
-        </BrowserRouter>
-      );
 
       await waitFor(() => {
         // Admin view renders the staff/admin dashboard with cohort selector
@@ -1255,7 +1292,9 @@ describe('Dashboard Component', () => {
       renderDashboard();
 
       // Simulate browser back/forward
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      act(() => {
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId('layout')).toBeInTheDocument();
@@ -1273,8 +1312,7 @@ describe('Dashboard Component', () => {
       global.fetch.mockResolvedValueOnce({ ok: true, json: async () => mockData });
 
       // Mock corrupted localStorage
-      const originalGetItem = Storage.prototype.getItem;
-      Storage.prototype.getItem = vi.fn(() => {
+      const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
         throw new Error('localStorage corrupted');
       });
 
@@ -1284,14 +1322,13 @@ describe('Dashboard Component', () => {
         expect(screen.getByTestId('layout')).toBeInTheDocument();
       });
 
-      // Restore
-      Storage.prototype.getItem = originalGetItem;
+      getItemSpy.mockRestore();
     });
   });
 
   describe('Dashboard State Management', () => {
     beforeEach(() => {
-      global.fetch = vi.fn();
+      global.fetch = createDefaultFetchMock();
     });
 
     it('should maintain state during rapid re-renders', async () => {
@@ -1314,15 +1351,17 @@ describe('Dashboard Component', () => {
 
       // Rapid re-renders
       for (let i = 0; i < 5; i++) {
-        useAuthStore.setState({
-          token: 'test-token',
-          user: { firstName: 'John', role: 'builder', active: true },
+        act(() => {
+          useAuthStore.setState({
+            token: 'test-token',
+            user: { firstName: 'John', role: 'builder', active: true },
+          });
+          rerender(
+            <BrowserRouter>
+              <Dashboard />
+            </BrowserRouter>
+          );
         });
-        rerender(
-          <BrowserRouter>
-            <Dashboard />
-          </BrowserRouter>
-        );
       }
 
       const goals = screen.getAllByText('Test Goal');
@@ -1390,15 +1429,17 @@ describe('Dashboard Component', () => {
       const { rerender } = renderDashboard();
 
       // Change auth store state during loading
-      useAuthStore.setState({
-        token: 'different-token',
-        user: { firstName: 'Jane', role: 'builder', active: true },
+      act(() => {
+        useAuthStore.setState({
+          token: 'different-token',
+          user: { firstName: 'Jane', role: 'builder', active: true },
+        });
+        rerender(
+          <BrowserRouter>
+            <Dashboard />
+          </BrowserRouter>
+        );
       });
-      rerender(
-        <BrowserRouter>
-          <Dashboard />
-        </BrowserRouter>
-      );
 
       await waitFor(() => {
         expect(screen.getByTestId('layout')).toBeInTheDocument();
@@ -1408,7 +1449,7 @@ describe('Dashboard Component', () => {
 
   describe('Dashboard User Experience', () => {
     beforeEach(() => {
-      global.fetch = vi.fn();
+      global.fetch = createDefaultFetchMock();
     });
 
     it('should show loading states appropriately', async () => {
@@ -1515,7 +1556,7 @@ describe('Dashboard Component', () => {
 
   describe('Dashboard Error Recovery', () => {
     beforeEach(() => {
-      global.fetch = vi.fn();
+      global.fetch = createDefaultFetchMock();
     });
 
     it('should show error message on consecutive failures', async () => {

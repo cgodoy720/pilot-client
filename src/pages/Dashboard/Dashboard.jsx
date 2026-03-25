@@ -62,6 +62,19 @@ function Dashboard() {
   // Track user-selected week to preserve it when switching cohorts
   const [pendingWeek, setPendingWeek] = useState(null);
 
+  // Participant Mode: staff/admin experiences the dashboard as a builder
+  const [participantMode, setParticipantMode] = useState(() => {
+    try {
+      return localStorage.getItem('staffParticipantMode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('staffParticipantMode', String(participantMode));
+  }, [participantMode]);
+
   // Builder View (staff/admin only)
   const [builderViewCohort, setBuilderViewCohort] = useState(null);
   const [availableCohorts, setAvailableCohorts] = useState([]);
@@ -103,15 +116,14 @@ function Dashboard() {
   useEffect(() => {
     if (isActive && !isVolunteer && !isStaffOrAdmin) {
       fetchDashboardData();
+    } else if (isStaffOrAdmin && participantMode) {
+      fetchDashboardData();
     } else if (isStaffOrAdmin && builderViewCohort) {
-      // Pass cohort explicitly to avoid stale closure
       fetchDashboardData(builderViewCohort);
     } else {
-      // Dismiss loading for all other cases (volunteers, inactive users,
-      // or staff/admin still waiting for cohort auto-selection to complete)
       setIsLoading(false);
     }
-  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort]);
+  }, [token, cohortFilter, selectedCohort, user?.role, isActive, isVolunteer, isStaffOrAdmin, builderViewCohort, participantMode]);
 
   const fetchDashboardData = async (explicitCohort) => {
     try {
@@ -124,9 +136,9 @@ function Dashboard() {
       // Add cohort parameter — prefer explicit argument to avoid stale closures
       if (explicitCohort) {
         url += `?cohort=${encodeURIComponent(explicitCohort)}`;
-      } else if (isStaffOrAdmin && builderViewCohort) {
+      } else if (isStaffOrAdmin && !participantMode && builderViewCohort) {
         url += `?cohort=${encodeURIComponent(builderViewCohort)}`;
-      } else if ((user?.role === 'staff' || user?.role === 'admin') && cohortFilter) {
+      } else if ((user?.role === 'staff' || user?.role === 'admin') && !participantMode && cohortFilter) {
         url += `?cohort=${encodeURIComponent(cohortFilter)}`;
       } else if (selectedCohort) {
         // User selected a different cohort from their enrollments
@@ -527,6 +539,21 @@ function Dashboard() {
     navigate(`/learning?${params.toString()}`);
   }, [isActive, user?.role, cohortFilter, selectedCohort, navigate]);
 
+  // Render participant mode toggle for staff/admin users
+  const renderModeToggle = () => {
+    if (!isStaffOrAdmin) return null;
+    return (
+      <button
+        onClick={() => setParticipantMode(prev => !prev)}
+        className="inline-flex items-center self-center gap-2 h-9 px-3 bg-pursuit-purple font-proxima text-[14px] text-white border border-pursuit-purple transition-colors duration-200 hover:opacity-90"
+        style={{ borderRadius: '7px' }}
+      >
+        <span className={`inline-block w-2 h-2 rounded-full transition-colors ${participantMode ? 'bg-green-500' : 'bg-gray-400'}`} />
+        {participantMode ? 'Participant Mode' : 'Preview Mode'}
+      </button>
+    );
+  };
+
   // Render skeleton loading cards
   const renderSkeletonCards = () => {
     return Array(5).fill(0).map((_, index) => (
@@ -601,8 +628,8 @@ function Dashboard() {
 
   // Render the builder weekly view (reused by both renderDashboardContent and renderStaffAdminView)
   const renderBuilderWeeklyView = () => {
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin');
-    const isStaffBuilderView = isStaffOrAdmin;
+    const isExternalCohort = (user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin')) && !(isStaffOrAdmin && participantMode);
+    const isStaffBuilderView = isStaffOrAdmin && !participantMode;
 
     return (
       <>
@@ -864,12 +891,12 @@ function Dashboard() {
                           <div key={task.id}>
                             <div
                               className={`dashboard__day-activity${
-                                showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                showTaskCheckbox && !isBreakTask && !isComplete && completionStatus?.requiresDeliverable
                                   ? ' dashboard__day-activity--clickable'
                                   : ''
                               }`}
                               onClick={(e) => {
-                                if (showTaskCheckbox && !isBreakTask && !isComplete && (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)) {
+                                if (showTaskCheckbox && !isBreakTask && !isComplete && completionStatus?.requiresDeliverable) {
                                   e.stopPropagation();
                                   handleNavigateToTask(day.id, task.id);
                                 }
@@ -881,7 +908,7 @@ function Dashboard() {
                                 <div className={`dashboard__task-checkbox ${
                                   isComplete
                                     ? 'dashboard__task-checkbox--complete'
-                                    : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze)
+                                    : completionStatus?.requiresDeliverable
                                       ? 'dashboard__task-checkbox--incomplete'
                                       : 'dashboard__task-checkbox--empty'
                                 }`}>
@@ -889,7 +916,7 @@ function Dashboard() {
                                     <svg viewBox="0 0 14 14" className="dashboard__task-checkbox-check">
                                       <polyline points="2.5,6 5.5,9 11.5,3" />
                                     </svg>
-                                  ) : (completionStatus?.requiresDeliverable || completionStatus?.shouldAnalyze) ? (
+                                  ) : completionStatus?.requiresDeliverable ? (
                                     <svg viewBox="0 0 8 8" className="dashboard__task-checkbox-x">
                                       <line x1="1" y1="1" x2="7" y2="7" />
                                       <line x1="7" y1="1" x2="1" y2="7" />
@@ -1020,6 +1047,7 @@ function Dashboard() {
               Welcome back, {user?.firstName || 'there'}!
             </h1>
             <div className="dashboard__builder-view-toggle">
+              {renderModeToggle()}
               <div className="dashboard__builder-view-cohort">
                 <Select
                   value={builderViewCohort || ''}
@@ -1051,6 +1079,7 @@ function Dashboard() {
         <div className="dashboard__mobile block md:hidden">
           <div className="dashboard__mobile-divider-top" />
           <div className="dashboard__builder-view-toggle dashboard__builder-view-toggle--mobile">
+            {renderModeToggle()}
             <div className="dashboard__builder-view-cohort">
               <Select
                 value={builderViewCohort || ''}
@@ -1182,7 +1211,7 @@ function Dashboard() {
   // Render regular dashboard content matching the Figma wireframe
   const renderDashboardContent = () => {
     // Check if user is in external cohort (enterprise users don't use Level/Week format)
-    const isExternalCohort = user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin');
+    const isExternalCohort = (user?.role === 'enterprise_builder' || user?.role === 'enterprise_admin' || hasPermission('page:cohort_admin')) && !(isStaffOrAdmin && participantMode);
     
     return (
       <div className="dashboard">
@@ -1193,6 +1222,7 @@ function Dashboard() {
             <h1 className="dashboard__greeting-text">
               Hey {user?.firstName || 'there'}. Good to see you!
             </h1>
+            {renderModeToggle()}
             <button
               className={`dashboard__missed-assignments ${missedAssignmentsCount > 0 ? 'dashboard__missed-assignments--active' : ''}`}
               onClick={handleMissedAssignmentsClick}
@@ -1209,6 +1239,12 @@ function Dashboard() {
         <div className="dashboard__mobile block md:hidden">
           {/* Divider at top */}
           <div className="dashboard__mobile-divider-top" />
+
+          {isStaffOrAdmin && (
+            <div className="flex justify-center py-3">
+              {renderModeToggle()}
+            </div>
+          )}
 
           {/* Today's Goal */}
           <div className="dashboard__mobile-goal">
@@ -1414,7 +1450,7 @@ function Dashboard() {
         )}
       
       {/* Conditionally render based on user status and role */}
-      {isStaffOrAdmin ? renderStaffAdminView() :
+      {isStaffOrAdmin && !participantMode ? renderStaffAdminView() :
        !isActive ? renderHistoricalView() : 
        isVolunteer ? renderVolunteerView() : 
        !currentDay && cohortInfo ? renderPreCurriculumView() :

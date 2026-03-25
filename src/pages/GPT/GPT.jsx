@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import './GPT.css';
 import useAuthStore from '../../stores/authStore';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getThreads, getThreadMessages, createThread, sendMessageToGPT, streamMessageToGPT } from '../../utils/api';
@@ -194,7 +193,7 @@ function GPT() {
   const [modalSummaryData, setModalSummaryData] = useState(null);
   
   // Model selection state
-  const [selectedModel, setSelectedModel] = useState('openai/gpt-5.2');
+  const [selectedModel, setSelectedModel] = useState('openai/gpt-5.4');
   
   // Input tray height for dynamic message container padding
   const [inputTrayHeight, setInputTrayHeight] = useState(180);
@@ -202,13 +201,12 @@ function GPT() {
   // Available LLM models - matches Learning page
   const LLM_MODELS = [
     { value: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6', description: 'Latest Claude model' },
-    { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5', description: 'Advanced reasoning' },
     { value: 'anthropic/claude-opus-4.6', label: 'Claude Opus 4.6', description: 'Most capable Claude' },
-    { value: 'openai/gpt-5.2', label: 'GPT 5.2', description: 'Latest GPT model' },
-    { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', description: 'Advanced reasoning' },
+    { value: 'openai/gpt-5.4', label: 'GPT 5.4', description: 'Latest GPT model' },
+    { value: 'google/gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', description: 'Advanced reasoning' },
     { value: 'x-ai/grok-4', label: 'Grok 4', description: 'Fast reasoning' },
     { value: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Advanced model' },
-    { value: 'minimax/minimax-m2.5', label: 'Minimax M2.5', description: 'Versatile model' },
+    { value: 'minimax/minimax-m2.7', label: 'Minimax M2.7', description: 'Versatile model' },
     { value: 'deepseek/deepseek-v3.2', label: 'Deepseek V3.2', description: 'Code specialist' }
   ];
   
@@ -1199,7 +1197,7 @@ function GPT() {
   });
 
   return (
-    <div className="gpt h-screen bg-bg-light flex flex-col">
+    <div className="h-screen bg-bg-light flex flex-col min-h-0 overflow-hidden text-carbon-black">
       {/* Historical Access Banner */}
       {isInactiveUser && (
         <div className="bg-carbon-black/80 text-gray-300 py-3 px-4 text-center text-sm font-proxima">
@@ -1292,7 +1290,7 @@ function GPT() {
         {/* Chat Interface */}
         <div className="h-full min-h-0 flex flex-col relative overflow-hidden">
           {/* Empty State or Messages Area */}
-          <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out" style={{ paddingBottom: `${inputTrayHeight}px` }}>
+          <div className="flex-1 min-h-0 overflow-y-auto py-8 px-6 transition-[padding] duration-200 ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: `${inputTrayHeight}px` }}>
             {!activeThread && messages.length === 0 ? (
               <div className="max-w-2xl mx-auto pt-[50px]">
                 <h2 className="text-[18px] leading-[26px] font-proxima font-normal text-black mb-6">

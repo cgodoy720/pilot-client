@@ -18,28 +18,67 @@ import TestEmailDialog from './components/TestEmailDialog';
 import EmailPreviewSheet from './components/EmailPreviewSheet';
 import { toast } from 'sonner';
 
-const MassEmailModal = ({ 
-  isOpen, 
-  onClose, 
-  selectedUsers, 
-  assessmentGrades, 
-  authToken, 
-  onEmailSent 
+// Hardcoded fallback options if API fetch fails
+const FALLBACK_TEMPLATES = [
+  { slug: 'week_2', display_name: 'Week 2 (L1)' },
+  { slug: 'l2_week_2', display_name: 'Week 2 (L2)' },
+  { slug: 'week_8', display_name: 'Week 8' },
+];
+
+const MassEmailModal = ({
+  isOpen,
+  onClose,
+  selectedUsers,
+  assessmentGrades,
+  authToken,
+  onEmailSent
 }) => {
   const [emailSubject, setEmailSubject] = useState('Your Week [Week] Assessment Feedback - Great Work, [Builder Name]!');
-  const [assessmentWeek, setAssessmentWeek] = useState('8');
+  const [templateSlug, setTemplateSlug] = useState('week_8');
   const [customMessage, setCustomMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [previews, setPreviews] = useState([]);
   const [loadingPreviews, setLoadingPreviews] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [showPreviewSheet, setShowPreviewSheet] = useState(false);
+  const [emailTemplates, setEmailTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Filter assessment grades to only show selected users
   const selectedGrades = useMemo(() => {
     const selectedSet = new Set(selectedUsers);
     return assessmentGrades.filter(grade => selectedSet.has(grade.user_id));
   }, [selectedUsers, assessmentGrades]);
+
+  // Fetch active email templates on mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        setLoadingTemplates(true);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/templates/assessment-emails/active`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch templates');
+
+        const result = await response.json();
+        if (result.success && result.templates.length > 0) {
+          setEmailTemplates(result.templates);
+        } else {
+          setEmailTemplates(FALLBACK_TEMPLATES);
+        }
+      } catch (err) {
+        console.error('Error fetching email templates, using fallback:', err);
+        setEmailTemplates(FALLBACK_TEMPLATES);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+
+    if (authToken) {
+      fetchTemplates();
+    }
+  }, [authToken]);
 
   // Reset previews when modal opens or selected users change
   useEffect(() => {
@@ -48,10 +87,19 @@ const MassEmailModal = ({
     }
   }, [isOpen, selectedUsers]);
 
+  // Derive weekNumber from slug for backward compat in subject line
+  const weekNumber = useMemo(() => {
+    if (templateSlug === 'week_2' || templateSlug === 'l2_week_2') return '2';
+    if (templateSlug === 'week_8') return '8';
+    // Extract number from slug for custom templates
+    const match = templateSlug?.match(/\d+/);
+    return match ? match[0] : '2';
+  }, [templateSlug]);
+
   const handlePreviewEmails = async () => {
     try {
       setLoadingPreviews(true);
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/email-preview`, {
         method: 'POST',
         headers: {
@@ -61,7 +109,8 @@ const MassEmailModal = ({
         body: JSON.stringify({
           userIds: selectedUsers,
           subject: emailSubject,
-          weekNumber: assessmentWeek,
+          templateSlug,
+          weekNumber,
           customMessage: customMessage
         })
       });
@@ -97,7 +146,8 @@ const MassEmailModal = ({
         body: JSON.stringify({
           userIds: selectedUsers,
           subject: emailSubject,
-          weekNumber: assessmentWeek,
+          templateSlug,
+          weekNumber,
           customMessage: customMessage
         })
       });
@@ -145,7 +195,7 @@ const MassEmailModal = ({
               <span>Personalized with names and feedback</span>
             </div>
           </DialogHeader>
-          
+
           <div className="space-y-5 py-4">
             {/* Recipients */}
             <Card>
@@ -172,17 +222,17 @@ const MassEmailModal = ({
 
             {/* Email Configuration */}
             <div className="space-y-4">
-              {/* Assessment Week */}
+              {/* Email Template */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Assessment Week</Label>
-                <Select value={assessmentWeek} onValueChange={setAssessmentWeek}>
+                <Label className="text-sm font-medium">Email Template</Label>
+                <Select value={templateSlug} onValueChange={setTemplateSlug} disabled={loadingTemplates}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder={loadingTemplates ? 'Loading templates...' : 'Select template'} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2">Week 2 (L1)</SelectItem>
-                    <SelectItem value="L2 Week 2">Week 2 (L2)</SelectItem>
-                    <SelectItem value="8">Week 8</SelectItem>
+                    {emailTemplates.map(t => (
+                      <SelectItem key={t.slug} value={t.slug}>{t.display_name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -248,7 +298,7 @@ const MassEmailModal = ({
               onClick={handleSendTestEmail}
               disabled={sending || loadingPreviews}
             >
-              📧 Send Test
+              Send Test
             </Button>
 
             <div className="flex gap-2">
@@ -265,7 +315,7 @@ const MassEmailModal = ({
                 onClick={handleSendEmails}
                 disabled={sending || !emailSubject || selectedUsers.length === 0}
               >
-                {sending ? '🚀 Starting...' : `📧 Send to ${selectedUsers.length}`}
+                {sending ? 'Starting...' : `Send to ${selectedUsers.length}`}
               </Button>
             </div>
           </DialogFooter>
@@ -278,7 +328,8 @@ const MassEmailModal = ({
         onClose={() => setShowTestDialog(false)}
         authToken={authToken}
         emailSubject={emailSubject}
-        weekNumber={assessmentWeek}
+        templateSlug={templateSlug}
+        weekNumber={weekNumber}
         customMessage={customMessage}
       />
 
