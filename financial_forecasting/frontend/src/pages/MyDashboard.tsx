@@ -172,6 +172,7 @@ function Section({
 // Resizable Calendar + Inbox split (desktop only)
 function CalendarInboxSplit({
   calNeedsReauth,
+  calErrorMsg,
   logout,
   calendarEvents,
   calLoading,
@@ -194,6 +195,7 @@ function CalendarInboxSplit({
   sfUsers,
 }: {
   calNeedsReauth: boolean;
+  calErrorMsg?: string;
   logout: () => Promise<void>;
   calendarEvents: CalendarEvent[];
   calLoading: boolean;
@@ -307,18 +309,24 @@ function CalendarInboxSplit({
               >
                 <ChevronLeftIcon fontSize="small" />
               </IconButton>
-              {calNeedsReauth && (
+              {(calNeedsReauth || calErrorMsg) && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                  Calendar access expired. Please{' '}
-                  <Button
-                    size="small"
-                    color="inherit"
-                    sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
-                    onClick={() => logout().then(() => {})}
-                  >
-                    log out and sign in again
-                  </Button>{' '}
-                  to restore PBD calendar sync.
+                  {calNeedsReauth ? (
+                    <>
+                      Calendar access expired. Please{' '}
+                      <Button
+                        size="small"
+                        color="inherit"
+                        sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                        onClick={() => logout().then(() => {})}
+                      >
+                        log out and sign in again
+                      </Button>{' '}
+                      to restore PBD calendar sync.
+                    </>
+                  ) : (
+                    <>{calErrorMsg}</>
+                  )}
                 </Alert>
               )}
               <WeeklyCalendar
@@ -606,16 +614,23 @@ const MyDashboard: React.FC = () => {
   const pbdCalendarId = user?.calendar_pbd_id || PBD_CALENDAR_ID_FALLBACK;
 
   // Fetch PBD shared calendar events
-  const { data: calResponse, isLoading: calLoading } = useQuery(
+  const { data: calResponse, isLoading: calLoading, isError: calIsError } = useQuery(
     ['pbd-calendar-events', calStart, calEnd, pbdCalendarId],
     async () => {
       const response = await apiService.getMyCalendarEvents(calStart, calEnd, 100, pbdCalendarId);
       return response.data;
     },
-    { staleTime: 5 * 60 * 1000, enabled: !prefs.collapsed['calendar'] }
+    { staleTime: 5 * 60 * 1000 }
   );
   const calEventsData = Array.isArray(calResponse?.data) ? calResponse.data : [];
-  const calNeedsReauth = calResponse?.needs_reauth === true || Boolean(calResponse?.error);
+  const calNeedsReauth = calResponse?.needs_reauth === true;
+  const calErrorMsg: string | undefined = calNeedsReauth
+    ? undefined
+    : calIsError
+      ? 'Network error — please try again.'
+      : calResponse?.error
+        ? String(calResponse.error)
+        : undefined;
 
   const allOpportunities = useMemo(() => {
     const raw = Array.isArray(oppsData)
@@ -967,18 +982,24 @@ const MyDashboard: React.FC = () => {
               ) : undefined
             }
           >
-            {calNeedsReauth && (
+            {(calNeedsReauth || calErrorMsg) && (
               <Alert severity="warning" sx={{ mb: 2 }}>
-                Calendar access expired. Please{' '}
-                <Button
-                  size="small"
-                  color="inherit"
-                  sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
-                  onClick={() => logout().then(() => {})}
-                >
-                  log out and sign in again
-                </Button>{' '}
-                to restore PBD calendar sync.
+                {calNeedsReauth ? (
+                  <>
+                    Calendar access expired. Please{' '}
+                    <Button
+                      size="small"
+                      color="inherit"
+                      sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                      onClick={() => logout().then(() => {})}
+                    >
+                      log out and sign in again
+                    </Button>{' '}
+                    to restore PBD calendar sync.
+                  </>
+                ) : (
+                  <>{calErrorMsg}</>
+                )}
               </Alert>
             )}
             <WeeklyCalendar
@@ -1026,6 +1047,7 @@ const MyDashboard: React.FC = () => {
       ) : isDesktop ? (
         <CalendarInboxSplit
           calNeedsReauth={calNeedsReauth}
+          calErrorMsg={calErrorMsg}
           logout={logout}
           calendarEvents={calendarEvents}
           calLoading={calLoading}
@@ -1065,18 +1087,24 @@ const MyDashboard: React.FC = () => {
                 ) : undefined
               }
             >
-              {calNeedsReauth && (
+              {(calNeedsReauth || calErrorMsg) && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                  Calendar access expired. Please{' '}
-                  <Button
-                    size="small"
-                    color="inherit"
-                    sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
-                    onClick={() => logout().then(() => {})}
-                  >
-                    log out and sign in again
-                  </Button>{' '}
-                  to restore PBD calendar sync.
+                  {calNeedsReauth ? (
+                    <>
+                      Calendar access expired. Please{' '}
+                      <Button
+                        size="small"
+                        color="inherit"
+                        sx={{ textDecoration: 'underline', p: 0, minWidth: 0 }}
+                        onClick={() => logout().then(() => {})}
+                      >
+                        log out and sign in again
+                      </Button>{' '}
+                      to restore PBD calendar sync.
+                    </>
+                  ) : (
+                    <>{calErrorMsg}</>
+                  )}
                 </Alert>
               )}
               <WeeklyCalendar
