@@ -526,9 +526,7 @@ function App() {
         {/* Platform Intake Backlog — all authenticated users */}
         <Route path="/platform-intake/backlog" element={
           <ProtectedRoute>
-            <Layout>
-              <PlatformIntakeBacklog />
-            </Layout>
+            <PlatformIntakeBacklog />
           </ProtectedRoute>
         } />
 

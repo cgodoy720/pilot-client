@@ -198,9 +198,9 @@ export default function PlatformIntake() {
               <input
                 name="reporter"
                 value={form.reporter}
-                onChange={handleChange}
+                readOnly
                 required
-                className={inputClass}
+                className={`${inputClass} bg-gray-50 cursor-not-allowed`}
                 placeholder="Your full name"
               />
             </div>
@@ -210,9 +210,9 @@ export default function PlatformIntake() {
                 name="reporter_email"
                 type="email"
                 value={form.reporter_email}
-                onChange={handleChange}
+                readOnly
                 required
-                className={inputClass}
+                className={`${inputClass} bg-gray-50 cursor-not-allowed`}
                 placeholder="you@example.com"
               />
             </div>

@@ -28,7 +28,7 @@ import {
 } from '../../components/ui/alert-dialog';
 import { Button } from '../../components/ui/button';
 import { Edit, Trash2, Plus, FileText } from 'lucide-react';
-import { jsPDF } from 'jspdf';
+// jsPDF is lazy-loaded in handleGenerateNotes to avoid bundling ~300KB upfront
 import { toast } from 'sonner';
 import './ContentPreview.css';
 
@@ -451,17 +451,20 @@ function ContentPreview() {
   const handleGenerateNotes = async () => {
     if (!dayContent) return;
     setGeneratingNotes(true);
+    const controller = new AbortController();
     try {
       const response = await axios.post(
         `${API_URL}/api/content/generate-facilitator-notes-doc`,
         { dayContent },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
       );
 
       const notesText = response.data.notes;
       const day = dayContent.day;
 
-      // Build PDF using jsPDF
+      // Lazy-load jsPDF (~300KB) only when needed
+      const { jsPDF } = await import('jspdf');
+
       const doc = new jsPDF({ unit: 'pt', format: 'letter' });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -469,58 +472,58 @@ function ContentPreview() {
       const usableWidth = pageWidth - margin * 2;
       let y = margin;
 
+      // Render a line of text, handling **bold** inline markers
       const addText = (text, fontSize, isBold = false, color = [30, 30, 30]) => {
         doc.setFontSize(fontSize);
         doc.setTextColor(...color);
         const lineHeight = fontSize * 1.4;
 
-        // Check if text contains **bold** markers
-        if (/\*\*[^*]+\*\*/.test(text)) {
-          // Split into segments: normal and bold
-          const segments = text.split(/(\*\*[^*]+\*\*)/);
-          const lines = doc.splitTextToSize(text.replace(/\*\*/g, ''), usableWidth);
-          // Render line by line with inline bold
-          let remaining = segments.map(s => {
-            const bold = s.startsWith('**') && s.endsWith('**');
-            return { text: bold ? s.slice(2, -2) : s, bold };
-          });
-
-          // Flatten into wrapped lines with bold tracking
-          for (const wrappedLine of lines) {
-            if (y + lineHeight > pageHeight - margin) {
-              doc.addPage();
-              y = margin;
-            }
-            // Render each segment in this line
-            let x = margin;
-            let charsLeft = wrappedLine.length;
-            for (const seg of remaining) {
-              if (charsLeft <= 0) break;
-              const chunk = seg.text.slice(0, charsLeft);
-              if (chunk) {
-                doc.setFont('helvetica', seg.bold ? 'bold' : (isBold ? 'bold' : 'normal'));
-                doc.text(chunk, x, y);
-                x += doc.getTextWidth(chunk);
-                charsLeft -= chunk.length;
-              }
-              seg.text = seg.text.slice(chunk.length);
-            }
-            // Remove consumed empty segments
-            remaining = remaining.filter(s => s.text.length > 0);
-            y += lineHeight;
+        // Parse **bold** segments
+        const segments = [];
+        const boldRegex = /\*\*([^*]+)\*\*/g;
+        let lastIdx = 0;
+        let match;
+        while ((match = boldRegex.exec(text)) !== null) {
+          if (match.index > lastIdx) {
+            segments.push({ text: text.slice(lastIdx, match.index), bold: false });
           }
-        } else {
+          segments.push({ text: match[1], bold: true });
+          lastIdx = boldRegex.lastIndex;
+        }
+        if (lastIdx < text.length) {
+          segments.push({ text: text.slice(lastIdx), bold: false });
+        }
+
+        // If no bold markers, render simply
+        if (segments.length <= 1 && !segments[0]?.bold) {
           doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-          const lines = doc.splitTextToSize(text, usableWidth);
+          const lines = doc.splitTextToSize(segments[0]?.text || text, usableWidth);
           for (const line of lines) {
-            if (y + lineHeight > pageHeight - margin) {
-              doc.addPage();
-              y = margin;
-            }
+            if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
             doc.text(line, margin, y);
             y += lineHeight;
           }
+          return;
         }
+
+        // Render segments with inline bold: measure and wrap manually
+        let x = margin;
+        for (const seg of segments) {
+          doc.setFont('helvetica', seg.bold ? 'bold' : (isBold ? 'bold' : 'normal'));
+          const words = seg.text.split(/( +)/);
+          for (const word of words) {
+            if (!word) continue;
+            const wordWidth = doc.getTextWidth(word);
+            if (x + wordWidth > pageWidth - margin && x > margin) {
+              y += lineHeight;
+              x = margin;
+              if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+            }
+            doc.text(word, x, y);
+            x += wordWidth;
+          }
+        }
+        y += lineHeight;
       };
 
       const addSpacing = (pts = 8) => { y += pts; };
@@ -572,7 +575,7 @@ function ContentPreview() {
           }
           addSpacing(2);
         }
-        // Bullet points — dash, bullet char, or numbered (1. / 1) / i. etc.), including indented variants
+        // Bullet points
         else if (/^[-•]/.test(trimmed) || /^\d+[.)]\s/.test(trimmed) || /^[ivxlIVXL]+[.)]\s/.test(trimmed) || /^\s{2,}[-•]/.test(line)) {
           const bullet = '•  ' + trimmed.replace(/^[-•]\s+/, '').replace(/^\d+[.)]\s+/, '').replace(/^[ivxlIVXL]+[.)]\s+/, '');
           addText(bullet, 10, false, [60, 60, 60]);
@@ -588,6 +591,7 @@ function ContentPreview() {
       doc.save(fileName);
       toast.success('Facilitator notes downloaded!');
     } catch (error) {
+      if (error.name === 'CanceledError') return;
       console.error('Error generating facilitator notes:', error);
       toast.error('Failed to generate facilitator notes. Please try again.');
     } finally {

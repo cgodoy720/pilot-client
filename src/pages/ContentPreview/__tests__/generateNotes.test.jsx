@@ -67,7 +67,8 @@ vi.mock('jspdf', () => ({
     setFontSize: vi.fn(),
     setFont: vi.fn(),
     setTextColor: vi.fn(),
-    splitTextToSize: vi.fn().mockReturnValue(['line']),
+    splitTextToSize: vi.fn().mockImplementation((text) => [text]),
+    getTextWidth: vi.fn().mockImplementation((text) => text.length * 5),
     text: vi.fn(),
     addPage: vi.fn(),
     save: vi.fn(),
@@ -101,7 +102,6 @@ describe('Generate Notes Button', () => {
       isAuthenticated: true,
     });
 
-    process.env.VITE_API_URL = API_URL;
   });
 
   afterEach(() => {
