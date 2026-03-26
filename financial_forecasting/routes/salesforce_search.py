@@ -25,7 +25,7 @@ def _group_sosl_results(raw_results: Any) -> Dict[str, List[dict]]:
     simple-salesforce's sf.search() returns a list of
     {sobjectType: str, records: [...]} objects.
     """
-    grouped: Dict[str, List[dict]] = {"Contact": [], "Account": [], "Opportunity": []}
+    grouped: Dict[str, List[dict]] = {"Contact": [], "Account": [], "Opportunity": [], "Task": []}
     if not raw_results:
         return grouped
     # Handle list of {sobjectType, records} objects
@@ -51,7 +51,7 @@ async def search_all(
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user=Depends(require_auth_or_internal),
 ):
-    """Cross-entity SOSL search across Contacts, Accounts, and Opportunities.
+    """Cross-entity SOSL search across Contacts, Accounts, Opportunities, and Tasks.
 
     One Salesforce API call instead of three separate SOQL queries.
     Used by Pebble's readiness module for multi-layer disambiguation.
@@ -66,7 +66,9 @@ async def search_all(
         f"AccountId, Account.Name, Account.Type LIMIT {limit}), "
         f"Account(Id, Name, Type, Industry, RecordType.Name LIMIT {limit}), "
         f"Opportunity(Id, Name, StageName, Amount, CloseDate, "
-        f"Account.Name, Account.Type, Owner.Name LIMIT {limit})"
+        f"Account.Name, Account.Type, Owner.Name LIMIT {limit}), "
+        f"Task(Id, Subject, Status, Priority, ActivityDate, "
+        f"Who.Name, What.Name, WhoId, WhatId, OwnerId, Owner.Name LIMIT {limit})"
     )
     try:
         salesforce = client.salesforce
