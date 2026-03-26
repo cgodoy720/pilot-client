@@ -64,12 +64,19 @@ const Projects: React.FC = () => {
 
   useEffect(() => {
     if (projects.length === 0) return;
-    const currentValid = prefs.selectedProjectId && projects.some((p) => p.id === prefs.selectedProjectId);
-    if (!currentValid) {
-      const aiji = projects.find((p) => p.id === AIJI_PROJECT_ID);
-      setPrefs((p) => ({ ...p, selectedProjectId: aiji?.id || projects[0].id }));
-    }
-  }, [projects, prefs.selectedProjectId]);
+    // Use functional updater to read the latest selectedProjectId,
+    // and only depend on [projects] to avoid a race condition where
+    // a newly-created project's selection is overridden before the
+    // projects list has refreshed.
+    setPrefs((p) => {
+      const currentValid = p.selectedProjectId && projects.some((proj) => proj.id === p.selectedProjectId);
+      if (!currentValid) {
+        const aiji = projects.find((proj) => proj.id === AIJI_PROJECT_ID);
+        return { ...p, selectedProjectId: aiji?.id || projects[0].id };
+      }
+      return p;
+    });
+  }, [projects]);
 
   const { workstreams, projectName, isLoading: dataLoading, error, mutations, invalidate } = useProjectData(prefs.selectedProjectId);
 
