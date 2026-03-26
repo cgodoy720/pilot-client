@@ -16,7 +16,10 @@ import {
   Button,
   FormControlLabel,
   Switch,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import ConfirmSaveButton from './ConfirmSaveButton';
@@ -33,6 +36,8 @@ interface OpportunityEditDialogProps {
   initialData?: Record<string, any>;
   onSaved?: (oppId: string, updates: Record<string, any>) => void;
   onStageClosedCompleted?: (opp: { Id: string; Name: string; Amount: number }) => void;
+  /** When provided, shows "Open" icons next to lookup fields for stacked dialog navigation. */
+  onOpenRelated?: (type: 'opportunity' | 'account' | 'contact', id: string) => void;
 }
 
 interface UserOption {
@@ -87,6 +92,7 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
   initialData,
   onSaved,
   onStageClosedCompleted,
+  onOpenRelated,
 }) => {
   const queryClient = useQueryClient();
   const { can, isAdmin, sfUserId } = usePermissions();
@@ -557,20 +563,33 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <Autocomplete
-                  options={accounts}
-                  loading={accountsLoading}
-                  getOptionLabel={(option: AccountOption) => option.Name || ''}
-                  value={selectedAccount}
-                  onChange={(_e, newValue) =>
-                    handleFieldChange('AccountId', newValue?.Id || editForm.AccountId)
-                  }
-                  isOptionEqualToValue={(option, value) => option.Id === value?.Id}
-                  disabled={!canEdit}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Account" size="small" />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Autocomplete
+                    options={accounts}
+                    loading={accountsLoading}
+                    getOptionLabel={(option: AccountOption) => option.Name || ''}
+                    value={selectedAccount}
+                    onChange={(_e, newValue) =>
+                      handleFieldChange('AccountId', newValue?.Id || editForm.AccountId)
+                    }
+                    isOptionEqualToValue={(option, value) => option.Id === value?.Id}
+                    disabled={!canEdit}
+                    sx={{ flex: 1 }}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Account" size="small" />
+                    )}
+                  />
+                  {onOpenRelated && editForm.AccountId && (
+                    <Tooltip title="Open account">
+                      <IconButton
+                        size="small"
+                        onClick={() => onOpenRelated('account', editForm.AccountId)}
+                      >
+                        <OpenInNewIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   )}
-                />
+                </Box>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField

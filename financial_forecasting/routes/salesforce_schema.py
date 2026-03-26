@@ -111,6 +111,10 @@ def _slim_field(field: Dict[str, Any], fetched_set: Optional[set]) -> Dict[str, 
         "nillable": field.get("nillable", False),
         "defaultValue": field.get("defaultValue"),
     }
+    # Include reference metadata for lookup fields
+    if field.get("type") == "reference":
+        slim["referenceTo"] = field.get("referenceTo", [])
+        slim["relationshipName"] = field.get("relationshipName")
     # Include picklist values for picklist/multipicklist fields
     if field.get("type") in ("picklist", "multipicklist"):
         slim["picklistValues"] = [

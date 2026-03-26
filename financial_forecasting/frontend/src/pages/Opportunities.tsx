@@ -49,11 +49,13 @@ import { SummaryCards } from './Opportunities/SummaryCards';
 import OpportunityEditDialog from '../components/OpportunityEditDialog';
 import ConfirmSaveButton from '../components/ConfirmSaveButton';
 import { usePermissions } from '../contexts/PermissionsContext';
+import { useDialogStack } from '../contexts/DialogStackContext';
 
 const Opportunities: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { can, sfUserId } = usePermissions();
+  const { pushDialog } = useDialogStack();
   const [searchParams] = useSearchParams();
   const searchFromUrl = searchParams.get('search') || '';
 
@@ -250,6 +252,7 @@ const Opportunities: React.FC = () => {
     },
     currentSfUserId: sfUserId,
     canLock: can('lock_own_opportunities'),
+    onEditDialogOpen: (opp) => { setSelectedOpp(opp); setEditDialogOpen(true); },
   }), [accountMap, userMap, activityOpp?.Id, activityPanelOpen, philanthropyOnly, pbcOnly, viewMode, lockMap, sfUserId]);
 
   const pipelineColumns = useMemo(() => buildPipelineColumns(columnCallbacks), [columnCallbacks]);
@@ -542,6 +545,7 @@ const Opportunities: React.FC = () => {
           setPaymentScheduleOpp(opp as any);
           setPaymentScheduleOpen(true);
         }}
+        onOpenRelated={(type, id) => pushDialog({ type, id })}
       />
 
       {/* Payment Schedule Modal */}

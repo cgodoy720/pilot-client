@@ -20,6 +20,7 @@ import {
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
 } from '@mui/icons-material';
+import EditRowButton from '../../components/EditRowButton';
 import {
   GridColDef,
   GridRenderCellParams,
@@ -50,6 +51,8 @@ export interface ColumnCallbacks {
   onLockToggle?: (oppId: string, ownerId: string, isLocked: boolean) => void;
   currentSfUserId?: string | null;
   canLock?: boolean;
+  // Edit dialog
+  onEditDialogOpen?: (opp: any) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +176,7 @@ export function buildPipelineColumns(cb: ColumnCallbacks): GridColDef[] {
       },
       valueFormatter: (params) => formatDollarMillions(params.value as number),
     },
+    editColumn(cb),
   ];
 }
 
@@ -279,7 +283,29 @@ export function buildPaymentColumns(cb: ColumnCallbacks): GridColDef[] {
       valueFormatter: (params) => (!params.value ? 'N/A' : format(params.value as Date, 'MMM dd, yyyy')),
     },
     paymentStatusColumn(),
+    editColumn(cb),
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Edit column
+// ---------------------------------------------------------------------------
+
+function editColumn(cb: ColumnCallbacks): GridColDef {
+  return {
+    field: '__edit__',
+    headerName: '',
+    width: 50,
+    sortable: false,
+    filterable: false,
+    disableColumnMenu: true,
+    renderCell: (params: GridRenderCellParams) => (
+      <EditRowButton
+        onClick={() => cb.onEditDialogOpen?.(params.row)}
+        tooltip="Edit opportunity"
+      />
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------
