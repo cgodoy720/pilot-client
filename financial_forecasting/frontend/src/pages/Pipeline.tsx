@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Tabs,
@@ -16,9 +16,17 @@ import Opportunities from './Opportunities';
 import Accounts from './Accounts';
 import Contacts from './Contacts';
 import Leads from './Leads';
+import { useSearchParams } from 'react-router-dom';
 import ConnectPrompt from '../components/ConnectPrompt';
 import { useAuth } from '../contexts/AuthContext';
 import { DialogStackProvider, DialogStackRenderer } from '../contexts/DialogStackContext';
+
+const TAB_MAP: Record<string, number> = {
+  opportunities: 0,
+  accounts: 1,
+  contacts: 2,
+  leads: 3,
+};
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -44,7 +52,16 @@ function TabPanel(props: TabPanelProps) {
 
 export default function Pipeline() {
   const { user } = useAuth();
-  const [currentTab, setCurrentTab] = useState(0);
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') || '';
+  const [currentTab, setCurrentTab] = useState(TAB_MAP[tabParam] ?? 0);
+
+  // Sync tab when URL param changes (e.g., "View in Pipeline" from global search)
+  useEffect(() => {
+    if (tabParam && TAB_MAP[tabParam] !== undefined) {
+      setCurrentTab(TAB_MAP[tabParam]);
+    }
+  }, [tabParam]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);

@@ -142,6 +142,10 @@ export const apiService = {
   getSchemaDescribe: (sobject: string) =>
     api.get(`/api/salesforce/schema/${sobject}`),
 
+  // Salesforce - Global Search (SOSL cross-entity)
+  globalSearch: (q: string, limit?: number, signal?: AbortSignal) =>
+    api.get('/api/salesforce/search', { params: { q, limit: limit || 10 }, signal }),
+
   // Salesforce - Accounts
   getAccounts: (params?: { limit?: number }) =>
     api.get('/api/salesforce/accounts', { params }),
