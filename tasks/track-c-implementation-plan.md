@@ -132,27 +132,22 @@ Transformed NotificationDropdown from mini Task Inbox into real notification cen
 
 ---
 
-### Session 6: Global Search (L1)
+### Session 6: Global Search (L1) ✅ SHIPPED (PR #73, 2026-03-26)
 
-**Status: 1 decision needed**
+**Decision #10 resolved:** Option C — click opens edit dialog, secondary icon navigates to Pipeline with tab + filter.
 
-| # | Decision | Options | Recommendation |
-|---|----------|---------|----------------|
-| 10 | Click behavior for search results | (A) Navigate to Pipeline with record filtered, (B) Open edit dialog directly, (C) Click opens edit dialog + "View in Pipeline" link inside | Option C |
+**What shipped:**
+- `GlobalSearch.tsx` — search input in Layout AppBar with instant local cache typeahead, debounced SOSL results, search history (localStorage, last 10), keyboard nav (⌘K toggle, arrows, Enter, Escape), mobile overlay
+- Layout.tsx — GlobalSearch integration, Account/Contact edit dialog state, cache prefetch for accounts + contacts
+- Pipeline.tsx — URL-driven tab selection (`?tab=accounts&search=Name`)
+- Accounts.tsx + Contacts.tsx — URL-driven DataGrid quick filter via `useSearchParams`
+- api.ts — `globalSearch()` method, NotificationDropdown type alignment
 
-- Backend ready (`routes/salesforce_search.py`):
-  - `GET /api/salesforce/search?q=...` — SOSL cross-entity (Contact, Account, Opportunity)
-  - `GET /api/salesforce/contacts/search?q=...` — SOQL Contact search
-  - `GET /api/salesforce/accounts/search?q=...` — SOQL Account search
-  - `GET /api/salesforce/opportunities/search?q=...` — SOQL Opportunity search
-  - Auth: `require_auth_or_internal` (JWT cookie or `X-Internal-Key` header)
-- Frontend work:
-  - Search input in Layout.tsx top bar (rounded, debounced ~300ms)
-  - Result dropdown with type grouping (Opportunities / Accounts / Contacts sections)
-  - Navigation/dialog opening on click
-  - Keyboard navigation (arrow keys, Enter to select, Escape to close)
-  - Empty state, loading state, no-results state
-- Files: new `components/GlobalSearch.tsx`, `Layout.tsx` (integration), `services/api.ts` (if search methods missing)
+**Follow-up: Add Tasks to global search**
+- Currently searches Opportunities, Accounts, Contacts (SOSL cross-entity)
+- Tasks should also be searchable — users need to find tasks by subject, description, or associated contact/opportunity
+- Requires: backend SOSL update to include Task entity in RETURNING clause, frontend GlobalSearch section for Tasks, click action (open TaskPanel or navigate to Priorities)
+- **Target: Session 7 scope expansion or Session 8 if Session 7 stays focused on GCal**
 
 ---
 

@@ -70,11 +70,11 @@ Replace Projects page content with Johnny's latest AIJI tracker data. Update the
 
 ## Large (needs planning, possibly its own sprint)
 
-### L1. Global search bar
-Rounded search bar in the top app bar. Searches across SF Opportunities, Contacts, Accounts. Shows grouped results in a dropdown. Clicking a result opens the record in Pipeline page (or a detail view).
+### L1. Global search bar ✅ SHIPPED (Session 6, PR #73)
+Rounded search bar in the top app bar. Searches across SF Opportunities, Contacts, Accounts. Shows grouped results in a dropdown. Click opens edit dialog; secondary icon navigates to Pipeline with tab + filter. Includes local cache typeahead, search history, keyboard navigation (⌘K toggle), mobile overlay.
 - **Backend exists**: `routes/salesforce_search.py` has SOSL cross-entity search + SOQL per-entity search endpoints. Already wired.
-- **Frontend needed**: Search input in Layout.tsx header, debounced query, result dropdown with type grouping (Opportunity/Contact/Account), navigation on click.
-- **Decision**: Open record in Pipeline page? Or open the edit dialog directly? Or a new detail view?
+- **Decision resolved**: Option C — click opens edit dialog + "View in Pipeline" link in dropdown row.
+- **Enhancement needed**: Add **Tasks** to global search — search by subject/description, click to open TaskPanel. Requires SOSL RETURNING clause update + frontend section in GlobalSearch.tsx.
 
 ### L2. Accountability mechanism
 Nick's mandate: "Are the things you're prioritizing aligned with meeting your goal?" Needs design thinking — not just a feature but a workflow.
