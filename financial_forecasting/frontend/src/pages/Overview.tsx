@@ -523,7 +523,7 @@ const Dashboard: React.FC = () => {
       </Grid>
 
       {/* Current Quarter Focus */}
-      <Card sx={{ mb: 2 }}>
+      <Card sx={{ mb: 2, maxWidth: 960 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
             <ScheduleIcon sx={{ mr: 1 }} />
@@ -612,31 +612,6 @@ const Dashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Top 5 by strategic value (Amount × Probability) */}
-      {(() => {
-        const openOpps = opportunities.filter((o: Opportunity) => OPEN_STAGES.includes(o.StageName));
-        const topByYield = [...openOpps]
-          .map((o: Opportunity) => ({ ...o, yield: ((o.Amount || 0) * (o.Probability || 0)) / 100 }))
-          .sort((a, b) => b.yield - a.yield)
-          .slice(0, 5);
-        if (topByYield.length === 0) return null;
-        return (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="caption" color="textSecondary" gutterBottom display="block">
-                Largest by strategic value (Amount × Probability)
-              </Typography>
-              <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-                {topByYield.map((o: Opportunity & { yield: number }) => (
-                  <Typography key={o.Id} component="li" variant="body2" sx={{ py: 0.25 }}>
-                    {o.Name} — {formatDollarMillions(o.yield)}
-                  </Typography>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        );
-      })()}
 
       {/* Pipeline Health Funnel */}
       <PipelineFunnel opportunities={opportunities} />
