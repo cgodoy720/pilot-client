@@ -491,8 +491,9 @@ const Layout = ({ children, isLoading = false }) => {
           </svg>
         ), 'Account')} */}
 
-        {/* Platform Intake — visible to all authenticated users */}
+        {/* Platform Intake — hidden until admin page is built
         {renderNavLink('/platform-intake', <FileText className="h-4 w-4 text-[#E3E3E3]" />, 'Platform Intake')}
+        */}
 
         {/* Logout */}
         {(isMobile && isMobileNavbarOpen) || !isMobile ? (
