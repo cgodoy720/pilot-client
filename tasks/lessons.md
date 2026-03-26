@@ -3,6 +3,12 @@
 > Updated after every correction or mistake. Patterns to avoid repeating.
 > Review at session start.
 
+## 2026-03-26 — M7 Projects QA (2 bugs)
+
+1. **useEffect dependency arrays: don't include both a list and a selected-item.** If a useEffect validates `selectedId` against `items[]`, and depends on `[items, selectedId]`, it fires when `selectedId` changes — but `items` may be stale (async refetch in flight). The effect sees the new ID isn't in the old list and resets selection. Fix: use functional updater in setState to read latest state, depend only on `[items]`.
+
+2. **Salesforce API returns PascalCase keys.** The `globalSearch` endpoint returns `{Opportunity: [], Contact: [], Account: [], Task: []}`. Always use PascalCase when accessing these — don't guess lowercase. `GlobalSearch.tsx` does this correctly; new code should match its pattern, not invent a new one.
+
 ## 2026-03-25 — GCal Calendar Fix (3 layered bugs)
 
 1. **Don't gate data fetches on UI collapse state.** The calendar `useQuery` had `enabled: !prefs.collapsed['calendar']`, but the desktop layout (CalendarInboxSplit) has its own resizable-panel collapse that's independent of `prefs.collapsed['calendar']`. Result: user sees the calendar panel but data never loads. Fix: removed the `enabled` gate — always fetch, staleTime handles frequency.
