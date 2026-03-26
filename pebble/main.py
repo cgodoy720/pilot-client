@@ -291,12 +291,16 @@ async def tiered_research(request: Request, body: dict):
     level, handler = tier_map[req.tier]
     tier_label = f"T{req.tier}"
 
+    # Generate batch_id for session grouping
+    batch_id = req.batch_id or str(_uuid.uuid4())
+
     route = RouteResult(
         level=level,
         intent=f"tiered_{tier_label.lower()}",
         entities={
             "person_name": name,
             "org_name": req.organization,
+            "batch_id": batch_id,
         },
     )
 
@@ -308,6 +312,30 @@ async def tiered_research(request: Request, body: dict):
     response = await handler(route, crm_bridge, client)
     elapsed = time.time() - start
 
+    # Save session for T1/T2 (T3 saves in its handler)
+    if req.tier in (1, 2):
+        from .storage.db import save_session
+        session_profile = {
+            "claims": [],
+            "summary": response.text[:500] if response.text else "",
+            "confidence_score": (response.data or {}).get("identity_card", {}).get("confidence", "unknown")
+                if req.tier == 1 else "unknown",
+            "partial": False,
+            "failed_agents": [a["name"] for a in response.agents_log if a["outcome"] in ("error", "timeout")],
+        }
+        save_session(
+            session_id=str(_uuid.uuid4()),
+            contact_id=contact_id,
+            profile=session_profile,
+            prospect_name=name,
+            prospect_org=req.organization or "",
+            cost_usd=response.cost_usd,
+            status="completed",
+            tier=tier_label,
+            agents_log=response.agents_log,
+            batch_id=batch_id,
+        )
+
     return {
         "tier": tier_label,
         "text": response.text,
@@ -316,6 +344,8 @@ async def tiered_research(request: Request, body: dict):
         "elapsed_seconds": elapsed,
         "sources": response.sources,
         "contact_id": contact_id,
+        "agents_log": response.agents_log,
+        "batch_id": batch_id,
     }
 
 
@@ -566,8 +596,11 @@ async def contact_feedback(contact_id: str):
 
 
 @app.get("/api/v1/research/history", dependencies=[Depends(verify_api_key)])
-async def research_history(limit: int = 100):
-    """Return recent research sessions."""
+async def research_history(limit: int = 100, grouped: bool = False):
+    """Return recent research sessions, optionally grouped by batch."""
+    if grouped:
+        from .storage.db import get_sessions_grouped
+        return {"batches": get_sessions_grouped(limit)}
     sessions = get_recent_sessions(limit)
     return {"sessions": sessions}
 

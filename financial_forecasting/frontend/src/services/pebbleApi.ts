@@ -78,9 +78,9 @@ export const pebbleService = {
       responseType: 'blob',
     }),
 
-  getHistory: (limit: number = 100) =>
-    pebbleApi.get<{ sessions: ResearchSession[] }>('/api/v1/research/history', {
-      params: { limit },
+  getHistory: (limit: number = 100, grouped: boolean = false) =>
+    pebbleApi.get<{ sessions?: ResearchSession[]; batches?: HistoryBatch[] }>('/api/v1/research/history', {
+      params: { limit, grouped },
     }),
 
   getSession: (sessionId: string) =>
@@ -98,7 +98,7 @@ export const pebbleService = {
     }),
 
   // Tiered single-prospect research
-  tieredResearch: (body: { first_name: string; last_name: string; organization: string; contact_id?: string; tier: number }) =>
+  tieredResearch: (body: { first_name: string; last_name: string; organization: string; contact_id?: string; tier: number; batch_id?: string }) =>
     pebbleApi.post<TieredResearchResponse>('/api/v1/research/tiered', body),
 
   // Batch research
@@ -109,12 +109,27 @@ export const pebbleService = {
     pebbleApi.get(`/api/v1/research/batch/${batchId}`),
 };
 
+export interface AgentLogEntry {
+  name: string;
+  outcome: string;
+  elapsed_seconds: number;
+  cost_usd: number;
+  tokens_input: number;
+  tokens_output: number;
+  attempts: number;
+  error: string | null;
+  records_found: number | null;
+}
+
 export interface ResearchSession {
   id: string;
   contact_id: string;
   prospect_name: string;
   prospect_org: string;
   status: string;
+  tier: string | null;
+  batch_id: string | null;
+  cost_usd: number | null;
   claims_count: number;
   confidence_score: string;
   created_at: string;
@@ -158,6 +173,8 @@ export interface TieredResearchResponse {
   elapsed_seconds: number;
   sources: string[];
   contact_id: string;
+  agents_log: AgentLogEntry[];
+  batch_id: string;
 }
 
 export interface ResearchSessionDetail {
@@ -168,5 +185,21 @@ export interface ResearchSessionDetail {
   prospect_name: string;
   prospect_org: string;
   status: string;
+  agents_log: AgentLogEntry[] | null;
+  tier: string | null;
+  batch_id: string | null;
   created_at: string;
+}
+
+export interface HistoryBatch {
+  batch_id: string | null;
+  created_at: string;
+  prospects: HistoryProspect[];
+}
+
+export interface HistoryProspect {
+  prospect_name: string;
+  prospect_org: string;
+  contact_id: string;
+  runs: ResearchSession[];
 }

@@ -143,6 +143,20 @@ def init_db() -> None:
             conn.execute("ALTER TABLE feedback ADD COLUMN user_id TEXT")
         except Exception:
             pass
+
+        # Session 5: Add agent telemetry columns to research_sessions
+        try:
+            conn.execute("ALTER TABLE research_sessions ADD COLUMN tier TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE research_sessions ADD COLUMN agents_log_json TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE research_sessions ADD COLUMN batch_id TEXT")
+        except Exception:
+            pass
         conn.commit()
     finally:
         conn.close()
@@ -310,15 +324,45 @@ def save_session(
     prospect_org: str,
     cost_usd: float | None = None,
     status: str = "completed",
+    tier: str | None = None,
+    agents_log: list[dict] | None = None,
+    batch_id: str | None = None,
 ) -> None:
     """Insert a research session record."""
     conn = get_db()
     try:
         conn.execute(
             """INSERT INTO research_sessions
-               (id, contact_id, profile_json, cost_usd, prospect_name, prospect_org, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (session_id, contact_id, json.dumps(profile), cost_usd, prospect_name, prospect_org, status),
+               (id, contact_id, profile_json, cost_usd, prospect_name, prospect_org, status, tier, agents_log_json, batch_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, contact_id, json.dumps(profile), cost_usd, prospect_name, prospect_org, status,
+             tier, json.dumps(agents_log) if agents_log else None, batch_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_session_metadata(
+    contact_id: str,
+    tier: str | None = None,
+    agents_log: list[dict] | None = None,
+    batch_id: str | None = None,
+) -> None:
+    """Update the most recent session for a contact with metadata fields."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """UPDATE research_sessions
+               SET tier = COALESCE(?, tier),
+                   agents_log_json = COALESCE(?, agents_log_json),
+                   batch_id = COALESCE(?, batch_id)
+               WHERE id = (
+                   SELECT id FROM research_sessions
+                   WHERE contact_id = ?
+                   ORDER BY created_at DESC LIMIT 1
+               )""",
+            (tier, json.dumps(agents_log) if agents_log else None, batch_id, contact_id),
         )
         conn.commit()
     finally:
@@ -329,13 +373,13 @@ def get_recent_sessions(limit: int = 100) -> list[dict]:
     """Return recent research sessions ordered by created_at DESC.
 
     Each dict contains: id, contact_id, prospect_name, prospect_org,
-    status, claims_count, confidence_score, created_at.
+    status, tier, batch_id, cost_usd, claims_count, confidence_score, created_at.
     """
     conn = get_db()
     try:
         rows = conn.execute(
             """SELECT id, contact_id, prospect_name, prospect_org, status,
-                      profile_json, created_at
+                      profile_json, tier, batch_id, cost_usd, created_at
                FROM research_sessions
                ORDER BY created_at DESC
                LIMIT ?""",
@@ -350,6 +394,9 @@ def get_recent_sessions(limit: int = 100) -> list[dict]:
                 "prospect_name": r["prospect_name"],
                 "prospect_org": r["prospect_org"],
                 "status": r["status"],
+                "tier": r["tier"],
+                "batch_id": r["batch_id"],
+                "cost_usd": r["cost_usd"],
                 "claims_count": len(profile.get("claims", [])),
                 "confidence_score": profile.get("confidence_score", "unknown"),
                 "created_at": r["created_at"],
@@ -365,7 +412,8 @@ def get_session(session_id: str) -> dict | None:
     try:
         row = conn.execute(
             """SELECT id, contact_id, profile_json, cost_usd,
-                      prospect_name, prospect_org, status, created_at
+                      prospect_name, prospect_org, status,
+                      agents_log_json, tier, batch_id, created_at
                FROM research_sessions WHERE id = ?""",
             (session_id,),
         ).fetchone()
@@ -373,6 +421,66 @@ def get_session(session_id: str) -> dict | None:
             return None
         result = dict(row)
         result["profile"] = json.loads(result.pop("profile_json"))
+        agents_log_raw = result.pop("agents_log_json", None)
+        result["agents_log"] = json.loads(agents_log_raw) if agents_log_raw else None
+        return result
+    finally:
+        conn.close()
+
+
+def get_sessions_grouped(limit: int = 100) -> list[dict]:
+    """Return sessions grouped: batch -> prospect -> tier runs."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT id, contact_id, prospect_name, prospect_org, status,
+                      profile_json, tier, batch_id, cost_usd, created_at
+               FROM research_sessions
+               ORDER BY created_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+
+        from collections import OrderedDict
+        batches: OrderedDict[str, dict] = OrderedDict()
+
+        for r in rows:
+            profile = json.loads(r["profile_json"])
+            session = {
+                "id": r["id"],
+                "contact_id": r["contact_id"],
+                "prospect_name": r["prospect_name"],
+                "prospect_org": r["prospect_org"],
+                "status": r["status"],
+                "tier": r["tier"],
+                "batch_id": r["batch_id"],
+                "cost_usd": r["cost_usd"],
+                "claims_count": len(profile.get("claims", [])),
+                "confidence_score": profile.get("confidence_score", "unknown"),
+                "created_at": r["created_at"],
+            }
+
+            batch_key = r["batch_id"] or f"_implicit_{r['id']}"
+            if batch_key not in batches:
+                batches[batch_key] = {
+                    "batch_id": r["batch_id"],
+                    "created_at": r["created_at"],
+                    "prospects": OrderedDict(),
+                }
+
+            prospect_key = r["contact_id"]
+            if prospect_key not in batches[batch_key]["prospects"]:
+                batches[batch_key]["prospects"][prospect_key] = {
+                    "prospect_name": r["prospect_name"],
+                    "prospect_org": r["prospect_org"],
+                    "contact_id": r["contact_id"],
+                    "runs": [],
+                }
+            batches[batch_key]["prospects"][prospect_key]["runs"].append(session)
+
+        result = []
+        for batch in batches.values():
+            batch["prospects"] = list(batch["prospects"].values())
+            result.append(batch)
         return result
     finally:
         conn.close()

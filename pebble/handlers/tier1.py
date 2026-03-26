@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Optional
 
 from ..router import RouteResult
@@ -55,31 +56,79 @@ async def handle_t1(
         crm_info = f"CRM: {crm_match['name']} ({crm_match['type']})"
 
     # Parallel data fetches (4 sources: web search + 3 structured)
-    wiki_data, oc_data, fec_data, web_results = None, None, None, []
-    try:
-        results = await asyncio.gather(
-            asyncio.to_thread(search_person, name, org_name) if name else _noop(),
-            asyncio.to_thread(fetch_full_profile, name) if name else _noop(),
-            asyncio.to_thread(search_officers, name) if name else _noop(),
-            asyncio.to_thread(search_contributions, name, 3) if name else _noop(),
-            return_exceptions=True,
-        )
-        web_results = results[0] if not isinstance(results[0], BaseException) else []
-        wiki_data = results[1] if not isinstance(results[1], BaseException) else None
-        oc_data = results[2] if not isinstance(results[2], BaseException) else None
-        fec_data = results[3] if not isinstance(results[3], BaseException) else None
-    except Exception as e:
-        logger.warning("T1 data fetch failed: %s", e)
+    agents_log: list[dict] = []
+
+    async def _timed_fetch(fetch_name: str, coro) -> any:
+        """Run a fetch coroutine, record timing and outcome to agents_log."""
+        t0 = time.time()
+        try:
+            result = await coro
+            records = None
+            if isinstance(result, list):
+                records = len(result)
+            elif isinstance(result, dict):
+                records = 1
+            agents_log.append({
+                "name": fetch_name,
+                "outcome": "success" if result is not None else "no_data",
+                "elapsed_seconds": round(time.time() - t0, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": None,
+                "records_found": records if result is not None else 0,
+            })
+            return result
+        except Exception as e:
+            agents_log.append({
+                "name": fetch_name,
+                "outcome": "error",
+                "elapsed_seconds": round(time.time() - t0, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": str(e)[:200],
+                "records_found": None,
+            })
+            return None
+
+    web_results, wiki_data, oc_data, fec_data = await asyncio.gather(
+        _timed_fetch("web_search", asyncio.to_thread(search_person, name, org_name) if name else _noop()),
+        _timed_fetch("wikipedia", asyncio.to_thread(fetch_full_profile, name) if name else _noop()),
+        _timed_fetch("opencorporates", asyncio.to_thread(search_officers, name) if name else _noop()),
+        _timed_fetch("fec", asyncio.to_thread(search_contributions, name, 3) if name else _noop()),
+    )
+    web_results = web_results or []
 
     # Wikipedia org fallback — if no personal article, search for org
     if wiki_data is None and org_name:
         try:
+            t0_wiki_fb = time.time()
             wiki_data = await asyncio.to_thread(fetch_full_profile, org_name)
             if wiki_data:
                 wiki_data["fallback_source"] = "org_article"
                 logger.info("T1: Wikipedia org fallback found article for %s", org_name)
-        except Exception:
-            pass
+            agents_log.append({
+                "name": "wikipedia_org_fallback",
+                "outcome": "success" if wiki_data else "no_data",
+                "elapsed_seconds": round(time.time() - t0_wiki_fb, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": None,
+                "records_found": 1 if wiki_data else 0,
+            })
+        except Exception as e:
+            agents_log.append({
+                "name": "wikipedia_org_fallback",
+                "outcome": "error",
+                "elapsed_seconds": round(time.time() - t0_wiki_fb, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": str(e)[:200],
+                "records_found": None,
+            })
 
     # Store raw data in context (for T2 to reuse)
     ctx.add_source("wiki_data", wiki_data)
@@ -116,6 +165,7 @@ async def handle_t1(
     summary = f"Found {len(claims)} data points for {name}."
 
     if client and claims:
+        t0_haiku = time.time()
         try:
             claims_text = "\n".join(
                 f"- {c['text']} (source: {c.get('source_url', 'unknown')})"
@@ -131,15 +181,41 @@ async def handle_t1(
             )
             text = result.get("text", "")
             usage = result.get("usage", {})
-            cost += (usage.get("input_tokens", 0) * 1.0 + usage.get("output_tokens", 0) * 5.0) / 1_000_000
+            haiku_cost = (usage.get("input_tokens", 0) * 1.0 + usage.get("output_tokens", 0) * 5.0) / 1_000_000
+            cost += haiku_cost
+            agents_log.append({
+                "name": "haiku_identity",
+                "outcome": "success",
+                "elapsed_seconds": round(time.time() - t0_haiku, 3),
+                "cost_usd": round(haiku_cost, 6),
+                "tokens_input": usage.get("input_tokens", 0),
+                "tokens_output": usage.get("output_tokens", 0),
+                "attempts": 1,
+                "error": None,
+                "records_found": None,
+            })
 
-            import json, re
-            json_match = re.search(r"\{[^}]+\}", text, re.DOTALL)
-            if json_match:
-                parsed = json.loads(json_match.group())
-                confidence = parsed.get("confidence", confidence)
-                summary = parsed.get("summary", summary)
+            # Parse response — separate from LLM call error handling
+            try:
+                import json, re
+                json_match = re.search(r"\{[^}]+\}", text, re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group())
+                    confidence = parsed.get("confidence", confidence)
+                    summary = parsed.get("summary", summary)
+            except Exception:
+                logger.warning("T1 identity response parsing failed for %s", name)
         except Exception as e:
+            agents_log.append({
+                "name": "haiku_identity",
+                "outcome": "error",
+                "elapsed_seconds": round(time.time() - t0_haiku, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": str(e)[:200],
+                "records_found": None,
+            })
             logger.warning("T1 identity assessment failed: %s", e)
 
     # Format identity card
@@ -174,6 +250,7 @@ async def handle_t1(
             },
         },
         sources=[c.get("source_url", "") for c in claims if c.get("source_url")][:10],
+        agents_log=agents_log,
     )
 
 

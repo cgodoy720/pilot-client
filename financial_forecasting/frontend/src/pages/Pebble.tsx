@@ -11,9 +11,7 @@ import {
   IconButton,
   InputLabel,
   Link,
-  List,
   ListItemButton,
-  ListItemText,
   MenuItem,
   Select,
   Tab,
@@ -43,13 +41,13 @@ import {
   ChevronRight as ChevronRightIcon,
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { formatDistanceToNow } from 'date-fns';
-import { pebbleService, type ProspectInput, type Profile, type ResearchSession, type TieredResearchResponse } from '../services/pebbleApi';
+import { pebbleService, type ProspectInput, type Profile, type ResearchSession, type TieredResearchResponse, type HistoryBatch, type AgentLogEntry } from '../services/pebbleApi';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/PermissionsContext';
 import PebbleChat from '../components/pebble/PebbleChat';
 import ProspectTierTable from '../components/pebble/ProspectTierTable';
+import AgentLogSection from '../components/pebble/AgentLogSection';
 import toast from 'react-hot-toast';
 
 const TARGET_FIELDS = [
@@ -109,16 +107,20 @@ const Pebble: React.FC = () => {
     current_tier: 'pending' | 'T1' | 'T2' | 'T3';
   }>>([]);
 
+  // ── Batch tracking state ──
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  const [sessionAgentsLog, setSessionAgentsLog] = useState<AgentLogEntry[] | null>(null);
+
   // ── History panel state ──
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historySessions, setHistorySessions] = useState<ResearchSession[]>([]);
+  const [historyBatches, setHistoryBatches] = useState<HistoryBatch[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const res = await pebbleService.getHistory(100);
-      setHistorySessions(res.data.sessions || []);
+      const res = await pebbleService.getHistory(100, true);
+      setHistoryBatches(res.data.batches || []);
     } catch {
       // Silently fail — history is supplementary
     } finally {
@@ -134,7 +136,10 @@ const Pebble: React.FC = () => {
     try {
       const res = await pebbleService.getSession(session.id);
       setProfile(res.data.profile || null);
+      setSessionAgentsLog(res.data.agents_log || null);
       setLastContactId(session.contact_id);
+      setTierResults([]);  // Clear live results when loading historical
+      setCurrentBatchId(null);  // New research should start a fresh batch
       setTab(0);
       toast.success(`Loaded profile for ${session.prospect_name || session.contact_id}`);
     } catch {
@@ -168,6 +173,7 @@ const Pebble: React.FC = () => {
 
     setLoading(true);
     setError(null);
+    setSessionAgentsLog(null);  // Clear historical agent log on new research
 
     // T3 replaces all prior tier results; T1/T2 accumulate
     if (selectedTier === 3) {
@@ -182,8 +188,10 @@ const Pebble: React.FC = () => {
         organization: organization.trim(),
         contact_id: id,
         tier: selectedTier,
+        batch_id: currentBatchId || undefined,
       });
       const data = res.data;
+      setCurrentBatchId(data.batch_id);
 
       // Accumulate tier results (T1/T2 stack, T3 replaces)
       setTierResults((prev) =>
@@ -202,8 +210,10 @@ const Pebble: React.FC = () => {
         } catch {
           setFeedbackHistory([]);
         }
-        fetchHistory();
       }
+
+      // Refresh history sidebar — all tiers now save sessions
+      fetchHistory();
 
       const tierLabel = `T${selectedTier}`;
       const costStr = data.cost_usd > 0 ? ` ($${data.cost_usd.toFixed(3)})` : '';
@@ -405,7 +415,7 @@ const Pebble: React.FC = () => {
                   <CardContent sx={{ pb: '12px !important' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                       <Chip
-                        label={`${tr.tier} \u00b7 ${tr.result.elapsed_seconds.toFixed(1)}s${tr.result.cost_usd > 0 ? ` \u00b7 $${tr.result.cost_usd.toFixed(3)}` : ''}`}
+                        label={`${tr.tier} \u00b7 ${tr.result.elapsed_seconds.toFixed(1)}s \u00b7 $${tr.result.cost_usd.toFixed(3)} \u00b7 ${tr.result.agents_log?.length || '?'} agents`}
                         size="small"
                         color={tr.tier === 'T1' ? 'primary' : tr.tier === 'T2' ? 'secondary' : 'warning'}
                         variant="outlined"
@@ -458,10 +468,15 @@ const Pebble: React.FC = () => {
                     {tr.tier === 'T3' && (
                       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{tr.result.text}</Typography>
                     )}
+
+                    {/* Agent log expandable section */}
+                    {tr.result.agents_log && tr.result.agents_log.length > 0 && (
+                      <AgentLogSection agents={tr.result.agents_log} />
+                    )}
                   </CardContent>
                 </Card>
               ))}
-              <Button size="small" onClick={() => { setTierResults([]); setProfile(null); }} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+              <Button size="small" onClick={() => { setTierResults([]); setProfile(null); setCurrentBatchId(null); setSessionAgentsLog(null); }} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
                 Clear Results
               </Button>
             </Box>
@@ -500,6 +515,21 @@ const Pebble: React.FC = () => {
                     Download Markdown
                   </Button>
                 </Box>
+                {profile.failed_agents && profile.failed_agents.length > 0 && (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    {profile.failed_agents.length} agent(s) failed:
+                    <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                      {profile.failed_agents.map((a, i) => (
+                        <Chip key={i} label={a} size="small" color="error" variant="outlined" />
+                      ))}
+                    </Box>
+                  </Alert>
+                )}
+                {sessionAgentsLog && sessionAgentsLog.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <AgentLogSection agents={sessionAgentsLog} />
+                  </Box>
+                )}
                 {profile.summary && (
                   <Typography variant="body1" sx={{ mb: 2 }}>
                     {profile.summary}
@@ -963,54 +993,61 @@ const Pebble: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress size={24} />
             </Box>
-          ) : historySessions.length === 0 ? (
+          ) : historyBatches.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
               No research sessions yet.
             </Typography>
           ) : (
-            <List dense disablePadding>
-              {historySessions.map((session) => {
-                const dateLabel = session.created_at
-                  ? formatDistanceToNow(new Date(session.created_at + 'Z'), { addSuffix: true })
-                  : '';
-                return (
-                  <ListItemButton
-                    key={session.id}
-                    onClick={() => handleLoadSession(session)}
-                    sx={{ borderRadius: 1, mb: 0.5 }}
-                  >
-                    <ListItemText
-                      primary={session.prospect_name || session.contact_id}
-                      secondary={
-                        <React.Fragment>
-                          {session.prospect_org && (
-                            <Typography variant="caption" component="span" display="block" noWrap>
-                              {session.prospect_org}
-                            </Typography>
-                          )}
-                          <Typography variant="caption" component="span" color="text.secondary">
-                            {dateLabel}
+            <Box>
+              {historyBatches.map((batch, bi) => (
+                <Box key={bi} sx={{ mb: 1 }}>
+                  {batch.prospects.length > 1 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
+                      Batch &middot; {batch.prospects.length} prospects
+                    </Typography>
+                  )}
+                  {batch.prospects.map((prospect) => (
+                    <Box key={prospect.contact_id} sx={{ pl: batch.prospects.length > 1 ? 1 : 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5, px: 1 }} noWrap>
+                        {prospect.prospect_name || prospect.contact_id}
+                      </Typography>
+                      {prospect.prospect_org && (
+                        <Typography variant="caption" color="text.secondary" sx={{ px: 1 }} noWrap>
+                          {prospect.prospect_org}
+                        </Typography>
+                      )}
+                      {prospect.runs.map((run) => (
+                        <ListItemButton
+                          key={run.id}
+                          onClick={() => handleLoadSession(run)}
+                          dense
+                          sx={{ py: 0.25, pl: 2 }}
+                        >
+                          <Chip label={run.tier || 'T3'} size="small" sx={{ mr: 1 }} />
+                          <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
+                            {run.cost_usd != null ? `$${run.cost_usd.toFixed(3)}` : ''}
                           </Typography>
-                        </React.Fragment>
-                      }
-                      primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                    />
-                    <Chip
-                      label={session.confidence_score}
-                      size="small"
-                      color={
-                        session.confidence_score === 'high'
-                          ? 'success'
-                          : session.confidence_score === 'medium'
-                            ? 'warning'
-                            : 'default'
-                      }
-                      sx={{ ml: 1, minWidth: 56 }}
-                    />
-                  </ListItemButton>
-                );
-              })}
-            </List>
+                          {run.confidence_score && run.confidence_score !== 'unknown' && (
+                            <Chip
+                              label={run.confidence_score}
+                              size="small"
+                              color={
+                                run.confidence_score === 'high'
+                                  ? 'success'
+                                  : run.confidence_score === 'medium'
+                                    ? 'warning'
+                                    : 'default'
+                              }
+                            />
+                          )}
+                        </ListItemButton>
+                      ))}
+                    </Box>
+                  ))}
+                  {bi < historyBatches.length - 1 && <Divider sx={{ my: 0.5 }} />}
+                </Box>
+              ))}
+            </Box>
           )}
         </Box>
       </Drawer>
