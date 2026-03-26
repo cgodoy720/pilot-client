@@ -22,6 +22,7 @@ import {
   RadioButtonUnchecked as UncheckedIcon,
   Schedule as ScheduleIcon,
   Person as PersonIcon,
+  AccountCircle as AccountCircleIcon,
   OpenInNew as OpenIcon,
 } from '@mui/icons-material';
 import { format, parseISO, isBefore, startOfDay, addDays, differenceInDays } from 'date-fns';
@@ -40,6 +41,8 @@ export interface InboxTask {
   CreatedByName?: string | null;
   WhatId?: string | null;
   OpportunityName?: string | null;
+  WhoId?: string | null;
+  WhoName?: string | null;
   isUrgent?: boolean;
 }
 
@@ -317,6 +320,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
             <Typography variant="caption" color="text.secondary" noWrap sx={{ flex: 1, minWidth: 0, fontStyle: task.OpportunityName ? 'normal' : 'italic' }}>
               {task.OpportunityName || 'No Opportunity'}
             </Typography>
+            {task.WhoName && (
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
+                <AccountCircleIcon sx={{ fontSize: 11 }} />
+                {task.WhoName}
+              </Typography>
+            )}
             {task.OwnerName && (
               <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
                 <PersonIcon sx={{ fontSize: 11 }} />

@@ -1080,6 +1080,12 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                                         field="Subject"
                                         onSave={(tid, f, v) => handleInlineTaskSave(opp, tid, f, v)}
                                       />
+                                      {task.WhoName && (
+                                        <Typography variant="caption" color="text.secondary"
+                                          sx={{ display: 'block', mt: 0.25, fontSize: '0.7rem', pl: 0.5 }}>
+                                          {'\u2192'} {task.WhoName}
+                                        </Typography>
+                                      )}
                                     </TableCell>
                                     <TableCell>
                                       <EditableCell
@@ -1206,6 +1212,12 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                                           }}>
                                             {task.Subject}
                                           </Typography>
+                                          {task.WhoName && (
+                                            <Typography variant="caption" color="text.secondary"
+                                              sx={{ display: 'block', mt: 0.25, fontSize: '0.7rem', pl: 0.5 }}>
+                                              {'\u2192'} {task.WhoName}
+                                            </Typography>
+                                          )}
                                         </TableCell>
                                         <TableCell>
                                           {task.Description ? (
