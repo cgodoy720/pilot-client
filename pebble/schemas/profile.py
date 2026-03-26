@@ -61,6 +61,7 @@ class TieredResearchRequest(BaseModel):
     organization: str = ""
     contact_id: str | None = None
     tier: int = Field(1, ge=1, le=3)
+    batch_id: str | None = None
 
 
 class ResearchFeedback(BaseModel):

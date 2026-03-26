@@ -24,6 +24,7 @@ class HandlerResponse:
     elapsed_seconds: float = 0.0
     data: Optional[dict] = None
     sources: list[str] = field(default_factory=list)
+    agents_log: list[dict] = field(default_factory=list)
     requires_clarification: bool = False
     clarification_options: Optional[list[ClarificationOption]] = None
     redirect_target: Optional[str] = None

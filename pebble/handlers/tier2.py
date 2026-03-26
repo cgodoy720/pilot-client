@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -92,6 +93,41 @@ async def handle_t2(
     logger.info("T2: cluster research complete — %d claims, statuses=%s",
                 len(cluster_claims), scratchpad.cluster_status)
 
+    # --- Build agents_log from scratchpad ---
+    agents_log: list[dict] = []
+
+    # Cluster-level entries
+    for cluster_name in ["financial", "affiliation", "public_profile"]:
+        budget_map = {
+            "financial": scratchpad.financial_budget,
+            "affiliation": scratchpad.affiliation_budget,
+            "public_profile": scratchpad.profile_budget,
+        }
+        cluster_budget = budget_map[cluster_name]
+        agents_log.append({
+            "name": f"{cluster_name}_cluster",
+            "outcome": scratchpad.cluster_status.get(cluster_name, "unknown"),
+            "elapsed_seconds": round(cluster_budget.elapsed(), 3),
+            "cost_usd": 0.0,
+            "tokens_input": 0, "tokens_output": 0,
+            "attempts": cluster_budget.api_calls_used,
+            "error": ", ".join(cluster_budget.failed_sources) if cluster_budget.failed_sources else None,
+            "records_found": None,
+        })
+
+    # Individual data sources that failed or returned no data
+    for skipped in scratchpad.skipped_sources:
+        agents_log.append({
+            "name": skipped,
+            "outcome": "skipped",
+            "elapsed_seconds": 0.0,
+            "cost_usd": 0.0,
+            "tokens_input": 0, "tokens_output": 0,
+            "attempts": 0,
+            "error": "skipped",
+            "records_found": None,
+        })
+
     # --- Score source richness ---
     source_scores = score_source_richness(
         ctx.raw_data.get("propublica_data"),
@@ -110,6 +146,7 @@ async def handle_t2(
     ctx.source_scores = source_scores
 
     # --- Activate foragers ---
+    t0_foragers = time.time()
     forager_claims = []
     if client:
         try:
@@ -126,7 +163,27 @@ async def handle_t2(
                 prospect, client, budget,
                 prospect_type=prospect_type.value,
             )
+            agents_log.append({
+                "name": "foragers",
+                "outcome": "success",
+                "elapsed_seconds": round(time.time() - t0_foragers, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": None,
+                "records_found": len(forager_claims),
+            })
         except Exception as e:
+            agents_log.append({
+                "name": "foragers",
+                "outcome": "error",
+                "elapsed_seconds": round(time.time() - t0_foragers, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": str(e)[:200],
+                "records_found": None,
+            })
             logger.warning("T2 forager activation failed: %s", e)
 
     ctx.forager_claims = forager_claims
@@ -189,6 +246,7 @@ async def handle_t2(
             "connected_orgs_count": connected_orgs_count,
         },
         sources=[c.get("source_url", "") for c in all_claims if c.get("source_url")][:15],
+        agents_log=agents_log,
     )
 
 

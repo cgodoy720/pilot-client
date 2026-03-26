@@ -9,6 +9,7 @@ Cost: ~$0.20-0.50/prospect.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Optional
 
 from ..router import RouteResult
@@ -55,6 +56,8 @@ async def handle_t3(
     # Get context — check if T2 already ran
     ctx = get_or_create_context(contact_id, person_name, org_name)
 
+    agents_log: list[dict] = []
+
     if ctx.tier_completed("T2"):
         # T2 done — skip ALL data fetching and foragers
         # Go straight to quorum verification + Opus synthesis on accumulated claims
@@ -75,21 +78,53 @@ async def handle_t3(
 
         recommendations = []
         org_budget = ClusterBudget(max_api_calls=10, max_seconds=30.0)
+        t0_org = time.time()
         try:
             recommendations, officer_claims = await investigate_connected_orgs(
                 ctx, person_name, crm_bridge, org_budget,
                 max_orgs=5, enable_xml=True,
             )
-            all_claims.extend(officer_claims)  # local list — no double-counting
+            all_claims.extend(officer_claims)
             ctx.add_source("org_recommendations", recommendations)
             logger.info("T3: org intelligence — %d recommendations, %d officer claims",
                         len(recommendations), len(officer_claims))
+            agents_log.append({
+                "name": "org_intelligence",
+                "outcome": "success",
+                "elapsed_seconds": round(time.time() - t0_org, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": None,
+                "records_found": len(recommendations) + len(officer_claims),
+            })
         except Exception as e:
+            agents_log.append({
+                "name": "org_intelligence",
+                "outcome": "error",
+                "elapsed_seconds": round(time.time() - t0_org, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": str(e)[:200],
+                "records_found": None,
+            })
             logger.warning("T3 org intelligence failed: %s", e)
 
         try:
             # URL verification
+            t0_urls = time.time()
             all_claims, dropped = await verify_urls(all_claims)
+            agents_log.append({
+                "name": "url_verification",
+                "outcome": "success",
+                "elapsed_seconds": round(time.time() - t0_urls, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": None,
+                "records_found": len(all_claims),
+            })
 
             # Build Wikipedia context for synthesis
             wiki_data = ctx.raw_data.get("wiki_data")
@@ -112,15 +147,37 @@ async def handle_t3(
                 logger.info("T3: detected %d claim conflicts", len(conflicts))
 
             # Quorum verification
+            t0_quorum = time.time()
             verified_claims = await quorum_verify_claims(all_claims, prospect, model_client, budget)
+            agents_log.append({
+                "name": "quorum_verify",
+                "outcome": "success",
+                "elapsed_seconds": round(time.time() - t0_quorum, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": None,
+                "records_found": len(verified_claims),
+            })
 
             # Opus synthesis
+            t0_synth = time.time()
             profile_data = synthesize_profile(
                 verified_claims, prospect, model_client, budget,
                 wikipedia_context=wikipedia_context,
                 conflicts=conflicts if conflicts else None,
                 skipped_sources=ctx.skipped_sources if ctx.skipped_sources else None,
             )
+            agents_log.append({
+                "name": "profile_synthesizer",
+                "outcome": "success",
+                "elapsed_seconds": round(time.time() - t0_synth, 3),
+                "cost_usd": 0.0,
+                "tokens_input": 0, "tokens_output": 0,
+                "attempts": 1,
+                "error": None,
+                "records_found": None,
+            })
             profile = {
                 "claims": profile_data.get("claims", verified_claims),
                 "summary": profile_data.get("summary", ""),
@@ -150,12 +207,16 @@ async def handle_t3(
             prospect_org=org_name,
             cost_usd=budget.total_cost_usd,
             status="completed",
+            tier="T3",
+            agents_log=agents_log,
+            batch_id=route.entities.get("batch_id"),
         )
         ctx.mark_tier_complete("T3")
 
     else:
-        # No T2 context — run the full pipeline
+        # No T2 context — run the full pipeline (Path B)
         logger.info("T3: No T2 context — running full pipeline")
+        pipeline_start = time.time()
         try:
             result = await research_single_prospect(
                 prospect=prospect,
@@ -169,6 +230,43 @@ async def handle_t3(
                 text=f"Research pipeline failed for {name}: {e}",
                 level=30, intent=route.intent,
             )
+
+        # Reconstruct agents_log from harness_log entries written during this pipeline run
+        from ..storage.db import get_db, update_session_metadata
+        start_ts = pipeline_start - 5  # small buffer before pipeline start
+        conn = get_db()
+        try:
+            rows = conn.execute(
+                """SELECT agent_name, outcome, cost_usd, tokens_input, tokens_output,
+                          attempts, elapsed_seconds, error
+                   FROM harness_log WHERE prospect_id = ? AND created_at >= datetime(?, 'unixepoch')
+                   ORDER BY created_at ASC""",
+                (contact_id, start_ts),
+            ).fetchall()
+            agents_log = [
+                {
+                    "name": r["agent_name"],
+                    "outcome": r["outcome"],
+                    "elapsed_seconds": r["elapsed_seconds"] or 0.0,
+                    "cost_usd": r["cost_usd"] or 0.0,
+                    "tokens_input": r["tokens_input"] or 0,
+                    "tokens_output": r["tokens_output"] or 0,
+                    "attempts": r["attempts"] or 1,
+                    "error": r["error"],
+                    "records_found": None,
+                }
+                for r in rows
+            ]
+        finally:
+            conn.close()
+
+        # Update the session that research_single_prospect already saved
+        update_session_metadata(
+            contact_id=contact_id,
+            tier="T3",
+            agents_log=agents_log,
+            batch_id=route.entities.get("batch_id"),
+        )
         ctx.mark_tier_complete("T3")
 
     # Fetch the saved profile for display
@@ -204,4 +302,5 @@ async def handle_t3(
             },
         },
         sources=[c.get("source_url", "") for c in claims if c.get("source_url")][:10],
+        agents_log=agents_log,
     )
