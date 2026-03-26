@@ -692,7 +692,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         borderRadius: 1,
         px: 1,
         py: 0.25,
-        width: 260,
+        width: 340,
         fontSize: '0.85rem',
         '& .MuiInputBase-input': { py: 0.25 },
       }}
