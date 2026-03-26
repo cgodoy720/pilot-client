@@ -334,8 +334,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         e.preventDefault();
 
         if (hasOpenDialog) {
-          toast('Save your work first, then \u2318K to search', {
-            icon: '\uD83D\uDCBE',
+          toast('Save your work first, then ⌘K to search', {
+            icon: '💾',
             duration: 3000,
           });
           return;
@@ -415,13 +415,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         if (r.Amount != null) parts.push(formatDollar(r.Amount));
         if (r.CloseDate) parts.push(r.CloseDate);
         if (r.Owner?.Name) parts.push(r.Owner.Name);
-        return parts.join(' \u00B7 ');
+        return parts.join(' · ');
       }
       case 'Account': {
         const parts: string[] = [];
         if (r.Type) parts.push(r.Type);
         if (r.Industry) parts.push(r.Industry);
-        return parts.join(' \u00B7 ');
+        return parts.join(' · ');
       }
       case 'Contact': {
         const parts: string[] = [];
@@ -438,7 +438,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
   function sectionCount(type: EntityType): string {
     if (!displayResults) return '0';
     const count = displayResults[type].length;
-    if (isSearching) return `${count}\u2026`;
+    if (isSearching) return `${count}…`;
     return String(count);
   }
 
@@ -645,7 +645,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
   const searchInput = (
     <InputBase
       inputRef={inputRef}
-      placeholder="Search\u2026 (\u2318K)"
+      placeholder="Search / Quick loads cache / Pulls all"
       value={query}
       onChange={(e) => setQuery(e.target.value)}
       onFocus={(e) => handleOpen(e.currentTarget.parentElement as HTMLElement)}
@@ -683,7 +683,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            {'\u2318K'}
+            {'⌘K'}
           </Typography>
         )
       }
