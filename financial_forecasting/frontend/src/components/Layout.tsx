@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   AppBar,
   Box,
@@ -41,6 +41,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import BedrockLogo from './BedrockLogo';
 import NotificationDropdown from './NotificationDropdown';
+import TaskPanel from './TaskPanel';
+import OpportunityEditDialog from './OpportunityEditDialog';
 import { InboxTask } from './TaskInbox';
 import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
@@ -48,6 +50,7 @@ import toast from 'react-hot-toast';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/PermissionsContext';
+import { useNotifications } from '../hooks/useNotifications';
 
 const drawerWidth = 200;
 const collapsedDrawerWidth = 48;
@@ -153,8 +156,87 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       OpportunityName: null,
       WhoId: t.WhoId || null,
       WhoName: t.Who?.Name || t.WhoName || null,
+      CreatedDate: t.CreatedDate || null,
     }));
   }, [tasksData]);
+
+  // ---- Notifications hook ----
+  const {
+    notifications,
+    unreadCount,
+    badgeColor: notifBadgeColor,
+    markOneRead,
+    markAllRead,
+    loading: notifLoading,
+  } = useNotifications(
+    inboxTasks,
+    user?.salesforce_user_id ?? null,
+    user?.salesforce_user_name ?? null,
+  );
+
+  // ---- Notification overlay state ----
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [taskPanelOpp, setTaskPanelOpp] = useState<any>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [orphanTask, setOrphanTask] = useState<any>(null);
+  const [editOppId, setEditOppId] = useState<string | null>(null);
+
+  const handleOpenTask = useCallback((taskId: string, whatId: string | null) => {
+    if (whatId) {
+      const opps = queryClient.getQueryData('opportunities') as any[] | undefined;
+      const rawOpps = Array.isArray(opps) ? opps : ((opps as any)?.data || []);
+      const opp = rawOpps.find((o: any) => o.Id === whatId);
+      if (opp) {
+        setTaskPanelOpp(opp);
+        setSelectedTaskId(taskId);
+        setOrphanTask(null);
+      } else {
+        // Opp not in cache — use orphan mode
+        const task = inboxTasks.find((t) => t.Id === taskId);
+        setTaskPanelOpp(null);
+        setSelectedTaskId(null);
+        setOrphanTask(task ? {
+          Id: task.Id,
+          Subject: task.Subject,
+          Status: task.Status,
+          Priority: task.Priority,
+          ActivityDate: task.ActivityDate,
+          Description: task.Description,
+          OwnerId: task.OwnerId,
+          OwnerName: task.OwnerName || null,
+          WhatId: whatId,
+        } : null);
+      }
+    } else {
+      // No opportunity — orphan mode
+      const task = inboxTasks.find((t) => t.Id === taskId);
+      setTaskPanelOpp(null);
+      setSelectedTaskId(null);
+      setOrphanTask(task ? {
+        Id: task.Id,
+        Subject: task.Subject,
+        Status: task.Status,
+        Priority: task.Priority,
+        ActivityDate: task.ActivityDate,
+        Description: task.Description,
+        OwnerId: task.OwnerId,
+        OwnerName: task.OwnerName || null,
+        WhatId: null,
+      } : null);
+    }
+    setTaskPanelOpen(true);
+  }, [queryClient, inboxTasks]);
+
+  const handleOpenOpp = useCallback((oppId: string) => {
+    setEditOppId(oppId);
+  }, []);
+
+  const handleCloseTaskPanel = useCallback(() => {
+    setTaskPanelOpen(false);
+    setTaskPanelOpp(null);
+    setSelectedTaskId(null);
+    setOrphanTask(null);
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -313,8 +395,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuItem onClick={() => handleSync('intacct')}>Sync Sage Intacct</MenuItem>
           </Menu>
 
-          {/* Action Items Dropdown */}
-          <NotificationDropdown tasks={inboxTasks} loading={tasksLoading} />
+          {/* Notifications Dropdown */}
+          <NotificationDropdown
+            notifications={notifications}
+            unreadCount={unreadCount}
+            badgeColor={notifBadgeColor}
+            onMarkOneRead={markOneRead}
+            onMarkAllRead={markAllRead}
+            onOpenTask={handleOpenTask}
+            onOpenOpp={handleOpenOpp}
+            loading={tasksLoading || notifLoading}
+          />
 
           {/* SF Connection Indicator */}
           {!user?.salesforce_connected && (
@@ -480,6 +571,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Toolbar sx={{ minHeight: '48px !important', height: 48 }} />
         {children}
       </Box>
+
+      {/* Notification overlays — TaskPanel drawer + OpportunityEditDialog modal */}
+      <TaskPanel
+        open={taskPanelOpen}
+        onClose={handleCloseTaskPanel}
+        opportunity={taskPanelOpp}
+        selectedTaskId={selectedTaskId}
+        orphanTask={orphanTask}
+      />
+      <OpportunityEditDialog
+        open={!!editOppId}
+        onClose={() => setEditOppId(null)}
+        opportunityId={editOppId}
+      />
     </Box>
   );
 };

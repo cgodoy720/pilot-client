@@ -1,5 +1,6 @@
 """Opportunity bulk operations and stage management endpoints."""
 
+import re
 import logging
 from typing import Any, Dict, List
 
@@ -66,6 +67,94 @@ async def get_stage_history(
 
     except Exception as e:
         logger.warning(f"OpportunityFieldHistory query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Ownership history
+# ---------------------------------------------------------------------------
+
+_SF_USER_ID_RE = re.compile(r"^005[a-zA-Z0-9]{12,15}$")
+
+
+@router.get("/api/salesforce/opportunities/ownership-history")
+async def get_ownership_history(
+    days: int = Query(7, ge=1, le=365),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Get Owner changes from OpportunityFieldHistory within the given window.
+
+    OldValue/NewValue in Salesforce FieldHistory may be User IDs or display
+    names depending on org configuration.  When IDs are detected the endpoint
+    resolves them to names via a secondary User query so the frontend always
+    has human-readable values.
+    """
+    cache_key = f"ownership_history:{days}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        salesforce = client.salesforce
+        query = f"""
+        SELECT OpportunityId, Opportunity.Name, Opportunity.Amount,
+               Opportunity.StageName, Opportunity.OwnerId, Opportunity.Owner.Name,
+               OldValue, NewValue, CreatedDate, CreatedById, CreatedBy.Name
+        FROM OpportunityFieldHistory
+        WHERE Field = 'Owner'
+          AND CreatedDate = LAST_N_DAYS:{days}
+        ORDER BY CreatedDate DESC
+        """
+        result = await salesforce.query_all(query)
+        records = result.get("records", [])
+
+        # Collect any OldValue/NewValue that look like Salesforce User IDs so
+        # we can resolve them to display names.
+        id_values: set[str] = set()
+        for r in records:
+            for val in (r.get("OldValue"), r.get("NewValue")):
+                if val and _SF_USER_ID_RE.match(val):
+                    id_values.add(val)
+
+        user_names: Dict[str, str] = {}
+        if id_values:
+            id_list = ", ".join(f"'{uid}'" for uid in id_values)
+            users_result = await salesforce.query(
+                f"SELECT Id, Name FROM User WHERE Id IN ({id_list})"
+            )
+            for u in users_result.get("records", []):
+                user_names[u["Id"]] = u["Name"]
+
+        formatted = []
+        for r in records:
+            opp = r.get("Opportunity") or {}
+            opp_owner = opp.get("Owner") or {}
+            created_by = r.get("CreatedBy") or {}
+            old_raw = r.get("OldValue") or ""
+            new_raw = r.get("NewValue") or ""
+
+            formatted.append({
+                "OpportunityId": r.get("OpportunityId"),
+                "OpportunityName": opp.get("Name"),
+                "Amount": opp.get("Amount") or 0,
+                "CurrentStage": opp.get("StageName"),
+                "CurrentOwnerId": opp.get("OwnerId"),
+                "CurrentOwnerName": opp_owner.get("Name"),
+                "OldValue": old_raw,
+                "NewValue": new_raw,
+                "OldOwnerName": user_names.get(old_raw, old_raw),
+                "NewOwnerName": user_names.get(new_raw, new_raw),
+                "ChangedById": r.get("CreatedById"),
+                "ChangedByName": created_by.get("Name"),
+                "CreatedDate": r.get("CreatedDate"),
+            })
+
+        cache.set(cache_key, formatted, CACHE_TTL_STAGE_HISTORY)
+        return formatted
+
+    except Exception as e:
+        logger.warning(f"OpportunityFieldHistory ownership query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

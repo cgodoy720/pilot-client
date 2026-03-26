@@ -43,6 +43,7 @@ export interface InboxTask {
   OpportunityName?: string | null;
   WhoId?: string | null;
   WhoName?: string | null;
+  CreatedDate?: string | null;
   isUrgent?: boolean;
 }
 
