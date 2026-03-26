@@ -294,6 +294,8 @@ function CohortsTab({ token, setLoading }) {
       }
 
       setIsCohortDialogOpen(false);
+      setEditingCohort(null);
+      setCohortForm({ ...emptyCohortForm });
       fetchCohorts();
     } catch (error) {
       console.error('Error saving cohort:', error);
@@ -802,7 +804,13 @@ function CohortsTab({ token, setLoading }) {
       </Dialog>
 
       {/* Create/Edit Cohort Dialog */}
-      <Dialog open={isCohortDialogOpen} onOpenChange={setIsCohortDialogOpen}>
+      <Dialog open={isCohortDialogOpen} onOpenChange={(open) => {
+        setIsCohortDialogOpen(open);
+        if (!open) {
+          setEditingCohort(null);
+          setCohortForm({ ...emptyCohortForm });
+        }
+      }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-proxima text-xl">
