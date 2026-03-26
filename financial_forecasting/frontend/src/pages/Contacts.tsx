@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -71,6 +72,8 @@ const Contacts: React.FC = () => {
   const { can, isAdmin } = usePermissions();
   const canEdit = isAdmin || can('edit_contacts');
   const { pushDialog } = useDialogStack();
+  const [searchParams] = useSearchParams();
+  const searchFromUrl = searchParams.get('search') || '';
 
   // Fetch all contacts
   const { data: contactsData, isLoading: contactsLoading, error: contactsError } = useQuery(
@@ -318,6 +321,9 @@ const Contacts: React.FC = () => {
               initialState={{
                 pagination: { paginationModel: { pageSize: 100, page: 0 } },
                 sorting: { sortModel: [{ field: 'LastName', sort: 'asc' }] },
+                ...(searchFromUrl ? {
+                  filter: { filterModel: { items: [], quickFilterValues: [searchFromUrl] } },
+                } : {}),
               }}
               filterMode="client"
               sortingMode="client"

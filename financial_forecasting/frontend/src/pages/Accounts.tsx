@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
@@ -176,6 +177,8 @@ const Accounts: React.FC = () => {
   const { can, isAdmin } = usePermissions();
   const canEdit = isAdmin || can('edit_accounts');
   const { pushDialog } = useDialogStack();
+  const [searchParams] = useSearchParams();
+  const searchFromUrl = searchParams.get('search') || '';
 
   // Column visibility state (persisted in localStorage)
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<GridColumnVisibilityModel>(() => {
@@ -741,6 +744,9 @@ const Accounts: React.FC = () => {
                 sorting: {
                   sortModel: [{ field: 'Name', sort: 'asc' }],
                 },
+                ...(searchFromUrl ? {
+                  filter: { filterModel: { items: [], quickFilterValues: [searchFromUrl] } },
+                } : {}),
               }}
               filterMode="client"
               sortingMode="client"

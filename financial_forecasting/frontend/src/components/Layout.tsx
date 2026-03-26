@@ -43,6 +43,9 @@ import BedrockLogo from './BedrockLogo';
 import NotificationDropdown from './NotificationDropdown';
 import TaskPanel from './TaskPanel';
 import OpportunityEditDialog from './OpportunityEditDialog';
+import AccountEditDialog from './AccountEditDialog';
+import ContactEditDialog from './ContactEditDialog';
+import GlobalSearch from './GlobalSearch';
 import { InboxTask } from './TaskInbox';
 import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
@@ -106,11 +109,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     });
   }, [navPhase, can]);
 
-  // Prefetch opportunities when authenticated so Priorities/Dashboard load instantly
+  // Prefetch CRM data when authenticated so search + edit dialogs have warm cache
   useEffect(() => {
     if (!user) return;
     queryClient.prefetchQuery('opportunities', async () => {
       const response = await apiService.getOpportunities();
+      return response.data;
+    });
+    queryClient.prefetchQuery('accounts', async () => {
+      const response = await apiService.getAccounts();
+      return response.data;
+    });
+    queryClient.prefetchQuery('all-contacts', async () => {
+      const response = await apiService.getContacts();
       return response.data;
     });
   }, [user, queryClient]);
@@ -180,6 +191,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [orphanTask, setOrphanTask] = useState<any>(null);
   const [editOppId, setEditOppId] = useState<string | null>(null);
+  const [editOppData, setEditOppData] = useState<Record<string, any> | undefined>();
+
+  // ---- Global search dialog state ----
+  const [editAccountId, setEditAccountId] = useState<string | null>(null);
+  const [editAccountData, setEditAccountData] = useState<Record<string, any> | undefined>();
+  const [editContactId, setEditContactId] = useState<string | null>(null);
+  const [editContactData, setEditContactData] = useState<Record<string, any> | undefined>();
+
+  const hasOpenDialog = !!editOppId || !!editAccountId || !!editContactId || taskPanelOpen;
 
   const handleOpenTask = useCallback((taskId: string, whatId: string | null) => {
     if (whatId) {
@@ -227,8 +247,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setTaskPanelOpen(true);
   }, [queryClient, inboxTasks]);
 
-  const handleOpenOpp = useCallback((oppId: string) => {
+  const handleOpenOpp = useCallback((oppId: string, data?: Record<string, any>) => {
     setEditOppId(oppId);
+    setEditOppData(data);
+  }, []);
+
+  const handleOpenAccount = useCallback((accountId: string, data?: Record<string, any>) => {
+    setEditAccountId(accountId);
+    setEditAccountData(data);
+  }, []);
+
+  const handleOpenContact = useCallback((contactId: string, data?: Record<string, any>) => {
+    setEditContactId(contactId);
+    setEditContactData(data);
   }, []);
 
   const handleCloseTaskPanel = useCallback(() => {
@@ -364,9 +395,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuIcon fontSize="small" />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontSize: '0.95rem' }}>
+          <Typography variant="h6" noWrap component="div" sx={{ fontSize: '0.95rem', mr: 1 }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'Overview'}
           </Typography>
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          {/* Global Search */}
+          {user?.salesforce_connected && (
+            <GlobalSearch
+              onOpenOpportunity={handleOpenOpp}
+              onOpenAccount={handleOpenAccount}
+              onOpenContact={handleOpenContact}
+              hasOpenDialog={hasOpenDialog}
+            />
+          )}
 
           {/* Sync Menu */}
           <IconButton
@@ -572,7 +615,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {children}
       </Box>
 
-      {/* Notification overlays — TaskPanel drawer + OpportunityEditDialog modal */}
+      {/* Notification overlays — TaskPanel drawer + edit dialogs */}
       <TaskPanel
         open={taskPanelOpen}
         onClose={handleCloseTaskPanel}
@@ -582,8 +625,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       />
       <OpportunityEditDialog
         open={!!editOppId}
-        onClose={() => setEditOppId(null)}
+        onClose={() => { setEditOppId(null); setEditOppData(undefined); }}
         opportunityId={editOppId}
+        initialData={editOppData}
+      />
+      <AccountEditDialog
+        open={!!editAccountId}
+        onClose={() => { setEditAccountId(null); setEditAccountData(undefined); }}
+        accountId={editAccountId}
+        initialData={editAccountData}
+      />
+      <ContactEditDialog
+        open={!!editContactId}
+        onClose={() => { setEditContactId(null); setEditContactData(undefined); }}
+        contactId={editContactId}
+        initialData={editContactData}
       />
     </Box>
   );

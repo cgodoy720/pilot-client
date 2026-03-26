@@ -42,7 +42,7 @@ interface NotificationDropdownProps {
   onMarkOneRead: (id: string) => void;
   onMarkAllRead: () => void;
   onOpenTask: (taskId: string, whatId: string | null) => void;
-  onOpenOpp: (oppId: string) => void;
+  onOpenOpp: (oppId: string, data?: Record<string, any>) => void;
   loading?: boolean;
 }
 
