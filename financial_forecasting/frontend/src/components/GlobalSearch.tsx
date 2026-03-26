@@ -313,10 +313,21 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     return () => { if (rafId !== undefined) cancelAnimationFrame(rafId); };
   }, [mobileOpen]);
 
-  // ── Cmd+K global listener ─────────────────────────────────────────────
+  // ── Cmd+K global listener (toggle) ──────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        // If our own search input is focused, toggle closed
+        if (e.target === inputRef.current) {
+          e.preventDefault();
+          handleClear();
+          handleClose();
+          inputRef.current?.blur();
+          if (mobileOpen) setMobileOpen(false);
+          return;
+        }
+
+        // Don't steal focus from other inputs/textareas
         const tag = (e.target as HTMLElement)?.tagName;
         const editable = (e.target as HTMLElement)?.getAttribute('contenteditable');
         if (tag === 'INPUT' || tag === 'TEXTAREA' || editable === 'true') return;
@@ -331,7 +342,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         }
 
         if (isMobile) {
-          setMobileOpen(true);
+          setMobileOpen((open) => !open);
         } else {
           inputRef.current?.focus();
         }
@@ -339,7 +350,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [hasOpenDialog, isMobile]);
+  }, [hasOpenDialog, isMobile, handleClear, handleClose, mobileOpen]);
 
   // ── Keyboard navigation in popover ────────────────────────────────────
   const handleInputKeyDown = useCallback(
