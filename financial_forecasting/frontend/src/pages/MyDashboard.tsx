@@ -806,6 +806,8 @@ const MyDashboard: React.FC = () => {
       Account: opp.Account,
       LastModifiedDate: opp.LastModifiedDate,
       LastActivityDate: opp.LastActivityDate || null,
+      CampaignId: opp.CampaignId || null,
+      CampaignName: opp.Campaign?.Name || null,
       tasks: (tasksByOppId.get(opp.Id) || []).map((t: any) => ({
         Id: t.Id,
         Subject: t.Subject,

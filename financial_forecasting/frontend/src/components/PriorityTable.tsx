@@ -72,6 +72,7 @@ interface FilterState {
   closeDateRange: 'all' | 'overdue' | 'next14' | 'next30' | 'next90';
   hasTasks: 'all' | 'yes' | 'no' | 'overdue';
   amountMin: number | null;
+  aijiOnly: boolean;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -79,6 +80,7 @@ const DEFAULT_FILTERS: FilterState = {
   closeDateRange: 'all',
   hasTasks: 'all',
   amountMin: null,
+  aijiOnly: false,
 };
 
 const STATUS_OPTIONS = ['Not Started', 'In Progress', 'Completed', 'Deferred'] as const;
@@ -484,6 +486,16 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
     let items = [...scored];
     const now = startOfDay(new Date());
 
+    // AIJI filter — match Campaign name OR Opportunity name
+    if (filters.aijiOnly) {
+      items = items.filter((s) => {
+        const name = (s.opp.Name || '').toUpperCase();
+        const campaign = (s.opp.CampaignName || '').toUpperCase();
+        return name.includes('AIJI') || name.includes('AI JOBS INSTITUTE')
+            || campaign.includes('AIJI') || campaign.includes('AI JOBS INSTITUTE');
+      });
+    }
+
     // Stage filter
     if (filters.stage.length > 0) {
       items = items.filter((s) => filters.stage.includes(s.opp.StageName));
@@ -582,7 +594,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
     return '#1565c0';
   };
 
-  const hasActiveFilters = filters.stage.length > 0 || filters.closeDateRange !== 'all' || filters.hasTasks !== 'all' || filters.amountMin !== null;
+  const hasActiveFilters = filters.aijiOnly || filters.stage.length > 0 || filters.closeDateRange !== 'all' || filters.hasTasks !== 'all' || filters.amountMin !== null;
 
   const handleOpenInPipeline = (opp: PriorityOpp) => {
     window.open(`/pipeline?search=${encodeURIComponent(opp.Name)}`, '_blank');
@@ -660,6 +672,15 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
         {toolbarSlot}
         <Box sx={{ width: '1px', height: 20, bgcolor: 'divider', mx: 0.5, display: { xs: 'none', md: 'block' } }} />
+
+        <Chip
+          label="AIJI"
+          size="small"
+          color={filters.aijiOnly ? 'info' : 'default'}
+          variant={filters.aijiOnly ? 'filled' : 'outlined'}
+          onClick={() => setFilters((f) => ({ ...f, aijiOnly: !f.aijiOnly }))}
+          sx={{ cursor: 'pointer', fontSize: '0.75rem', height: 24 }}
+        />
 
         {/* Stage — multi-select */}
         <FormControl size="small" sx={{ minWidth: 100, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
