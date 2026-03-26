@@ -110,10 +110,13 @@ export interface SalesforceOpportunity {
   npe01__Number_of_Payments__c: number | null;
   PaymentDate__c: string | null;
   Earliest_Scheduled_Payment__c: string | null;
+  // Campaign (Primary Campaign Source)
+  CampaignId: string | null;
   // Nested relationship fields (from SOQL joins)
   Account?: { Name: string; Id?: string };
   Owner?: { Name: string; Id?: string };
   RecordType?: { Name: string };
+  Campaign?: { Name: string };
 }
 
 export interface SalesforceAccount {

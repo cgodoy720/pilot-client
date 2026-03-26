@@ -35,6 +35,7 @@ OPPORTUNITY_FETCHED_FIELDS = {
     "npsp__Next_Grant_Deadline_Due_Date__c", "Application_Due_Date__c",
     "Total_Risk_Adjusted_Projection__c", "Amount_Due_to_Date__c",
     "Account_Owner__c",
+    "CampaignId", "Campaign.Name",
 }
 
 ACCOUNT_FETCHED_FIELDS = {

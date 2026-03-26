@@ -283,9 +283,14 @@ const Opportunities: React.FC = () => {
     let filtered = displayOpps;
     const f = pipelineFilters;
 
-    // AIJI toggle
+    // AIJI toggle — match Campaign name OR Opportunity name
     if (f.aijiOnly) {
-      filtered = filtered.filter((opp) => (opp.Name || '').toUpperCase().includes('AIJI'));
+      filtered = filtered.filter((opp) => {
+        const name = (opp.Name || '').toUpperCase();
+        const campaign = ((opp as any).Campaign?.Name || '').toUpperCase();
+        return name.includes('AIJI') || name.includes('AI JOBS INSTITUTE')
+            || campaign.includes('AIJI') || campaign.includes('AI JOBS INSTITUTE');
+      });
     }
 
     // Owner filter
