@@ -63,7 +63,7 @@ const LinkedOpportunities: React.FC<LinkedOpportunitiesProps> = ({ projectId, on
       try {
         const res = await apiService.globalSearch(value.trim());
         const data = res.data?.data || res.data || {};
-        const opps = data.opportunities || [];
+        const opps = data.Opportunity || [];
         const linkedIds = new Set(links.map((l) => l.opportunity_id));
         setSearchResults(opps.filter((o: any) => !linkedIds.has(o.Id)));
       } catch { setSearchResults([]); }
