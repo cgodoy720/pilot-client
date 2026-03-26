@@ -469,6 +469,27 @@ export const apiService = {
   getProject: (projectId: string) =>
     api.get(`/api/projects/${projectId}`),
 
+  createProject: (data: { name: string; description?: string }) =>
+    api.post('/api/projects', data),
+
+  updateProject: (projectId: string, data: { name?: string; description?: string }) =>
+    api.put(`/api/projects/${projectId}`, data),
+
+  deleteProject: (projectId: string) =>
+    api.delete(`/api/projects/${projectId}`),
+
+  linkOpportunity: (projectId: string, data: { opportunity_id: string; role?: string }) =>
+    api.post(`/api/projects/${projectId}/opportunities`, data),
+
+  unlinkOpportunity: (projectId: string, opportunityId: string) =>
+    api.delete(`/api/projects/${projectId}/opportunities/${opportunityId}`),
+
+  getProjectOpportunities: (projectId: string) =>
+    api.get(`/api/projects/${projectId}/opportunities`),
+
+  importProjectData: (projectId: string, data: { workstreams: any[]; replace?: boolean }) =>
+    api.post(`/api/projects/${projectId}/import`, data),
+
   createWorkstream: (projectId: string, data: { name: string; description?: string; sort_order?: number }) =>
     api.post(`/api/projects/${projectId}/workstreams`, data),
 

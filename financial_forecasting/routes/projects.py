@@ -75,6 +75,49 @@ class ProjectTaskUpdate(BaseModel):
     sort_order: Optional[int] = None
 
 
+class ProjectCreate(BaseModel):
+    name: str
+    description: str = ""
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class OpportunityLink(BaseModel):
+    opportunity_id: str
+    role: str = "linked"
+
+
+class ProjectImportTask(BaseModel):
+    title: str
+    status: str = "Not Started"
+    owner: str = ""
+    deadline: Optional[str] = None
+    start_date: Optional[str] = None
+    description: str = ""
+
+
+class ProjectImportMilestone(BaseModel):
+    title: str
+    status: str = "On Track"
+    priority: str = "Now"
+    owner: str = ""
+    tasks: List[ProjectImportTask] = []
+
+
+class ProjectImportWorkstream(BaseModel):
+    name: str
+    description: str = ""
+    milestones: List[ProjectImportMilestone] = []
+
+
+class ProjectImportPayload(BaseModel):
+    workstreams: List[ProjectImportWorkstream]
+    replace: bool = False
+
+
 # ── Project endpoints ──
 
 
@@ -167,6 +210,225 @@ async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(
         "workstreams": list(ws_map.values()),
     }
     return {"success": True, "data": result}
+
+
+@router.post("/projects")
+async def create_project(body: ProjectCreate, user=Depends(require_auth), conn=Depends(get_db)):
+    """Create a new project."""
+    row = await conn.fetchrow(
+        "INSERT INTO project (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at",
+        body.name, body.description,
+    )
+    return {"success": True, "data": {
+        "id": str(row["id"]),
+        "name": row["name"],
+        "description": row["description"],
+        "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+    }}
+
+
+@router.put("/projects/{project_id}")
+async def update_project(project_id: str, body: ProjectUpdate, user=Depends(require_auth), conn=Depends(get_db)):
+    """Update a project."""
+    pid = uuid.UUID(project_id)
+    fields = body.model_dump(exclude_none=True)
+    if not fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
+    vals = [pid] + list(fields.values())
+    await conn.execute(f"UPDATE project SET {sets} WHERE id = $1", *vals)
+    return {"success": True, "data": {"message": "Project updated"}}
+
+
+@router.delete("/projects/{project_id}")
+async def delete_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Delete a project and all its workstreams/milestones/tasks (cascading)."""
+    pid = uuid.UUID(project_id)
+    result = await conn.execute("DELETE FROM project WHERE id = $1", pid)
+    if result == "DELETE 0":
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"success": True, "data": {"message": "Project deleted"}}
+
+
+# ── Project ↔ Opportunity Linking ──
+
+
+@router.post("/projects/{project_id}/opportunities")
+async def link_opportunity(project_id: str, body: OpportunityLink, user=Depends(require_auth), conn=Depends(get_db)):
+    """Link a CRM Opportunity to a Project."""
+    pid = uuid.UUID(project_id)
+    validate_salesforce_id(body.opportunity_id, "opportunity_id")
+    try:
+        row = await conn.fetchrow(
+            "INSERT INTO project_opportunity (project_id, opportunity_id, role) "
+            "VALUES ($1, $2, $3) "
+            "ON CONFLICT (project_id, opportunity_id) DO UPDATE SET role = $3 "
+            "RETURNING id, project_id, opportunity_id, role",
+            pid, body.opportunity_id, body.role,
+        )
+        return {"success": True, "data": {
+            "id": str(row["id"]),
+            "project_id": str(row["project_id"]),
+            "opportunity_id": row["opportunity_id"],
+            "role": row["role"],
+        }}
+    except Exception as e:
+        logger.error(f"Error linking opportunity to project: {e}")
+        raise HTTPException(status_code=500, detail="Failed to link opportunity")
+
+
+@router.delete("/projects/{project_id}/opportunities/{opportunity_id}")
+async def unlink_opportunity(project_id: str, opportunity_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Remove the link between a Project and an Opportunity."""
+    pid = uuid.UUID(project_id)
+    validate_salesforce_id(opportunity_id, "opportunity_id")
+    result = await conn.execute(
+        "DELETE FROM project_opportunity WHERE project_id = $1 AND opportunity_id = $2",
+        pid, opportunity_id,
+    )
+    if result == "DELETE 0":
+        raise HTTPException(status_code=404, detail="Link not found")
+    return {"success": True, "data": {"message": "Opportunity unlinked"}}
+
+
+@router.get("/projects/{project_id}/opportunities")
+async def get_project_opportunities(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Get all Opportunities linked to a Project."""
+    pid = uuid.UUID(project_id)
+    rows = await conn.fetch(
+        "SELECT id, opportunity_id, role, created_at "
+        "FROM project_opportunity WHERE project_id = $1 ORDER BY created_at",
+        pid,
+    )
+    return {"success": True, "data": [
+        {"id": str(r["id"]), "opportunity_id": r["opportunity_id"],
+         "role": r["role"], "created_at": r["created_at"].isoformat() if r["created_at"] else None}
+        for r in rows
+    ]}
+
+
+# ── Bulk Import ──
+
+
+@router.post("/projects/{project_id}/import")
+async def import_project_data(project_id: str, body: ProjectImportPayload, user=Depends(require_auth), conn=Depends(get_db)):
+    """Bulk import workstreams/milestones/tasks into a project.
+
+    Smart merge: matches by name/title (case-insensitive) within hierarchy.
+    If replace=True, deletes all existing data first.
+    """
+    from datetime import date as d
+
+    pid = uuid.UUID(project_id)
+
+    project = await conn.fetchrow("SELECT id FROM project WHERE id = $1", pid)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    summary = {
+        "workstreams": {"new": 0, "updated": 0},
+        "milestones": {"new": 0, "updated": 0},
+        "tasks": {"new": 0, "updated": 0, "unchanged": 0},
+    }
+
+    async with conn.transaction():
+        if body.replace:
+            await conn.execute("DELETE FROM workstream WHERE project_id = $1", pid)
+
+        existing_ws = await conn.fetch(
+            "SELECT id, name FROM workstream WHERE project_id = $1", pid
+        )
+        ws_by_name = {r["name"].lower(): r for r in existing_ws}
+
+        for ws_idx, ws in enumerate(body.workstreams):
+            ws_key = ws.name.lower()
+            existing = ws_by_name.get(ws_key)
+
+            if existing:
+                wid = existing["id"]
+                if ws.description:
+                    await conn.execute(
+                        "UPDATE workstream SET description = $2, sort_order = $3 WHERE id = $1",
+                        wid, ws.description, ws_idx,
+                    )
+                summary["workstreams"]["updated"] += 1
+            else:
+                row = await conn.fetchrow(
+                    "INSERT INTO workstream (project_id, name, description, sort_order) "
+                    "VALUES ($1, $2, $3, $4) RETURNING id",
+                    pid, ws.name, ws.description, ws_idx,
+                )
+                wid = row["id"]
+                summary["workstreams"]["new"] += 1
+
+            existing_ms = await conn.fetch(
+                "SELECT id, title FROM milestone WHERE workstream_id = $1", wid
+            )
+            ms_by_title = {r["title"].lower(): r for r in existing_ms}
+
+            for ms_idx, ms in enumerate(ws.milestones):
+                ms_key = ms.title.lower()
+                existing_m = ms_by_title.get(ms_key)
+
+                if existing_m:
+                    mid = existing_m["id"]
+                    await conn.execute(
+                        "UPDATE milestone SET status = $2, priority = $3, owner = $4, sort_order = $5 WHERE id = $1",
+                        mid, ms.status, ms.priority, ms.owner, ms_idx,
+                    )
+                    summary["milestones"]["updated"] += 1
+                else:
+                    row = await conn.fetchrow(
+                        "INSERT INTO milestone (workstream_id, title, status, priority, owner, sort_order) "
+                        "VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+                        wid, ms.title, ms.status, ms.priority, ms.owner, ms_idx,
+                    )
+                    mid = row["id"]
+                    summary["milestones"]["new"] += 1
+
+                existing_tasks = await conn.fetch(
+                    "SELECT id, title, status, owner, deadline, start_date FROM project_task WHERE milestone_id = $1", mid
+                )
+                task_by_title = {r["title"].lower(): r for r in existing_tasks}
+
+                for t_idx, task in enumerate(ms.tasks):
+                    t_key = task.title.lower()
+                    existing_t = task_by_title.get(t_key)
+
+                    deadline_val = d.fromisoformat(task.deadline) if task.deadline else None
+                    start_val = d.fromisoformat(task.start_date) if task.start_date else None
+                    if deadline_val and not start_val:
+                        from datetime import timedelta
+                        start_val = deadline_val - timedelta(days=7)
+
+                    if existing_t:
+                        changed = (
+                            existing_t["status"] != task.status
+                            or existing_t["owner"] != task.owner
+                            or existing_t["deadline"] != deadline_val
+                            or existing_t["start_date"] != start_val
+                        )
+                        if changed:
+                            await conn.execute(
+                                "UPDATE project_task SET status = $2, owner = $3, deadline = $4, "
+                                "start_date = $5, description = $6, sort_order = $7 WHERE id = $1",
+                                existing_t["id"], task.status, task.owner,
+                                deadline_val, start_val, task.description, t_idx,
+                            )
+                            summary["tasks"]["updated"] += 1
+                        else:
+                            summary["tasks"]["unchanged"] += 1
+                    else:
+                        await conn.execute(
+                            "INSERT INTO project_task (milestone_id, title, status, owner, deadline, "
+                            "start_date, description, sort_order) "
+                            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                            mid, task.title, task.status, task.owner,
+                            deadline_val, start_val, task.description, t_idx,
+                        )
+                        summary["tasks"]["new"] += 1
+
+    return {"success": True, "data": summary}
 
 
 # ── Workstream CRUD ──

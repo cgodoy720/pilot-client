@@ -5,24 +5,26 @@ import { apiService } from '../../services/api';
 import { AIJI_PROJECT_ID } from './constants';
 import type { Workstream, ProjectMutations } from './types';
 
-export function useProjectData() {
+export function useProjectData(projectId: string | null = AIJI_PROJECT_ID) {
   const queryClient = useQueryClient();
-  const QUERY_KEY = ['project', AIJI_PROJECT_ID];
+  const QUERY_KEY = ['project', projectId];
 
   const { data: projectData, isLoading, error } = useQuery(
     QUERY_KEY,
     async () => {
-      const res = await apiService.getProject(AIJI_PROJECT_ID);
+      if (!projectId) return null;
+      const res = await apiService.getProject(projectId);
       return res.data?.data || res.data;
     },
-    { staleTime: 30_000 }
+    { staleTime: 30_000, enabled: !!projectId }
   );
 
   const workstreams: Workstream[] = projectData?.workstreams || [];
+  const projectName: string = projectData?.name || '';
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries(QUERY_KEY);
-  }, [queryClient]);
+  }, [queryClient, projectId]);
 
   const updateTaskMutation = useMutation(
     ({ taskId, data }: { taskId: string; data: Record<string, any> }) =>
@@ -77,5 +79,5 @@ export function useProjectData() {
       deleteMilestoneMutation.mutate(milestoneId),
   };
 
-  return { workstreams, isLoading, error, mutations };
+  return { workstreams, projectName, isLoading, error, mutations, invalidate };
 }

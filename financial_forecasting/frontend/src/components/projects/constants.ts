@@ -33,5 +33,7 @@ export const PRIORITY_BORDER_COLOR: Record<string, string> = {
   'On-going': '#2e7d32',
 };
 
-// Deterministic AIJI project ID (matches seed.sql)
+// Deterministic AIJI project ID (matches seed.sql).
+// Used as default selected project when no localStorage pref exists.
+// Will be phased out as multi-project becomes the standard workflow.
 export const AIJI_PROJECT_ID = 'a0000000-0000-4000-8000-000000000001';

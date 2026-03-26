@@ -28,9 +28,12 @@ const FilterBar: React.FC<FilterBarProps> = ({ workstreams, filters, onFiltersCh
     onFiltersChange({ ...filters, owners: typeof val === 'string' ? val.split(',') : val });
   };
 
-  const setQuickFilter = (wsNames: string[]) => {
-    const ids = workstreams.filter(ws => wsNames.includes(ws.name)).map(ws => ws.id);
-    onFiltersChange({ ...filters, workstreams: ids });
+  const setQuickFilter = (wsId: string) => {
+    if (filters.workstreams.length === 1 && filters.workstreams[0] === wsId) {
+      onFiltersChange({ ...filters, workstreams: [] });
+    } else {
+      onFiltersChange({ ...filters, workstreams: [wsId] });
+    }
   };
 
   return (
@@ -78,20 +81,18 @@ const FilterBar: React.FC<FilterBarProps> = ({ workstreams, filters, onFiltersCh
         </Select>
       </FormControl>
 
-      <Chip
-        label="AIJI Construction"
-        size="small"
-        variant={filters.workstreams.length === 1 && workstreams.find(w => w.id === filters.workstreams[0])?.name === 'Launch and Activation' ? 'filled' : 'outlined'}
-        onClick={() => setQuickFilter(['Launch and Activation'])}
-        sx={{ fontSize: '0.7rem' }}
-      />
-      <Chip
-        label="AIJI Campaign"
-        size="small"
-        variant={filters.workstreams.length === 2 ? 'filled' : 'outlined'}
-        onClick={() => setQuickFilter(['Partnerships and Development', 'Communications and Narrative'])}
-        sx={{ fontSize: '0.7rem' }}
-      />
+      {workstreams.slice(0, 3).map((ws) => (
+        <Chip
+          key={ws.id}
+          label={ws.name}
+          size="small"
+          variant={filters.workstreams.includes(ws.id) ? 'filled' : 'outlined'}
+          color={filters.workstreams.includes(ws.id) ? 'primary' : 'default'}
+          onClick={() => setQuickFilter(ws.id)}
+          sx={{ fontSize: '0.7rem' }}
+        />
+      ))}
+
       {(filters.workstreams.length > 0 || filters.owners.length > 0) && (
         <Chip
           label="Clear"
