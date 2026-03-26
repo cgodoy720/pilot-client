@@ -201,7 +201,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const hasOpenDialog = !!editOppId || !!editAccountId || !!editContactId || taskPanelOpen;
 
-  const handleOpenTask = useCallback((taskId: string, whatId: string | null) => {
+  const handleOpenTask = useCallback((taskId: string, whatId: string | null, fallbackTaskData?: Record<string, any>) => {
     if (whatId) {
       const opps = queryClient.getQueryData('opportunities') as any[] | undefined;
       const rawOpps = Array.isArray(opps) ? opps : ((opps as any)?.data || []);
@@ -211,36 +211,38 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         setSelectedTaskId(taskId);
         setOrphanTask(null);
       } else {
-        // Opp not in cache — use orphan mode
+        // Opp not in cache — use orphan mode with inboxTasks or fallback data
         const task = inboxTasks.find((t) => t.Id === taskId);
+        const taskSource = task || fallbackTaskData;
         setTaskPanelOpp(null);
         setSelectedTaskId(null);
-        setOrphanTask(task ? {
-          Id: task.Id,
-          Subject: task.Subject,
-          Status: task.Status,
-          Priority: task.Priority,
-          ActivityDate: task.ActivityDate,
-          Description: task.Description,
-          OwnerId: task.OwnerId,
-          OwnerName: task.OwnerName || null,
+        setOrphanTask(taskSource ? {
+          Id: taskSource.Id,
+          Subject: taskSource.Subject,
+          Status: taskSource.Status,
+          Priority: taskSource.Priority,
+          ActivityDate: taskSource.ActivityDate,
+          Description: taskSource.Description || null,
+          OwnerId: taskSource.OwnerId,
+          OwnerName: taskSource.OwnerName || taskSource.Owner?.Name || null,
           WhatId: whatId,
         } : null);
       }
     } else {
-      // No opportunity — orphan mode
+      // No opportunity — orphan mode with inboxTasks or fallback data
       const task = inboxTasks.find((t) => t.Id === taskId);
+      const taskSource = task || fallbackTaskData;
       setTaskPanelOpp(null);
       setSelectedTaskId(null);
-      setOrphanTask(task ? {
-        Id: task.Id,
-        Subject: task.Subject,
-        Status: task.Status,
-        Priority: task.Priority,
-        ActivityDate: task.ActivityDate,
-        Description: task.Description,
-        OwnerId: task.OwnerId,
-        OwnerName: task.OwnerName || null,
+      setOrphanTask(taskSource ? {
+        Id: taskSource.Id,
+        Subject: taskSource.Subject,
+        Status: taskSource.Status,
+        Priority: taskSource.Priority,
+        ActivityDate: taskSource.ActivityDate,
+        Description: taskSource.Description || null,
+        OwnerId: taskSource.OwnerId,
+        OwnerName: taskSource.OwnerName || taskSource.Owner?.Name || null,
         WhatId: null,
       } : null);
     }
@@ -407,6 +409,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               onOpenOpportunity={handleOpenOpp}
               onOpenAccount={handleOpenAccount}
               onOpenContact={handleOpenContact}
+              onOpenTask={handleOpenTask}
               hasOpenDialog={hasOpenDialog}
             />
           )}

@@ -10,12 +10,14 @@ import {
   Business as BusinessIcon,
   Person as PersonIcon,
   PersonSearch as PersonSearchIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 
 import Opportunities from './Opportunities';
 import Accounts from './Accounts';
 import Contacts from './Contacts';
 import Leads from './Leads';
+import Tasks from './Tasks';
 import { useSearchParams } from 'react-router-dom';
 import ConnectPrompt from '../components/ConnectPrompt';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +28,7 @@ const TAB_MAP: Record<string, number> = {
   accounts: 1,
   contacts: 2,
   leads: 3,
+  tasks: 4,
 };
 
 interface TabPanelProps {
@@ -113,6 +116,13 @@ export default function Pipeline() {
               id="pipeline-tab-3"
               aria-controls="pipeline-tabpanel-3"
             />
+            <Tab
+              icon={<AssignmentIcon />}
+              iconPosition="start"
+              label="Tasks"
+              id="pipeline-tab-4"
+              aria-controls="pipeline-tabpanel-4"
+            />
           </Tabs>
         </Box>
 
@@ -130,6 +140,10 @@ export default function Pipeline() {
 
         <TabPanel value={currentTab} index={3}>
           <Leads />
+        </TabPanel>
+
+        <TabPanel value={currentTab} index={4}>
+          <Tasks />
         </TabPanel>
       </Box>
       <DialogStackRenderer />

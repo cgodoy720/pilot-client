@@ -25,6 +25,7 @@ import {
   Close as CloseIcon,
   History as HistoryIcon,
   Clear as ClearIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from 'react-query';
@@ -40,6 +41,7 @@ interface GlobalSearchProps {
   onOpenOpportunity: (id: string, data?: Record<string, any>) => void;
   onOpenAccount: (id: string, data?: Record<string, any>) => void;
   onOpenContact: (id: string, data?: Record<string, any>) => void;
+  onOpenTask: (taskId: string, whatId: string | null, taskData?: Record<string, any>) => void;
   hasOpenDialog: boolean;
 }
 
@@ -47,9 +49,10 @@ interface SearchResults {
   Opportunity: Record<string, any>[];
   Account: Record<string, any>[];
   Contact: Record<string, any>[];
+  Task: Record<string, any>[];
 }
 
-type EntityType = 'Opportunity' | 'Account' | 'Contact';
+type EntityType = 'Opportunity' | 'Account' | 'Contact' | 'Task';
 
 interface FlatResult extends Record<string, any> {
   _type: EntityType;
@@ -102,12 +105,14 @@ const TAB_NAMES: Record<EntityType, string> = {
   Opportunity: 'opportunities',
   Account: 'accounts',
   Contact: 'contacts',
+  Task: 'tasks',
 };
 
 const ENTITY_ICONS: Record<EntityType, React.ReactElement> = {
   Opportunity: <MonetizationOnIcon sx={{ fontSize: 18 }} />,
   Account: <BusinessIcon sx={{ fontSize: 18 }} />,
   Contact: <PersonIcon sx={{ fontSize: 18 }} />,
+  Task: <AssignmentIcon sx={{ fontSize: 18 }} />,
 };
 
 const MAX_PER_TYPE = 5;
@@ -118,6 +123,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
   onOpenOpportunity,
   onOpenAccount,
   onOpenContact,
+  onOpenTask,
   hasOpenDialog,
 }) => {
   const theme = useTheme();
@@ -173,6 +179,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
             c.Email?.toLowerCase().includes(q),
         )
         .slice(0, MAX_PER_TYPE),
+      Task: ((queryClient.getQueryData('my-tasks') as any[]) || [])
+        .filter((t: any) => t.Subject?.toLowerCase().includes(q))
+        .slice(0, MAX_PER_TYPE),
     };
   }, [query, queryClient]);
 
@@ -216,6 +225,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
       ...displayResults.Contact.slice(0, MAX_PER_TYPE).map((r) => ({
         ...r,
         _type: 'Contact' as const,
+      })),
+      ...displayResults.Task.slice(0, MAX_PER_TYPE).map((r) => ({
+        ...r,
+        _type: 'Task' as const,
       })),
     ];
   }, [displayResults]);
@@ -263,9 +276,12 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         case 'Contact':
           onOpenContact(record.Id, record);
           break;
+        case 'Task':
+          onOpenTask(record.Id, record.WhatId || null, record);
+          break;
       }
     },
-    [query, handleClear, handleClose, onOpenOpportunity, onOpenAccount, onOpenContact],
+    [query, handleClear, handleClose, onOpenOpportunity, onOpenAccount, onOpenContact, onOpenTask],
   );
 
   const handleViewInPipeline = useCallback(
@@ -430,6 +446,14 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         else if (r.Email) parts.push(r.Email);
         return parts.join(' ');
       }
+      case 'Task': {
+        const parts: string[] = [];
+        if (r.Status) parts.push(r.Status);
+        if (r.Priority) parts.push(r.Priority);
+        if (r.Who?.Name) parts.push(r.Who.Name);
+        else if (r.What?.Name) parts.push(r.What.Name);
+        return parts.join(' · ');
+      }
       default:
         return '';
     }
@@ -454,7 +478,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
           role="presentation"
           sx={{ px: 2, pt: 1.5, pb: 0.5, display: 'block', color: 'text.secondary', fontWeight: 600, fontSize: '0.65rem' }}
         >
-          {type === 'Opportunity' ? 'OPPORTUNITIES' : type === 'Account' ? 'ACCOUNTS' : 'CONTACTS'}{' '}
+          {type === 'Opportunity' ? 'OPPORTUNITIES' : type === 'Account' ? 'ACCOUNTS' : type === 'Contact' ? 'CONTACTS' : 'TASKS'}{' '}
           ({sectionCount(type)})
         </Typography>
         {items.length > 0 ? (
@@ -487,7 +511,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     )}
                   </ListItemIcon>
                   <ListItemText
-                    primary={r.Name || `${r.FirstName || ''} ${r.LastName || ''}`.trim() || 'Untitled'}
+                    primary={r.Name || r.Subject || `${r.FirstName || ''} ${r.LastName || ''}`.trim() || 'Untitled'}
                     secondary={secondaryText(type, r)}
                     primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
                     secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
@@ -498,7 +522,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleViewInPipeline(type, r.Name || '');
+                        handleViewInPipeline(type, r.Name || r.Subject || '');
                       }}
                       sx={{ ml: 0.5, opacity: 0.5, '&:hover': { opacity: 1 } }}
                     >
@@ -520,7 +544,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
       return (
         <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            Type to search Opportunities, Accounts, and Contacts
+            Type to search Opportunities, Accounts, Contacts, and Tasks
           </Typography>
         </Box>
       );
@@ -596,7 +620,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
     // Count total results across all entity types
     const totalCount = displayResults
-      ? displayResults.Opportunity.length + displayResults.Account.length + displayResults.Contact.length
+      ? displayResults.Opportunity.length + displayResults.Account.length + displayResults.Contact.length + displayResults.Task.length
       : 0;
 
     // Error — show only when SOSL failed AND no local results to fall back on
@@ -624,6 +648,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     // Pre-compute start indices for keyboard navigation (no mutable counter)
     const oppCount = Math.min(displayResults?.Opportunity.length ?? 0, MAX_PER_TYPE);
     const acctCount = Math.min(displayResults?.Account.length ?? 0, MAX_PER_TYPE);
+    const contactCount = Math.min(displayResults?.Contact.length ?? 0, MAX_PER_TYPE);
 
     // Results
     return (
@@ -636,6 +661,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         {renderSection('Opportunity', 0)}
         {renderSection('Account', oppCount)}
         {renderSection('Contact', oppCount + acctCount)}
+        {renderSection('Task', oppCount + acctCount + contactCount)}
       </>
     );
   }
