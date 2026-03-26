@@ -151,6 +151,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       CreatedByName: t.CreatedBy?.Name || null,
       WhatId: t.WhatId || null,
       OpportunityName: null,
+      WhoId: t.WhoId || null,
+      WhoName: t.Who?.Name || t.WhoName || null,
     }));
   }, [tasksData]);
 

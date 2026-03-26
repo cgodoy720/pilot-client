@@ -817,7 +817,7 @@ async def get_my_tasks(
 
         where_sql = " AND ".join(where_clauses)
         query = f"""
-        SELECT Id, Subject, ActivityDate, Status, Priority, WhatId, WhoId,
+        SELECT Id, Subject, ActivityDate, Status, Priority, WhatId, WhoId, Who.Name,
                OwnerId, Owner.Name, CreatedById, CreatedBy.Name, Description, CreatedDate, LastModifiedDate
         FROM Task
         WHERE {where_sql}

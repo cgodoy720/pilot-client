@@ -16,7 +16,7 @@ export interface PriorityOpp {
   Account?: { Name: string; Id?: string };
   LastModifiedDate?: string;
   LastActivityDate?: string;
-  tasks?: Array<{ Id: string; Subject: string; ActivityDate: string; Priority: string; Status: string; OwnerId?: string; OwnerName?: string; Description?: string }>;
+  tasks?: Array<{ Id: string; Subject: string; ActivityDate: string; Priority: string; Status: string; OwnerId?: string; OwnerName?: string; Description?: string; WhoId?: string; WhoName?: string }>;
   nextEvent?: { summary: string; start: string };
 }
 

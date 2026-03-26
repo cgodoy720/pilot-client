@@ -538,10 +538,12 @@ const MyDashboard: React.FC = () => {
   const [editOnOpen, setEditOnOpen] = useState(false);
   const [orphanTask, setOrphanTask] = useState<any>(null);
   const [filteredOpps, setFilteredOpps] = useState<{ allFiltered: PriorityOpp[]; visible: PriorityOpp[] }>({ allFiltered: [], visible: [] });
+  const [rowsInput, setRowsInput] = useState(String(prefs.topN));
 
   useEffect(() => {
     savePrefs(prefs);
   }, [prefs]);
+  useEffect(() => setRowsInput(String(prefs.topN)), [prefs.topN]);
 
   const toggleSection = (id: string) =>
     setPrefs((p) => ({ ...p, collapsed: { ...p.collapsed, [id]: !p.collapsed[id] } }));
@@ -600,7 +602,7 @@ const MyDashboard: React.FC = () => {
   const { data: oppsData, isLoading: oppsLoading } = useQuery('opportunities', async () => {
     const response = await apiService.getOpportunities();
     return response.data;
-  });
+  }, { staleTime: 5 * 60 * 1000 });
 
   // Fetch my tasks (wider range for priorities; calendar filters by visible dates)
   const { data: tasksData, isLoading: tasksLoading } = useQuery(
@@ -813,6 +815,8 @@ const MyDashboard: React.FC = () => {
         OwnerId: t.OwnerId,
         OwnerName: t.Owner?.Name || t.OwnerName || '',
         Description: t.Description || '',
+        WhoId: t.WhoId || '',
+        WhoName: t.Who?.Name || t.WhoName || '',
       })),
     }));
   }, [myOpenOpps, sfTasks]);
@@ -836,6 +840,8 @@ const MyDashboard: React.FC = () => {
       CreatedByName: t.CreatedBy?.Name || null,
       WhatId: t.WhatId || null,
       OpportunityName: t.WhatId ? oppNameMap.get(t.WhatId) || null : null,
+      WhoId: t.WhoId || null,
+      WhoName: t.Who?.Name || t.WhoName || null,
       isUrgent: Object.hasOwn(urgentOverrides, t.Id) ? urgentOverrides[t.Id] : t.Priority === 'High',
     }));
   }, [sfTasks, allOpportunities, urgentOverrides]);
@@ -1268,12 +1274,13 @@ const MyDashboard: React.FC = () => {
                     type="number"
                     size="small"
                     label="Rows"
-                    defaultValue={prefs.topN}
+                    value={rowsInput}
                     inputProps={{ min: 1, max: 50 }}
                     sx={{ width: 56, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}
-                    onBlur={(e) => {
-                      const v = Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 20));
-                      e.target.value = String(v);
+                    onChange={(e) => setRowsInput(e.target.value)}
+                    onBlur={() => {
+                      const v = Math.min(50, Math.max(1, parseInt(rowsInput, 10) || 20));
+                      setRowsInput(String(v));
                       setPrefs((p) => ({ ...p, topN: v }));
                     }}
                     onKeyDown={(e) => {
