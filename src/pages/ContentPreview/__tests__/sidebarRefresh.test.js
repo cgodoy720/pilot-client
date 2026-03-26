@@ -77,6 +77,7 @@ const HANDLERS_EXCLUDED = [
   ['handleSaveTask', 'Edits task content only — sidebar shows days, not task details'],
   ['handleRevertField', 'Reverts a field value — sidebar does not show field-level data'],
   ['handleClearTestData', 'Clears preview data and navigates away — no sidebar needed'],
+  ['handleGenerateNotes', 'Generates facilitator notes PDF — read-only, does not change sidebar data'],
 ];
 
 describe('Sidebar refresh after mutations in ContentPreview.jsx', () => {

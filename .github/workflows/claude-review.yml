@@ -23,8 +23,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
           prompt: |
-            Review this pull request for code quality, correctness, security,
-            and performance. Analyze the diff thoroughly. Post your findings
-            as review comments. Flag any breaking changes or regressions.
-          claude_args: "--model claude-sonnet-4-6 --max-turns 10 --allowedTools Bash,Read,Glob,Grep,WebSearch"
+            Review this pull request. Focus only on: security issues, bugs, and breaking changes.
+            Be concise. Post a single summary comment with your findings. Skip minor style issues.
+          claude_args: "--model claude-sonnet-4-6 --max-turns 20 --allowedTools Bash,Read,Glob,Grep,WebSearch"

@@ -27,7 +27,8 @@ import {
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 import { Button } from '../../components/ui/button';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Edit, Trash2, Plus, FileText } from 'lucide-react';
+// jsPDF is lazy-loaded in handleGenerateNotes to avoid bundling ~300KB upfront
 import { toast } from 'sonner';
 import './ContentPreview.css';
 
@@ -69,6 +70,9 @@ function ContentPreview() {
 
   // Sidebar refresh trigger (incremented after day edits to refresh CohortDaySelector)
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
+
+  // Facilitator notes generation state
+  const [generatingNotes, setGeneratingNotes] = useState(false);
 
   // Check if user has preview access and edit permissions via the permission system
   const { canAccessPage, canUseFeature } = usePermissions();
@@ -444,6 +448,156 @@ function ContentPreview() {
     setCreateTaskDialogOpen(true);
   };
 
+  const handleGenerateNotes = async () => {
+    if (!dayContent) return;
+    setGeneratingNotes(true);
+    const controller = new AbortController();
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/content/generate-facilitator-notes-doc`,
+        { dayContent },
+        { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
+      );
+
+      const notesText = response.data.notes;
+      const day = dayContent.day;
+
+      // Lazy-load jsPDF (~300KB) only when needed
+      const { jsPDF } = await import('jspdf');
+
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 50;
+      const usableWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      // Render a line of text, handling **bold** inline markers
+      const addText = (text, fontSize, isBold = false, color = [30, 30, 30]) => {
+        doc.setFontSize(fontSize);
+        doc.setTextColor(...color);
+        const lineHeight = fontSize * 1.4;
+
+        // Parse **bold** segments
+        const segments = [];
+        const boldRegex = /\*\*([^*]+)\*\*/g;
+        let lastIdx = 0;
+        let match;
+        while ((match = boldRegex.exec(text)) !== null) {
+          if (match.index > lastIdx) {
+            segments.push({ text: text.slice(lastIdx, match.index), bold: false });
+          }
+          segments.push({ text: match[1], bold: true });
+          lastIdx = boldRegex.lastIndex;
+        }
+        if (lastIdx < text.length) {
+          segments.push({ text: text.slice(lastIdx), bold: false });
+        }
+
+        // If no bold markers, render simply
+        if (segments.length <= 1 && !segments[0]?.bold) {
+          doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+          const lines = doc.splitTextToSize(segments[0]?.text || text, usableWidth);
+          for (const line of lines) {
+            if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+            doc.text(line, margin, y);
+            y += lineHeight;
+          }
+          return;
+        }
+
+        // Render segments with inline bold: measure and wrap manually
+        let x = margin;
+        for (const seg of segments) {
+          doc.setFont('helvetica', seg.bold ? 'bold' : (isBold ? 'bold' : 'normal'));
+          const words = seg.text.split(/( +)/);
+          for (const word of words) {
+            if (!word) continue;
+            const wordWidth = doc.getTextWidth(word);
+            if (x + wordWidth > pageWidth - margin && x > margin) {
+              y += lineHeight;
+              x = margin;
+              if (y + lineHeight > pageHeight - margin) { doc.addPage(); y = margin; }
+            }
+            doc.text(word, x, y);
+            x += wordWidth;
+          }
+        }
+        y += lineHeight;
+      };
+
+      const addSpacing = (pts = 8) => { y += pts; };
+
+      // Normalise the day header line so it always reads "Day X - Cohort Name"
+      const cohortName = day?.cohort || '';
+      const normalisedText = notesText.replace(
+        /^Day (\d+)\s*-[^\n]*/m,
+        `Day $1${cohortName ? ` - ${cohortName}` : ''}`
+      );
+
+      // Parse and render the notes text
+      const rawLines = normalisedText.split('\n');
+      for (const line of rawLines) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          addSpacing(6);
+          continue;
+        }
+
+        // Separator line — any line of only dashes (e.g. "------")
+        if (/^-{2,}$/.test(trimmed)) {
+          addSpacing(6);
+          addText('------', 10, false, [180, 180, 180]);
+          addSpacing(6);
+        }
+        // Day header line — "Day 1 - Cohort Name"
+        else if (/^Day \d+(\s*-|$)/.test(trimmed)) {
+          addSpacing(4);
+          addText(trimmed, 14, true, [30, 30, 30]);
+          addSpacing(4);
+        }
+        // Time block header — "10:00am - 1:00pm: Block Name"
+        else if (/^\d{1,2}:\d{2}(am|pm)\s*-\s*\d{1,2}:\d{2}(am|pm)\s*:/i.test(trimmed)) {
+          addSpacing(10);
+          addText(trimmed, 11, true, [30, 30, 30]);
+          addSpacing(2);
+        }
+        // Section labels — render just the label bold, then the content on the next line at normal weight
+        else if (/^(Facilitator sets context|Facilitator notes|Platform notes|Tool notes)\s*:/i.test(trimmed)) {
+          const colonIdx = trimmed.indexOf(':');
+          const label = trimmed.slice(0, colonIdx + 1);
+          const content = trimmed.slice(colonIdx + 1).trim();
+          addSpacing(6);
+          addText(label, 10, true, [50, 50, 50]);
+          if (content) {
+            addSpacing(1);
+            addText(content, 10, false, [60, 60, 60]);
+          }
+          addSpacing(2);
+        }
+        // Bullet points
+        else if (/^[-•]/.test(trimmed) || /^\d+[.)]\s/.test(trimmed) || /^[ivxlIVXL]+[.)]\s/.test(trimmed) || /^\s{2,}[-•]/.test(line)) {
+          const bullet = '•  ' + trimmed.replace(/^[-•]\s+/, '').replace(/^\d+[.)]\s+/, '').replace(/^[ivxlIVXL]+[.)]\s+/, '');
+          addText(bullet, 10, false, [60, 60, 60]);
+        }
+        // Regular text / quoted context
+        else {
+          addText(trimmed, 10, false, [60, 60, 60]);
+        }
+      }
+
+      const cohortSlug = cohortName.replace(/\s+/g, '-') || 'cohort';
+      const fileName = `facilitator-notes-day-${day?.day_number || 'unknown'}-${cohortSlug}.pdf`;
+      doc.save(fileName);
+      toast.success('Facilitator notes downloaded!');
+    } catch (error) {
+      if (error.name === 'CanceledError') return;
+      console.error('Error generating facilitator notes:', error);
+      toast.error('Failed to generate facilitator notes. Please try again.');
+    } finally {
+      setGeneratingNotes(false);
+    }
+  };
   const handleCreateTask = async (taskData) => {
     try {
       setLoading(true);
@@ -713,6 +867,15 @@ function ContentPreview() {
                             Week {dayContent.day?.week} • {dayContent.day?.level}
                           </div>
                         </div>
+                        <Button
+                          size="sm"
+                          onClick={handleGenerateNotes}
+                          disabled={generatingNotes}
+                          className="bg-[#4242EA] hover:bg-[#3535D1] font-proxima"
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          {generatingNotes ? 'Generating...' : 'Generate Notes'}
+                        </Button>
                         {canEdit && (
                           <>
                             <Button

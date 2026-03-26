@@ -68,6 +68,10 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 
+// Platform Intake pages
+import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
+import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog';
+
 import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
@@ -510,6 +514,20 @@ function App() {
               <SalesTracker />
             </PermissionRoute>
           </Layout>
+        } />
+
+        {/* Platform Intake — all authenticated users */}
+        <Route path="/platform-intake" element={
+          <ProtectedRoute>
+            <PlatformIntake />
+          </ProtectedRoute>
+        } />
+
+        {/* Platform Intake Backlog — all authenticated users */}
+        <Route path="/platform-intake/backlog" element={
+          <ProtectedRoute>
+            <PlatformIntakeBacklog />
+          </ProtectedRoute>
         } />
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
