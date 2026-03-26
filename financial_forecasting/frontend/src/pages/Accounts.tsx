@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
@@ -30,11 +30,13 @@ import {
   Save as SaveIcon,
   VideoCall as VideoCallIcon,
 } from '@mui/icons-material';
-import { 
-  DataGrid, 
-  GridColDef, 
+import {
+  DataGrid,
+  GridColDef,
   GridRenderCellParams,
   GridValueGetterParams,
+  GridToolbar,
+  GridColumnVisibilityModel,
 } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { format } from 'date-fns';
@@ -43,6 +45,11 @@ import ConfirmSaveButton from '../components/ConfirmSaveButton';
 
 import { apiService } from '../services/api';
 import { getStageHexColor } from '../types/salesforce';
+import { buildSchemaColumns, SchemaField } from '../utils/schemaColumns';
+import { editActionColumn } from '../components/EditRowButton';
+import AccountEditDialog from '../components/AccountEditDialog';
+import { usePermissions } from '../contexts/PermissionsContext';
+import { useDialogStack } from '../contexts/DialogStackContext';
 
 interface Account {
   Id?: string;  // Uppercase for Salesforce format
@@ -136,6 +143,17 @@ const formatCurrency = (value: number | undefined): string => {
   }).format(value);
 };
 
+// ── Column visibility persistence ──────────────────────────────────────────
+
+const COLUMN_STORAGE_KEY = 'bedrock:columns:accounts';
+
+const DEFAULT_VISIBLE_ACCOUNTS = new Set([
+  'Name', 'Type', 'Industry',
+  'totalOpportunities', 'openOpportunities', 'wonOpportunities',
+  'openPipelineValue', 'wonValue', 'totalPaid', 'outstanding',
+  '__edit__',
+]);
+
 const Accounts: React.FC = () => {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -150,7 +168,23 @@ const Accounts: React.FC = () => {
   const [transcriptModalOpen, setTranscriptModalOpen] = useState(false);
   const [selectedTranscript, setSelectedTranscript] = useState<FirefliesMeeting | null>(null);
 
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editAccountId, setEditAccountId] = useState<string | null>(null);
+
   const queryClient = useQueryClient();
+  const { can, isAdmin } = usePermissions();
+  const canEdit = isAdmin || can('edit_accounts');
+  const { pushDialog } = useDialogStack();
+
+  // Column visibility state (persisted in localStorage)
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState<GridColumnVisibilityModel>(() => {
+    try {
+      const stored = localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
+    return {};
+  });
 
   // Fetch all accounts
   const { data: accountsData, isLoading: accountsLoading } = useQuery(
@@ -168,6 +202,16 @@ const Accounts: React.FC = () => {
       const response = await apiService.getOpportunities();
       return response.data;
     }
+  );
+
+  // Fetch schema for Account object
+  const { data: schemaData } = useQuery(
+    'account-schema',
+    async () => {
+      const response = await apiService.getSchemaDescribe('Account');
+      return response.data;
+    },
+    { staleTime: 30 * 60 * 1000 }
   );
 
   // Ensure accounts and opportunities are always arrays
@@ -295,7 +339,7 @@ const Accounts: React.FC = () => {
       metrics.totalOpportunities++;
 
       const isOpen = OPEN_STAGES.includes(opp.StageName);
-      const isWon = opp.StageName.includes('Closed Won') || 
+      const isWon = opp.StageName.includes('Closed Won') ||
                     opp.StageName.includes('Closed / Completed') ||
                     opp.StageName.includes('Collecting') ||
                     opp.StageName.includes('In Collection');
@@ -346,168 +390,223 @@ const Accounts: React.FC = () => {
     createAccountMutation.mutate(newAccountData);
   };
 
-  // Account columns
-  const accountColumns: GridColDef[] = [
-    {
-      field: 'Name',
-      headerName: 'Account Name',
-      flex: 2,
-      minWidth: 250,
-      filterable: true,
-      valueGetter: (params) => params.row.Name || params.row.name,
-      renderCell: (params: GridRenderCellParams) => (
-        <Box
-          sx={{
-            cursor: 'pointer',
-            color: 'primary.main',
-            fontWeight: 600,
-            '&:hover': { textDecoration: 'underline' },
-          }}
-          onClick={() => handleAccountClick(params.row)}
-        >
-          {params.value}
-        </Box>
-      ),
-    },
-    {
-      field: 'Type',
-      headerName: 'Type',
-      flex: 0.8,
-      minWidth: 120,
-      filterable: true,
-      valueGetter: (params) => params.row.Type || params.row.type,
-    },
-    {
-      field: 'Industry',
-      headerName: 'Industry',
-      flex: 1,
-      minWidth: 150,
-      filterable: true,
-      valueGetter: (params) => params.row.Industry || params.row.industry,
-    },
-    {
-      field: 'totalOpportunities',
-      headerName: 'Total Opps',
-      flex: 0.7,
-      minWidth: 100,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params) => {
-        return getAccountMetrics(params.row.id || params.row.Id).totalOpportunities;
+  // ── Schema-driven columns ────────────────────────────────────────────────
+
+  const schemaColumns = useMemo(() => {
+    if (!schemaData?.fields) return [];
+    return buildSchemaColumns(schemaData.fields as SchemaField[], {
+      overrides: new Map([
+        ['Name', {
+          flex: 2,
+          minWidth: 250,
+          renderCell: (params: GridRenderCellParams) => (
+            <Box
+              sx={{
+                cursor: 'pointer',
+                color: 'primary.main',
+                fontWeight: 600,
+                '&:hover': { textDecoration: 'underline' },
+              }}
+              onClick={() => handleAccountClick(params.row)}
+            >
+              {params.value || params.row.Name || params.row.name}
+            </Box>
+          ),
+        }],
+      ]),
+    });
+  }, [schemaData]);
+
+  // Assemble the final columns: computed columns + schema columns + edit action
+  const columns = useMemo(() => {
+    const computed: GridColDef[] = [
+      {
+        field: 'totalOpportunities',
+        headerName: 'Total Opps',
+        flex: 0.7,
+        minWidth: 100,
+        type: 'number',
+        filterable: true,
+        valueGetter: (params: GridValueGetterParams) => {
+          return getAccountMetrics(params.row.id || params.row.Id).totalOpportunities;
+        },
       },
-    },
-    {
-      field: 'openOpportunities',
-      headerName: 'Open',
-      flex: 0.6,
-      minWidth: 80,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params) => {
-        return getAccountMetrics(params.row.id || params.row.Id).openOpportunities;
+      {
+        field: 'openOpportunities',
+        headerName: 'Open',
+        flex: 0.6,
+        minWidth: 80,
+        type: 'number',
+        filterable: true,
+        valueGetter: (params: GridValueGetterParams) => {
+          return getAccountMetrics(params.row.id || params.row.Id).openOpportunities;
+        },
+        renderCell: (params: GridRenderCellParams) => (
+          <Chip
+            label={params.value}
+            color={params.value > 0 ? 'primary' : 'default'}
+            size="small"
+          />
+        ),
       },
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={params.value}
-          color={params.value > 0 ? 'primary' : 'default'}
-          size="small"
-        />
-      ),
-    },
-    {
-      field: 'wonOpportunities',
-      headerName: 'Won',
-      flex: 0.6,
-      minWidth: 80,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params) => {
-        return getAccountMetrics(params.row.id || params.row.Id).wonOpportunities;
+      {
+        field: 'wonOpportunities',
+        headerName: 'Won',
+        flex: 0.6,
+        minWidth: 80,
+        type: 'number',
+        filterable: true,
+        valueGetter: (params: GridValueGetterParams) => {
+          return getAccountMetrics(params.row.id || params.row.Id).wonOpportunities;
+        },
+        renderCell: (params: GridRenderCellParams) => (
+          <Chip
+            label={params.value}
+            color={params.value > 0 ? 'success' : 'default'}
+            size="small"
+          />
+        ),
       },
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={params.value}
-          color={params.value > 0 ? 'success' : 'default'}
-          size="small"
-        />
-      ),
-    },
-    {
-      field: 'openPipelineValue',
-      headerName: 'Open Pipeline',
-      flex: 1,
-      minWidth: 130,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params) => {
-        return getAccountMetrics(params.row.id || params.row.Id).openPipelineValue;
+      {
+        field: 'openPipelineValue',
+        headerName: 'Open Pipeline',
+        flex: 1,
+        minWidth: 130,
+        type: 'number',
+        filterable: true,
+        valueGetter: (params: GridValueGetterParams) => {
+          return getAccountMetrics(params.row.id || params.row.Id).openPipelineValue;
+        },
+        renderCell: (params: GridRenderCellParams) => (
+          <Box sx={{ color: 'primary.main', fontWeight: 600 }}>
+            {formatDollarMillions(params.value as number)}
+          </Box>
+        ),
       },
-      renderCell: (params: GridRenderCellParams) => (
-        <Box sx={{ color: 'primary.main', fontWeight: 600 }}>
-          {formatDollarMillions(params.value as number)}
-        </Box>
-      ),
-    },
-    {
-      field: 'wonValue',
-      headerName: 'Amount Won',
-      flex: 1,
-      minWidth: 130,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params) => {
-        return getAccountMetrics(params.row.id || params.row.Id).wonValue;
+      {
+        field: 'wonValue',
+        headerName: 'Amount Won',
+        flex: 1,
+        minWidth: 130,
+        type: 'number',
+        filterable: true,
+        valueGetter: (params: GridValueGetterParams) => {
+          return getAccountMetrics(params.row.id || params.row.Id).wonValue;
+        },
+        renderCell: (params: GridRenderCellParams) => (
+          <Box sx={{ color: 'success.main', fontWeight: 600 }}>
+            {formatDollarMillions(params.value as number)}
+          </Box>
+        ),
       },
-      renderCell: (params: GridRenderCellParams) => (
-        <Box sx={{ color: 'success.main', fontWeight: 600 }}>
-          {formatDollarMillions(params.value as number)}
-        </Box>
-      ),
-    },
-    {
-      field: 'totalPaid',
-      headerName: 'Received',
-      flex: 1,
-      minWidth: 130,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params) => {
-        return getAccountMetrics(params.row.id || params.row.Id).totalPaid;
+      {
+        field: 'totalPaid',
+        headerName: 'Received',
+        flex: 1,
+        minWidth: 130,
+        type: 'number',
+        filterable: true,
+        valueGetter: (params: GridValueGetterParams) => {
+          return getAccountMetrics(params.row.id || params.row.Id).totalPaid;
+        },
+        renderCell: (params: GridRenderCellParams) => (
+          <Box sx={{ color: 'success.main', fontWeight: 600 }}>
+            {formatDollarMillions(params.value as number)}
+          </Box>
+        ),
       },
-      renderCell: (params: GridRenderCellParams) => (
-        <Box sx={{ color: 'success.main', fontWeight: 600 }}>
-          {formatDollarMillions(params.value as number)}
-        </Box>
-      ),
-    },
-    {
-      field: 'outstanding',
-      headerName: 'Outstanding',
-      flex: 1,
-      minWidth: 130,
-      type: 'number',
-      filterable: true,
-      valueGetter: (params) => {
-        return getAccountMetrics(params.row.id || params.row.Id).outstanding;
+      {
+        field: 'outstanding',
+        headerName: 'Outstanding',
+        flex: 1,
+        minWidth: 130,
+        type: 'number',
+        filterable: true,
+        valueGetter: (params: GridValueGetterParams) => {
+          return getAccountMetrics(params.row.id || params.row.Id).outstanding;
+        },
+        renderCell: (params: GridRenderCellParams) => (
+          <Box sx={{ color: (params.value as number) > 0 ? 'warning.main' : 'text.secondary', fontWeight: 600 }}>
+            {formatDollarMillions(params.value as number)}
+          </Box>
+        ),
       },
-      renderCell: (params: GridRenderCellParams) => (
-        <Box sx={{ color: (params.value as number) > 0 ? 'warning.main' : 'text.secondary', fontWeight: 600 }}>
-          {formatDollarMillions(params.value as number)}
-        </Box>
-      ),
-    },
-  ];
+    ];
+
+    const action = editActionColumn(
+      (row) => { setEditAccountId(row.Id || row.id); setEditDialogOpen(true); },
+      { disabled: !canEdit, tooltip: canEdit ? 'Edit account' : 'No edit permission' }
+    );
+
+    return [...computed, ...schemaColumns, action];
+  }, [schemaColumns, canEdit, accountMetricsMap, getAccountMetrics]);
+
+  // ── Column visibility: set defaults when schema loads for the first time ─
+
+  useEffect(() => {
+    if (!schemaData?.fields) return;
+    const hasStoredPrefs = !!localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (hasStoredPrefs) return;
+
+    const model: GridColumnVisibilityModel = {};
+    (schemaData.fields as SchemaField[]).forEach((field) => {
+      if (field.name.includes('.')) return;
+      model[field.name] = DEFAULT_VISIBLE_ACCOUNTS.has(field.name);
+    });
+    // Computed columns always visible by default
+    DEFAULT_VISIBLE_ACCOUNTS.forEach((name) => { model[name] = true; });
+    setColumnVisibilityModel(model);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(model));
+  }, [schemaData]);
+
+  const handleColumnVisibilityChange = useCallback((newModel: GridColumnVisibilityModel) => {
+    setColumnVisibilityModel(newModel);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(newModel));
+  }, []);
+
+  // ── Inline cell editing handler ──────────────────────────────────────────
+
+  const handleCellEdit = async (newRow: any, oldRow: any) => {
+    const updates: Record<string, any> = {};
+    Object.keys(newRow).forEach((key) => {
+      if (newRow[key] !== oldRow[key] && key !== 'Id' && key !== 'id') {
+        // Skip nested relationship objects (Owner, RecordType, etc.)
+        if (typeof newRow[key] === 'object' && newRow[key] !== null && !(newRow[key] instanceof Date)) return;
+        // Convert Date to ISO date string
+        if (newRow[key] instanceof Date) {
+          updates[key] = newRow[key].toISOString().split('T')[0];
+        } else {
+          updates[key] = newRow[key];
+        }
+      }
+    });
+    if (Object.keys(updates).length === 0) return newRow;
+
+    const loadingToast = toast.loading('Saving to Salesforce...');
+    try {
+      await apiService.updateAccount(newRow.Id || newRow.id, updates);
+      toast.success('Saved!', { id: loadingToast, duration: 2000 });
+      setTimeout(() => {
+        queryClient.invalidateQueries('accounts');
+        queryClient.invalidateQueries('opportunities-for-accounts');
+      }, 1000);
+      return newRow;
+    } catch (error: any) {
+      toast.error(`Failed: ${error.response?.data?.detail || error.message}`, { id: loadingToast });
+      return oldRow;
+    }
+  };
 
   // Get opportunities for selected account
   const accountOpportunities = selectedAccount
     ? opportunities?.filter((opp: Opportunity) => opp.AccountId === (selectedAccount.id || selectedAccount.Id)) || []
     : [];
 
-  const openOpps = accountOpportunities.filter((opp: Opportunity) => 
+  const openOpps = accountOpportunities.filter((opp: Opportunity) =>
     OPEN_STAGES.includes(opp.StageName)
   );
-  const wonOpps = accountOpportunities.filter((opp: Opportunity) => 
-    opp.StageName.includes('Closed Won') || 
+  const wonOpps = accountOpportunities.filter((opp: Opportunity) =>
+    opp.StageName.includes('Closed Won') ||
     opp.StageName.includes('Closed / Completed') ||
     opp.StageName.includes('Collecting') ||
     opp.StageName.includes('In Collection')
@@ -612,17 +711,35 @@ const Accounts: React.FC = () => {
           <Box sx={{ height: 'calc(100vh - 400px)', minHeight: 600, width: '100%' }}>
             <DataGrid
               rows={accounts || []}
-              columns={accountColumns}
+              columns={columns}
               loading={accountsLoading || oppsLoading}
               getRowId={(row) => row.id || row.Id}
+              editMode="cell"
+              processRowUpdate={handleCellEdit}
+              onProcessRowUpdateError={console.error}
+              isCellEditable={(params) => {
+                if (!canEdit) return false;
+                return params.colDef.editable === true;
+              }}
+              columnVisibilityModel={columnVisibilityModel}
+              onColumnVisibilityModelChange={handleColumnVisibilityChange}
               pagination
               pageSizeOptions={[25, 50, 100, 250, 500]}
+              slots={{ toolbar: GridToolbar }}
+              slotProps={{
+                toolbar: {
+                  showQuickFilter: true,
+                  quickFilterProps: { debounceMs: 500 },
+                  printOptions: { disableToolbarButton: true },
+                  csvOptions: { disableToolbarButton: true },
+                },
+              }}
               initialState={{
                 pagination: {
                   paginationModel: { pageSize: 100, page: 0 },
                 },
                 sorting: {
-                  sortModel: [{ field: 'name', sort: 'asc' }],
+                  sortModel: [{ field: 'Name', sort: 'asc' }],
                 },
               }}
               filterMode="client"
@@ -632,6 +749,16 @@ const Accounts: React.FC = () => {
               disableColumnFilter={false}
               disableColumnMenu={false}
               sortingOrder={['asc', 'desc']}
+              sx={{
+                '& .MuiDataGrid-cell:focus': { outline: 'none' },
+                '& .MuiDataGrid-cell--editable': {
+                  cursor: 'pointer',
+                  bgcolor: 'background.paper',
+                  '&:hover': { backgroundColor: 'action.hover', boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)' },
+                },
+                '& .MuiDataGrid-cell--editing': { backgroundColor: 'primary.light', boxShadow: 'inset 0 0 0 2px #1976d2' },
+                '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': { backgroundColor: 'action.hover' },
+              }}
             />
           </Box>
         </CardContent>
@@ -867,18 +994,18 @@ const Accounts: React.FC = () => {
                           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                             <Chip label={`#${msg.channel}`} size="small" color="primary" variant="outlined" />
                             {msg.match_type === 'channel' && (
-                              <Chip 
-                                label="Dedicated Channel" 
-                                size="small" 
-                                color="success" 
+                              <Chip
+                                label="Dedicated Channel"
+                                size="small"
+                                color="success"
                                 variant="filled"
                               />
                             )}
                             {msg.match_type === 'mention' && (
-                              <Chip 
-                                label="Mentioned" 
-                                size="small" 
-                                color="info" 
+                              <Chip
+                                label="Mentioned"
+                                size="small"
+                                color="info"
                                 variant="outlined"
                               />
                             )}
@@ -972,8 +1099,8 @@ const Accounts: React.FC = () => {
                                   label={attendee.name || attendee.email}
                                   size="small"
                                   icon={<PersonIcon />}
-                                  sx={{ 
-                                    bgcolor: 'primary.light', 
+                                  sx={{
+                                    bgcolor: 'primary.light',
                                     color: 'primary.contrastText',
                                     fontWeight: 500
                                   }}
@@ -989,11 +1116,11 @@ const Accounts: React.FC = () => {
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
                               📝 Meeting Summary
                             </Typography>
-                            <Box 
-                              sx={{ 
-                                p: 2, 
-                                bgcolor: 'grey.50', 
-                                borderRadius: 2, 
+                            <Box
+                              sx={{
+                                p: 2,
+                                bgcolor: 'grey.50',
+                                borderRadius: 2,
                                 border: '1px solid',
                                 borderColor: 'grey.200',
                                 maxHeight: '200px',
@@ -1027,10 +1154,10 @@ const Accounts: React.FC = () => {
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
                               ✅ Action Items
                             </Typography>
-                            <Box 
-                              sx={{ 
-                                p: 2, 
-                                bgcolor: '#fff8e1', 
+                            <Box
+                              sx={{
+                                p: 2,
+                                bgcolor: '#fff8e1',
                                 borderRadius: 2,
                                 border: '1px solid',
                                 borderColor: '#ffb74d',
@@ -1096,6 +1223,17 @@ const Accounts: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Account Edit Dialog */}
+      <AccountEditDialog
+        open={editDialogOpen}
+        onClose={() => { setEditDialogOpen(false); setEditAccountId(null); }}
+        accountId={editAccountId}
+        onSaved={() => {
+          setEditDialogOpen(false);
+          setEditAccountId(null);
+        }}
+      />
+
       {/* Create Account Dialog */}
       <Dialog open={createAccountDialogOpen} onClose={() => setCreateAccountDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Create New Account</DialogTitle>
@@ -1109,7 +1247,7 @@ const Accounts: React.FC = () => {
               onChange={(e) => setNewAccountData({ ...newAccountData, Name: e.target.value })}
               placeholder="e.g., Ford Foundation"
             />
-            
+
             <TextField
               label="Type"
               fullWidth
@@ -1161,4 +1299,3 @@ const Accounts: React.FC = () => {
 };
 
 export default Accounts;
-

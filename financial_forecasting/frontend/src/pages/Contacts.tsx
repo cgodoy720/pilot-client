@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -23,35 +23,23 @@ import {
   Save as SaveIcon,
   Business as BusinessIcon,
 } from '@mui/icons-material';
-import { 
-  DataGrid, 
-  GridColDef, 
+import {
+  DataGrid,
+  GridColDef,
   GridRenderCellParams,
+  GridToolbar,
+  GridColumnVisibilityModel,
 } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import ConfirmSaveButton from '../components/ConfirmSaveButton';
+import { buildSchemaColumns, SchemaField } from '../utils/schemaColumns';
+import { editActionColumn } from '../components/EditRowButton';
+import ContactEditDialog from '../components/ContactEditDialog';
+import { useDialogStack } from '../contexts/DialogStackContext';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 import { apiService } from '../services/api';
-
-interface Contact {
-  Id: string;
-  Name: string;
-  FirstName?: string;
-  LastName: string;
-  AccountId: string;
-  Account?: { 
-    Name: string;
-    attributes?: any;
-  };
-  npsp__Primary_Affiliation__r?: {
-    Name: string;
-    attributes?: any;
-  };
-  Title?: string;
-  Email?: string;
-  Phone?: string;
-}
 
 interface Account {
   Id: string;
@@ -59,8 +47,17 @@ interface Account {
   Type?: string;
 }
 
+const COLUMN_STORAGE_KEY = 'bedrock:columns:contacts';
+
+const DEFAULT_VISIBLE_CONTACTS = new Set([
+  'FirstName', 'LastName', 'AccountId', 'Title',
+  'npsp__Primary_Affiliation__c', 'Email', 'Phone', '__edit__',
+]);
+
 const Contacts: React.FC = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editContactId, setEditContactId] = useState<string | null>(null);
   const [newContactData, setNewContactData] = useState({
     FirstName: '',
     LastName: '',
@@ -71,6 +68,9 @@ const Contacts: React.FC = () => {
   });
 
   const queryClient = useQueryClient();
+  const { can, isAdmin } = usePermissions();
+  const canEdit = isAdmin || can('edit_contacts');
+  const { pushDialog } = useDialogStack();
 
   // Fetch all contacts
   const { data: contactsData, isLoading: contactsLoading, error: contactsError } = useQuery(
@@ -96,9 +96,100 @@ const Contacts: React.FC = () => {
     }
   );
 
+  // Fetch contact schema for dynamic columns
+  const { data: contactSchemaData } = useQuery(
+    'contact-schema',
+    async () => {
+      const response = await apiService.getSchemaDescribe('Contact');
+      return response.data;
+    },
+    { staleTime: 30 * 60 * 1000 }
+  );
+
   // Ensure contacts and accounts are always arrays
   const contacts = Array.isArray(contactsData) ? contactsData : (contactsData?.contacts || []);
   const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
+
+  // ── Schema-driven columns ──────────────────────────────────────────────
+
+  const schemaColumns = useMemo(() => {
+    if (!contactSchemaData?.fields) return [];
+    return buildSchemaColumns(contactSchemaData.fields as SchemaField[]);
+  }, [contactSchemaData]);
+
+  const columns = useMemo(() => {
+    const action = editActionColumn(
+      (row) => { setEditContactId(row.Id); setEditDialogOpen(true); },
+      { disabled: !canEdit, tooltip: canEdit ? 'Edit contact' : 'No edit permission' }
+    );
+    return [...schemaColumns, action];
+  }, [schemaColumns, canEdit]);
+
+  // ── Column visibility persistence ──────────────────────────────────────
+
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState<GridColumnVisibilityModel>(() => {
+    try {
+      const stored = localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  useEffect(() => {
+    if (!contactSchemaData?.fields) return;
+    const hasStoredPrefs = !!localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (hasStoredPrefs) return;
+
+    const model: GridColumnVisibilityModel = {};
+    (contactSchemaData.fields as SchemaField[]).forEach((field) => {
+      if (field.name.includes('.')) return;
+      model[field.name] = DEFAULT_VISIBLE_CONTACTS.has(field.name);
+    });
+    model['__edit__'] = true;
+    // Hide composite Name (it's a formula — FirstName + LastName are shown instead)
+    model['Name'] = false;
+    setColumnVisibilityModel(model);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(model));
+  }, [contactSchemaData]);
+
+  const handleColumnVisibilityChange = useCallback((newModel: GridColumnVisibilityModel) => {
+    setColumnVisibilityModel(newModel);
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(newModel));
+  }, []);
+
+  // ── Inline cell editing ────────────────────────────────────────────────
+
+  const handleCellEdit = async (newRow: any, oldRow: any) => {
+    const updates: Record<string, any> = {};
+    Object.keys(newRow).forEach((key) => {
+      if (newRow[key] !== oldRow[key] && key !== 'Id') {
+        // Skip nested relationship objects
+        if (typeof newRow[key] === 'object' && newRow[key] !== null && !(newRow[key] instanceof Date)) return;
+        if (newRow[key] instanceof Date) {
+          updates[key] = newRow[key].toISOString().split('T')[0];
+        } else {
+          updates[key] = newRow[key];
+        }
+      }
+    });
+    if (Object.keys(updates).length === 0) return newRow;
+
+    const loadingToast = toast.loading('Saving to Salesforce...');
+    try {
+      await apiService.updateContact(newRow.Id, updates);
+      toast.success('Saved!', { id: loadingToast, duration: 2000 });
+      setTimeout(() => {
+        queryClient.invalidateQueries('all-contacts');
+        if (newRow.AccountId) {
+          queryClient.invalidateQueries(['account-contacts', newRow.AccountId]);
+        }
+      }, 1000);
+      return newRow;
+    } catch (error: any) {
+      toast.error(`Failed: ${error.response?.data?.detail || error.message}`, { id: loadingToast });
+      return oldRow;
+    }
+  };
 
   // Create contact mutation
   const createContactMutation = useMutation(
@@ -141,77 +232,6 @@ const Contacts: React.FC = () => {
 
   const selectedAccount = accounts?.find((acc: Account) => acc.Id === newContactData.npsp__Primary_Affiliation__c);
 
-  // Contact columns
-  const contactColumns: GridColDef[] = [
-    {
-      field: 'Name',
-      headerName: 'Name',
-      flex: 1.5,
-      minWidth: 200,
-      filterable: true,
-      renderCell: (params: GridRenderCellParams) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PersonIcon fontSize="small" color="action" />
-          <Typography variant="body2">{params.value}</Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'AccountId',
-      headerName: 'Account',
-      flex: 1.5,
-      minWidth: 200,
-      filterable: true,
-      valueGetter: (params) => {
-        const account = accounts?.find((acc: Account) => acc.Id === params.row.AccountId);
-        return account?.Name || 'Unknown';
-      },
-      renderCell: (params: GridRenderCellParams) => {
-        const account = accounts?.find((acc: Account) => acc.Id === params.row.AccountId);
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <BusinessIcon fontSize="small" color="action" />
-            <Typography variant="body2">{account?.Name || 'Unknown'}</Typography>
-          </Box>
-        );
-      },
-    },
-    {
-      field: 'Title',
-      headerName: 'Title',
-      flex: 1,
-      minWidth: 150,
-      filterable: true,
-    },
-    {
-      field: 'primaryAffiliation',
-      headerName: 'Primary Affiliation',
-      flex: 1.2,
-      minWidth: 180,
-      filterable: true,
-      valueGetter: (params) => params.row.npsp__Primary_Affiliation__r?.Name || '',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" sx={{ fontStyle: params.value ? 'normal' : 'italic', color: params.value ? 'inherit' : 'text.secondary' }}>
-          {params.value || 'No affiliation'}
-        </Typography>
-      ),
-    },
-    {
-      field: 'Email',
-      headerName: 'Email',
-      flex: 1.2,
-      minWidth: 180,
-      filterable: true,
-    },
-    {
-      field: 'Phone',
-      headerName: 'Phone',
-      flex: 1,
-      minWidth: 130,
-      filterable: true,
-    },
-  ];
-
   return (
     <Box>
       {/* Header */}
@@ -242,8 +262,8 @@ const Contacts: React.FC = () => {
       </Box>
 
       <Alert severity="info" sx={{ mb: 3 }}>
-        <strong>All Contacts:</strong> View and manage contacts from all funders. You can also view
-        contacts for a specific funder on the Accounts page.
+        <strong>All Contacts:</strong> Double-click any editable cell to edit inline. Click the edit
+        icon for the full edit form. Customize visible columns via the Columns button in the toolbar.
       </Alert>
 
       {/* Error Display */}
@@ -266,31 +286,38 @@ const Contacts: React.FC = () => {
         </Alert>
       )}
 
-      {/* Debug Info - showing count when there are contacts */}
-      {!contactsLoading && contacts && contacts.length > 0 && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Loaded {contacts.length} contact(s)
-        </Alert>
-      )}
-
       {/* Contacts Table */}
       <Card>
         <CardContent>
           <Box sx={{ height: 'calc(100vh - 400px)', minHeight: 600, width: '100%' }}>
             <DataGrid
               rows={contacts || []}
-              columns={contactColumns}
+              columns={columns}
               loading={contactsLoading}
               getRowId={(row) => row.Id}
+              editMode="cell"
+              processRowUpdate={handleCellEdit}
+              onProcessRowUpdateError={console.error}
+              isCellEditable={(params) => {
+                if (!canEdit) return false;
+                return params.colDef.editable === true;
+              }}
+              columnVisibilityModel={columnVisibilityModel}
+              onColumnVisibilityModelChange={handleColumnVisibilityChange}
               pagination
               pageSizeOptions={[25, 50, 100, 250, 500]}
+              slots={{ toolbar: GridToolbar }}
+              slotProps={{
+                toolbar: {
+                  showQuickFilter: true,
+                  quickFilterProps: { debounceMs: 500 },
+                  printOptions: { disableToolbarButton: true },
+                  csvOptions: { disableToolbarButton: true },
+                },
+              }}
               initialState={{
-                pagination: {
-                  paginationModel: { pageSize: 100, page: 0 },
-                },
-                sorting: {
-                  sortModel: [{ field: 'Name', sort: 'asc' }],
-                },
+                pagination: { paginationModel: { pageSize: 100, page: 0 } },
+                sorting: { sortModel: [{ field: 'LastName', sort: 'asc' }] },
               }}
               filterMode="client"
               sortingMode="client"
@@ -298,21 +325,32 @@ const Contacts: React.FC = () => {
               disableRowSelectionOnClick
               disableColumnFilter={false}
               disableColumnMenu={false}
-              slotProps={{
-                noRowsOverlay: {
-                  style: {
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                  },
+              sx={{
+                '& .MuiDataGrid-cell:focus': { outline: 'none' },
+                '& .MuiDataGrid-cell--editable': {
+                  cursor: 'pointer',
+                  bgcolor: 'background.paper',
+                  '&:hover': { backgroundColor: 'action.hover', boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.5)' },
                 },
+                '& .MuiDataGrid-cell--editing': { backgroundColor: 'primary.light', boxShadow: 'inset 0 0 0 2px #1976d2' },
+                '& .MuiDataGrid-row:hover .MuiDataGrid-cell--editable': { backgroundColor: 'action.hover' },
               }}
             />
           </Box>
         </CardContent>
       </Card>
+
+      {/* Edit Contact Dialog */}
+      <ContactEditDialog
+        open={editDialogOpen}
+        onClose={() => { setEditDialogOpen(false); setEditContactId(null); }}
+        contactId={editContactId}
+        onSaved={() => {
+          setEditDialogOpen(false);
+          setEditContactId(null);
+        }}
+        onOpenRelated={(type, id) => pushDialog({ type, id })}
+      />
 
       {/* Create Contact Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -429,4 +467,3 @@ const Contacts: React.FC = () => {
 };
 
 export default Contacts;
-

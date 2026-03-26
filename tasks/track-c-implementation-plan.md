@@ -73,25 +73,21 @@
 
 ---
 
-### Session 3: Inline Editing for Pipeline (M2)
+### Session 3: Schema-Driven Inline Editing + Edit Buttons (M2) ✅ BUILT (2026-03-25)
 
-**Status: 2 decisions needed**
+**Scope expanded beyond original M2 to include 4 features:**
 
-| # | Decision | Options | Recommendation |
-|---|----------|---------|----------------|
-| 6 | Account inline-editable fields | Name, Type, Industry, Phone, Website, AccountSource, Owner — which subset? | All of these |
-| 7 | Contact inline-editable fields | FirstName, LastName, Title, Email, Phone, Account, Owner — which subset? | All of these |
+1. **Schema-driven dynamic columns** — Accounts + Contacts grids auto-generate columns from SF schema describe API. Users toggle ANY field via GridToolbar Columns button. Column prefs persisted to localStorage.
+2. **Inline cell editing** — Any updateable non-formula field is editable in-grid (text, picklist, date, boolean, Account/User lookups). Permission-gated via `edit_accounts`/`edit_contacts`.
+3. **Edit button per row** — Pencil icon on Opportunities, Accounts, Contacts rows opens full edit dialog (OpportunityEditDialog, AccountEditDialog, ContactEditDialog).
+4. **Stackable dialogs with guardrails** — DialogStackContext manages up to 3 stacked edit dialogs.
 
-- **Codebase audit finding:** Spec says "inline editing is missing from Pipeline page." Partially true:
-  - `Opportunities.tsx` — HAS inline editing (cell edit mode for Name, Account, Owner, Amount, Probability, CloseDate, PaymentDate)
-  - `Leads.tsx` — HAS inline editing (most fields, with custom edit cells for grant_id, status, wealth_tier, priority)
-  - `Accounts.tsx` — READ-ONLY DataGrid ✗
-  - `Contacts.tsx` — READ-ONLY DataGrid ✗
-- Pattern to follow: Opportunities uses MUI DataGrid's `processRowUpdate` callback → API call → optimistic update. Reuse same pattern.
-- Backend endpoints exist:
-  - Accounts: need to verify if PUT/PATCH endpoint exists (check `routes/` and MCP client)
-  - Contacts: same verification needed
-- Files: `Accounts.tsx`, `Contacts.tsx`, `services/api.ts` (for save endpoints)
+**Decisions resolved:**
+- #6: ALL SF updateable fields are inline-editable (schema-driven, not a fixed subset)
+- #7: Contact Name split into FirstName + LastName. ALL updateable fields inline-editable.
+
+**New files:** `utils/schemaColumns.tsx`, `components/EditRowButton.tsx`, `contexts/DialogStackContext.tsx`
+**Modified:** `Accounts.tsx`, `Contacts.tsx`, `Opportunities.tsx`, `Opportunities/columns.tsx`, `Pipeline.tsx`, `routes/salesforce_schema.py`
 
 ---
 

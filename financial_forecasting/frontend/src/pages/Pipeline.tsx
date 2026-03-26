@@ -18,6 +18,7 @@ import Contacts from './Contacts';
 import Leads from './Leads';
 import ConnectPrompt from '../components/ConnectPrompt';
 import { useAuth } from '../contexts/AuthContext';
+import { DialogStackProvider, DialogStackRenderer } from '../contexts/DialogStackContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -58,61 +59,64 @@ export default function Pipeline() {
   }
 
   return (
-    <Box>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>
-        <Tabs
-          value={currentTab}
-          onChange={handleTabChange}
-          aria-label="pipeline tabs"
-          sx={{ minHeight: 48 }}
-        >
-          <Tab
-            icon={<MonetizationOnIcon />}
-            iconPosition="start"
-            label="Opportunities"
-            id="pipeline-tab-0"
-            aria-controls="pipeline-tabpanel-0"
-          />
-          <Tab
-            icon={<BusinessIcon />}
-            iconPosition="start"
-            label="Accounts"
-            id="pipeline-tab-1"
-            aria-controls="pipeline-tabpanel-1"
-          />
-          <Tab
-            icon={<PersonIcon />}
-            iconPosition="start"
-            label="Contacts"
-            id="pipeline-tab-2"
-            aria-controls="pipeline-tabpanel-2"
-          />
-          <Tab
-            icon={<PersonSearchIcon />}
-            iconPosition="start"
-            label="Leads"
-            id="pipeline-tab-3"
-            aria-controls="pipeline-tabpanel-3"
-          />
-        </Tabs>
+    <DialogStackProvider>
+      <Box>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>
+          <Tabs
+            value={currentTab}
+            onChange={handleTabChange}
+            aria-label="pipeline tabs"
+            sx={{ minHeight: 48 }}
+          >
+            <Tab
+              icon={<MonetizationOnIcon />}
+              iconPosition="start"
+              label="Opportunities"
+              id="pipeline-tab-0"
+              aria-controls="pipeline-tabpanel-0"
+            />
+            <Tab
+              icon={<BusinessIcon />}
+              iconPosition="start"
+              label="Accounts"
+              id="pipeline-tab-1"
+              aria-controls="pipeline-tabpanel-1"
+            />
+            <Tab
+              icon={<PersonIcon />}
+              iconPosition="start"
+              label="Contacts"
+              id="pipeline-tab-2"
+              aria-controls="pipeline-tabpanel-2"
+            />
+            <Tab
+              icon={<PersonSearchIcon />}
+              iconPosition="start"
+              label="Leads"
+              id="pipeline-tab-3"
+              aria-controls="pipeline-tabpanel-3"
+            />
+          </Tabs>
+        </Box>
+
+        <TabPanel value={currentTab} index={0}>
+          <Opportunities />
+        </TabPanel>
+
+        <TabPanel value={currentTab} index={1}>
+          <Accounts />
+        </TabPanel>
+
+        <TabPanel value={currentTab} index={2}>
+          <Contacts />
+        </TabPanel>
+
+        <TabPanel value={currentTab} index={3}>
+          <Leads />
+        </TabPanel>
       </Box>
-
-      <TabPanel value={currentTab} index={0}>
-        <Opportunities />
-      </TabPanel>
-
-      <TabPanel value={currentTab} index={1}>
-        <Accounts />
-      </TabPanel>
-
-      <TabPanel value={currentTab} index={2}>
-        <Contacts />
-      </TabPanel>
-
-      <TabPanel value={currentTab} index={3}>
-        <Leads />
-      </TabPanel>
-    </Box>
+      <DialogStackRenderer />
+    </DialogStackProvider>
   );
 }
 
