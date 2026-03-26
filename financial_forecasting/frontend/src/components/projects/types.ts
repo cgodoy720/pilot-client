@@ -78,3 +78,19 @@ export interface FilterState {
   workstreams: string[];
   owners: string[];
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LinkedOpportunity {
+  id: string;
+  opportunity_id: string;
+  role: string;
+  created_at?: string;
+  name?: string;
+}

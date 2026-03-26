@@ -144,6 +144,28 @@ EXCEPTION
 END $$;
 
 -- ---------------------------------------------------------------------------
+-- Project ↔ Opportunity many-to-many junction
+-- Supports multi-Opportunity campaigns and cross-Opportunity dependencies
+-- (e.g., Amazon funding contingent on Google commitment)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS project_opportunity (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id      UUID NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    opportunity_id  TEXT NOT NULL,
+    role            TEXT NOT NULL DEFAULT 'linked',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (project_id, opportunity_id)
+);
+CREATE INDEX IF NOT EXISTS idx_po_project ON project_opportunity(project_id);
+CREATE INDEX IF NOT EXISTS idx_po_opp ON project_opportunity(opportunity_id);
+
+COMMENT ON TABLE project_opportunity IS
+  'Many-to-many link between local Projects and CRM Opportunities. '
+  'Supports multi-Opportunity campaigns (e.g., donor dependencies across Opps). '
+  'opportunity_id is TEXT to accommodate Salesforce IDs now and any CRM ID format later. '
+  'Migration note: replaces the singular project.opportunity_id column for new usage.';
+
+-- ---------------------------------------------------------------------------
 -- Permission Profiles & User Roles
 -- ---------------------------------------------------------------------------
 
