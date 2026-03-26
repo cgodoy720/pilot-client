@@ -91,22 +91,29 @@
 
 ---
 
-### Session 4: Notifications Overhaul (M3)
+### Session 4: Notifications Overhaul (M3) ✅ BUILT (2026-03-25)
 
-**Status: 2 decisions needed**
+**Scope: Personal activity feed with overlay click-through**
 
-| # | Decision | Options | Recommendation |
-|---|----------|---------|----------------|
-| 8 | Notification types | Stage changes on your opps, tasks assigned in last 24h, close dates approaching (7/14 day), overdue escalation (>7 days), new leads — pick which | Stage changes + close date warnings + overdue escalation |
-| 9 | Backend scope | (a) New `/api/notifications` endpoint that aggregates recent SF activity, (b) Frontend-only using already-fetched data | Option (a) — frontend-only can't detect stage changes without polling |
+Transformed NotificationDropdown from mini Task Inbox into real notification center with 3 types:
+1. **Task assignments** — "JP assigned you a task: [subject]" (from existing my-tasks data, filtered by CreatedById)
+2. **Opportunity ownership changes** — gained/lost ownership (new backend endpoint)
+3. **Close date warnings** — opps closing within 14 days (from existing opportunities data)
 
-- Current state (`NotificationDropdown.tsx`):
-  - Shows max 8 overdue/due-today tasks
-  - Sorted by due date then priority
-  - Color-coded left border (red=overdue, yellow=due today)
-  - Click → navigates to `/priorities`
-  - Essentially a mini Task Inbox — not differentiated
-- Files: `NotificationDropdown.tsx` (~6KB), new `routes/notifications.py`, `Layout.tsx` (passes tasks to dropdown)
+**Decisions resolved:**
+- #8: Task assignments + ownership changes + close date warnings (personal activity feed, not pipeline warnings)
+- #9: Frontend aggregation via `useNotifications` hook + new `ownership-history` backend endpoint
+
+**Key features:**
+- Expand/collapse inline previews with type icons and severity-colored borders
+- Click-through opens **TaskPanel drawer** or **OpportunityEditDialog modal** on current page — no navigation away
+- TaskPanel + OpportunityEditDialog lifted to Layout as overlays (both verified standalone)
+- Mark-all-seen on dropdown open, badge with unread count
+- Dual-match on ownership changes (handles SF FieldHistory storing IDs or names)
+- Backend resolves User IDs to names via secondary SOQL when needed
+
+**New files:** `types/notifications.ts`, `hooks/useNotifications.ts`, `routes/opportunities_extra.py` (ownership-history endpoint)
+**Modified:** `NotificationDropdown.tsx` (rewritten), `Layout.tsx` (hook + overlays), `TaskInbox.tsx` (CreatedDate), `api.ts` (getOwnershipHistory)
 
 ---
 

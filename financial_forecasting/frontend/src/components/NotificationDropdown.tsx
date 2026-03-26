@@ -1,91 +1,123 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Badge,
   Box,
   Button,
+  Chip,
   CircularProgress,
+  Collapse,
   Divider,
   IconButton,
   List,
-  ListItem,
-  ListItemText,
+  ListItemButton,
   Popover,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
   CheckCircleOutline as AllCaughtUpIcon,
+  PersonAdd as PersonAddIcon,
+  SwapHoriz as SwapHorizIcon,
+  EventBusy as EventBusyIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  OpenInNew as OpenInNewIcon,
+  DoneAll as DoneAllIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { parseISO, startOfDay, isBefore, isEqual } from 'date-fns';
-import { InboxTask, getDueBadge } from './TaskInbox';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import type { CrmNotification, NotificationType } from '../types/notifications';
+import { getStageHexColor } from '../types/salesforce';
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 interface NotificationDropdownProps {
-  tasks: InboxTask[];
+  notifications: CrmNotification[];
+  unreadCount: number;
+  badgeColor: 'error' | 'warning' | 'default';
+  onMarkOneRead: (id: string) => void;
+  onMarkAllRead: () => void;
+  onOpenTask: (taskId: string, whatId: string | null) => void;
+  onOpenOpp: (oppId: string) => void;
   loading?: boolean;
 }
 
-const MAX_ITEMS = 8;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ tasks, loading }) => {
+const SEVERITY_COLORS: Record<string, string> = {
+  error: '#d32f2f',
+  warning: '#ed6c02',
+  info: '#1976d2',
+};
+
+const TYPE_ICONS: Record<NotificationType, React.ReactElement> = {
+  'task-assignment': <PersonAddIcon sx={{ fontSize: 18 }} />,
+  'ownership-gained': <SwapHorizIcon sx={{ fontSize: 18 }} />,
+  'ownership-lost': <SwapHorizIcon sx={{ fontSize: 18 }} />,
+  'close-date-warning': <EventBusyIcon sx={{ fontSize: 18 }} />,
+};
+
+function relativeTime(iso: string): string {
+  try {
+    return formatDistanceToNow(parseISO(iso), { addSuffix: true });
+  } catch {
+    return '';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
+  notifications,
+  unreadCount,
+  badgeColor,
+  onMarkOneRead,
+  onMarkAllRead,
+  onOpenTask,
+  onOpenOpp,
+  loading,
+}) => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const open = Boolean(anchorEl);
 
-  const { actionItems, overdueCount, dueTodayCount, badgeCount, badgeColor } = useMemo(() => {
-    const now = startOfDay(new Date());
+  const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(e.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+    setExpandedId(null);
+  };
 
-    const actionable = tasks
-      .filter((t) => {
-        if (t.Status === 'Completed') return false;
-        if (!t.ActivityDate) return false;
-        const due = parseISO(t.ActivityDate);
-        return isBefore(due, now) || isEqual(due, now);
-      })
-      .sort((a, b) => {
-        const aDue = a.ActivityDate ? parseISO(a.ActivityDate).getTime() : Infinity;
-        const bDue = b.ActivityDate ? parseISO(b.ActivityDate).getTime() : Infinity;
-        if (aDue !== bDue) return aDue - bDue;
-        const priOrder: Record<string, number> = { High: 0, Normal: 1, Low: 2 };
-        return (priOrder[a.Priority] ?? 1) - (priOrder[b.Priority] ?? 1);
-      });
+  const handleToggle = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
 
-    let overdue = 0;
-    let dueToday = 0;
-    for (const t of actionable) {
-      const due = parseISO(t.ActivityDate!);
-      if (isBefore(due, now)) overdue++;
-      else dueToday++;
-    }
-
-    let color: 'error' | 'warning' | 'default' = 'default';
-    if (overdue > 0) color = 'error';
-    else if (dueToday > 0) color = 'warning';
-
-    return {
-      actionItems: actionable.slice(0, MAX_ITEMS),
-      overdueCount: overdue,
-      dueTodayCount: dueToday,
-      badgeCount: actionable.length,
-      badgeColor: color,
-    };
-  }, [tasks]);
-
-  const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
-  const handleClose = () => setAnchorEl(null);
-
-  const handleViewAll = () => {
+  const handleAction = (n: CrmNotification) => {
     handleClose();
-    navigate('/priorities');
+    if (n.type === 'task-assignment' && n.taskId) {
+      onOpenTask(n.taskId, n.whatId ?? null);
+    } else if (n.opportunityId) {
+      onOpenOpp(n.opportunityId);
+    }
   };
 
   return (
     <>
       <IconButton color="inherit" sx={{ mr: 1 }} onClick={handleOpen}>
         <Badge
-          badgeContent={badgeCount}
+          badgeContent={unreadCount}
           color={badgeColor}
-          invisible={badgeCount === 0}
+          invisible={unreadCount === 0}
         >
           <NotificationsIcon />
         </Badge>
@@ -97,27 +129,43 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ tasks, load
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { width: 360, maxHeight: 480 } } }}
+        slotProps={{ paper: { sx: { width: 380, maxHeight: 520 } } }}
       >
+        {/* Header */}
         <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="subtitle1" fontWeight={700}>
-            Action Items
-          </Typography>
-          {badgeCount > 0 && (
-            <Typography variant="caption" color="text.secondary">
-              {overdueCount > 0 && `${overdueCount} overdue`}
-              {overdueCount > 0 && dueTodayCount > 0 && ' · '}
-              {dueTodayCount > 0 && `${dueTodayCount} due today`}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="subtitle1" fontWeight={700}>
+              Notifications
             </Typography>
+            {unreadCount > 0 && (
+              <Chip
+                label={`${unreadCount} new`}
+                size="small"
+                color="primary"
+                sx={{ height: 20, fontSize: '0.7rem' }}
+              />
+            )}
+          </Box>
+          {unreadCount > 0 && (
+            <Tooltip title="Mark all as read">
+              <IconButton
+                size="small"
+                onClick={onMarkAllRead}
+                sx={{ color: 'text.secondary' }}
+              >
+                <DoneAllIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
           )}
         </Box>
         <Divider />
 
+        {/* Body */}
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={28} />
           </Box>
-        ) : actionItems.length === 0 ? (
+        ) : notifications.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4, px: 2 }}>
             <AllCaughtUpIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
             <Typography variant="body2" color="text.secondary">
@@ -125,54 +173,153 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ tasks, load
             </Typography>
           </Box>
         ) : (
-          <List dense disablePadding sx={{ py: 0.5 }}>
-            {actionItems.map((task) => {
-              const badge = getDueBadge(task);
+          <List disablePadding sx={{ py: 0.5, maxHeight: 400, overflowY: 'auto' }}>
+            {notifications.map((n) => {
+              const isExpanded = expandedId === n.id;
+              const borderColor = SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info;
+
               return (
-                <ListItem
-                  key={task.Id}
-                  sx={{
-                    px: 2,
-                    py: 0.75,
-                    '&:hover': { bgcolor: 'action.hover' },
-                    cursor: 'pointer',
-                    borderLeft: badge?.color ? `3px solid ${badge.color}` : '3px solid transparent',
-                  }}
-                  onClick={handleViewAll}
-                >
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography
-                          variant="body2"
-                          noWrap
-                          sx={{ flex: 1, fontWeight: 500, maxWidth: 200 }}
-                        >
-                          {task.Subject}
+                <React.Fragment key={n.id}>
+                  {/* Collapsed row */}
+                  <ListItemButton
+                    onClick={() => handleToggle(n.id)}
+                    sx={{
+                      px: 2,
+                      py: 0.75,
+                      borderLeft: `3px solid ${borderColor}`,
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    {/* Icon */}
+                    <Box sx={{ mr: 1.5, mt: 0.25, color: borderColor, flexShrink: 0 }}>
+                      {TYPE_ICONS[n.type]}
+                    </Box>
+
+                    {/* Text */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography variant="body2" noWrap sx={{ flex: 1, fontWeight: n.isNew ? 600 : 400 }}>
+                          {n.title}
                         </Typography>
-                        {badge && (
-                          <Typography
-                            variant="caption"
-                            sx={{ color: badge.color, fontWeight: 600, whiteSpace: 'nowrap' }}
-                          >
-                            {badge.label}
-                          </Typography>
+                        {n.isNew && (
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: 'primary.main',
+                              flexShrink: 0,
+                            }}
+                          />
                         )}
                       </Box>
-                    }
-                    secondary={task.OpportunityName ? task.OpportunityName : undefined}
-                    secondaryTypographyProps={{ noWrap: true, sx: { fontSize: '0.7rem' } }}
-                  />
-                </ListItem>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {n.subtitle}
+                      </Typography>
+                    </Box>
+
+                    {/* Time + expand */}
+                    <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                      <Typography variant="caption" color="text.disabled" sx={{ whiteSpace: 'nowrap', mr: 0.25 }}>
+                        {relativeTime(n.timestamp)}
+                      </Typography>
+                      {isExpanded ? (
+                        <ExpandLessIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                      ) : (
+                        <ExpandMoreIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                      )}
+                    </Box>
+                  </ListItemButton>
+
+                  {/* Expanded detail */}
+                  <Collapse in={isExpanded} unmountOnExit>
+                    <Box
+                      sx={{
+                        px: 2,
+                        py: 1.5,
+                        pl: 5.5,
+                        bgcolor: 'action.hover',
+                        borderLeft: `3px solid ${borderColor}`,
+                      }}
+                    >
+                      {/* Type-specific details */}
+                      {n.type === 'task-assignment' && (
+                        <Box sx={{ mb: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                            {n.subtitle}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {(n.type === 'ownership-gained' || n.type === 'ownership-lost') && (
+                        <Box sx={{ mb: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {n.subtitle}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {n.type === 'close-date-warning' && (
+                        <Box sx={{ mb: 1 }}>
+                          <Chip
+                            label={n.subtitle}
+                            size="small"
+                            sx={{
+                              bgcolor: getStageHexColor(n.subtitle.split('(')[0].trim()) + '20',
+                              fontSize: '0.7rem',
+                              height: 22,
+                            }}
+                          />
+                        </Box>
+                      )}
+
+                      {/* Action buttons */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                          onClick={() => handleAction(n)}
+                          sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                        >
+                          {n.type === 'task-assignment' ? 'Open Task' : 'Open Opportunity'}
+                        </Button>
+                        {n.isNew && (
+                          <Tooltip title="Mark as read">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); onMarkOneRead(n.id); }}
+                              sx={{ color: 'text.secondary' }}
+                            >
+                              <CheckCircleIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </Box>
+                  </Collapse>
+                </React.Fragment>
               );
             })}
           </List>
         )}
 
+        {/* Footer */}
         <Divider />
-        <Box sx={{ p: 1, textAlign: 'center' }}>
-          <Button size="small" onClick={handleViewAll}>
-            View all in Task Inbox
+        <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', gap: 1 }}>
+          <Button
+            size="small"
+            onClick={() => { handleClose(); navigate('/priorities'); }}
+            sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+          >
+            View Priorities
+          </Button>
+          <Button
+            size="small"
+            onClick={() => { handleClose(); navigate('/pipeline'); }}
+            sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+          >
+            View Pipeline
           </Button>
         </Box>
       </Popover>
