@@ -467,29 +467,31 @@ function GPT() {
     };
   }, []);
 
-  const fetchThreads = async () => {
+  const fetchThreads = async ({ silent = false } = {}) => {
     // Abort any pending fetch threads request
     if (fetchThreadsAbortControllerRef.current) {
       fetchThreadsAbortControllerRef.current.abort();
     }
-    
+
     // Create new AbortController for this request
     const abortController = new AbortController();
     fetchThreadsAbortControllerRef.current = abortController;
-    
+
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       const data = await getThreads(token, abortController.signal);
-      
+
       // Check if this request was aborted
       if (abortController.signal.aborted) {
         return;
       }
-      
-      const threadsArray = Array.isArray(data) ? data : 
-                          data.threads ? data.threads : 
+
+      const threadsArray = Array.isArray(data) ? data :
+                          data.threads ? data.threads :
                           data.data ? data.data : [];
-      
+
       setThreads(threadsArray);
       setError('');
     } catch (err) {
@@ -498,12 +500,16 @@ function GPT() {
         return;
       }
       console.error('Error fetching threads:', err);
-      setError('Failed to load conversations. Please try again.');
+      if (!silent) {
+        setError('Failed to load conversations. Please try again.');
+      }
     } finally {
       // Only update loading state if not aborted
       if (!abortController.signal.aborted) {
         setIsLoading(false);
-        setIsInitialLoad(false);
+        if (!silent) {
+          setIsInitialLoad(false);
+        }
       }
     }
   };
@@ -787,7 +793,7 @@ function GPT() {
       );
       
       setTimeout(() => {
-        fetchThreads();
+        fetchThreads({ silent: true });
       }, 1000);
       
       setError('');
@@ -904,7 +910,7 @@ function GPT() {
       
       if (isFirstMessage) {
         setTimeout(() => {
-          fetchThreads();
+          fetchThreads({ silent: true });
         }, 1000);
       }
       
@@ -1038,7 +1044,7 @@ function GPT() {
       }));
 
       setTimeout(() => {
-        fetchThreads();
+        fetchThreads({ silent: true });
       }, 1000);
 
     } catch (error) {
@@ -1152,7 +1158,7 @@ function GPT() {
       setUrlInput('');
 
       setTimeout(() => {
-        fetchThreads();
+        fetchThreads({ silent: true });
       }, 1000);
 
     } catch (error) {
