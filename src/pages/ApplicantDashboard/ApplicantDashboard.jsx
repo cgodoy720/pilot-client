@@ -368,16 +368,16 @@ function ApplicantDashboard() {
     }
   };
 
-  const loadOnboardingStatus = async () => {
+  const loadPledgeStatus = async () => {
     try {
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
-      
+
       if (stageResponse.ok) {
         const stageData = await stageResponse.json();
-        
+
         if (stageData.program_admission_status === 'accepted') {
           const pledgeResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/pledge/status/${currentApplicantId}`);
-          
+
           if (pledgeResponse.ok) {
             const pledgeData = await pledgeResponse.json();
             if (pledgeData.pledge_completed) {
@@ -386,7 +386,10 @@ function ApplicantDashboard() {
               setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
             }
           }
-          
+
+          let allRequiredCompleted = false;
+          let hasProgress = false;
+
           // Also try to get status from API as fallback
           const onboardingStatusResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/onboarding-status`);
           if (onboardingStatusResponse.ok) {
@@ -395,7 +398,7 @@ function ApplicantDashboard() {
             allRequiredCompleted = allRequiredCompleted || apiAllRequiredCompleted;
             hasProgress = hasProgress || (onboardingStatus.completed_required_tasks > 0);
           }
-          
+
           if (allRequiredCompleted) {
             setStatuses(prev => ({ ...prev, onboarding: 'completed' }));
             console.log('Dashboard: Onboarding completed');
@@ -412,7 +415,7 @@ function ApplicantDashboard() {
         setStatuses(prev => ({ ...prev, pledge: 'locked' }));
       }
     } catch (error) {
-      console.error('Error loading onboarding status:', error);
+      console.error('Error loading pledge status:', error);
       setStatuses(prev => ({ ...prev, onboarding: 'locked' }));
     }
   };
