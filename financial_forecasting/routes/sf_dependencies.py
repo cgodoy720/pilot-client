@@ -42,7 +42,7 @@ async def get_opportunity_task_dependencies(
     # Parameterized IN clause
     placeholders = ", ".join(f"${i+1}" for i in range(len(ids)))
     rows = await db.fetch(
-        f"SELECT id, task_id, depends_on_id, created_at FROM sf_task_dependency "
+        f"SELECT id, task_id, depends_on_id, created_at FROM bedrock.sf_task_dependency "
         f"WHERE task_id IN ({placeholders}) OR depends_on_id IN ({placeholders}) "
         f"ORDER BY created_at",
         *ids, *ids,
@@ -55,7 +55,7 @@ async def get_task_dependencies(task_id: str, user=Depends(require_auth), db=Dep
     """Get all dependencies for a specific task."""
     validate_salesforce_id(task_id, "task_id")
     rows = await db.fetch(
-        "SELECT id, task_id, depends_on_id, created_at FROM sf_task_dependency "
+        "SELECT id, task_id, depends_on_id, created_at FROM bedrock.sf_task_dependency "
         "WHERE task_id = $1 OR depends_on_id = $1 ORDER BY created_at",
         task_id,
     )
@@ -73,7 +73,7 @@ async def add_task_dependency(
         raise HTTPException(status_code=400, detail="A task cannot depend on itself")
     try:
         row = await db.fetchrow(
-            "INSERT INTO sf_task_dependency (task_id, depends_on_id) "
+            "INSERT INTO bedrock.sf_task_dependency (task_id, depends_on_id) "
             "VALUES ($1, $2) "
             "ON CONFLICT (task_id, depends_on_id) DO NOTHING "
             "RETURNING id, task_id, depends_on_id, created_at",
@@ -97,7 +97,7 @@ async def remove_task_dependency(dep_id: str, user=Depends(require_auth), db=Dep
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid dependency ID format")
     result = await db.execute(
-        "DELETE FROM sf_task_dependency WHERE id = $1", dep_id
+        "DELETE FROM bedrock.sf_task_dependency WHERE id = $1", dep_id
     )
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="Dependency not found")

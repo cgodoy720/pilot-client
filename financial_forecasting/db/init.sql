@@ -1,8 +1,10 @@
 -- Projects schema — idempotent (safe to re-run)
+-- All tables live in the bedrock schema on segundo-db
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE SCHEMA IF NOT EXISTS bedrock;
 
-CREATE TABLE IF NOT EXISTS project (
+CREATE TABLE IF NOT EXISTS bedrock.project (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
@@ -10,9 +12,9 @@ CREATE TABLE IF NOT EXISTS project (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS workstream (
+CREATE TABLE IF NOT EXISTS bedrock.workstream (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id  UUID NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    project_id  UUID NOT NULL REFERENCES bedrock.project(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     sort_order  INT NOT NULL DEFAULT 0,
@@ -20,9 +22,9 @@ CREATE TABLE IF NOT EXISTS workstream (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS milestone (
+CREATE TABLE IF NOT EXISTS bedrock.milestone (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    workstream_id UUID NOT NULL REFERENCES workstream(id) ON DELETE CASCADE,
+    workstream_id UUID NOT NULL REFERENCES bedrock.workstream(id) ON DELETE CASCADE,
     title         TEXT NOT NULL,
     status        TEXT NOT NULL DEFAULT 'On Track'
                   CHECK (status IN ('On Track', 'At Risk', 'Needs Attention', 'Completed')),
@@ -36,9 +38,9 @@ CREATE TABLE IF NOT EXISTS milestone (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS project_task (
+CREATE TABLE IF NOT EXISTS bedrock.project_task (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    milestone_id  UUID NOT NULL REFERENCES milestone(id) ON DELETE CASCADE,
+    milestone_id  UUID NOT NULL REFERENCES bedrock.milestone(id) ON DELETE CASCADE,
     title         TEXT NOT NULL,
     status        TEXT NOT NULL DEFAULT 'Not Started'
                   CHECK (status IN ('Not Started', 'In Progress', 'Completed', 'Blocked', 'On Hold')),
@@ -55,13 +57,13 @@ CREATE TABLE IF NOT EXISTS project_task (
 
 -- Add start_date for Gantt chart support (idempotent)
 DO $$ BEGIN
-    ALTER TABLE project_task ADD COLUMN start_date DATE;
+    ALTER TABLE bedrock.project_task ADD COLUMN start_date DATE;
 EXCEPTION
     WHEN duplicate_column THEN NULL;
 END $$;
 
 -- Updated-at trigger
-CREATE OR REPLACE FUNCTION set_updated_at()
+CREATE OR REPLACE FUNCTION bedrock.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = now();
@@ -75,9 +77,9 @@ BEGIN
     FOR t IN SELECT unnest(ARRAY['project', 'workstream', 'milestone', 'project_task'])
     LOOP
         EXECUTE format(
-            'DROP TRIGGER IF EXISTS trg_%s_updated_at ON %I; '
-            'CREATE TRIGGER trg_%s_updated_at BEFORE UPDATE ON %I '
-            'FOR EACH ROW EXECUTE FUNCTION set_updated_at();',
+            'DROP TRIGGER IF EXISTS trg_%s_updated_at ON bedrock.%I; '
+            'CREATE TRIGGER trg_%s_updated_at BEFORE UPDATE ON bedrock.%I '
+            'FOR EACH ROW EXECUTE FUNCTION bedrock.set_updated_at();',
             t, t, t, t
         );
     END LOOP;
@@ -86,7 +88,7 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- Salesforce Task Dependencies (local storage — SF has no native dependency support)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS sf_task_dependency (
+CREATE TABLE IF NOT EXISTS bedrock.sf_task_dependency (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     task_id         TEXT NOT NULL,
     depends_on_id   TEXT NOT NULL,
@@ -94,10 +96,10 @@ CREATE TABLE IF NOT EXISTS sf_task_dependency (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (task_id, depends_on_id)
 );
-CREATE INDEX IF NOT EXISTS idx_sf_dep_task ON sf_task_dependency(task_id);
-CREATE INDEX IF NOT EXISTS idx_sf_dep_depends ON sf_task_dependency(depends_on_id);
+CREATE INDEX IF NOT EXISTS idx_sf_dep_task ON bedrock.sf_task_dependency(task_id);
+CREATE INDEX IF NOT EXISTS idx_sf_dep_depends ON bedrock.sf_task_dependency(depends_on_id);
 
-COMMENT ON TABLE sf_task_dependency IS
+COMMENT ON TABLE bedrock.sf_task_dependency IS
   'Stores dependency edges between external CRM tasks. Salesforce Task objects '
   'have no native dependency support, so this is stored locally. '
   'Migration note: when moving off Salesforce, convert these edges to '
@@ -106,21 +108,21 @@ COMMENT ON TABLE sf_task_dependency IS
 -- ---------------------------------------------------------------------------
 -- Salesforce Task ↔ Project Bridge (local link — SF tasks appear in Project views)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS sf_task_project (
+CREATE TABLE IF NOT EXISTS bedrock.sf_task_project (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sf_task_id      TEXT NOT NULL,
     external_source TEXT NOT NULL DEFAULT 'salesforce',
-    project_id      UUID NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-    milestone_id    UUID REFERENCES milestone(id) ON DELETE SET NULL,
+    project_id      UUID NOT NULL REFERENCES bedrock.project(id) ON DELETE CASCADE,
+    milestone_id    UUID REFERENCES bedrock.milestone(id) ON DELETE SET NULL,
     sort_order      INT DEFAULT 0,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (sf_task_id)
 );
-CREATE INDEX IF NOT EXISTS idx_stp_project ON sf_task_project(project_id);
-CREATE INDEX IF NOT EXISTS idx_stp_source ON sf_task_project(external_source);
+CREATE INDEX IF NOT EXISTS idx_stp_project ON bedrock.sf_task_project(project_id);
+CREATE INDEX IF NOT EXISTS idx_stp_source ON bedrock.sf_task_project(external_source);
 
-COMMENT ON TABLE sf_task_project IS
+COMMENT ON TABLE bedrock.sf_task_project IS
   'Bridge table linking external CRM tasks (currently Salesforce) to local projects. '
   'This is the critical coupling point between the external CRM and local project management. '
   'When migrating off Salesforce: (1) sf_task_id maps to the external Task ID, '
@@ -128,17 +130,17 @@ COMMENT ON TABLE sf_task_project IS
   '(3) all task data lives in the CRM — this table only stores the relationship. '
   'Migration path: create project_task rows from CRM data, then drop this table.';
 
-COMMENT ON COLUMN sf_task_project.sf_task_id IS
+COMMENT ON COLUMN bedrock.sf_task_project.sf_task_id IS
   'External CRM task identifier. Salesforce format: 00T + 12/15 alphanumeric chars. '
   'Stored as TEXT to accommodate any CRM ID format after migration.';
 
-COMMENT ON COLUMN sf_task_project.external_source IS
+COMMENT ON COLUMN bedrock.sf_task_project.external_source IS
   'CRM system this task originates from. Currently always "salesforce". '
   'Added for forward-compatibility when migrating to a different CRM.';
 
 -- Add opportunity_id to project table for opportunity-based projects
 DO $$ BEGIN
-    ALTER TABLE project ADD COLUMN opportunity_id TEXT;
+    ALTER TABLE bedrock.project ADD COLUMN opportunity_id TEXT;
 EXCEPTION
     WHEN duplicate_column THEN NULL;
 END $$;
@@ -148,18 +150,18 @@ END $$;
 -- Supports multi-Opportunity campaigns and cross-Opportunity dependencies
 -- (e.g., Amazon funding contingent on Google commitment)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS project_opportunity (
+CREATE TABLE IF NOT EXISTS bedrock.project_opportunity (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id      UUID NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+    project_id      UUID NOT NULL REFERENCES bedrock.project(id) ON DELETE CASCADE,
     opportunity_id  TEXT NOT NULL,
     role            TEXT NOT NULL DEFAULT 'linked',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (project_id, opportunity_id)
 );
-CREATE INDEX IF NOT EXISTS idx_po_project ON project_opportunity(project_id);
-CREATE INDEX IF NOT EXISTS idx_po_opp ON project_opportunity(opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_po_project ON bedrock.project_opportunity(project_id);
+CREATE INDEX IF NOT EXISTS idx_po_opp ON bedrock.project_opportunity(opportunity_id);
 
-COMMENT ON TABLE project_opportunity IS
+COMMENT ON TABLE bedrock.project_opportunity IS
   'Many-to-many link between local Projects and CRM Opportunities. '
   'Supports multi-Opportunity campaigns (e.g., donor dependencies across Opps). '
   'opportunity_id is TEXT to accommodate Salesforce IDs now and any CRM ID format later. '
@@ -169,7 +171,7 @@ COMMENT ON TABLE project_opportunity IS
 -- Permission Profiles & User Roles
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS permission_profile (
+CREATE TABLE IF NOT EXISTS bedrock.permission_profile (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name        TEXT NOT NULL UNIQUE,
     description TEXT DEFAULT '',
@@ -179,26 +181,26 @@ CREATE TABLE IF NOT EXISTS permission_profile (
     updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS app_user (
+CREATE TABLE IF NOT EXISTS bedrock.app_user (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sf_user_id  TEXT UNIQUE,
     email       TEXT NOT NULL UNIQUE,
     name        TEXT DEFAULT '',
-    profile_id  UUID REFERENCES permission_profile(id) ON DELETE SET NULL,
+    profile_id  UUID REFERENCES bedrock.permission_profile(id) ON DELETE SET NULL,
     is_active   BOOLEAN DEFAULT true,
     created_at  TIMESTAMPTZ DEFAULT now(),
     updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS opportunity_lock (
+CREATE TABLE IF NOT EXISTS bedrock.opportunity_lock (
     sf_opportunity_id TEXT PRIMARY KEY,
     locked_by         TEXT NOT NULL,
     locked_at         TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_opp_lock_locked_by ON opportunity_lock(locked_by);
+CREATE INDEX IF NOT EXISTS idx_opp_lock_locked_by ON bedrock.opportunity_lock(locked_by);
 
 -- Seed permission profiles (idempotent via ON CONFLICT)
-INSERT INTO permission_profile (name, description, is_default, permissions)
+INSERT INTO bedrock.permission_profile (name, description, is_default, permissions)
 VALUES (
     'Admin',
     'Full access to all features',
@@ -227,7 +229,7 @@ VALUES (
     }'::jsonb
 ) ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO permission_profile (name, description, is_default, permissions)
+INSERT INTO bedrock.permission_profile (name, description, is_default, permissions)
 VALUES (
     'Fundraiser',
     'Standard fundraiser access — own opportunities and tasks, no financial writes',
@@ -256,7 +258,7 @@ VALUES (
     }'::jsonb
 ) ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO permission_profile (name, description, is_default, permissions)
+INSERT INTO bedrock.permission_profile (name, description, is_default, permissions)
 VALUES (
     'Manager',
     'Full CRM access — edit and reassign all opportunities, manage all tasks, view financials',
@@ -287,13 +289,13 @@ VALUES (
 ) ON CONFLICT (name) DO NOTHING;
 
 -- Backfill: add reassign_opportunities to existing profiles that lack it
-UPDATE permission_profile
+UPDATE bedrock.permission_profile
 SET permissions = permissions || '{"reassign_opportunities": true}'::jsonb
 WHERE NOT (permissions ? 'reassign_opportunities');
 
 -- Backfill: add Account/Contact/Payment permissions to existing profiles
 -- Fundraisers: Account/Contact edit yes, Payment edit no (finance-sensitive)
-UPDATE permission_profile
+UPDATE bedrock.permission_profile
 SET permissions = permissions || '{
     "edit_accounts": true, "create_accounts": true,
     "edit_contacts": true, "create_contacts": true,
@@ -302,7 +304,7 @@ SET permissions = permissions || '{
 WHERE name = 'Fundraiser' AND NOT (permissions ? 'edit_accounts');
 
 -- Manager: full CRM access including payments
-UPDATE permission_profile
+UPDATE bedrock.permission_profile
 SET permissions = permissions || '{
     "edit_accounts": true, "create_accounts": true,
     "edit_contacts": true, "create_contacts": true,
@@ -311,10 +313,279 @@ SET permissions = permissions || '{
 WHERE name = 'Manager' AND NOT (permissions ? 'edit_accounts');
 
 -- Admin: auto-granted via code (permissions.py line 61-65), but explicit for DB clarity
-UPDATE permission_profile
+UPDATE bedrock.permission_profile
 SET permissions = permissions || '{
     "edit_accounts": true, "create_accounts": true,
     "edit_contacts": true, "create_contacts": true,
     "edit_payments": true, "create_payments": true
 }'::jsonb
 WHERE name = 'Admin' AND NOT (permissions ? 'edit_accounts');
+
+-- ---------------------------------------------------------------------------
+-- Activities (synced from SF Tasks + Events, plus manual/extension entries)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS bedrock.activity (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    -- Salesforce identifiers (for mirror sync)
+    sf_id TEXT UNIQUE,
+    sf_type TEXT CHECK (sf_type IN ('Task', 'Event')),
+
+    -- Core fields
+    type TEXT NOT NULL CHECK (type IN ('call', 'email', 'meeting', 'note', 'slack-message', 'calendar-event')),
+    subject TEXT NOT NULL,
+    description TEXT,
+    description_html TEXT,
+    activity_date TIMESTAMPTZ NOT NULL,
+
+    -- Association (Opportunity-first model)
+    opportunity_id TEXT,
+    account_id TEXT,
+    contact_ids TEXT[] DEFAULT '{}',
+    project_task_id UUID REFERENCES bedrock.project_task(id) ON DELETE SET NULL,
+    sf_task_id TEXT,
+
+    -- Source tracking
+    source TEXT NOT NULL CHECK (source IN ('salesforce', 'extension', 'manual', 'gmail-sync', 'calendar-sync')),
+    source_ref TEXT,
+    source_thread_id TEXT,
+
+    -- Email-specific fields
+    email_from TEXT,
+    email_to TEXT[],
+    email_cc TEXT[],
+    email_snippet TEXT,
+
+    -- Meeting-specific fields
+    meeting_duration_minutes INTEGER,
+    meeting_attendees JSONB,
+    meeting_location TEXT,
+
+    -- Attachments (GCS URLs — populated by extension in M15)
+    attachments JSONB DEFAULT '[]',
+
+    -- Ownership
+    logged_by TEXT,
+    owner_id TEXT,
+
+    -- Sync metadata
+    sf_last_modified TIMESTAMPTZ,
+    synced_at TIMESTAMPTZ,
+    sf_sync_status TEXT DEFAULT 'synced' CHECK (sf_sync_status IN ('synced', 'pending', 'failed')),
+
+    -- Full-text search
+    search_vector TSVECTOR,
+
+    -- Soft delete (required: prevents sync resurrection of deleted records)
+    deleted_at TIMESTAMPTZ,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Activity indexes
+CREATE INDEX IF NOT EXISTS idx_activity_opportunity ON bedrock.activity(opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_activity_account ON bedrock.activity(account_id);
+CREATE INDEX IF NOT EXISTS idx_activity_contact ON bedrock.activity USING GIN(contact_ids);
+CREATE INDEX IF NOT EXISTS idx_activity_date ON bedrock.activity(activity_date DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_type ON bedrock.activity(type);
+CREATE INDEX IF NOT EXISTS idx_activity_source ON bedrock.activity(source);
+CREATE INDEX IF NOT EXISTS idx_activity_sf_id ON bedrock.activity(sf_id);
+CREATE INDEX IF NOT EXISTS idx_activity_search ON bedrock.activity USING GIN(search_vector);
+CREATE INDEX IF NOT EXISTS idx_activity_thread ON bedrock.activity(source_thread_id);
+CREATE INDEX IF NOT EXISTS idx_activity_not_deleted ON bedrock.activity(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_activity_project_task ON bedrock.activity(project_task_id);
+
+-- Full-text search trigger (subject=A weight, snippet=B, description=C)
+CREATE OR REPLACE FUNCTION bedrock.activity_search_vector_update() RETURNS trigger AS $$
+BEGIN
+    NEW.search_vector :=
+        setweight(to_tsvector('english', COALESCE(NEW.subject, '')), 'A') ||
+        setweight(to_tsvector('english', COALESCE(NEW.email_snippet, '')), 'B') ||
+        setweight(to_tsvector('english', COALESCE(NEW.description, '')), 'C');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_activity_search_vector ON bedrock.activity;
+CREATE TRIGGER trg_activity_search_vector
+    BEFORE INSERT OR UPDATE ON bedrock.activity
+    FOR EACH ROW EXECUTE FUNCTION bedrock.activity_search_vector_update();
+
+-- Activity updated_at trigger (reuses bedrock.set_updated_at)
+DROP TRIGGER IF EXISTS trg_activity_updated_at ON bedrock.activity;
+CREATE TRIGGER trg_activity_updated_at
+    BEFORE UPDATE ON bedrock.activity
+    FOR EACH ROW EXECUTE FUNCTION bedrock.set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Pebble Tables (research pipeline, chat, batches, conflict tracking)
+-- All use pebble_ prefix, no FK contamination with SF data
+-- ---------------------------------------------------------------------------
+
+-- Final research output per contact
+CREATE TABLE IF NOT EXISTS bedrock.pebble_profiles (
+    contact_id  TEXT PRIMARY KEY,
+    profile_json TEXT,
+    cost_usd    NUMERIC,
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+-- One row per completed research run
+CREATE TABLE IF NOT EXISTS bedrock.pebble_research_sessions (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contact_id    TEXT,
+    profile_json  TEXT,
+    cost_usd      NUMERIC,
+    prospect_name TEXT,
+    prospect_org  TEXT,
+    status        TEXT DEFAULT 'completed',
+    created_at    TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pebble_rs_contact ON bedrock.pebble_research_sessions(contact_id);
+
+-- Claim accuracy tracking
+CREATE TABLE IF NOT EXISTS bedrock.pebble_feedback (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    claim_id    TEXT,
+    correct     BOOLEAN,
+    text        TEXT,
+    contact_id  TEXT,
+    user_id     TEXT,
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+-- Agent execution metrics
+CREATE TABLE IF NOT EXISTS bedrock.pebble_harness_log (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_name      TEXT,
+    outcome         TEXT,
+    cost_usd        NUMERIC,
+    tokens_input    INTEGER,
+    tokens_output   INTEGER,
+    attempts        INTEGER,
+    elapsed_seconds NUMERIC,
+    error           TEXT,
+    prospect_id     TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+-- Stigmergy pheromone trail
+CREATE TABLE IF NOT EXISTS bedrock.pebble_source_scores (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    source_name     TEXT,
+    richness_score  NUMERIC,
+    prospect_id     TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+-- Response deduplication with TTL
+CREATE TABLE IF NOT EXISTS bedrock.pebble_api_cache (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    source          TEXT,
+    lookup_key      TEXT,
+    response_json   TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    expires_at      TIMESTAMPTZ,
+    UNIQUE (source, lookup_key)
+);
+
+-- Ask Pebble chat sessions
+CREATE TABLE IF NOT EXISTS bedrock.pebble_chat_conversations (
+    id              UUID PRIMARY KEY,
+    user_email      TEXT,
+    title           TEXT,
+    total_cost_usd  NUMERIC DEFAULT 0.0,
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now()
+);
+
+-- Chat message history
+CREATE TABLE IF NOT EXISTS bedrock.pebble_chat_messages (
+    id              UUID PRIMARY KEY,
+    conversation_id UUID REFERENCES bedrock.pebble_chat_conversations(id),
+    role            TEXT,
+    content         TEXT,
+    tier            TEXT,
+    cost_usd        NUMERIC DEFAULT 0.0,
+    metadata_json   TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pebble_cm_conv ON bedrock.pebble_chat_messages(conversation_id);
+
+-- Bulk research jobs
+CREATE TABLE IF NOT EXISTS bedrock.pebble_research_batches (
+    id                    UUID PRIMARY KEY,
+    user_email            TEXT,
+    total_prospects       INTEGER DEFAULT 0,
+    completed_prospects   INTEGER DEFAULT 0,
+    target_tier           TEXT DEFAULT 'T1',
+    status                TEXT DEFAULT 'pending',
+    total_cost_usd        NUMERIC DEFAULT 0.0,
+    created_at            TIMESTAMPTZ DEFAULT now(),
+    updated_at            TIMESTAMPTZ DEFAULT now()
+);
+
+-- Individual prospects in a batch
+CREATE TABLE IF NOT EXISTS bedrock.pebble_batch_prospects (
+    id                    UUID PRIMARY KEY,
+    batch_id              UUID REFERENCES bedrock.pebble_research_batches(id),
+    prospect_name         TEXT,
+    prospect_org          TEXT,
+    current_tier          TEXT DEFAULT 'pending',
+    identity_confidence   TEXT DEFAULT 'none',
+    crm_status            TEXT DEFAULT 'unknown',
+    result_json           TEXT,
+    cost_usd              NUMERIC DEFAULT 0.0,
+    created_at            TIMESTAMPTZ DEFAULT now(),
+    updated_at            TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pebble_bp_batch ON bedrock.pebble_batch_prospects(batch_id);
+
+-- Persist detected conflicts
+CREATE TABLE IF NOT EXISTS bedrock.pebble_conflict_log (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id      UUID REFERENCES bedrock.pebble_research_sessions(id),
+    contact_id      TEXT,
+    conflict_type   TEXT,
+    claim_a         TEXT,
+    claim_b         TEXT,
+    description     TEXT,
+    resolution      TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pebble_cl_session ON bedrock.pebble_conflict_log(session_id);
+
+-- Persist intermediate research state
+CREATE TABLE IF NOT EXISTS bedrock.pebble_scratchpad (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id      UUID REFERENCES bedrock.pebble_research_sessions(id),
+    contact_id      TEXT,
+    scratchpad_json TEXT,
+    status          TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pebble_sp_session ON bedrock.pebble_scratchpad(session_id);
+
+-- Updated-at triggers for pebble tables that have updated_at columns
+DO $$
+DECLARE t TEXT;
+BEGIN
+    FOR t IN SELECT unnest(ARRAY[
+        'pebble_chat_conversations',
+        'pebble_research_batches',
+        'pebble_batch_prospects',
+        'pebble_scratchpad'
+    ])
+    LOOP
+        EXECUTE format(
+            'DROP TRIGGER IF EXISTS trg_%s_updated_at ON bedrock.%I; '
+            'CREATE TRIGGER trg_%s_updated_at BEFORE UPDATE ON bedrock.%I '
+            'FOR EACH ROW EXECUTE FUNCTION bedrock.set_updated_at();',
+            t, t, t, t
+        );
+    END LOOP;
+END $$;
