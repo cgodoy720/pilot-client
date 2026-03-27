@@ -374,7 +374,7 @@ async def update_opportunity(
 
         # Enforce opportunity lock — only owner or admin can edit locked opportunities
         lock = await db.fetchrow(
-            "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
+            "SELECT locked_by FROM bedrock.opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
         )
         if lock:
             is_lock_owner = (lock["locked_by"] == sf_user_id)
@@ -925,7 +925,7 @@ async def create_opportunity_task(
     try:
         # Check if the target opportunity is locked
         lock = await db.fetchrow(
-            "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
+            "SELECT locked_by FROM bedrock.opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
         )
         if lock:
             perms = user.get("_permissions", {})
@@ -1030,7 +1030,7 @@ async def duplicate_task(
         dest_opp = body.WhatId
         if dest_opp:
             dest_lock = await db.fetchrow(
-                "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", dest_opp
+                "SELECT locked_by FROM bedrock.opportunity_lock WHERE sf_opportunity_id = $1", dest_opp
             )
             if dest_lock:
                 perms = user.get("_permissions", {})

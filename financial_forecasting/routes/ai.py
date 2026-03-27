@@ -349,7 +349,7 @@ async def approve_review(
         elif parsed["action"] == "task" and opp_id:
             # Check if opportunity is locked before creating task via Slack
             opp_lock = await db.fetchrow(
-                "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1",
+                "SELECT locked_by FROM bedrock.opportunity_lock WHERE sf_opportunity_id = $1",
                 opp_id,
             )
             if opp_lock:

@@ -65,6 +65,49 @@ locked_at           TIMESTAMPTZ
 - **Invoice__c** (custom object): created when invoicing an opportunity
 - **npe01__OppPayment__c**: links payment to Invoice__c
 
+### 1.5 Activities — Local mirror of SF Tasks + Events
+
+Activities synced from Salesforce Tasks and Events into a local PostgreSQL table. Also supports manual entries and Chrome extension entries.
+
+### `bedrock.activity`
+```
+id                      UUID PK
+sf_id                   TEXT UNIQUE           -- Salesforce Task/Event ID (mirror sync)
+sf_type                 TEXT                  -- 'Task' or 'Event'
+type                    TEXT NOT NULL         -- 'call'|'email'|'meeting'|'note'|'slack-message'|'calendar-event'
+subject                 TEXT NOT NULL
+description             TEXT
+description_html        TEXT
+activity_date           TIMESTAMPTZ NOT NULL
+opportunity_id          TEXT                  -- SF Opportunity ID (association)
+account_id              TEXT                  -- SF Account ID
+contact_ids             TEXT[]                -- SF Contact IDs
+project_task_id         UUID FK -> project_task (SET NULL)
+sf_task_id              TEXT                  -- SF Task ID linked when logging
+source                  TEXT NOT NULL         -- 'salesforce'|'extension'|'manual'|'gmail-sync'|'calendar-sync'
+source_ref              TEXT
+source_thread_id        TEXT                  -- email thread grouping
+email_from              TEXT
+email_to                TEXT[]
+email_cc                TEXT[]
+email_snippet           TEXT
+meeting_duration_minutes INTEGER
+meeting_attendees       JSONB
+meeting_location        TEXT
+attachments             JSONB DEFAULT '[]'    -- GCS URLs (extension, M15)
+logged_by               TEXT
+owner_id                TEXT
+sf_last_modified        TIMESTAMPTZ           -- sync watermark
+synced_at               TIMESTAMPTZ
+sf_sync_status          TEXT DEFAULT 'synced' -- 'synced'|'pending'|'failed'
+search_vector           TSVECTOR              -- FTS: subject(A), snippet(B), description(C)
+deleted_at              TIMESTAMPTZ           -- soft delete (prevents sync resurrection)
+created_at              TIMESTAMPTZ
+updated_at              TIMESTAMPTZ
+```
+
+Key features: soft delete, full-text search with weighted fields, 11 indexes including partial index on non-deleted rows.
+
 ---
 
 ## 2. PROJECT TRACKING — Local-first with SF bridges
@@ -147,6 +190,16 @@ milestone_id    UUID FK -> milestone (SET NULL)
 sort_order      INT
 created_at      TIMESTAMPTZ
 updated_at      TIMESTAMPTZ
+```
+
+### `bedrock.project_opportunity`
+Many-to-many link between Projects and CRM Opportunities. Supports multi-Opportunity campaigns.
+```
+project_id      UUID FK -> project (CASCADE)
+opportunity_id  TEXT NOT NULL
+role            TEXT DEFAULT 'linked'
+created_at      TIMESTAMPTZ
+UNIQUE (project_id, opportunity_id)
 ```
 
 ---
@@ -320,15 +373,19 @@ updated_at      TIMESTAMPTZ DEFAULT now()
 
 ## Sprint Roadmap
 
-See `tasks/sprint9-*.md` through `tasks/sprint13-*.md` for detailed sprint plans.
+See `tasks/m9-m18-execution-sequence.md` for definitive execution order.
 
 ```
-TRACK A: Database Infrastructure (sequential)
-  Sprint 9:  Schema Qualification (bedrock. prefix)
-  Sprint 10: Pebble PostgreSQL + Async Migration
-  Sprint 11: Pebble Persistence + CRM Bridge
-
-TRACK B: Production Guardrails (parallel with Track A)
-  Sprint 12: Pebble Access Control
-  Sprint 13: SF Required Fields Audit + Pebble UX Polish
+M9:  Complete Database Schema Deployment (bedrock. prefix + all new DDL)
+M10: Activities Foundation (backend endpoints + sync)
+M11: Pebble PostgreSQL Migration (SQLite → asyncpg)
+M12: Pebble Access Control (RBAC + cost limits)
+M13: Activities Timeline + Modals (frontend)
+M14: Pebble Persistence + CRM Bridge
+M15: Chrome Extension
+M16: Integration + QA
+M17: SF Audit + UX Polish
+M18: Project Soft-Delete
 ```
+
+Note: Pebble stays Python/FastAPI (performance + security advantages for I/O-bound LLM workload). PRD Node.js references are about the target Pursuit platform, not Pebble.

@@ -125,7 +125,7 @@ class ProjectImportPayload(BaseModel):
 async def list_projects(user=Depends(require_auth), conn=Depends(get_db)):
     """List all projects."""
     rows = await conn.fetch(
-        "SELECT id, name, description, created_at, updated_at FROM project ORDER BY created_at"
+        "SELECT id, name, description, created_at, updated_at FROM bedrock.project ORDER BY created_at"
     )
     return {"success": True, "data": [dict(r) for r in rows]}
 
@@ -135,7 +135,7 @@ async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(
     """Get a full project tree: workstreams → milestones → tasks (single query)."""
     pid = uuid.UUID(project_id)
 
-    project = await conn.fetchrow("SELECT * FROM project WHERE id = $1", pid)
+    project = await conn.fetchrow("SELECT * FROM bedrock.project WHERE id = $1", pid)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -148,9 +148,9 @@ async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(
             t.id AS t_id, t.title AS t_title, t.status AS t_status, t.owner AS t_owner,
             t.deadline AS t_deadline, t.start_date AS t_start_date, t.description AS t_desc,
             t.updates AS t_updates, t.links AS t_links, t.depends_on AS t_depends, t.sort_order AS t_sort
-        FROM workstream w
-        LEFT JOIN milestone m ON m.workstream_id = w.id
-        LEFT JOIN project_task t ON t.milestone_id = m.id
+        FROM bedrock.workstream w
+        LEFT JOIN bedrock.milestone m ON m.workstream_id = w.id
+        LEFT JOIN bedrock.project_task t ON t.milestone_id = m.id
         WHERE w.project_id = $1
         ORDER BY w.sort_order, m.sort_order, t.sort_order
         """,
@@ -216,7 +216,7 @@ async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(
 async def create_project(body: ProjectCreate, user=Depends(require_auth), conn=Depends(get_db)):
     """Create a new project."""
     row = await conn.fetchrow(
-        "INSERT INTO project (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at",
+        "INSERT INTO bedrock.project (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at",
         body.name, body.description,
     )
     return {"success": True, "data": {
@@ -236,7 +236,7 @@ async def update_project(project_id: str, body: ProjectUpdate, user=Depends(requ
         raise HTTPException(status_code=400, detail="No fields to update")
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [pid] + list(fields.values())
-    await conn.execute(f"UPDATE project SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.project SET {sets} WHERE id = $1", *vals)
     return {"success": True, "data": {"message": "Project updated"}}
 
 
@@ -244,7 +244,7 @@ async def update_project(project_id: str, body: ProjectUpdate, user=Depends(requ
 async def delete_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     """Delete a project and all its workstreams/milestones/tasks (cascading)."""
     pid = uuid.UUID(project_id)
-    result = await conn.execute("DELETE FROM project WHERE id = $1", pid)
+    result = await conn.execute("DELETE FROM bedrock.project WHERE id = $1", pid)
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="Project not found")
     return {"success": True, "data": {"message": "Project deleted"}}
@@ -260,7 +260,7 @@ async def link_opportunity(project_id: str, body: OpportunityLink, user=Depends(
     validate_salesforce_id(body.opportunity_id, "opportunity_id")
     try:
         row = await conn.fetchrow(
-            "INSERT INTO project_opportunity (project_id, opportunity_id, role) "
+            "INSERT INTO bedrock.project_opportunity (project_id, opportunity_id, role) "
             "VALUES ($1, $2, $3) "
             "ON CONFLICT (project_id, opportunity_id) DO UPDATE SET role = $3 "
             "RETURNING id, project_id, opportunity_id, role",
@@ -283,7 +283,7 @@ async def unlink_opportunity(project_id: str, opportunity_id: str, user=Depends(
     pid = uuid.UUID(project_id)
     validate_salesforce_id(opportunity_id, "opportunity_id")
     result = await conn.execute(
-        "DELETE FROM project_opportunity WHERE project_id = $1 AND opportunity_id = $2",
+        "DELETE FROM bedrock.project_opportunity WHERE project_id = $1 AND opportunity_id = $2",
         pid, opportunity_id,
     )
     if result == "DELETE 0":
@@ -297,7 +297,7 @@ async def get_project_opportunities(project_id: str, user=Depends(require_auth),
     pid = uuid.UUID(project_id)
     rows = await conn.fetch(
         "SELECT id, opportunity_id, role, created_at "
-        "FROM project_opportunity WHERE project_id = $1 ORDER BY created_at",
+        "FROM bedrock.project_opportunity WHERE project_id = $1 ORDER BY created_at",
         pid,
     )
     return {"success": True, "data": [
@@ -321,7 +321,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
 
     pid = uuid.UUID(project_id)
 
-    project = await conn.fetchrow("SELECT id FROM project WHERE id = $1", pid)
+    project = await conn.fetchrow("SELECT id FROM bedrock.project WHERE id = $1", pid)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -333,10 +333,10 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
 
     async with conn.transaction():
         if body.replace:
-            await conn.execute("DELETE FROM workstream WHERE project_id = $1", pid)
+            await conn.execute("DELETE FROM bedrock.workstream WHERE project_id = $1", pid)
 
         existing_ws = await conn.fetch(
-            "SELECT id, name FROM workstream WHERE project_id = $1", pid
+            "SELECT id, name FROM bedrock.workstream WHERE project_id = $1", pid
         )
         ws_by_name = {r["name"].lower(): r for r in existing_ws}
 
@@ -348,13 +348,13 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                 wid = existing["id"]
                 if ws.description:
                     await conn.execute(
-                        "UPDATE workstream SET description = $2, sort_order = $3 WHERE id = $1",
+                        "UPDATE bedrock.workstream SET description = $2, sort_order = $3 WHERE id = $1",
                         wid, ws.description, ws_idx,
                     )
                 summary["workstreams"]["updated"] += 1
             else:
                 row = await conn.fetchrow(
-                    "INSERT INTO workstream (project_id, name, description, sort_order) "
+                    "INSERT INTO bedrock.workstream (project_id, name, description, sort_order) "
                     "VALUES ($1, $2, $3, $4) RETURNING id",
                     pid, ws.name, ws.description, ws_idx,
                 )
@@ -362,7 +362,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                 summary["workstreams"]["new"] += 1
 
             existing_ms = await conn.fetch(
-                "SELECT id, title FROM milestone WHERE workstream_id = $1", wid
+                "SELECT id, title FROM bedrock.milestone WHERE workstream_id = $1", wid
             )
             ms_by_title = {r["title"].lower(): r for r in existing_ms}
 
@@ -373,13 +373,13 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                 if existing_m:
                     mid = existing_m["id"]
                     await conn.execute(
-                        "UPDATE milestone SET status = $2, priority = $3, owner = $4, sort_order = $5 WHERE id = $1",
+                        "UPDATE bedrock.milestone SET status = $2, priority = $3, owner = $4, sort_order = $5 WHERE id = $1",
                         mid, ms.status, ms.priority, ms.owner, ms_idx,
                     )
                     summary["milestones"]["updated"] += 1
                 else:
                     row = await conn.fetchrow(
-                        "INSERT INTO milestone (workstream_id, title, status, priority, owner, sort_order) "
+                        "INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, sort_order) "
                         "VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
                         wid, ms.title, ms.status, ms.priority, ms.owner, ms_idx,
                     )
@@ -387,7 +387,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                     summary["milestones"]["new"] += 1
 
                 existing_tasks = await conn.fetch(
-                    "SELECT id, title, status, owner, deadline, start_date FROM project_task WHERE milestone_id = $1", mid
+                    "SELECT id, title, status, owner, deadline, start_date FROM bedrock.project_task WHERE milestone_id = $1", mid
                 )
                 task_by_title = {r["title"].lower(): r for r in existing_tasks}
 
@@ -410,7 +410,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                         )
                         if changed:
                             await conn.execute(
-                                "UPDATE project_task SET status = $2, owner = $3, deadline = $4, "
+                                "UPDATE bedrock.project_task SET status = $2, owner = $3, deadline = $4, "
                                 "start_date = $5, description = $6, sort_order = $7 WHERE id = $1",
                                 existing_t["id"], task.status, task.owner,
                                 deadline_val, start_val, task.description, t_idx,
@@ -420,7 +420,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                             summary["tasks"]["unchanged"] += 1
                     else:
                         await conn.execute(
-                            "INSERT INTO project_task (milestone_id, title, status, owner, deadline, "
+                            "INSERT INTO bedrock.project_task (milestone_id, title, status, owner, deadline, "
                             "start_date, description, sort_order) "
                             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
                             mid, task.title, task.status, task.owner,
@@ -438,7 +438,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
 async def create_workstream(project_id: str, body: WorkstreamCreate, user=Depends(require_auth), conn=Depends(get_db)):
     pid = uuid.UUID(project_id)
     row = await conn.fetchrow(
-        """INSERT INTO workstream (project_id, name, description, sort_order)
+        """INSERT INTO bedrock.workstream (project_id, name, description, sort_order)
            VALUES ($1, $2, $3, $4) RETURNING id""",
         pid, body.name, body.description, body.sort_order,
     )
@@ -454,14 +454,14 @@ async def update_workstream(workstream_id: str, body: WorkstreamUpdate, user=Dep
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [wid] + list(fields.values())
-    await conn.execute(f"UPDATE workstream SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.workstream SET {sets} WHERE id = $1", *vals)
     return {"success": True, "data": {"message": "Workstream updated"}}
 
 
 @router.delete("/workstreams/{workstream_id}")
 async def delete_workstream(workstream_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     wid = uuid.UUID(workstream_id)
-    await conn.execute("DELETE FROM workstream WHERE id = $1", wid)
+    await conn.execute("DELETE FROM bedrock.workstream WHERE id = $1", wid)
     return {"success": True, "data": {"message": "Workstream deleted"}}
 
 
@@ -472,7 +472,7 @@ async def delete_workstream(workstream_id: str, user=Depends(require_auth), conn
 async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depends(require_auth), conn=Depends(get_db)):
     wid = uuid.UUID(workstream_id)
     row = await conn.fetchrow(
-        """INSERT INTO milestone (workstream_id, title, status, priority, owner, description, source_links, sort_order)
+        """INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, description, source_links, sort_order)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id""",
         wid, body.title, body.status, body.priority, body.owner,
         body.description, body.source_links, body.sort_order,
@@ -489,14 +489,14 @@ async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depend
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [mid] + list(fields.values())
-    await conn.execute(f"UPDATE milestone SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.milestone SET {sets} WHERE id = $1", *vals)
     return {"success": True, "data": {"message": "Milestone updated"}}
 
 
 @router.delete("/milestones/{milestone_id}")
 async def delete_milestone(milestone_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     mid = uuid.UUID(milestone_id)
-    await conn.execute("DELETE FROM milestone WHERE id = $1", mid)
+    await conn.execute("DELETE FROM bedrock.milestone WHERE id = $1", mid)
     return {"success": True, "data": {"message": "Milestone deleted"}}
 
 
@@ -519,7 +519,7 @@ async def create_project_task(milestone_id: str, body: ProjectTaskCreate, user=D
     depends = [uuid.UUID(x) for x in body.depends_on] if body.depends_on else []
 
     row = await conn.fetchrow(
-        """INSERT INTO project_task (milestone_id, title, status, owner, deadline, start_date, description, updates, links, depends_on, sort_order)
+        """INSERT INTO bedrock.project_task (milestone_id, title, status, owner, deadline, start_date, description, updates, links, depends_on, sort_order)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id""",
         mid, body.title, body.status, body.owner, deadline, start_date_val,
         body.description, body.updates, body.links, depends, body.sort_order,
@@ -552,14 +552,14 @@ async def update_project_task(task_id: str, body: ProjectTaskUpdate, user=Depend
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [tid] + list(fields.values())
-    await conn.execute(f"UPDATE project_task SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.project_task SET {sets} WHERE id = $1", *vals)
     return {"success": True, "data": {"message": "Task updated"}}
 
 
 @router.delete("/project-tasks/{task_id}")
 async def delete_project_task(task_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     tid = uuid.UUID(task_id)
-    await conn.execute("DELETE FROM project_task WHERE id = $1", tid)
+    await conn.execute("DELETE FROM bedrock.project_task WHERE id = $1", tid)
     return {"success": True, "data": {"message": "Task deleted"}}
 
 
@@ -582,7 +582,7 @@ async def link_sf_task_to_project(
     mid = uuid.UUID(body.milestone_id) if body.milestone_id else None
     try:
         row = await conn.fetchrow(
-            "INSERT INTO sf_task_project (sf_task_id, project_id, milestone_id, sort_order) "
+            "INSERT INTO bedrock.sf_task_project (sf_task_id, project_id, milestone_id, sort_order) "
             "VALUES ($1, $2, $3, $4) "
             "ON CONFLICT (sf_task_id) DO UPDATE SET project_id = $2, milestone_id = $3, sort_order = $4, updated_at = now() "
             "RETURNING id, sf_task_id, project_id, milestone_id, sort_order",
@@ -598,7 +598,7 @@ async def link_sf_task_to_project(
 async def unlink_sf_task_from_project(link_id: str, user=Depends(require_auth), conn=Depends(get_db)):
     """Remove a Salesforce task ↔ project link."""
     lid = uuid.UUID(link_id)
-    result = await conn.execute("DELETE FROM sf_task_project WHERE id = $1", lid)
+    result = await conn.execute("DELETE FROM bedrock.sf_task_project WHERE id = $1", lid)
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="Link not found")
     return {"success": True, "data": {"message": "Task unlinked from project"}}
@@ -610,7 +610,7 @@ async def get_project_sf_tasks(project_id: str, user=Depends(require_auth), conn
     pid = uuid.UUID(project_id)
     rows = await conn.fetch(
         "SELECT id, sf_task_id, milestone_id, sort_order, created_at "
-        "FROM sf_task_project WHERE project_id = $1 ORDER BY sort_order, created_at",
+        "FROM bedrock.sf_task_project WHERE project_id = $1 ORDER BY sort_order, created_at",
         pid,
     )
     return {"success": True, "data": [dict(r) for r in rows]}
@@ -621,7 +621,7 @@ async def get_project_by_opportunity(opportunity_id: str, user=Depends(require_a
     """Check if a project exists for the given opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
     row = await conn.fetchrow(
-        "SELECT id, name, description, opportunity_id FROM project WHERE opportunity_id = $1",
+        "SELECT id, name, description, opportunity_id FROM bedrock.project WHERE opportunity_id = $1",
         opportunity_id,
     )
     if not row:
@@ -635,7 +635,7 @@ async def get_sf_task_project_link(sf_task_id: str, user=Depends(require_auth), 
     validate_salesforce_id(sf_task_id, "sf_task_id")
     row = await conn.fetchrow(
         "SELECT stp.id, stp.sf_task_id, stp.project_id, stp.milestone_id, p.name as project_name "
-        "FROM sf_task_project stp JOIN project p ON p.id = stp.project_id "
+        "FROM bedrock.sf_task_project stp JOIN bedrock.project p ON p.id = stp.project_id "
         "WHERE stp.sf_task_id = $1",
         sf_task_id,
     )

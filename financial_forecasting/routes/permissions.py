@@ -53,8 +53,8 @@ async def get_user_permissions(email: str, db) -> Dict[str, Any]:
     row = await db.fetchrow(
         "SELECT au.id, au.sf_user_id, au.email, au.name, au.is_active, "
         "pp.permissions, pp.name as profile_name "
-        "FROM app_user au "
-        "LEFT JOIN permission_profile pp ON pp.id = au.profile_id "
+        "FROM bedrock.app_user au "
+        "LEFT JOIN bedrock.permission_profile pp ON pp.id = au.profile_id "
         "WHERE au.email = $1",
         email,
     )
@@ -69,16 +69,16 @@ async def get_user_permissions(email: str, db) -> Dict[str, Any]:
         result["permissions"] = perms
         return result
     # Auto-provision: first user ever gets Admin, everyone else gets default profile
-    user_count = await db.fetchval("SELECT COUNT(*) FROM app_user")
+    user_count = await db.fetchval("SELECT COUNT(*) FROM bedrock.app_user")
     if user_count == 0:
         # Bootstrap: first user is Admin
         admin_profile = await db.fetchrow(
-            "SELECT id, permissions, name FROM permission_profile WHERE name = 'Admin'"
+            "SELECT id, permissions, name FROM bedrock.permission_profile WHERE name = 'Admin'"
         )
         if admin_profile:
             logger.info(f"Bootstrap: first user {email} auto-assigned Admin profile")
             new_user = await db.fetchrow(
-                "INSERT INTO app_user (email, profile_id) VALUES ($1, $2) "
+                "INSERT INTO bedrock.app_user (email, profile_id) VALUES ($1, $2) "
                 "RETURNING id, sf_user_id, email, name, is_active",
                 email, admin_profile["id"],
             )
@@ -87,11 +87,11 @@ async def get_user_permissions(email: str, db) -> Dict[str, Any]:
             result["profile_name"] = admin_profile["name"]
             return result
     default_profile = await db.fetchrow(
-        "SELECT id, permissions, name FROM permission_profile WHERE is_default = true"
+        "SELECT id, permissions, name FROM bedrock.permission_profile WHERE is_default = true"
     )
     profile_id = default_profile["id"] if default_profile else None
     new_user = await db.fetchrow(
-        "INSERT INTO app_user (email, profile_id) VALUES ($1, $2) "
+        "INSERT INTO bedrock.app_user (email, profile_id) VALUES ($1, $2) "
         "RETURNING id, sf_user_id, email, name, is_active",
         email, profile_id,
     )
@@ -168,7 +168,7 @@ async def resolve_task_lock(task_id: str, user: dict, db, salesforce) -> dict:
 
     if what_id:
         lock = await db.fetchrow(
-            "SELECT locked_by FROM opportunity_lock WHERE sf_opportunity_id = $1", what_id
+            "SELECT locked_by FROM bedrock.opportunity_lock WHERE sf_opportunity_id = $1", what_id
         )
         if lock:
             perms = user.get("_permissions", {})
@@ -217,7 +217,7 @@ async def get_my_permissions(request: Request, user=Depends(require_auth), db=De
         if updates:
             sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates))
             vals = [uid] + list(updates.values())
-            await db.execute(f"UPDATE app_user SET {sets}, updated_at = now() WHERE id = $1", *vals)
+            await db.execute(f"UPDATE bedrock.app_user SET {sets}, updated_at = now() WHERE id = $1", *vals)
             user_data.update(updates)
     perms = user_data.get("permissions") or {}
     return {
@@ -256,7 +256,7 @@ async def list_profiles(user=Depends(require_auth), db=Depends(get_db)):
     """List all permission profiles."""
     rows = await db.fetch(
         "SELECT id, name, description, is_default, permissions, created_at "
-        "FROM permission_profile ORDER BY name"
+        "FROM bedrock.permission_profile ORDER BY name"
     )
     return {"success": True, "data": [dict(r) for r in rows]}
 
@@ -265,7 +265,7 @@ async def list_profiles(user=Depends(require_auth), db=Depends(get_db)):
 async def get_profile(profile_id: str, user=Depends(require_auth), db=Depends(get_db)):
     """Get a single permission profile."""
     pid = uuid.UUID(profile_id)
-    row = await db.fetchrow("SELECT * FROM permission_profile WHERE id = $1", pid)
+    row = await db.fetchrow("SELECT * FROM bedrock.permission_profile WHERE id = $1", pid)
     if not row:
         raise HTTPException(404, "Profile not found")
     return {"success": True, "data": dict(row)}
@@ -278,9 +278,9 @@ async def create_profile(body: ProfileCreate, user=Depends(require_admin), db=De
     clean_perms = {k: body.permissions.get(k, False) for k in PERMISSION_KEYS}
     # If setting as default, unset other defaults
     if body.is_default:
-        await db.execute("UPDATE permission_profile SET is_default = false WHERE is_default = true")
+        await db.execute("UPDATE bedrock.permission_profile SET is_default = false WHERE is_default = true")
     row = await db.fetchrow(
-        "INSERT INTO permission_profile (name, description, is_default, permissions) "
+        "INSERT INTO bedrock.permission_profile (name, description, is_default, permissions) "
         "VALUES ($1, $2, $3, $4) RETURNING *",
         body.name, body.description, body.is_default, clean_perms,
     )
@@ -293,7 +293,7 @@ async def update_profile(
 ):
     """Update a permission profile."""
     pid = uuid.UUID(profile_id)
-    existing = await db.fetchrow("SELECT * FROM permission_profile WHERE id = $1", pid)
+    existing = await db.fetchrow("SELECT * FROM bedrock.permission_profile WHERE id = $1", pid)
     if not existing:
         raise HTTPException(404, "Profile not found")
     updates = {}
@@ -303,7 +303,7 @@ async def update_profile(
         updates["description"] = body.description
     if body.is_default is not None:
         if body.is_default:
-            await db.execute("UPDATE permission_profile SET is_default = false WHERE is_default = true")
+            await db.execute("UPDATE bedrock.permission_profile SET is_default = false WHERE is_default = true")
         updates["is_default"] = body.is_default
     if body.permissions is not None:
         clean_perms = {k: body.permissions.get(k, False) for k in PERMISSION_KEYS}
@@ -312,8 +312,8 @@ async def update_profile(
         return {"success": True, "data": dict(existing)}
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates))
     vals = [pid] + list(updates.values())
-    await db.execute(f"UPDATE permission_profile SET {sets}, updated_at = now() WHERE id = $1", *vals)
-    row = await db.fetchrow("SELECT * FROM permission_profile WHERE id = $1", pid)
+    await db.execute(f"UPDATE bedrock.permission_profile SET {sets}, updated_at = now() WHERE id = $1", *vals)
+    row = await db.fetchrow("SELECT * FROM bedrock.permission_profile WHERE id = $1", pid)
     return {"success": True, "data": dict(row)}
 
 
@@ -321,12 +321,12 @@ async def update_profile(
 async def delete_profile(profile_id: str, user=Depends(require_admin), db=Depends(get_db)):
     """Delete a permission profile. Fails if users are assigned to it."""
     pid = uuid.UUID(profile_id)
-    count = await db.fetchval("SELECT COUNT(*) FROM app_user WHERE profile_id = $1", pid)
+    count = await db.fetchval("SELECT COUNT(*) FROM bedrock.app_user WHERE profile_id = $1", pid)
     if count > 0:
         raise HTTPException(
             400, f"Cannot delete: {count} user(s) are assigned to this profile. Reassign them first."
         )
-    result = await db.execute("DELETE FROM permission_profile WHERE id = $1", pid)
+    result = await db.execute("DELETE FROM bedrock.permission_profile WHERE id = $1", pid)
     if result == "DELETE 0":
         raise HTTPException(404, "Profile not found")
     return {"success": True, "data": {"message": "Profile deleted"}}
@@ -341,8 +341,8 @@ async def list_users(user=Depends(require_admin), db=Depends(get_db)):
     rows = await db.fetch(
         "SELECT au.id, au.sf_user_id, au.email, au.name, au.is_active, au.profile_id, "
         "pp.name as profile_name "
-        "FROM app_user au "
-        "LEFT JOIN permission_profile pp ON pp.id = au.profile_id "
+        "FROM bedrock.app_user au "
+        "LEFT JOIN bedrock.permission_profile pp ON pp.id = au.profile_id "
         "ORDER BY au.name, au.email"
     )
     return {"success": True, "data": [dict(r) for r in rows]}
@@ -359,7 +359,7 @@ class UserUpdate(BaseModel):
 async def update_user(user_id: str, body: UserUpdate, user=Depends(require_admin), db=Depends(get_db)):
     """Update a user's profile, SF user ID, name, or active status."""
     uid = uuid.UUID(user_id)
-    existing = await db.fetchrow("SELECT * FROM app_user WHERE id = $1", uid)
+    existing = await db.fetchrow("SELECT * FROM bedrock.app_user WHERE id = $1", uid)
     if not existing:
         raise HTTPException(404, "User not found")
     updates = {}
@@ -375,10 +375,10 @@ async def update_user(user_id: str, body: UserUpdate, user=Depends(require_admin
         return {"success": True, "data": dict(existing)}
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates))
     vals = [uid] + list(updates.values())
-    await db.execute(f"UPDATE app_user SET {sets}, updated_at = now() WHERE id = $1", *vals)
+    await db.execute(f"UPDATE bedrock.app_user SET {sets}, updated_at = now() WHERE id = $1", *vals)
     row = await db.fetchrow(
-        "SELECT au.*, pp.name as profile_name FROM app_user au "
-        "LEFT JOIN permission_profile pp ON pp.id = au.profile_id WHERE au.id = $1", uid
+        "SELECT au.*, pp.name as profile_name FROM bedrock.app_user au "
+        "LEFT JOIN bedrock.permission_profile pp ON pp.id = au.profile_id WHERE au.id = $1", uid
     )
     return {"success": True, "data": dict(row)}
 
@@ -391,7 +391,7 @@ opp_router = APIRouter(prefix="/api/opportunities", tags=["opportunity-lock"])
 @opp_router.get("/locks")
 async def get_all_locks(user=Depends(require_auth), db=Depends(get_db)):
     """Get all locked opportunity IDs."""
-    rows = await db.fetch("SELECT sf_opportunity_id, locked_by, locked_at FROM opportunity_lock")
+    rows = await db.fetch("SELECT sf_opportunity_id, locked_by, locked_at FROM bedrock.opportunity_lock")
     return {"success": True, "data": [dict(r) for r in rows]}
 
 
@@ -417,7 +417,7 @@ async def lock_opportunity(
     if body.owner_id != sf_user_id:
         raise HTTPException(403, "You can only lock opportunities you own")
     row = await db.fetchrow(
-        "INSERT INTO opportunity_lock (sf_opportunity_id, locked_by) VALUES ($1, $2) "
+        "INSERT INTO bedrock.opportunity_lock (sf_opportunity_id, locked_by) VALUES ($1, $2) "
         "ON CONFLICT (sf_opportunity_id) DO NOTHING RETURNING *",
         opportunity_id, sf_user_id,
     )
@@ -434,7 +434,7 @@ async def unlock_opportunity(opportunity_id: str, user=Depends(require_auth), db
     perms = user_data.get("permissions") or {}
     sf_user_id = user_data.get("sf_user_id")
     lock = await db.fetchrow(
-        "SELECT * FROM opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
+        "SELECT * FROM bedrock.opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id
     )
     if not lock:
         raise HTTPException(404, "Opportunity is not locked")
@@ -442,5 +442,5 @@ async def unlock_opportunity(opportunity_id: str, user=Depends(require_auth), db
     is_admin = perms.get("manage_users_roles", False)
     if not is_owner and not is_admin:
         raise HTTPException(403, "Only the owner who locked this or an admin can unlock")
-    await db.execute("DELETE FROM opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id)
+    await db.execute("DELETE FROM bedrock.opportunity_lock WHERE sf_opportunity_id = $1", opportunity_id)
     return {"success": True, "data": {"message": "Opportunity unlocked"}}
