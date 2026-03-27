@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
@@ -46,7 +46,7 @@ const formatChannelText = (text) => {
 };
 
 function PathfinderNetworking() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const location = useLocation();
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

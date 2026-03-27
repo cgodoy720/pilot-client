@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
@@ -39,7 +39,8 @@ const formatShortDate = (dateString) => {
 };
 
 function PathfinderApplications() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const location = useLocation();
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1085,7 +1086,7 @@ function PathfinderApplications() {
             className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? 'Cancel' : '+ Add Job'}
+            {showForm ? 'Cancel' : '+ Track Application'}
           </Button>
           
           <div className="flex items-center gap-4 flex-1 min-w-min justify-end">
@@ -2090,7 +2091,7 @@ function PathfinderApplications() {
           <div className="flex gap-4 overflow-x-auto pb-4">
             {sortedAndFilteredApplications.length === 0 ? (
               <div className="text-center p-8 text-[#666666]">
-                <p>No applications yet. Click "+ Add Job" to add your first one!</p>
+                <p>No applications yet. Click "+ Track Application" to add your first one!</p>
               </div>
             ) : (
               <>

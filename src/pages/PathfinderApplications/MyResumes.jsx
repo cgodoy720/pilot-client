@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import { Button } from '../../components/ui/button';
@@ -21,18 +21,21 @@ const NO_INTEREST = '__none__';
 // ── Interest options ──────────────────────────────────────────────────────────
 
 const INTEREST_OPTIONS = [
-  { value: 'fintech', label: 'Fintech' },
-  { value: 'healthtech', label: 'Healthtech' },
-  { value: 'ai_ml', label: 'AI / ML' },
-  { value: 'edtech', label: 'EdTech' },
-  { value: 'ecommerce', label: 'E-Commerce' },
-  { value: 'cybersecurity', label: 'Cybersecurity' },
-  { value: 'enterprise_saas', label: 'Enterprise SaaS' },
-  { value: 'consumer_apps', label: 'Consumer Apps' },
-  { value: 'real_estate', label: 'Real Estate' },
-  { value: 'gov_civic_tech', label: 'Gov / Civic Tech' },
+  { value: 'technology', label: 'Technology' },
+  { value: 'finance', label: 'Finance' },
+  { value: 'healthcare', label: 'Healthcare' },
+  { value: 'education', label: 'Education' },
+  { value: 'government', label: 'Government' },
+  { value: 'retail', label: 'Retail' },
   { value: 'media_entertainment', label: 'Media & Entertainment' },
-  { value: 'consumer_services', label: 'Consumer Services' },
+  { value: 'manufacturing', label: 'Manufacturing' },
+  { value: 'real_estate', label: 'Real Estate' },
+  { value: 'consulting', label: 'Consulting' },
+  { value: 'nonprofit', label: 'Nonprofit' },
+  { value: 'legal', label: 'Legal' },
+  { value: 'energy', label: 'Energy' },
+  { value: 'transportation', label: 'Transportation' },
+  { value: 'hospitality', label: 'Hospitality' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -43,7 +46,7 @@ const INTEREST_LABELS = Object.fromEntries(
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function MyResumes() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const fileInputRef = useRef(null);
 
   const [resumes, setResumes] = useState([]);

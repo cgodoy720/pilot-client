@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import CalendarHeader from './components/CalendarHeader';
 import WeekView from './components/WeekView';
@@ -12,7 +12,8 @@ function Calendar() {
   const [currentDayId, setCurrentDayId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [cohortFilter, setCohortFilter] = useState(null);
   const [selectedCohort, setSelectedCohort] = useState(null); // For regular users to switch between enrolled cohorts

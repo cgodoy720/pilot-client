@@ -8,13 +8,14 @@ import {
   Card,
   CardContent
 } from '@mui/material';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { fetchExternalPeerFeedback } from '../../../utils/statsApi';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import MonthFilter from '../../../components/MonthFilter';
 
 const FeedbackSection = ({ cohortMonth }) => {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [feedbackData, setFeedbackData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

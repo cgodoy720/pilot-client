@@ -12,7 +12,7 @@ import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { toast } from 'sonner';
 
-const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber, customMessage }) => {
+const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, templateSlug, weekNumber, customMessage }) => {
   const [testEmail, setTestEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [emailError, setEmailError] = useState('');
@@ -25,7 +25,7 @@ const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber,
   const handleEmailChange = (e) => {
     const email = e.target.value;
     setTestEmail(email);
-    
+
     if (email && !validateEmail(email)) {
       setEmailError('Please enter a valid email address');
     } else {
@@ -46,7 +46,7 @@ const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber,
 
     try {
       setSending(true);
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/test-email`, {
         method: 'POST',
         headers: {
@@ -57,6 +57,7 @@ const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber,
           recipientEmail: testEmail,
           testData: {
             subject: emailSubject,
+            templateSlug: templateSlug,
             weekNumber: weekNumber,
             customMessage: customMessage
           }
@@ -68,9 +69,9 @@ const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber,
       }
 
       const result = await response.json();
-      
+
       toast.success('Test Email Sent!', {
-        description: `✅ Test email sent successfully to ${testEmail}`,
+        description: `Test email sent successfully to ${testEmail}`,
         duration: 5000,
       });
 
@@ -105,7 +106,7 @@ const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber,
             Send a test assessment feedback email to verify the template and content.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="test-email">Email Address</Label>
@@ -126,10 +127,10 @@ const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber,
           <div className="bg-muted/50 border border-border rounded-lg p-4">
             <h4 className="text-sm font-semibold mb-2">Test Email Details:</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Recipient: {testEmail || 'Not specified'}</li>
-              <li>• Subject: {emailSubject || 'Default subject'}</li>
-              <li>• Assessment Week: Week {weekNumber}</li>
-              <li>• Sample data will be used for testing</li>
+              <li>Recipient: {testEmail || 'Not specified'}</li>
+              <li>Subject: {emailSubject || 'Default subject'}</li>
+              <li>Template: {templateSlug || `Week ${weekNumber}`}</li>
+              <li>Sample data will be used for testing</li>
             </ul>
           </div>
         </div>
@@ -156,4 +157,3 @@ const TestEmailDialog = ({ isOpen, onClose, authToken, emailSubject, weekNumber,
 };
 
 export default TestEmailDialog;
-

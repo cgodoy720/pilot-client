@@ -13,7 +13,7 @@ import { Search, ChevronRight, Upload } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 
-function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect, onDaySelect, onUploadCurriculum, canEdit }) {
+function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect, onDaySelect, onUploadCurriculum, canEdit, refreshTrigger }) {
   const [cohorts, setCohorts] = useState([]);
   const [weeks, setWeeks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,11 +31,21 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
     }
   }, [selectedCohort]);
 
+  // Refresh days and cohorts when parent signals a change (e.g. day deleted, uploaded, edited)
+  useEffect(() => {
+    if (refreshTrigger) {
+      fetchCohorts();
+      if (selectedCohort) {
+        fetchDays(selectedCohort.cohort_name);
+      }
+    }
+  }, [refreshTrigger]);
+
   const fetchCohorts = async () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_URL}/api/preview/cohorts`,
+        `${API_URL}/api/preview/cohorts?t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setCohorts(response.data.cohorts || []);
@@ -50,7 +60,7 @@ function CohortDaySelector({ token, selectedCohort, selectedDay, onCohortSelect,
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(cohortName)}`,
+        `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(cohortName)}&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

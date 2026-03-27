@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 
 function Pathfinder() {
   const location = useLocation();
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   const isStaff = user?.role === 'staff' || user?.role === 'admin';
   
   // Redirect to dashboard if on /pathfinder root

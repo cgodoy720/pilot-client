@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ChevronLeft, ChevronRight, Users, Calendar, AlertCircle, CheckCircle2, Clock, Plus, XCircle } from 'lucide-react';
 import {
@@ -36,7 +36,7 @@ const COHORT_DATES = {
 };
 
 // Cohorts to exclude (duplicate December variations)
-const EXCLUDED_COHORTS = ['December 2025 AI Native', 'December 2025 Workshop'];
+const EXCLUDED_COHORTS = ['December 2025 AI Native', 'Admissions Workshop'];
 
 // Helper: Check if a date is during holiday break
 function isHolidayBreak(dateStr) {
@@ -74,7 +74,8 @@ function isClassDay(date, cohortName) {
 }
 
 function VolunteerRoster({ embedded = false }) {
-    const { user, token } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const { canAccessPage } = usePermissions();
     const [slots, setSlots] = useState([]);
     const [cohorts, setCohorts] = useState([]);

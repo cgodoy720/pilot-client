@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaCheckCircle, FaUsers, FaUserAlt, FaBook, FaPaperPlane, FaArrowLeft, FaArrowRight, FaBars, FaLink, FaExternalLinkAlt, FaEdit, FaCheck, FaTimes, FaFileAlt, FaVideo, FaBrain, FaComments, FaClipboardList, FaLock } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
@@ -164,7 +164,8 @@ const StreamingMarkdownMessage = ({ content, animateOnMount = false }) => {
 };
 
 function Learning() {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const location = useLocation();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
@@ -439,11 +440,10 @@ function Learning() {
             })));
             
             // Debug: Log survey tasks specifically
-            const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-            const surveyTasks = allTasks.filter(task => 
-              task.feedback_slot && 
+            const surveyTasks = allTasks.filter(task =>
+              task.feedback_slot &&
               typeof task.feedback_slot === 'string' &&
-              validSurveyTypes.includes(task.feedback_slot)
+              task.feedback_slot !== 'none'
             );
             if (surveyTasks.length > 0) {
               console.log('Valid survey tasks found:', surveyTasks.map(t => ({
@@ -518,10 +518,9 @@ function Learning() {
   // Helper function to load conversation for a task
   const loadTaskConversation = async (task) => {
     // If this is a survey task, don't load conversation - survey will handle itself
-    const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    const isTaskSurvey = task?.feedback_slot && 
+    const isTaskSurvey = task?.feedback_slot &&
                         typeof task.feedback_slot === 'string' &&
-                        validSurveyTypes.includes(task.feedback_slot);
+                        task.feedback_slot !== 'none';
                         
     if (isTaskSurvey) {
       console.log(`Task ${task.id} is a survey (${task.feedback_slot}), skipping conversation load`);
@@ -885,11 +884,12 @@ function Learning() {
 
     try {
       let receivedChunk = false;
-      const streamingMessageId = Date.now() + 1;
+      const now = Date.now();
+      const streamingMessageId = now + 1;
       const streamBuffer = createStreamBuffer();
       // Add user message to chat
       const userMessage = {
-        id: Date.now(),
+        id: now,
         content: trimmedMessage,
         sender: 'user',
         timestamp: new Date().toISOString(),
@@ -966,10 +966,17 @@ function Learning() {
               )
             );
           } else if (chunk.type === 'error') {
-            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
+            // Remove both the streaming placeholder and the optimistic user message
+            // since the backend rolls back the user message on AI failure
+            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId && msg.id !== userMessage.id));
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);
+            // Restore the user's message to the input for easy retry
+            const restoreContent = chunk.userContent || trimmedMessage;
+            if (restoreContent && textareaRef.current?.setValue) {
+              textareaRef.current.setValue(restoreContent);
+            }
             setError(chunk.error || 'Failed to send message. Please try again.');
           }
         },
@@ -1051,6 +1058,10 @@ function Learning() {
       }
       
       console.error('Error sending message:', error);
+      // Restore the user's message to the input for easy retry
+      if (textareaRef.current?.setValue) {
+        textareaRef.current.setValue(trimmedMessage);
+      }
       setError('An error occurred. Please try again.');
     } finally {
       // Only clear loading state if this request wasn't aborted
@@ -1169,12 +1180,10 @@ function Learning() {
       return false;
     }
     
-    // More specific survey detection - only true if feedback_slot is a valid survey type string
-    const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    const isSurvey = currentTask?.feedback_slot && 
+    const isSurvey = currentTask?.feedback_slot &&
                      typeof currentTask.feedback_slot === 'string' &&
-                     validSurveyTypes.includes(currentTask.feedback_slot);
-    
+                     currentTask.feedback_slot !== 'none';
+
     return isSurvey;
   };
 

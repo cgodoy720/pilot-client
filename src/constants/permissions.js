@@ -14,7 +14,6 @@ export const PAGE_PERMISSIONS = {
   PERFORMANCE: 'page:performance',
   PATHFINDER: 'page:pathfinder',
   ASSESSMENT: 'page:assessment',
-  PAST_SESSION: 'page:past_session',
   ACCOUNT: 'page:account',
   PAYMENT: 'page:payment',
   
@@ -39,7 +38,8 @@ export const PAGE_PERMISSIONS = {
   ASSESSMENT_GRADES: 'page:assessment_grades',
   ADMIN_VOLUNTEER_FEEDBACK: 'page:admin_volunteer_feedback',
   VOLUNTEER_MANAGEMENT: 'page:volunteer_management',
-  
+  TEMPLATE_MANAGEMENT: 'page:template_management',
+
   // Admin only section
   ADMIN_SECTION: 'page:admin_section',
   ADMIN_PROMPTS: 'page:admin_prompts',
@@ -88,7 +88,6 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.PERFORMANCE,
     PAGE_PERMISSIONS.PATHFINDER,
     PAGE_PERMISSIONS.ASSESSMENT,
-    PAGE_PERMISSIONS.PAST_SESSION,
     PAGE_PERMISSIONS.ACCOUNT,
     PAGE_PERMISSIONS.PAYMENT,
     // Note: volunteer_feedback, staff, and admin pages are NOT included here.
@@ -104,7 +103,6 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.PERFORMANCE,
     PAGE_PERMISSIONS.PATHFINDER,
     PAGE_PERMISSIONS.ASSESSMENT,
-    PAGE_PERMISSIONS.PAST_SESSION,
     PAGE_PERMISSIONS.ACCOUNT,
     PAGE_PERMISSIONS.PAYMENT,
     PAGE_PERMISSIONS.VOLUNTEER_FEEDBACK,

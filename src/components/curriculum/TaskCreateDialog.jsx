@@ -81,6 +81,8 @@ const TaskCreateDialog = ({
   const [isSaving, setIsSaving] = useState(false);
   const [assessments, setAssessments] = useState([]);
   const [loadingAssessments, setLoadingAssessments] = useState(false);
+  const [surveyTemplates, setSurveyTemplates] = useState([]);
+  const [loadingSurveys, setLoadingSurveys] = useState(false);
   const interfaceType = getInterfaceType(formData);
 
   // Apply smart defaults when task type or feedback_slot changes
@@ -150,7 +152,7 @@ const TaskCreateDialog = ({
       try {
         setLoadingAssessments(true);
         const response = await axios.get(
-          `${API_URL}/api/preview/assessments`,
+          `${API_URL}/api/preview/assessments?t=${Date.now()}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setAssessments(response.data.assessments || []);
@@ -166,6 +168,30 @@ const TaskCreateDialog = ({
       fetchAssessments();
     }
   }, [open, interfaceType, token]);
+
+  // Fetch survey templates when modal opens with survey interface type
+  useEffect(() => {
+    const fetchSurveyTemplates = async () => {
+      if (!token) return;
+      try {
+        setLoadingSurveys(true);
+        const response = await axios.get(
+          `${API_URL}/api/preview/survey-templates?t=${Date.now()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setSurveyTemplates(response.data.templates || []);
+      } catch (error) {
+        console.error('Error fetching survey templates:', error);
+        toast.error('Failed to load survey templates');
+      } finally {
+        setLoadingSurveys(false);
+      }
+    };
+
+    if (open) {
+      fetchSurveyTemplates();
+    }
+  }, [open, token]);
 
   // Calculate duration from start_time and end_time
   useEffect(() => {
@@ -593,7 +619,7 @@ const TaskCreateDialog = ({
                   <FileQuestion className="h-5 w-5 text-purple-600 mt-0.5" />
                   <div>
                     <p className="font-proxima-bold text-purple-900 text-sm">Survey Configuration</p>
-                    <p className="text-xs text-purple-700 font-proxima">Survey questions are hardcoded in the frontend based on survey type.</p>
+                    <p className="text-xs text-purple-700 font-proxima">Survey questions are managed in Templates. Select a survey type below.</p>
                   </div>
                 </div>
 
@@ -606,14 +632,24 @@ const TaskCreateDialog = ({
                     onValueChange={(value) => setFormData(prev => ({ ...prev, feedback_slot: value }))}
                   >
                     <SelectTrigger className="font-proxima">
-                      <SelectValue />
+                      <SelectValue placeholder={loadingSurveys ? 'Loading...' : 'Select survey type'} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="weekly">Weekly Survey (5 questions)</SelectItem>
-                      <SelectItem value="l1_final">L1 Final Survey (6 questions)</SelectItem>
-                      <SelectItem value="end_of_l1">End of L1</SelectItem>
-                      <SelectItem value="mid_program">Mid Program</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
+                      {surveyTemplates.length > 0 ? (
+                        surveyTemplates.map(t => {
+                          const questions = typeof t.questions === 'string' ? JSON.parse(t.questions) : (t.questions || []);
+                          return (
+                            <SelectItem key={t.template_id} value={t.survey_type}>
+                              {t.survey_name} ({questions.length} questions)
+                            </SelectItem>
+                          );
+                        })
+                      ) : (
+                        <>
+                          <SelectItem value="weekly">Weekly Survey</SelectItem>
+                          <SelectItem value="l1_final">L1 Final Survey</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

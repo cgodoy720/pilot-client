@@ -6,7 +6,6 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
-import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AdminAttendanceDashboard from './pages/AdminAttendanceDashboard/AdminAttendanceDashboard';
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
@@ -51,6 +50,9 @@ import OrganizationManagement from './pages/Admin/OrganizationManagement/Organiz
 import PermissionManagement from './pages/Admin/PermissionManagement';
 import ContentPreview from './pages/ContentPreview';
 
+// Template Management page
+import TemplateManagement from './pages/TemplateManagement';
+
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
 import FormEditor from './pages/FormBuilder/FormEditor';
@@ -66,7 +68,11 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 
-import { useAuth } from './context/AuthContext';
+// Platform Intake pages
+import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
+import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog';
+
+import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
 import { Toaster } from './components/ui/sonner';
@@ -80,7 +86,8 @@ import { PAGE_PERMISSIONS } from './constants/permissions';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   
   // Modal state
   const [modalConfig, setModalConfig] = useState({
@@ -139,6 +146,8 @@ function App() {
     // Force immediate redirect regardless of type
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('auth-storage');
+    localStorage.removeItem('applicantToken');
     window.location.href = '/login';
   };
 
@@ -187,13 +196,6 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.LEARNING}>
               <Learning />
-            </PermissionRoute>
-          </Layout>
-        } />
-        <Route path="/past-session" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.PAST_SESSION}>
-              <PastSession />
             </PermissionRoute>
           </Layout>
         } />
@@ -459,6 +461,15 @@ function App() {
         <Route path="/volunteer-roster" element={<Navigate to="/volunteer-management?tab=calendar" replace />} />
         <Route path="/volunteer-attendance" element={<Navigate to="/volunteer-management?tab=attendance" replace />} />
 
+        {/* Template Management (Staff/Admin) */}
+        <Route path="/template-management" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.TEMPLATE_MANAGEMENT}>
+              <TemplateManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Form Builder routes (Admin/Staff only) */}
         <Route path="/forms" element={
           <Layout>
@@ -503,6 +514,20 @@ function App() {
               <SalesTracker />
             </PermissionRoute>
           </Layout>
+        } />
+
+        {/* Platform Intake — all authenticated users */}
+        <Route path="/platform-intake" element={
+          <ProtectedRoute>
+            <PlatformIntake />
+          </ProtectedRoute>
+        } />
+
+        {/* Platform Intake Backlog — all authenticated users */}
+        <Route path="/platform-intake/backlog" element={
+          <ProtectedRoute>
+            <PlatformIntakeBacklog />
+          </ProtectedRoute>
         } />
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

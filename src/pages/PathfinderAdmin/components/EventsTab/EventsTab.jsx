@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent } from '../../../../components/ui/card';
@@ -24,7 +24,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 const API_URL = import.meta.env.VITE_API_URL;
 
 const EventsTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaCheckCircle } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import Swal from 'sweetalert2';
 
 // Components
@@ -164,7 +164,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
  * Used by ContentPreview to show interactive mode without the app Layout
  */
 function LearningPreview({ dayId, cohort, onBack }) {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   
   // State
   const [messages, setMessages] = useState([]);
@@ -290,7 +291,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
         setIsPageLoading(true);
         
         const response = await fetch(
-          `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(cohort)}`,
+          `${API_URL}/api/curriculum/days/${dayId}/full-details?cohort=${encodeURIComponent(cohort)}&t=${Date.now()}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
@@ -363,7 +364,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
     
     try {
       const response = await fetch(
-        `${API_URL}/api/learning/batch-completion-status?taskIds=${taskIds.join(',')}&isPreviewMode=true`,
+        `${API_URL}/api/learning/batch-completion-status?taskIds=${taskIds.join(',')}&isPreviewMode=true&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -378,8 +379,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
   // Load task conversation
   const loadTaskConversation = async (task) => {
-    const validSurveyTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    const isTaskSurvey = task?.feedback_slot && validSurveyTypes.includes(task.feedback_slot);
+    const isTaskSurvey = task?.feedback_slot && task.feedback_slot !== 'none';
     
     if (isTaskSurvey || task?.task_type === 'assessment' || task?.task_type === 'break') {
       setIsAiThinking(false);
@@ -397,7 +397,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
     setIsTaskComplete(false);
     
     // Fetch existing submission (no abort signal — lightweight GET that should always complete)
-    fetch(`${API_URL}/api/submissions/${task.id}?isPreviewMode=true`, {
+    fetch(`${API_URL}/api/submissions/${task.id}?isPreviewMode=true&t=${Date.now()}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : null)
@@ -416,7 +416,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true`,
+        `${API_URL}/api/learning/task-messages/${task.id}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true&t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` }, signal: abortController.signal }
       );
       
@@ -507,7 +507,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const checkTaskCompletion = async (taskId) => {
     try {
       const response = await fetch(
-        `${API_URL}/api/learning/task-completion-status/${taskId}?isPreviewMode=true`,
+        `${API_URL}/api/learning/task-completion-status/${taskId}?isPreviewMode=true&t=${Date.now()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -589,10 +589,11 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
     try {
       let receivedChunk = false;
-      const streamingMessageId = Date.now() + 1;
+      const now = Date.now();
+      const streamingMessageId = now + 1;
       const streamBuffer = createStreamBuffer();
       const userMessage = {
-        id: Date.now(),
+        id: now,
         content: trimmedMessage,
         sender: 'user',
         timestamp: new Date().toISOString(),
@@ -683,7 +684,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
       // Fallback: if streaming completed but no chunks were received, re-fetch all messages
       if (!receivedChunk && !abortController.signal.aborted && tasks[currentTaskIndex]?.id === messageTaskId) {
         const fallbackResponse = await fetch(
-          `${API_URL}/api/learning/task-messages/${messageTaskId}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true`,
+          `${API_URL}/api/learning/task-messages/${messageTaskId}?dayNumber=${currentDay?.day_number}&cohort=${encodeURIComponent(cohort)}&isPreviewMode=true&t=${Date.now()}`,
           {
             headers: { Authorization: `Bearer ${token}` },
             signal: abortController.signal,
@@ -926,8 +927,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
   // Task type checks
   const isCurrentTaskSurvey = () => {
     const task = tasks[currentTaskIndex];
-    const validTypes = ['weekly', 'l1_final', 'end_of_l1', 'mid_program', 'final'];
-    return task?.feedback_slot && validTypes.includes(task.feedback_slot);
+    return task?.feedback_slot && task.feedback_slot !== 'none';
   };
 
   const isCurrentTaskAssessment = () => tasks[currentTaskIndex]?.task_type === 'assessment';

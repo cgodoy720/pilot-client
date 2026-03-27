@@ -8,8 +8,7 @@ import {
 } from 'lucide-react';
 import BuilderDrawer from '../components/BuilderDrawer';
 import DemoRatingModal from '../components/DemoRatingModal';
-import { fetchPursuitBuilderCohorts } from '../utils/cohortUtils';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -219,10 +218,8 @@ const SelectionDropdown = ({ value, onChange }) => {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-const L2SelectionsTab = () => {
-  const { token } = useAuth();
-  const [cohorts, setCohorts] = useState([]);
-  const [selectedLevel, setSelectedLevel] = useState('');
+const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
+  const token = useAuthStore((s) => s.token);
   const [builders, setBuilders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState({ key: 'attendance_percentage', dir: 'desc' });
@@ -231,40 +228,27 @@ const L2SelectionsTab = () => {
   const startDate = '2025-03-01';
   const endDate = new Date().toISOString().split('T')[0];
 
-  // Human review state
+  const [cohortStartDate, setCohortStartDate] = useState(null);
+
   const [videoRatings, setVideoRatings] = useState({});
   const [selectionStatuses, setSelectionStatuses] = useState({});
   const [existingFeedback, setExistingFeedback] = useState({});
 
-  // Demo rating modal
   const [demoModalOpen, setDemoModalOpen] = useState(false);
   const [demoModalBuilder, setDemoModalBuilder] = useState(null);
   const [demoModalRating, setDemoModalRating] = useState(0);
 
-  // Filters
   const [nameFilter, setNameFilter] = useState([]);
   const [selectionFilter, setSelectionFilter] = useState([]);
   const [demoFilter, setDemoFilter] = useState([]);
 
   const hasFilters = nameFilter.length > 0 || selectionFilter.length > 0 || demoFilter.length > 0;
 
-  // ── Fetch cohorts ──
-  useEffect(() => {
-    if (!token) return;
-    fetchPursuitBuilderCohorts(token)
-      .then(data => {
-        setCohorts(data);
-        const l1 = data.find(c => c.name.includes('L1')) || data[0];
-        if (l1) setSelectedLevel(l1.legacyName);
-      })
-      .catch(console.error);
-  }, []);
-
-  // Get selected cohort object (for cohort_id)
   const selectedCohort = useMemo(
-    () => cohorts.find(c => c.legacyName === selectedLevel),
-    [cohorts, selectedLevel]
+    () => cohorts.find(c => c.cohort_id === selectedCohortId),
+    [cohorts, selectedCohortId]
   );
+  const selectedLevel = selectedCohort?.legacyName || '';
 
   // ── Fetch builders + final demos ──
   const fetchBuilders = () => {
@@ -283,21 +267,40 @@ const L2SelectionsTab = () => {
         }).then(r => r.json()).then(d => d.data || []).catch(() => [])
       : Promise.resolve([]);
 
-    Promise.all([buildersPromise, demosPromise]).then(([data, demos]) => {
+    // Fetch native attendance using curriculum_days as denominator (full program)
+    const attendancePromise = cohortId && token
+      ? fetch(`${API_URL}/api/admin/dashboard/builder-attendance?cohortId=${cohortId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(r => r.json()).catch(() => ({ success: false, data: {} }))
+      : Promise.resolve({ success: false, data: {} });
+
+    Promise.all([buildersPromise, demosPromise, attendancePromise]).then(([data, demos, attendanceRes]) => {
       const builderList = Array.isArray(data) ? data : [];
       // Index demos by user_id
       const demoByUser = {};
       for (const d of demos) {
         if (!demoByUser[d.user_id]) demoByUser[d.user_id] = d;
       }
-      // Merge demo data into builders
+      // Native attendance indexed by user_id
+      const nativeAtt = attendanceRes.success ? (attendanceRes.data || {}) : {};
+      if (attendanceRes.cohortStartDate) {
+        setCohortStartDate(attendanceRes.cohortStartDate);
+      }
+      // Merge demo + native attendance data into builders
       const merged = builderList.map(b => {
         const demo = demoByUser[b.user_id];
+        const att = nativeAtt[b.user_id];
         return {
           ...b,
           latest_loom_url: b.latest_loom_url || demo?.loom_url || null,
           latest_task_id: b.latest_task_id || demo?.task_id || null,
           latest_submission_id: b.latest_submission_id || demo?.submission_id || null,
+          // Override legacy API attendance with native curriculum_days-based data
+          ...(att && {
+            days_attended: att.days_attended,
+            total_curriculum_days: att.total_curriculum_days,
+            attendance_percentage: att.attendance_percentage,
+          }),
         };
       });
       setBuilders(merged);
@@ -343,10 +346,27 @@ const L2SelectionsTab = () => {
     const result = await res.json();
     if (!result.success) throw new Error(result.error);
 
-    // Optimistic local update
-    setVideoRatings(prev => ({ ...prev, [reviewData.builder_id]: reviewData.score }));
-    setSelectionStatuses(prev => ({ ...prev, [reviewData.builder_id]: reviewData.selection_status }));
-    setExistingFeedback(prev => ({ ...prev, [reviewData.builder_id]: [reviewData] }));
+    // Refetch fresh data for this builder so the table reflects what was actually saved
+    try {
+      const refreshRes = await fetch(
+        `${API_URL}/api/admin/dashboard/human-reviews?builderIds=${reviewData.builder_id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const freshData = await refreshRes.json();
+      if (freshData.success) {
+        const reviews = freshData.data || [];
+        const bid = reviewData.builder_id;
+        // Use loose string comparison — server returns integer builder_id, bid may be string
+        const newFeedback = reviews.filter(r => String(r.builder_id) === String(bid));
+        const latestScore = newFeedback.find(r => r.score)?.score;
+        const latestStatus = newFeedback.find(r => r.selection_status)?.selection_status;
+        setExistingFeedback(prev => ({ ...prev, [bid]: newFeedback }));
+        if (latestScore != null) setVideoRatings(prev => ({ ...prev, [bid]: latestScore }));
+        if (latestStatus) setSelectionStatuses(prev => ({ ...prev, [bid]: latestStatus }));
+      }
+    } catch (err) {
+      console.error('Failed to refresh review data after save:', err);
+    }
     return result;
   };
 
@@ -459,23 +479,11 @@ const L2SelectionsTab = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-end gap-3">
-          <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">Cohort</label>
-            <select
-              value={selectedLevel}
-              onChange={e => setSelectedLevel(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
-            >
-              {cohorts.map(c => <option key={c.cohort_id || c.name} value={c.legacyName}>{c.name}</option>)}
-            </select>
-          </div>
-          <Badge className="bg-[#EFEFEF] text-slate-600 text-xs h-fit">
-            {hasFilters
-              ? `${filtered.length} of ${builders.length} builders`
-              : `${builders.length} builders`}
-          </Badge>
-        </div>
+        <Badge className="bg-[#EFEFEF] text-slate-600 text-xs h-fit">
+          {hasFilters
+            ? `${filtered.length} of ${builders.length} builders`
+            : `${builders.length} builders`}
+        </Badge>
         <div className="flex items-center gap-2">
           {hasFilters && (
             <Button
@@ -529,7 +537,20 @@ const L2SelectionsTab = () => {
                         </span>
                         <FilterDropdown options={nameOptions} selected={nameFilter} onChange={setNameFilter} searchable label="builder name" />
                       </th>
-                      <SortHeader label="Attendance" sortKey="attendance_percentage" sort={sort} onSort={toggleSort} className="px-2 text-center" />
+                      <th
+                        className="pb-2 px-2 font-medium cursor-pointer hover:text-[#4242EA] transition-colors select-none text-center"
+                        onClick={() => toggleSort('attendance_percentage')}
+                      >
+                        <span className="inline-flex items-center gap-0.5">
+                          Attendance
+                          {sort.key === 'attendance_percentage' ? (sort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <span className="text-slate-300 text-[10px]">⇅</span>}
+                        </span>
+                        <div className="text-[9px] text-slate-400 font-normal normal-case tracking-normal">
+                          {cohortStartDate
+                            ? `Since ${new Date(cohortStartDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                            : 'Full program'}
+                        </div>
+                      </th>
                       <SortHeader label="Tasks" sortKey="tasks_completed_percentage" sort={sort} onSort={toggleSort} className="px-2 text-center" />
                       <SortHeader label="Feedback" sortKey="total_peer_feedback_count" sort={sort} onSort={toggleSort} className="px-2 text-center" />
                       <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">Grade Dist.</th>
