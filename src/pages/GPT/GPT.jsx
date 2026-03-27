@@ -506,8 +506,8 @@ function GPT() {
     } finally {
       // Only update loading state if not aborted
       if (!abortController.signal.aborted) {
+        setIsLoading(false);
         if (!silent) {
-          setIsLoading(false);
           setIsInitialLoad(false);
         }
       }
