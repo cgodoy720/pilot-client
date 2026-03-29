@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Set
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 
 from models import (
@@ -16,9 +16,10 @@ logger = logging.getLogger(__name__)
 
 class DataSyncService:
     """Service for synchronizing data between Salesforce and Sage Intacct."""
-    
-    def __init__(self, mcp_client):
+
+    def __init__(self, mcp_client, db_pool=None):
         self.mcp_client = mcp_client
+        self.db_pool = db_pool
         self.sync_history = []
         self.customer_mappings = {}  # Salesforce Account ID -> Intacct Customer ID
         self.opportunity_mappings = {}  # Opportunity ID -> Invoice mappings
@@ -27,8 +28,305 @@ class DataSyncService:
         """Check if Sage Intacct service is connected."""
         return "sage_intacct" in self.mcp_client.connected_services
 
+    def _salesforce_available(self) -> bool:
+        """Check if Salesforce service is connected."""
+        return "salesforce" in self.mcp_client.connected_services
+
+    async def sync_activities(self):
+        """Sync SF Tasks + Events into bedrock.activity table."""
+        if self.db_pool is None:
+            logger.debug("Skipping activity sync — no database pool")
+            return
+        if not self._salesforce_available():
+            logger.debug("Skipping activity sync — Salesforce not connected")
+            return
+
+        logger.info("Starting activity sync (SF Tasks + Events)...")
+        salesforce = self.mcp_client.services["salesforce"]
+        upserted = 0
+        skipped_deleted = 0
+        errors = 0
+
+        async with self.db_pool.acquire() as conn:
+            # Get watermark for incremental sync
+            watermark = await conn.fetchval(
+                "SELECT MAX(sf_last_modified) FROM bedrock.activity WHERE source = 'salesforce'"
+            )
+            watermark_clause = ""
+            if watermark:
+                # Format for SOQL: YYYY-MM-DDTHH:MM:SSZ (Salesforce canonical format)
+                utc_wm = watermark.astimezone(timezone.utc)
+                watermark_str = utc_wm.strftime("%Y-%m-%dT%H:%M:%SZ")
+                watermark_clause = f" WHERE LastModifiedDate > {watermark_str}"
+
+            # SOQL: SF Tasks
+            task_soql = f"""
+            SELECT Id, Subject, Status, Priority, ActivityDate, Description,
+                   OwnerId, Owner.Name, WhoId, Who.Name, WhatId, What.Name,
+                   Type, TaskSubtype, CreatedById, CreatedBy.Name,
+                   CreatedDate, LastModifiedDate, IsClosed,
+                   CallType, CallDurationInSeconds
+            FROM Task
+            {watermark_clause}
+            ORDER BY LastModifiedDate ASC
+            """
+
+            # SOQL: SF Events
+            event_soql = f"""
+            SELECT Id, Subject, Description, StartDateTime, EndDateTime,
+                   OwnerId, Owner.Name, WhoId, Who.Name, WhatId, What.Name,
+                   Type, Location, DurationInMinutes, IsAllDayEvent,
+                   CreatedById, CreatedBy.Name, CreatedDate, LastModifiedDate
+            FROM Event
+            {watermark_clause}
+            ORDER BY LastModifiedDate ASC
+            """
+
+            # Fetch both
+            try:
+                task_result = await salesforce.query_all(task_soql)
+                tasks = task_result.get("records", [])
+            except Exception as e:
+                logger.error(f"Failed to query SF Tasks: {e}")
+                tasks = []
+
+            try:
+                event_result = await salesforce.query_all(event_soql)
+                events = event_result.get("records", [])
+            except Exception as e:
+                logger.error(f"Failed to query SF Events: {e}")
+                events = []
+
+            logger.info(f"Activity sync: fetched {len(tasks)} Tasks, {len(events)} Events from Salesforce")
+
+            # Map and upsert Tasks
+            for task in tasks:
+                try:
+                    row = self._map_sf_task(task)
+                    result = await self._upsert_activity(conn, row)
+                    if result == "upserted":
+                        upserted += 1
+                    elif result == "skipped_deleted":
+                        skipped_deleted += 1
+                except Exception as e:
+                    errors += 1
+                    logger.warning(f"Failed to sync Task {task.get('Id', '?')}: {e}")
+
+            # Map and upsert Events
+            for event in events:
+                try:
+                    row = self._map_sf_event(event)
+                    result = await self._upsert_activity(conn, row)
+                    if result == "upserted":
+                        upserted += 1
+                    elif result == "skipped_deleted":
+                        skipped_deleted += 1
+                except Exception as e:
+                    errors += 1
+                    logger.warning(f"Failed to sync Event {event.get('Id', '?')}: {e}")
+
+        summary = (
+            f"Activity sync complete: {upserted} upserted, "
+            f"{skipped_deleted} skipped (soft-deleted), {errors} errors"
+        )
+        logger.info(summary)
+
+        self.sync_history.append({
+            "timestamp": datetime.now(),
+            "type": "activity_sync",
+            "status": "completed" if errors == 0 else "completed_with_errors",
+            "details": summary,
+            "upserted": upserted,
+            "skipped_deleted": skipped_deleted,
+            "errors": errors,
+        })
+
+    @staticmethod
+    def _parse_sf_datetime(value) -> Optional[datetime]:
+        """Parse a Salesforce date/datetime string to a timezone-aware Python datetime.
+
+        Salesforce returns:
+          - Date fields: "2026-03-15"
+          - DateTime fields: "2026-03-15T14:30:00.000+0000"
+        asyncpg requires timezone-aware Python datetime objects for TIMESTAMPTZ columns.
+        """
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
+        try:
+            dt = datetime.fromisoformat(str(value))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            pass
+        # Fallback: date-only string "2026-03-15" → midnight UTC
+        try:
+            d = date.fromisoformat(str(value))
+            return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+        except ValueError:
+            logger.warning(f"Could not parse Salesforce datetime: {value!r}")
+            return None
+
+    def _map_sf_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """Map a Salesforce Task record to activity column values."""
+        # Determine activity type from TaskSubtype and Type
+        subtype = (task.get("TaskSubtype") or "").lower()
+        sf_type_field = (task.get("Type") or "").lower()
+
+        if subtype == "email":
+            activity_type = "email"
+        elif subtype == "call" or sf_type_field == "call":
+            activity_type = "call"
+        else:
+            activity_type = "note"
+
+        # Route WhatId to opportunity or account
+        opportunity_id = None
+        account_id = None
+        what_id = task.get("WhatId") or ""
+        if what_id.startswith("006"):
+            opportunity_id = what_id
+        elif what_id.startswith("001"):
+            account_id = what_id
+
+        # Route WhoId to contact_ids
+        contact_ids = []
+        who_id = task.get("WhoId") or ""
+        if who_id.startswith("003"):
+            contact_ids = [who_id]
+
+        # Call duration → meeting_duration_minutes (in seconds from SF)
+        call_duration_sec = task.get("CallDurationInSeconds")
+        duration_min = (call_duration_sec // 60) if call_duration_sec else None
+
+        return {
+            "sf_id": task["Id"],
+            "sf_type": "Task",
+            "type": activity_type,
+            "subject": task.get("Subject") or "(No subject)",
+            "description": task.get("Description"),
+            "activity_date": self._parse_sf_datetime(task.get("ActivityDate") or task.get("CreatedDate")),
+            "opportunity_id": opportunity_id,
+            "account_id": account_id,
+            "contact_ids": contact_ids,
+            "source": "salesforce",
+            "owner_id": task.get("OwnerId"),
+            "logged_by": task.get("CreatedById"),
+            "sf_last_modified": self._parse_sf_datetime(task.get("LastModifiedDate")),
+            "meeting_duration_minutes": duration_min,
+        }
+
+    def _map_sf_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
+        """Map a Salesforce Event record to activity column values."""
+        is_all_day = event.get("IsAllDayEvent", False)
+        activity_type = "calendar-event" if is_all_day else "meeting"
+
+        # Route WhatId
+        opportunity_id = None
+        account_id = None
+        what_id = event.get("WhatId") or ""
+        if what_id.startswith("006"):
+            opportunity_id = what_id
+        elif what_id.startswith("001"):
+            account_id = what_id
+
+        # Route WhoId
+        contact_ids = []
+        who_id = event.get("WhoId") or ""
+        if who_id.startswith("003"):
+            contact_ids = [who_id]
+
+        return {
+            "sf_id": event["Id"],
+            "sf_type": "Event",
+            "type": activity_type,
+            "subject": event.get("Subject") or "(No subject)",
+            "description": event.get("Description"),
+            "activity_date": self._parse_sf_datetime(event.get("StartDateTime") or event.get("CreatedDate")),
+            "opportunity_id": opportunity_id,
+            "account_id": account_id,
+            "contact_ids": contact_ids,
+            "source": "salesforce",
+            "owner_id": event.get("OwnerId"),
+            "logged_by": event.get("CreatedById"),
+            "sf_last_modified": self._parse_sf_datetime(event.get("LastModifiedDate")),
+            "meeting_duration_minutes": event.get("DurationInMinutes"),
+            "meeting_location": event.get("Location"),
+        }
+
+    async def _upsert_activity(self, conn, row: Dict[str, Any]) -> str:
+        """Upsert a single activity row. Returns 'upserted' or 'skipped_deleted'."""
+        result = await conn.execute("""
+            INSERT INTO bedrock.activity (
+                sf_id, sf_type, type, subject, description, activity_date,
+                opportunity_id, account_id, contact_ids, source,
+                owner_id, logged_by, sf_last_modified, synced_at,
+                meeting_duration_minutes, meeting_location
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6,
+                $7, $8, $9, $10,
+                $11, $12, $13, now(),
+                $14, $15
+            )
+            ON CONFLICT (sf_id) DO UPDATE SET
+                type = EXCLUDED.type,
+                subject = EXCLUDED.subject,
+                description = EXCLUDED.description,
+                activity_date = EXCLUDED.activity_date,
+                opportunity_id = EXCLUDED.opportunity_id,
+                account_id = EXCLUDED.account_id,
+                contact_ids = EXCLUDED.contact_ids,
+                owner_id = EXCLUDED.owner_id,
+                logged_by = EXCLUDED.logged_by,
+                sf_last_modified = EXCLUDED.sf_last_modified,
+                synced_at = now(),
+                meeting_duration_minutes = EXCLUDED.meeting_duration_minutes,
+                meeting_location = EXCLUDED.meeting_location
+            WHERE bedrock.activity.deleted_at IS NULL
+        """,
+            row["sf_id"],
+            row["sf_type"],
+            row["type"],
+            row["subject"],
+            row.get("description"),
+            row["activity_date"],
+            row.get("opportunity_id"),
+            row.get("account_id"),
+            row.get("contact_ids", []),
+            row["source"],
+            row.get("owner_id"),
+            row.get("logged_by"),
+            row.get("sf_last_modified"),
+            row.get("meeting_duration_minutes"),
+            row.get("meeting_location"),
+        )
+        # asyncpg returns 'INSERT 0 1' or 'INSERT 0 0' (0 means ON CONFLICT skipped)
+        if result and result.endswith("0 0"):
+            return "skipped_deleted"
+        return "upserted"
+
     async def sync_all_data(self):
         """Perform complete data synchronization."""
+
+        # Activities sync (SF → PostgreSQL, independent of Intacct)
+        if self.db_pool:
+            try:
+                await self.sync_activities()
+            except Exception as e:
+                logger.error(f"Activity sync failed (continuing): {e}")
+                self.sync_history.append({
+                    "timestamp": datetime.now(),
+                    "type": "activity_sync",
+                    "status": "failed",
+                    "error": str(e),
+                })
+
         if not self._intacct_available():
             logger.info("Skipping data sync — Sage Intacct not connected")
             return
