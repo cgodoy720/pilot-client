@@ -67,6 +67,123 @@ class InvoiceStatus(str, Enum):
     CANCELLED = "Cancelled"
 
 
+# Activity Models (local PostgreSQL — bedrock.activity table)
+
+class ActivityType(str, Enum):
+    """Activity type — matches CHECK constraint in bedrock.activity."""
+    CALL = "call"
+    EMAIL = "email"
+    MEETING = "meeting"
+    NOTE = "note"
+    SLACK_MESSAGE = "slack-message"
+    CALENDAR_EVENT = "calendar-event"
+
+
+class ActivitySource(str, Enum):
+    """Activity source — matches CHECK constraint in bedrock.activity."""
+    SALESFORCE = "salesforce"
+    EXTENSION = "extension"
+    MANUAL = "manual"
+    GMAIL_SYNC = "gmail-sync"
+    CALENDAR_SYNC = "calendar-sync"
+
+
+class ActivityCreate(BaseModel):
+    """POST /api/activities request body."""
+    type: ActivityType
+    subject: str
+    activity_date: datetime
+    source: ActivitySource
+    description: Optional[str] = None
+    description_html: Optional[str] = None
+    opportunity_id: Optional[str] = None
+    account_id: Optional[str] = None
+    contact_ids: List[str] = []
+    project_task_id: Optional[str] = None
+    sf_task_id: Optional[str] = None
+    source_ref: Optional[str] = None
+    source_thread_id: Optional[str] = None
+    email_from: Optional[str] = None
+    email_to: Optional[List[str]] = None
+    email_cc: Optional[List[str]] = None
+    email_snippet: Optional[str] = None
+    meeting_duration_minutes: Optional[int] = None
+    meeting_attendees: Optional[List[Dict[str, Any]]] = None
+    meeting_location: Optional[str] = None
+    logged_by: Optional[str] = None
+    owner_id: Optional[str] = None
+
+
+class ActivityUpdate(BaseModel):
+    """PUT /api/activities/{id} request body. All fields optional (partial update)."""
+    type: Optional[ActivityType] = None
+    subject: Optional[str] = None
+    activity_date: Optional[datetime] = None
+    description: Optional[str] = None
+    description_html: Optional[str] = None
+    opportunity_id: Optional[str] = None
+    account_id: Optional[str] = None
+    contact_ids: Optional[List[str]] = None
+    project_task_id: Optional[str] = None
+    sf_task_id: Optional[str] = None
+    source_ref: Optional[str] = None
+    source_thread_id: Optional[str] = None
+    email_from: Optional[str] = None
+    email_to: Optional[List[str]] = None
+    email_cc: Optional[List[str]] = None
+    email_snippet: Optional[str] = None
+    meeting_duration_minutes: Optional[int] = None
+    meeting_attendees: Optional[List[Dict[str, Any]]] = None
+    meeting_location: Optional[str] = None
+    logged_by: Optional[str] = None
+    owner_id: Optional[str] = None
+
+
+class Activity(BaseModel):
+    """Full activity response model (bedrock.activity row)."""
+    id: str
+    sf_id: Optional[str] = None
+    sf_type: Optional[str] = None
+    type: ActivityType
+    subject: str
+    description: Optional[str] = None
+    description_html: Optional[str] = None
+    activity_date: datetime
+    opportunity_id: Optional[str] = None
+    account_id: Optional[str] = None
+    contact_ids: List[str] = []
+    project_task_id: Optional[str] = None
+    sf_task_id: Optional[str] = None
+    source: ActivitySource
+    source_ref: Optional[str] = None
+    source_thread_id: Optional[str] = None
+    email_from: Optional[str] = None
+    email_to: Optional[List[str]] = None
+    email_cc: Optional[List[str]] = None
+    email_snippet: Optional[str] = None
+    meeting_duration_minutes: Optional[int] = None
+    meeting_attendees: Optional[List[Dict[str, Any]]] = None
+    meeting_location: Optional[str] = None
+    attachments: Optional[List[Dict[str, Any]]] = None
+    logged_by: Optional[str] = None
+    owner_id: Optional[str] = None
+    sf_last_modified: Optional[datetime] = None
+    synced_at: Optional[datetime] = None
+    sf_sync_status: Optional[str] = "synced"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class ActivityInsightsResponse(BaseModel):
+    """POST /api/activities/insights response."""
+    summary: str
+    key_findings: List[str] = []
+    action_items: List[str] = []
+    momentum: Optional[str] = None
+    generated_at: str
+    confidence: str = "structured"
+
+
 # Salesforce Models
 
 class SalesforceAccount(BaseModel):

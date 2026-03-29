@@ -48,6 +48,7 @@ from routes.slack_routes import router as slack_router
 from routes.ai import router as ai_router
 from routes.salesforce_search import router as sf_search_router
 from routes.salesforce_schema import router as sf_schema_router
+from routes.activities import router as activities_router
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
 from services.crm_parser import refresh_opp_cache as _refresh_opp_cache
@@ -119,12 +120,13 @@ app.include_router(slack_router)
 app.include_router(ai_router)
 app.include_router(sf_search_router)
 app.include_router(sf_schema_router)
+app.include_router(activities_router)
 
 # Service singletons — shared with dependencies.py so route files can use
 # Depends(get_mcp_client) without circular imports.
 import dependencies as _deps
 _services = _deps._services
-_sync_lock = asyncio.Lock()
+from dependencies import _sync_lock, get_data_sync_service
 
 # Startup and shutdown events
 
@@ -160,7 +162,12 @@ async def startup_event():
     # Set up dependent services if Salesforce connected
     if "salesforce" in client.connected_services:
         _services["forecasting_engine"] = ForecastingEngine(client)
-        _services["data_sync_service"] = DataSyncService(client)
+        # Pass db_pool for activity sync; fall back to no-DB if pool unavailable
+        try:
+            from db import get_pool
+            _services["data_sync_service"] = DataSyncService(client, db_pool=get_pool())
+        except Exception:
+            _services["data_sync_service"] = DataSyncService(client)
         asyncio.create_task(background_sync_task())
 
     logger.info(f"API started — connected services: {client.connected_services or ['none']}")
@@ -220,13 +227,7 @@ def get_forecasting_engine() -> ForecastingEngine:
     return engine
 
 
-def get_data_sync_service() -> DataSyncService:
-    """Get data sync service dependency."""
-    svc = _services.get("data_sync_service")
-    if not svc:
-        raise HTTPException(status_code=503, detail="Data sync service not available")
-    return svc
-
+# get_data_sync_service() moved to dependencies.py
 
 # Cashflow summary moved to routes/finance.py
 

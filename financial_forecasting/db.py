@@ -42,6 +42,13 @@ async def close_db() -> None:
         logger.info("PostgreSQL pool closed")
 
 
+def get_pool() -> asyncpg.Pool:
+    """Return the connection pool (for services that need direct access)."""
+    if _pool is None:
+        raise Exception("Database not available")
+    return _pool
+
+
 async def get_db() -> asyncpg.Connection:
     """FastAPI dependency — yields a connection from the pool."""
     if _pool is None:

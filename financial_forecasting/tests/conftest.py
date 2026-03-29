@@ -114,6 +114,106 @@ def make_sf_contact(overrides: Dict[str, Any] = None) -> Dict[str, Any]:
 # Sage Intacct mock data factories
 # ---------------------------------------------------------------------------
 
+def make_sf_task(overrides: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Create a mock Salesforce Task record."""
+    task = {
+        "Id": "00T0000000TEST01",
+        "Subject": "Follow up on grant proposal",
+        "Status": "Completed",
+        "Priority": "Normal",
+        "ActivityDate": "2026-03-15",
+        "Description": "Discussed next steps for spring grant",
+        "OwnerId": "005TESTOWNER00001",
+        "Owner": {"Name": "Test User"},
+        "WhoId": "003TESTCONTACT001",
+        "Who": {"Name": "Jane Donor"},
+        "WhatId": "006TESTOPPORTUNITY01",
+        "What": {"Name": "Test Grant - Spring 2026"},
+        "Type": "Call",
+        "TaskSubtype": "Call",
+        "CreatedById": "005TESTOWNER00001",
+        "CreatedBy": {"Name": "Test User"},
+        "CreatedDate": "2026-03-10T10:00:00.000+0000",
+        "LastModifiedDate": "2026-03-15T14:30:00.000+0000",
+        "IsClosed": True,
+        "CallType": "Outbound",
+        "CallDurationInSeconds": 1800,
+    }
+    if overrides:
+        task.update(overrides)
+    return task
+
+
+def make_sf_event(overrides: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Create a mock Salesforce Event record."""
+    event = {
+        "Id": "00U0000000TEST01",
+        "Subject": "Quarterly review meeting",
+        "Description": "Annual grant review with program team",
+        "StartDateTime": "2026-03-20T14:00:00.000+0000",
+        "EndDateTime": "2026-03-20T15:00:00.000+0000",
+        "OwnerId": "005TESTOWNER00001",
+        "Owner": {"Name": "Test User"},
+        "WhoId": "003TESTCONTACT001",
+        "Who": {"Name": "Jane Donor"},
+        "WhatId": "006TESTOPPORTUNITY01",
+        "What": {"Name": "Test Grant - Spring 2026"},
+        "Type": "Meeting",
+        "Location": "Conference Room A",
+        "DurationInMinutes": 60,
+        "IsAllDayEvent": False,
+        "CreatedById": "005TESTOWNER00001",
+        "CreatedBy": {"Name": "Test User"},
+        "CreatedDate": "2026-03-18T09:00:00.000+0000",
+        "LastModifiedDate": "2026-03-20T16:00:00.000+0000",
+    }
+    if overrides:
+        event.update(overrides)
+    return event
+
+
+def make_activity(overrides: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Create a mock bedrock.activity row (as returned by asyncpg)."""
+    activity = {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "sf_id": "00T0000000TEST01",
+        "sf_type": "Task",
+        "type": "call",
+        "subject": "Follow up on grant proposal",
+        "description": "Discussed next steps for spring grant",
+        "description_html": None,
+        "activity_date": datetime(2026, 3, 15, 14, 30),
+        "opportunity_id": "006TESTOPPORTUNITY01",
+        "account_id": None,
+        "contact_ids": ["003TESTCONTACT001"],
+        "project_task_id": None,
+        "sf_task_id": None,
+        "source": "salesforce",
+        "source_ref": None,
+        "source_thread_id": None,
+        "email_from": None,
+        "email_to": None,
+        "email_cc": None,
+        "email_snippet": None,
+        "meeting_duration_minutes": 30,
+        "meeting_attendees": None,
+        "meeting_location": None,
+        "attachments": [],
+        "logged_by": "005TESTOWNER00001",
+        "owner_id": "005TESTOWNER00001",
+        "sf_last_modified": datetime(2026, 3, 15, 14, 30),
+        "synced_at": datetime(2026, 3, 15, 15, 0),
+        "sf_sync_status": "synced",
+        "search_vector": None,
+        "deleted_at": None,
+        "created_at": datetime(2026, 3, 15, 15, 0),
+        "updated_at": datetime(2026, 3, 15, 15, 0),
+    }
+    if overrides:
+        activity.update(overrides)
+    return activity
+
+
 def make_intacct_invoice(overrides: Dict[str, Any] = None) -> Dict[str, Any]:
     """Create a mock Sage Intacct invoice record."""
     invoice = {
