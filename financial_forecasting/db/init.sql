@@ -2,7 +2,13 @@
 -- All tables live in the bedrock schema on segundo-db
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE SCHEMA IF NOT EXISTS bedrock;
+-- Schema must already exist on segundo-db (owned by postgres, bedrock_user has CREATE + USAGE)
+-- For local dev: CREATE SCHEMA IF NOT EXISTS bedrock;
+DO $$ BEGIN
+    CREATE SCHEMA IF NOT EXISTS bedrock;
+EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS bedrock.project (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
