@@ -48,6 +48,7 @@ from routes.slack_routes import router as slack_router
 from routes.ai import router as ai_router
 from routes.salesforce_search import router as sf_search_router
 from routes.salesforce_schema import router as sf_schema_router
+from routes.admin_sf_drift import router as admin_sf_drift_router
 from routes.activities import router as activities_router
 from auth import get_current_user_dep, require_auth, IS_PRODUCTION, JWT_SECRET_KEY
 from security import validate_salesforce_id, escape_soql_string
@@ -120,6 +121,7 @@ app.include_router(slack_router)
 app.include_router(ai_router)
 app.include_router(sf_search_router)
 app.include_router(sf_schema_router)
+app.include_router(admin_sf_drift_router)
 app.include_router(activities_router)
 
 # Service singletons — shared with dependencies.py so route files can use

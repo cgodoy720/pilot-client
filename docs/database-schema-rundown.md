@@ -393,6 +393,20 @@ Five new tables added in M17 to support the Pebble prospect → CRM conversion p
 
 **Design**: All prospect columns nullable. Readiness computed at read time by checking populated fields against `sf_field_requirements`. Updated-at triggers on all three prospect tables.
 
+**Schema Drift Detection** (M17 Session 3): On-demand comparison of live Salesforce `describe()` output against `sf_field_requirements` rows. Admin triggers a scan via `POST /api/admin/sf-schema-drift/scan`. Five drift types detected:
+
+| Drift Type | Meaning |
+|------------|---------|
+| `field_removed` | Field in requirements no longer exists in live SF |
+| `field_added` | New custom field (`__c`) in live SF not tracked in requirements |
+| `type_changed` | Field type differs between requirements and live |
+| `is_required_changed` | Required/nullable status changed |
+| `updateable_changed` | Field editability changed |
+
+All drifts are logged to `sf_schema_drift_log` for HITL review. Admins can list unresolved entries (`GET /api/admin/sf-schema-drift`) and resolve them with an action description (`POST /api/admin/sf-schema-drift/{id}/resolve`). No automatic schema updates — all changes require human review.
+
+Service logic: `financial_forecasting/services/sf_schema_drift.py`. Endpoints: `financial_forecasting/routes/admin_sf_drift.py`.
+
 Full audit documentation: `product/reference/salesforce-required-fields.md`
 
 ## Sprint Roadmap

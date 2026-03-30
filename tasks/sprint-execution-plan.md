@@ -1,6 +1,6 @@
 # Sprint Execution Plan — Post-M18
 
-> Updated: 2026-03-30 (M17 Session 1 complete) | Rollout: 2026-03-31
+> Updated: 2026-03-30 (M17 complete — all 3 sessions) | Rollout: 2026-03-31
 > Source of truth for milestone status: `docs/PLAN-INDEX.md`
 
 ## Completed Milestones
@@ -19,10 +19,10 @@
 M10 ✅ ──┬──► M13 (2 sessions) ──┐
          │                        ├──► M16 (1 session)
          └──► M15 (2 sessions) ──┘
-M12 ✅ ──► M17 (3 sessions — absorbs M14)
+M12 ✅ ──► M17 ✅ (3 sessions — absorbs M14)
          Session 1 ✅  Schema + validation + storage
-         Session 2     T1-T3 pipeline + persistence
-         Session 3     Drift detection + integration test
+         Session 2 ✅  T1-T3 pipeline + persistence
+         Session 3 ✅  Drift detection + integration test
 M18 ✅ ──► M19 (1 session)
 ```
 
@@ -39,8 +39,8 @@ Every session is scoped to ship in one focused terminal session (3-5 hours).
 | Session | Milestone | What ships | Depends on | Status |
 |---------|-----------|------------|------------|--------|
 | **1** | **M17 Session 1** | SF describe() audit, 5 new DB tables (prospect_sf_*, sf_field_requirements, drift_log), frontend validation, 7 storage functions, audit documentation | M12 ✅ | **Done** |
-| **1b** | **M17 Session 2** | T1-T3 population pipeline, scratchpad persistence, conflict log wiring, CRM bridge update methods | M17.1 | Ready |
-| **1c** | **M17 Session 3** | Schema drift detection utility, admin endpoint, integration testing | M17.2 | Ready |
+| **1b** | **M17 Session 2** | T1-T3 population pipeline, scratchpad persistence, conflict log wiring, CRM bridge update methods | M17.1 | **Done** |
+| **1c** | **M17 Session 3** | Schema drift detection utility, admin endpoints (scan/list/resolve), E2E integration test (16 tests), doc updates | M17.2 | **Done** |
 
 ### Activities Track (parallel streams)
 
@@ -68,8 +68,8 @@ Every session is scoped to ship in one focused terminal session (3-5 hours).
 
 ```
 Session 1:  M17.1 ✅  (Schema + validation + storage)
-Session 1b: M17.2    (T1-T3 pipeline + persistence)
-Session 1c: M17.3    (Drift detection + integration test)
+Session 1b: M17.2 ✅  (T1-T3 pipeline + persistence)
+Session 1c: M17.3 ✅  (Drift detection + integration test)
 Session 2:  M13.1    (ActivityTimeline — core visibility)
 Session 3:  M13.2    (Detail modals — full activities UX)
 Session 4:  M15.1    (Extension scaffold — can parallel with M13.2)
