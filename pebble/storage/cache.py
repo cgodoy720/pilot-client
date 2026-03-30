@@ -1,77 +1,81 @@
-"""API response cache — SQLite-backed with TTL expiration.
+"""API response cache — sync PostgreSQL via psycopg2.
 
-Avoids duplicate API calls on re-research and helps stay within free-tier limits.
-Uses the same DB file as the rest of Pebble (pebble.db).
+Stays synchronous intentionally: data sources (finra, lda, propublica) run
+in thread pool via asyncio.to_thread().  Using psycopg2 preserves the
+lock-free concurrency architecture documented in research_context.py.
+
+Table: bedrock.pebble_api_cache (managed by Bedrock init.sql).
 """
 
 import json
-import sqlite3
-from datetime import datetime, timedelta, timezone
+import logging
+import os
 
-from .db import DB_PATH
+import psycopg2
+import psycopg2.extras
+
+logger = logging.getLogger(__name__)
 
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    return conn
+def _get_conn():
+    """Return a psycopg2 connection to the bedrock database."""
+    return psycopg2.connect(
+        os.getenv("DATABASE_URL", "postgresql://bedrock@localhost:5432/bedrock"),
+        cursor_factory=psycopg2.extras.RealDictCursor,
+    )
 
 
 def get_cached(source: str, key: str) -> dict | None:
-    """Return cached response if it exists and has not expired, else None."""
+    """Sync cache read.  Returns parsed JSON or None if miss/expired."""
     conn = _get_conn()
     try:
-        row = conn.execute(
-            "SELECT response_json, expires_at FROM api_cache WHERE source = ? AND lookup_key = ?",
-            (source, key),
-        ).fetchone()
-        if not row:
-            return None
-        expires_at = row["expires_at"]
-        if expires_at:
-            now = datetime.now(timezone.utc).isoformat()
-            if now > expires_at:
-                # Expired — delete and return None
-                conn.execute(
-                    "DELETE FROM api_cache WHERE source = ? AND lookup_key = ?",
-                    (source, key),
-                )
-                conn.commit()
-                return None
-        return json.loads(row["response_json"])
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT response_json FROM bedrock.pebble_api_cache "
+                "WHERE source = %s AND lookup_key = %s AND expires_at > now()",
+                (source, key),
+            )
+            row = cur.fetchone()
+            if row:
+                return json.loads(row["response_json"])
+        return None
     finally:
         conn.close()
 
 
-def set_cached(source: str, key: str, data: dict, ttl_seconds: int = 86400) -> None:
-    """Store an API response with a TTL (default 24 hours)."""
-    now = datetime.now(timezone.utc)
-    created_at = now.isoformat()
-    expires_at = (now + timedelta(seconds=ttl_seconds)).isoformat()
-    response_json = json.dumps(data, default=str)
-
+def set_cached(
+    source: str, key: str, data: dict, ttl_seconds: int = 86400,
+) -> None:
+    """Sync cache write with TTL.  Upserts on (source, lookup_key)."""
     conn = _get_conn()
     try:
-        conn.execute(
-            """INSERT OR REPLACE INTO api_cache (source, lookup_key, response_json, created_at, expires_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (source, key, response_json, created_at, expires_at),
-        )
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO bedrock.pebble_api_cache
+                   (source, lookup_key, response_json, created_at, expires_at)
+                   VALUES (%s, %s, %s, now(),
+                           now() + %s * INTERVAL '1 second')
+                   ON CONFLICT (source, lookup_key) DO UPDATE SET
+                       response_json = EXCLUDED.response_json,
+                       created_at = EXCLUDED.created_at,
+                       expires_at = EXCLUDED.expires_at""",
+                (source, key, json.dumps(data), ttl_seconds),
+            )
         conn.commit()
     finally:
         conn.close()
 
 
 def clear_expired() -> int:
-    """Delete all expired cache entries. Returns number of rows deleted."""
-    now = datetime.now(timezone.utc).isoformat()
+    """Delete expired cache entries.  Returns count removed."""
     conn = _get_conn()
     try:
-        cursor = conn.execute(
-            "DELETE FROM api_cache WHERE expires_at IS NOT NULL AND expires_at < ?",
-            (now,),
-        )
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM bedrock.pebble_api_cache WHERE expires_at <= now()",
+            )
+            count = cur.rowcount
         conn.commit()
-        return cursor.rowcount
+        return count
     finally:
         conn.close()

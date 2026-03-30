@@ -8,7 +8,6 @@ from enum import Enum
 from typing import Any, Callable
 
 from .model_client import ModelClient, ModelTier, get_model_config, AGENT_TIERS, ESCALATION_CHAIN
-from .storage.db import log_harness_outcome
 
 logger = logging.getLogger("pebble.harness")
 
@@ -410,11 +409,7 @@ class WorkerHarness:
                 f"data sources {data_source_keys}, max is {max_sources}"
             )
             logger.warning("INPUT_SCOPING: %s", msg)
-            log_harness_outcome(
-                agent_name=spec.agent_name,
-                outcome="input_scoping_violation",
-                error=msg,
-            )
+            # DB logging removed — caller's _log_result persists via HarnessResult.error
             # Block execution — template must declare explicit override
             return HarnessResult(
                 outcome=AgentOutcome.SKIPPED,

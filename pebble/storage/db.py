@@ -1,183 +1,95 @@
-"""SQLite storage for Pebble: harness_log, profiles, feedback."""
+"""PostgreSQL storage for Pebble (asyncpg).
+
+Migrated from SQLite in M11. Tables are managed by Bedrock's init.sql
+in the bedrock schema with pebble_ prefix. This module only reads/writes.
+
+Pool-level codecs convert UUID→str and NUMERIC→float automatically so
+callers never deal with uuid.UUID or Decimal objects.
+"""
 
 import json
-import sqlite3
-from pathlib import Path
+import logging
+import os
+from collections import OrderedDict
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-DB_PATH = Path(__file__).parent.parent / "pebble.db"
+import asyncpg
 
+logger = logging.getLogger(__name__)
 
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def init_db() -> None:
-    """Create tables: harness_log, profiles, feedback."""
-    conn = get_db()
-    try:
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS harness_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                agent_name TEXT NOT NULL,
-                outcome TEXT NOT NULL,
-                cost_usd REAL,
-                tokens_input INTEGER,
-                tokens_output INTEGER,
-                attempts INTEGER,
-                elapsed_seconds REAL,
-                error TEXT,
-                prospect_id TEXT,
-                created_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS profiles (
-                contact_id TEXT PRIMARY KEY,
-                profile_json TEXT NOT NULL,
-                cost_usd REAL,
-                created_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS feedback (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                claim_id TEXT NOT NULL,
-                correct INTEGER NOT NULL,
-                created_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS source_scores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                source_name TEXT NOT NULL,
-                richness_score REAL NOT NULL,
-                prospect_id TEXT,
-                created_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS api_cache (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                source TEXT NOT NULL,
-                lookup_key TEXT NOT NULL,
-                response_json TEXT NOT NULL,
-                created_at TEXT,
-                expires_at TEXT
-            );
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_api_cache_source_key
-                ON api_cache(source, lookup_key);
-            CREATE TABLE IF NOT EXISTS research_sessions (
-                id TEXT PRIMARY KEY,
-                contact_id TEXT NOT NULL,
-                profile_json TEXT NOT NULL,
-                cost_usd REAL,
-                prospect_name TEXT,
-                prospect_org TEXT,
-                status TEXT DEFAULT 'completed',
-                created_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE INDEX IF NOT EXISTS idx_sessions_contact ON research_sessions(contact_id);
-            CREATE INDEX IF NOT EXISTS idx_sessions_created ON research_sessions(created_at DESC);
-
-            -- Ask Pebble chat tables
-            CREATE TABLE IF NOT EXISTS chat_conversations (
-                id TEXT PRIMARY KEY,
-                user_email TEXT NOT NULL,
-                title TEXT,
-                total_cost_usd REAL DEFAULT 0.0,
-                created_at TEXT DEFAULT (datetime('now')),
-                updated_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS chat_messages (
-                id TEXT PRIMARY KEY,
-                conversation_id TEXT NOT NULL,
-                role TEXT NOT NULL,
-                content TEXT NOT NULL,
-                tier TEXT,
-                cost_usd REAL DEFAULT 0.0,
-                metadata_json TEXT,
-                created_at TEXT DEFAULT (datetime('now')),
-                FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_chat_messages_conv
-                ON chat_messages(conversation_id, created_at);
-
-            -- Ask Pebble batch research tables
-            CREATE TABLE IF NOT EXISTS research_batches (
-                id TEXT PRIMARY KEY,
-                user_email TEXT NOT NULL,
-                total_prospects INTEGER NOT NULL DEFAULT 0,
-                completed_prospects INTEGER DEFAULT 0,
-                target_tier TEXT NOT NULL DEFAULT 'T1',
-                status TEXT DEFAULT 'pending',
-                total_cost_usd REAL DEFAULT 0.0,
-                created_at TEXT DEFAULT (datetime('now')),
-                updated_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS batch_prospects (
-                id TEXT PRIMARY KEY,
-                batch_id TEXT NOT NULL,
-                prospect_name TEXT,
-                prospect_org TEXT,
-                current_tier TEXT DEFAULT 'pending',
-                identity_confidence TEXT DEFAULT 'none',
-                crm_status TEXT DEFAULT 'unknown',
-                result_json TEXT,
-                cost_usd REAL DEFAULT 0.0,
-                created_at TEXT DEFAULT (datetime('now')),
-                updated_at TEXT DEFAULT (datetime('now')),
-                FOREIGN KEY (batch_id) REFERENCES research_batches(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_batch_prospects_batch
-                ON batch_prospects(batch_id);
-
-            -- Per-user daily cost tracking (M12 — access control)
-            CREATE TABLE IF NOT EXISTS daily_usage (
-                user_email TEXT NOT NULL,
-                date TEXT NOT NULL,
-                total_cost_usd REAL DEFAULT 0.0,
-                query_count INTEGER DEFAULT 0,
-                PRIMARY KEY (user_email, date)
-            );
-        """)
-        conn.commit()
-
-        # Enable WAL mode for concurrent read/write safety (chat + research)
-        conn.execute("PRAGMA journal_mode=WAL")
-
-        # Migrate feedback table — add columns if missing
-        try:
-            conn.execute("ALTER TABLE feedback ADD COLUMN text TEXT")
-        except Exception:
-            pass  # already exists
-        try:
-            conn.execute("ALTER TABLE feedback ADD COLUMN contact_id TEXT")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE feedback ADD COLUMN user_id TEXT")
-        except Exception:
-            pass
-
-        # Session 5: Add agent telemetry columns to research_sessions
-        try:
-            conn.execute("ALTER TABLE research_sessions ADD COLUMN tier TEXT")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE research_sessions ADD COLUMN agents_log_json TEXT")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE research_sessions ADD COLUMN batch_id TEXT")
-        except Exception:
-            pass
-
-        # M12: Add user_email to harness_log for per-user cost attribution
-        try:
-            conn.execute("ALTER TABLE harness_log ADD COLUMN user_email TEXT")
-        except Exception:
-            pass
-        conn.commit()
-    finally:
-        conn.close()
+_pool: asyncpg.Pool | None = None
 
 
-def log_harness_outcome(
+# ---------------------------------------------------------------------------
+# Pool management
+# ---------------------------------------------------------------------------
+
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Pool-level codecs registered on every new connection.
+
+    UUID→str:   Pebble convention — all IDs are str(uuid4()).
+    NUMERIC→float: Pebble cost values are simple floats, not Decimal.
+    """
+    await conn.set_type_codec(
+        "uuid", encoder=str, decoder=str,
+        schema="pg_catalog", format="text",
+    )
+    await conn.set_type_codec(
+        "numeric", encoder=str, decoder=float,
+        schema="pg_catalog", format="text",
+    )
+
+
+async def init_db() -> None:
+    """Create asyncpg connection pool.
+
+    Tables are managed by Bedrock's init.sql — NOT created here.
+    Verifies that the expected pebble tables exist as a health check.
+    """
+    global _pool
+    database_url = os.getenv(
+        "DATABASE_URL", "postgresql://bedrock@localhost:5432/bedrock",
+    )
+    _pool = await asyncpg.create_pool(
+        database_url, min_size=2, max_size=5, init=_init_connection,
+    )
+    async with _pool.acquire() as conn:
+        count = await conn.fetchval(
+            "SELECT COUNT(*) FROM pg_tables "
+            "WHERE schemaname = 'bedrock' AND tablename LIKE 'pebble_%'",
+        )
+        if count < 12:
+            logger.warning(
+                "Expected 12+ pebble tables, found %d. Run Bedrock init.sql.",
+                count,
+            )
+        else:
+            logger.info("Pebble storage connected — %d tables verified", count)
+
+
+async def close_db() -> None:
+    """Gracefully close the connection pool on shutdown."""
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
+
+
+def get_pool() -> asyncpg.Pool:
+    """Return the connection pool.  Raises if init_db() was not called."""
+    if _pool is None:
+        raise RuntimeError(
+            "Pebble DB pool not initialized — call init_db() first",
+        )
+    return _pool
+
+
+# ---------------------------------------------------------------------------
+# Harness telemetry
+# ---------------------------------------------------------------------------
+
+async def log_harness_outcome(
     agent_name: str,
     outcome: str,
     cost_usd: float | None = None,
@@ -189,132 +101,143 @@ def log_harness_outcome(
     prospect_id: str | None = None,
     user_email: str | None = None,
 ) -> None:
-    conn = get_db()
-    try:
-        conn.execute(
-            """INSERT INTO harness_log
-               (agent_name, outcome, cost_usd, tokens_input, tokens_output, attempts, elapsed_seconds, error, prospect_id, user_email)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (agent_name, outcome, cost_usd, tokens_input, tokens_output, attempts, elapsed_seconds, error, prospect_id, user_email),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO bedrock.pebble_harness_log
+               (agent_name, outcome, cost_usd, tokens_input, tokens_output,
+                attempts, elapsed_seconds, error, prospect_id, user_email)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)""",
+            agent_name, outcome, cost_usd, tokens_input, tokens_output,
+            attempts, elapsed_seconds, error, prospect_id, user_email,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def get_daily_usage(user_email: str, date: str) -> dict | None:
-    """Get daily cost usage for a user. Returns None if no usage recorded."""
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT total_cost_usd, query_count FROM daily_usage WHERE user_email = ? AND date = ?",
-            (user_email, date),
-        ).fetchone()
+async def get_daily_usage(user_email: str, date_str: str) -> dict | None:
+    """Get daily cost usage for a user.  Returns None if no usage recorded."""
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT total_cost_usd, query_count "
+            "FROM bedrock.pebble_daily_usage "
+            "WHERE user_email = $1 AND date = $2",
+            user_email, date_str,
+        )
         return dict(row) if row else None
-    finally:
-        conn.close()
 
 
-def increment_daily_usage(user_email: str, date: str, cost: float) -> None:
+async def increment_daily_usage(
+    user_email: str, date_str: str, cost: float,
+) -> None:
     """Atomically increment daily cost and query count for a user."""
-    conn = get_db()
-    try:
-        conn.execute(
-            """INSERT INTO daily_usage (user_email, date, total_cost_usd, query_count)
-               VALUES (?, ?, ?, 1)
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO bedrock.pebble_daily_usage
+               (user_email, date, total_cost_usd, query_count)
+               VALUES ($1, $2, $3, 1)
                ON CONFLICT (user_email, date) DO UPDATE SET
-                   total_cost_usd = daily_usage.total_cost_usd + excluded.total_cost_usd,
-                   query_count = daily_usage.query_count + 1""",
-            (user_email, date, cost),
+                   total_cost_usd = bedrock.pebble_daily_usage.total_cost_usd
+                                    + EXCLUDED.total_cost_usd,
+                   query_count = bedrock.pebble_daily_usage.query_count + 1""",
+            user_email, date_str, cost,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def save_profile(contact_id: str, profile: dict, cost_usd: float | None = None) -> None:
-    conn = get_db()
-    try:
-        conn.execute(
-            "INSERT OR REPLACE INTO profiles (contact_id, profile_json, cost_usd) VALUES (?, ?, ?)",
-            (contact_id, json.dumps(profile), cost_usd),
+# ---------------------------------------------------------------------------
+# Profiles
+# ---------------------------------------------------------------------------
+
+async def save_profile(
+    contact_id: str, profile: dict, cost_usd: float | None = None,
+) -> None:
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO bedrock.pebble_profiles
+               (contact_id, profile_json, cost_usd)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (contact_id) DO UPDATE SET
+                   profile_json = EXCLUDED.profile_json,
+                   cost_usd = EXCLUDED.cost_usd""",
+            contact_id, json.dumps(profile), cost_usd,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def get_profile(contact_id: str) -> dict | None:
-    conn = get_db()
-    try:
-        row = conn.execute("SELECT profile_json FROM profiles WHERE contact_id = ?", (contact_id,)).fetchone()
+async def get_profile(contact_id: str) -> dict | None:
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT profile_json FROM bedrock.pebble_profiles "
+            "WHERE contact_id = $1",
+            contact_id,
+        )
         if row:
             return json.loads(row["profile_json"])
         return None
-    finally:
-        conn.close()
 
 
-def save_feedback(
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
+
+async def save_feedback(
     claim_id: str,
     correct: bool,
     text: str | None = None,
     contact_id: str | None = None,
     user_id: str | None = None,
 ) -> None:
-    conn = get_db()
-    try:
-        conn.execute(
-            "INSERT INTO feedback (claim_id, correct, text, contact_id, user_id) VALUES (?, ?, ?, ?, ?)",
-            (claim_id, 1 if correct else 0, text, contact_id, user_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO bedrock.pebble_feedback
+               (claim_id, correct, text, contact_id, user_id)
+               VALUES ($1, $2, $3, $4, $5)""",
+            claim_id, correct, text, contact_id, user_id,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def get_feedback_for_contact(contact_id: str) -> list[dict]:
+async def get_feedback_for_contact(contact_id: str) -> list[dict]:
     """Return all feedback rows for a contact, newest first."""
-    conn = get_db()
-    try:
-        rows = conn.execute(
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
             "SELECT id, claim_id, correct, text, contact_id, user_id, created_at "
-            "FROM feedback WHERE contact_id = ? ORDER BY created_at DESC",
-            (contact_id,),
-        ).fetchall()
+            "FROM bedrock.pebble_feedback "
+            "WHERE contact_id = $1 ORDER BY created_at DESC",
+            contact_id,
+        )
         return [dict(r) for r in rows]
-    finally:
-        conn.close()
 
 
-def get_feedback_trends(days: int = 30) -> dict:
+async def get_feedback_trends(days: int = 30) -> dict:
     """Return feedback trend stats over the last N days."""
-    conn = get_db()
-    try:
-        cutoff = f"-{days} days"
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    async with get_pool().acquire() as conn:
         # Overall counts
-        row = conn.execute(
+        row = await conn.fetchrow(
             "SELECT COUNT(*) AS total, "
-            "SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct_count, "
-            "SUM(CASE WHEN correct = 0 THEN 1 ELSE 0 END) AS incorrect_count "
-            "FROM feedback WHERE created_at >= datetime('now', ?)",
-            (cutoff,),
-        ).fetchone()
+            "SUM(CASE WHEN correct THEN 1 ELSE 0 END) AS correct_count, "
+            "SUM(CASE WHEN NOT correct THEN 1 ELSE 0 END) AS incorrect_count "
+            "FROM bedrock.pebble_feedback WHERE created_at >= $1",
+            cutoff,
+        )
         total = row["total"] or 0
         correct_count = row["correct_count"] or 0
         incorrect_count = row["incorrect_count"] or 0
-        correct_pct = round(correct_count / total * 100, 1) if total > 0 else 0.0
+        correct_pct = (
+            round(correct_count / total * 100, 1) if total > 0 else 0.0
+        )
 
         # By contact
-        by_contact_rows = conn.execute(
+        by_contact_rows = await conn.fetch(
             "SELECT contact_id, COUNT(*) AS total, "
-            "SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct_count "
-            "FROM feedback WHERE created_at >= datetime('now', ?) AND contact_id IS NOT NULL "
+            "SUM(CASE WHEN correct THEN 1 ELSE 0 END) AS correct_count "
+            "FROM bedrock.pebble_feedback "
+            "WHERE created_at >= $1 AND contact_id IS NOT NULL "
             "GROUP BY contact_id ORDER BY total DESC",
-            (cutoff,),
-        ).fetchall()
+            cutoff,
+        )
         by_contact = [
-            {"contact_id": r["contact_id"], "total": r["total"], "correct_count": r["correct_count"] or 0}
+            {
+                "contact_id": r["contact_id"],
+                "total": r["total"],
+                "correct_count": r["correct_count"] or 0,
+            }
             for r in by_contact_rows
         ]
 
@@ -325,44 +248,44 @@ def get_feedback_trends(days: int = 30) -> dict:
             "correct_pct": correct_pct,
             "by_contact": by_contact,
         }
-    finally:
-        conn.close()
 
 
-def save_source_scores(prospect_id: str, scores: dict[str, float]) -> None:
+# ---------------------------------------------------------------------------
+# Source scores (stigmergy)
+# ---------------------------------------------------------------------------
+
+async def save_source_scores(
+    prospect_id: str, scores: dict[str, float],
+) -> None:
     """Stigmergy: write source richness scores to environment."""
-    conn = get_db()
-    try:
-        conn.executemany(
-            "INSERT INTO source_scores (source_name, richness_score, prospect_id) VALUES (?, ?, ?)",
+    async with get_pool().acquire() as conn:
+        await conn.executemany(
+            """INSERT INTO bedrock.pebble_source_scores
+               (source_name, richness_score, prospect_id)
+               VALUES ($1, $2, $3)""",
             [(name, score, prospect_id) for name, score in scores.items()],
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def get_source_reliability(source_name: str) -> float:
-    """Stigmergy: read pheromone trail — success rate over last 50 runs for a source."""
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            """SELECT outcome FROM harness_log
-               WHERE agent_name = ? ORDER BY created_at DESC LIMIT 50""",
-            (source_name,),
-        ).fetchall()
+async def get_source_reliability(source_name: str) -> float:
+    """Stigmergy: read pheromone trail — success rate over last 50 runs."""
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT outcome FROM bedrock.pebble_harness_log
+               WHERE agent_name = $1 ORDER BY created_at DESC LIMIT 50""",
+            source_name,
+        )
         if not rows:
-            return 1.0  # No history — neutral multiplier (no dampening)
+            return 1.0  # No history — neutral multiplier
         successes = sum(1 for r in rows if r["outcome"] == "success")
         return successes / len(rows)
-    finally:
-        conn.close()
 
 
-# ── Session History ──
+# ---------------------------------------------------------------------------
+# Session history
+# ---------------------------------------------------------------------------
 
-
-def save_session(
+async def save_session(
     session_id: str,
     contact_id: str,
     profile: dict,
@@ -375,62 +298,54 @@ def save_session(
     batch_id: str | None = None,
 ) -> None:
     """Insert a research session record."""
-    conn = get_db()
-    try:
-        conn.execute(
-            """INSERT INTO research_sessions
-               (id, contact_id, profile_json, cost_usd, prospect_name, prospect_org, status, tier, agents_log_json, batch_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (session_id, contact_id, json.dumps(profile), cost_usd, prospect_name, prospect_org, status,
-             tier, json.dumps(agents_log) if agents_log else None, batch_id),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO bedrock.pebble_research_sessions
+               (id, contact_id, profile_json, cost_usd, prospect_name,
+                prospect_org, status, tier, agents_log_json, batch_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)""",
+            session_id, contact_id, json.dumps(profile), cost_usd,
+            prospect_name, prospect_org, status, tier,
+            json.dumps(agents_log) if agents_log else None, batch_id,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def update_session_metadata(
+async def update_session_metadata(
     contact_id: str,
     tier: str | None = None,
     agents_log: list[dict] | None = None,
     batch_id: str | None = None,
 ) -> None:
     """Update the most recent session for a contact with metadata fields."""
-    conn = get_db()
-    try:
-        conn.execute(
-            """UPDATE research_sessions
-               SET tier = COALESCE(?, tier),
-                   agents_log_json = COALESCE(?, agents_log_json),
-                   batch_id = COALESCE(?, batch_id)
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """UPDATE bedrock.pebble_research_sessions
+               SET tier = COALESCE($1, tier),
+                   agents_log_json = COALESCE($2, agents_log_json),
+                   batch_id = COALESCE($3, batch_id)
                WHERE id = (
-                   SELECT id FROM research_sessions
-                   WHERE contact_id = ?
+                   SELECT id FROM bedrock.pebble_research_sessions
+                   WHERE contact_id = $4
                    ORDER BY created_at DESC LIMIT 1
                )""",
-            (tier, json.dumps(agents_log) if agents_log else None, batch_id, contact_id),
+            tier,
+            json.dumps(agents_log) if agents_log else None,
+            batch_id,
+            contact_id,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def get_recent_sessions(limit: int = 100) -> list[dict]:
-    """Return recent research sessions ordered by created_at DESC.
-
-    Each dict contains: id, contact_id, prospect_name, prospect_org,
-    status, tier, batch_id, cost_usd, claims_count, confidence_score, created_at.
-    """
-    conn = get_db()
-    try:
-        rows = conn.execute(
+async def get_recent_sessions(limit: int = 100) -> list[dict]:
+    """Return recent research sessions ordered by created_at DESC."""
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
             """SELECT id, contact_id, prospect_name, prospect_org, status,
                       profile_json, tier, batch_id, cost_usd, created_at
-               FROM research_sessions
+               FROM bedrock.pebble_research_sessions
                ORDER BY created_at DESC
-               LIMIT ?""",
-            (limit,),
-        ).fetchall()
+               LIMIT $1""",
+            limit,
+        )
         results = []
         for r in rows:
             profile = json.loads(r["profile_json"])
@@ -448,109 +363,101 @@ def get_recent_sessions(limit: int = 100) -> list[dict]:
                 "created_at": r["created_at"],
             })
         return results
-    finally:
-        conn.close()
 
 
-def get_session(session_id: str) -> dict | None:
+async def get_session(session_id: str) -> dict | None:
     """Return a full session record including profile_json (parsed)."""
-    conn = get_db()
-    try:
-        row = conn.execute(
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
             """SELECT id, contact_id, profile_json, cost_usd,
                       prospect_name, prospect_org, status,
                       agents_log_json, tier, batch_id, created_at
-               FROM research_sessions WHERE id = ?""",
-            (session_id,),
-        ).fetchone()
+               FROM bedrock.pebble_research_sessions WHERE id = $1""",
+            session_id,
+        )
         if not row:
             return None
         result = dict(row)
         result["profile"] = json.loads(result.pop("profile_json"))
         agents_log_raw = result.pop("agents_log_json", None)
-        result["agents_log"] = json.loads(agents_log_raw) if agents_log_raw else None
+        result["agents_log"] = (
+            json.loads(agents_log_raw) if agents_log_raw else None
+        )
         return result
-    finally:
-        conn.close()
 
 
-def get_sessions_grouped(limit: int = 100) -> list[dict]:
+async def get_sessions_grouped(limit: int = 100) -> list[dict]:
     """Return sessions grouped: batch -> prospect -> tier runs."""
-    conn = get_db()
-    try:
-        rows = conn.execute(
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
             """SELECT id, contact_id, prospect_name, prospect_org, status,
                       profile_json, tier, batch_id, cost_usd, created_at
-               FROM research_sessions
-               ORDER BY created_at DESC LIMIT ?""",
-            (limit,),
-        ).fetchall()
+               FROM bedrock.pebble_research_sessions
+               ORDER BY created_at DESC LIMIT $1""",
+            limit,
+        )
 
-        from collections import OrderedDict
-        batches: OrderedDict[str, dict] = OrderedDict()
+    batches: OrderedDict[str, dict] = OrderedDict()
 
-        for r in rows:
-            profile = json.loads(r["profile_json"])
-            session = {
-                "id": r["id"],
-                "contact_id": r["contact_id"],
-                "prospect_name": r["prospect_name"],
-                "prospect_org": r["prospect_org"],
-                "status": r["status"],
-                "tier": r["tier"],
+    for r in rows:
+        profile = json.loads(r["profile_json"])
+        session = {
+            "id": r["id"],
+            "contact_id": r["contact_id"],
+            "prospect_name": r["prospect_name"],
+            "prospect_org": r["prospect_org"],
+            "status": r["status"],
+            "tier": r["tier"],
+            "batch_id": r["batch_id"],
+            "cost_usd": r["cost_usd"],
+            "claims_count": len(profile.get("claims", [])),
+            "confidence_score": profile.get("confidence_score", "unknown"),
+            "created_at": r["created_at"],
+        }
+
+        batch_key = r["batch_id"] or f"_implicit_{r['id']}"
+        if batch_key not in batches:
+            batches[batch_key] = {
                 "batch_id": r["batch_id"],
-                "cost_usd": r["cost_usd"],
-                "claims_count": len(profile.get("claims", [])),
-                "confidence_score": profile.get("confidence_score", "unknown"),
                 "created_at": r["created_at"],
+                "prospects": OrderedDict(),
             }
 
-            batch_key = r["batch_id"] or f"_implicit_{r['id']}"
-            if batch_key not in batches:
-                batches[batch_key] = {
-                    "batch_id": r["batch_id"],
-                    "created_at": r["created_at"],
-                    "prospects": OrderedDict(),
-                }
+        prospect_key = r["contact_id"]
+        if prospect_key not in batches[batch_key]["prospects"]:
+            batches[batch_key]["prospects"][prospect_key] = {
+                "prospect_name": r["prospect_name"],
+                "prospect_org": r["prospect_org"],
+                "contact_id": r["contact_id"],
+                "runs": [],
+            }
+        batches[batch_key]["prospects"][prospect_key]["runs"].append(session)
 
-            prospect_key = r["contact_id"]
-            if prospect_key not in batches[batch_key]["prospects"]:
-                batches[batch_key]["prospects"][prospect_key] = {
-                    "prospect_name": r["prospect_name"],
-                    "prospect_org": r["prospect_org"],
-                    "contact_id": r["contact_id"],
-                    "runs": [],
-                }
-            batches[batch_key]["prospects"][prospect_key]["runs"].append(session)
-
-        result = []
-        for batch in batches.values():
-            batch["prospects"] = list(batch["prospects"].values())
-            result.append(batch)
-        return result
-    finally:
-        conn.close()
+    result = []
+    for batch in batches.values():
+        batch["prospects"] = list(batch["prospects"].values())
+        result.append(batch)
+    return result
 
 
 # ---------------------------------------------------------------------------
 # Chat persistence (Ask Pebble)
 # ---------------------------------------------------------------------------
 
-def ensure_conversation(conversation_id: str, user_email: str) -> None:
+async def ensure_conversation(
+    conversation_id: str, user_email: str,
+) -> None:
     """Create a conversation record if it doesn't exist."""
-    conn = get_db()
-    try:
-        conn.execute(
-            """INSERT OR IGNORE INTO chat_conversations (id, user_email)
-               VALUES (?, ?)""",
-            (conversation_id, user_email),
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """INSERT INTO bedrock.pebble_chat_conversations (id, user_email)
+               VALUES ($1, $2)
+               ON CONFLICT (id) DO NOTHING""",
+            conversation_id, user_email,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def save_chat_message(
+async def save_chat_message(
     message_id: str,
     conversation_id: str,
     role: str,
@@ -559,128 +466,129 @@ def save_chat_message(
     cost_usd: float = 0.0,
     metadata: dict | None = None,
 ) -> None:
-    """Save a chat message and update conversation cost."""
-    conn = get_db()
-    try:
-        metadata_json = json.dumps(metadata) if metadata else None
-        conn.execute(
-            """INSERT INTO chat_messages
-               (id, conversation_id, role, content, tier, cost_usd, metadata_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (message_id, conversation_id, role, content, tier, cost_usd, metadata_json),
-        )
-        if cost_usd > 0:
-            conn.execute(
-                """UPDATE chat_conversations
-                   SET total_cost_usd = total_cost_usd + ?,
-                       updated_at = datetime('now')
-                   WHERE id = ?""",
-                (cost_usd, conversation_id),
+    """Save a chat message and update conversation cost.
+
+    Uses a transaction for atomicity: message insert + cost update
+    either both succeed or neither does.
+    """
+    metadata_json = json.dumps(metadata) if metadata else None
+    async with get_pool().acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """INSERT INTO bedrock.pebble_chat_messages
+                   (id, conversation_id, role, content, tier, cost_usd, metadata_json)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)""",
+                message_id, conversation_id, role, content, tier,
+                cost_usd, metadata_json,
             )
-        conn.commit()
-    finally:
-        conn.close()
+            if cost_usd > 0:
+                # updated_at handled by trigger — no manual SET needed
+                await conn.execute(
+                    """UPDATE bedrock.pebble_chat_conversations
+                       SET total_cost_usd = total_cost_usd + $1
+                       WHERE id = $2""",
+                    cost_usd, conversation_id,
+                )
 
 
-def get_conversation_messages(
-    conversation_id: str, limit: int = 50
+async def get_conversation_messages(
+    conversation_id: str, limit: int = 50,
 ) -> list[dict]:
     """Get recent messages for a conversation."""
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            """SELECT id, role, content, tier, cost_usd, metadata_json, created_at
-               FROM chat_messages
-               WHERE conversation_id = ?
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT id, role, content, tier, cost_usd,
+                      metadata_json, created_at
+               FROM bedrock.pebble_chat_messages
+               WHERE conversation_id = $1
                ORDER BY created_at ASC
-               LIMIT ?""",
-            (conversation_id, limit),
-        ).fetchall()
-        results = []
-        for r in rows:
-            msg = dict(r)
-            if msg.get("metadata_json"):
-                msg["metadata"] = json.loads(msg.pop("metadata_json"))
-            else:
-                msg.pop("metadata_json", None)
-                msg["metadata"] = None
-            results.append(msg)
-        return results
-    finally:
-        conn.close()
+               LIMIT $2""",
+            conversation_id, limit,
+        )
+    results = []
+    for r in rows:
+        msg = dict(r)
+        if msg.get("metadata_json"):
+            msg["metadata"] = json.loads(msg.pop("metadata_json"))
+        else:
+            msg.pop("metadata_json", None)
+            msg["metadata"] = None
+        results.append(msg)
+    return results
 
 
-def get_recent_conversations(
-    user_email: str | None = None, limit: int = 20
+async def get_recent_conversations(
+    user_email: str | None = None, limit: int = 20,
 ) -> list[dict]:
     """Get recent conversations, optionally filtered by user."""
-    conn = get_db()
-    try:
+    async with get_pool().acquire() as conn:
         if user_email:
-            rows = conn.execute(
-                """SELECT id, user_email, title, total_cost_usd, created_at, updated_at
-                   FROM chat_conversations
-                   WHERE user_email = ?
+            rows = await conn.fetch(
+                """SELECT id, user_email, title, total_cost_usd,
+                          created_at, updated_at
+                   FROM bedrock.pebble_chat_conversations
+                   WHERE user_email = $1
                    ORDER BY updated_at DESC
-                   LIMIT ?""",
-                (user_email, limit),
-            ).fetchall()
+                   LIMIT $2""",
+                user_email, limit,
+            )
         else:
-            rows = conn.execute(
-                """SELECT id, user_email, title, total_cost_usd, created_at, updated_at
-                   FROM chat_conversations
+            rows = await conn.fetch(
+                """SELECT id, user_email, title, total_cost_usd,
+                          created_at, updated_at
+                   FROM bedrock.pebble_chat_conversations
                    ORDER BY updated_at DESC
-                   LIMIT ?""",
-                (limit,),
-            ).fetchall()
+                   LIMIT $1""",
+                limit,
+            )
         return [dict(r) for r in rows]
-    finally:
-        conn.close()
 
 
-def get_conversation_context(conversation_id: str) -> dict | None:
+async def get_conversation_context(conversation_id: str) -> dict | None:
     """Get the last assistant message's metadata for context resolution."""
-    conn = get_db()
-    try:
-        row = conn.execute(
-            """SELECT metadata_json FROM chat_messages
-               WHERE conversation_id = ? AND role = 'assistant'
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT metadata_json FROM bedrock.pebble_chat_messages
+               WHERE conversation_id = $1 AND role = 'assistant'
                ORDER BY created_at DESC LIMIT 1""",
-            (conversation_id,),
-        ).fetchone()
+            conversation_id,
+        )
         if row and row["metadata_json"]:
             return json.loads(row["metadata_json"])
         return None
-    finally:
-        conn.close()
 
 
 # ---------------------------------------------------------------------------
 # Batch research persistence (Ask Pebble Phase 4)
 # ---------------------------------------------------------------------------
 
-def create_batch(batch_id: str, user_email: str, prospects: list[dict]) -> None:
-    """Create a batch and its prospect rows."""
-    conn = get_db()
-    try:
-        conn.execute(
-            """INSERT INTO research_batches (id, user_email, total_prospects)
-               VALUES (?, ?, ?)""",
-            (batch_id, user_email, len(prospects)),
-        )
-        for p in prospects:
-            conn.execute(
-                """INSERT INTO batch_prospects
-                   (id, batch_id, prospect_name, prospect_org)
-                   VALUES (?, ?, ?, ?)""",
-                (p["id"], batch_id, p.get("name", ""), p.get("organization", "")),
+async def create_batch(
+    batch_id: str, user_email: str, prospects: list[dict],
+) -> None:
+    """Create a batch and its prospect rows.
+
+    Uses a transaction for atomicity: either all prospects are inserted
+    or none (prevents partial batches on failure).
+    """
+    async with get_pool().acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """INSERT INTO bedrock.pebble_research_batches
+                   (id, user_email, total_prospects)
+                   VALUES ($1, $2, $3)""",
+                batch_id, user_email, len(prospects),
             )
-        conn.commit()
-    finally:
-        conn.close()
+            for p in prospects:
+                await conn.execute(
+                    """INSERT INTO bedrock.pebble_batch_prospects
+                       (id, batch_id, prospect_name, prospect_org)
+                       VALUES ($1, $2, $3, $4)""",
+                    p["id"], batch_id, p.get("name", ""),
+                    p.get("organization", ""),
+                )
 
 
-def update_batch_prospect(
+async def update_batch_prospect(
     prospect_id: str,
     current_tier: str,
     identity_confidence: str = "none",
@@ -689,83 +597,76 @@ def update_batch_prospect(
     cost_usd: float = 0.0,
 ) -> None:
     """Update a prospect's tier result in a batch."""
-    conn = get_db()
-    try:
-        conn.execute(
-            """UPDATE batch_prospects
-               SET current_tier = ?, identity_confidence = ?, crm_status = ?,
-                   result_json = ?, cost_usd = ?, updated_at = datetime('now')
-               WHERE id = ?""",
-            (current_tier, identity_confidence, crm_status, result_json, cost_usd, prospect_id),
+    # updated_at handled by trigger — no manual SET needed
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """UPDATE bedrock.pebble_batch_prospects
+               SET current_tier = $1, identity_confidence = $2,
+                   crm_status = $3, result_json = $4, cost_usd = $5
+               WHERE id = $6""",
+            current_tier, identity_confidence, crm_status,
+            result_json, cost_usd, prospect_id,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def update_batch_status(
+async def update_batch_status(
     batch_id: str,
     status: str,
     completed_prospects: int | None = None,
     total_cost_usd: float | None = None,
 ) -> None:
     """Update batch-level status."""
-    conn = get_db()
-    try:
-        updates = ["status = ?", "updated_at = datetime('now')"]
-        params: list = [status]
-        if completed_prospects is not None:
-            updates.append("completed_prospects = ?")
-            params.append(completed_prospects)
-        if total_cost_usd is not None:
-            updates.append("total_cost_usd = ?")
-            params.append(total_cost_usd)
-        params.append(batch_id)
-        conn.execute(
-            f"UPDATE research_batches SET {', '.join(updates)} WHERE id = ?",
-            params,
+    # updated_at handled by trigger — no manual SET needed
+    params: list[Any] = [status]
+    sets = ["status = $1"]
+    idx = 2
+    if completed_prospects is not None:
+        sets.append(f"completed_prospects = ${idx}")
+        params.append(completed_prospects)
+        idx += 1
+    if total_cost_usd is not None:
+        sets.append(f"total_cost_usd = ${idx}")
+        params.append(total_cost_usd)
+        idx += 1
+    params.append(batch_id)
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            f"UPDATE bedrock.pebble_research_batches "
+            f"SET {', '.join(sets)} WHERE id = ${idx}",
+            *params,
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
-def get_batch_status(batch_id: str) -> dict | None:
+async def get_batch_status(batch_id: str) -> dict | None:
     """Get batch status and summary."""
-    conn = get_db()
-    try:
-        row = conn.execute(
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
             """SELECT id, user_email, total_prospects, completed_prospects,
                       target_tier, status, total_cost_usd, created_at, updated_at
-               FROM research_batches WHERE id = ?""",
-            (batch_id,),
-        ).fetchone()
+               FROM bedrock.pebble_research_batches WHERE id = $1""",
+            batch_id,
+        )
         return dict(row) if row else None
-    finally:
-        conn.close()
 
 
-def get_batch_prospects(batch_id: str) -> list[dict]:
+async def get_batch_prospects(batch_id: str) -> list[dict]:
     """Get all prospects in a batch."""
-    conn = get_db()
-    try:
-        rows = conn.execute(
+    async with get_pool().acquire() as conn:
+        rows = await conn.fetch(
             """SELECT id, prospect_name, prospect_org, current_tier,
                       identity_confidence, crm_status, result_json, cost_usd
-               FROM batch_prospects
-               WHERE batch_id = ?
+               FROM bedrock.pebble_batch_prospects
+               WHERE batch_id = $1
                ORDER BY prospect_name ASC""",
-            (batch_id,),
-        ).fetchall()
-        results = []
-        for r in rows:
-            item = dict(r)
-            if item.get("result_json"):
-                item["result"] = json.loads(item.pop("result_json"))
-            else:
-                item.pop("result_json", None)
-                item["result"] = None
-            results.append(item)
-        return results
-    finally:
-        conn.close()
+            batch_id,
+        )
+    results = []
+    for r in rows:
+        item = dict(r)
+        if item.get("result_json"):
+            item["result"] = json.loads(item.pop("result_json"))
+        else:
+            item.pop("result_json", None)
+            item["result"] = None
+        results.append(item)
+    return results

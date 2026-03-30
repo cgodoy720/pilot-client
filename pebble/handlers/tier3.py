@@ -163,7 +163,7 @@ async def handle_t3(
 
             # Opus synthesis
             t0_synth = time.time()
-            profile_data = synthesize_profile(
+            profile_data = await synthesize_profile(
                 verified_claims, prospect, model_client, budget,
                 wikipedia_context=wikipedia_context,
                 conflicts=conflicts if conflicts else None,
@@ -199,8 +199,8 @@ async def handle_t3(
             }
 
         # Save profile and session
-        save_profile(contact_id, profile)
-        save_session(
+        await save_profile(contact_id, profile)
+        await save_session(
             session_id=str(uuid.uuid4()),
             contact_id=contact_id,
             profile=profile,
@@ -234,36 +234,34 @@ async def handle_t3(
             )
 
         # Reconstruct agents_log from harness_log entries written during this pipeline run
-        from ..storage.db import get_db, update_session_metadata
+        from ..storage.db import get_pool, update_session_metadata
         start_ts = pipeline_start - 5  # small buffer before pipeline start
-        conn = get_db()
-        try:
-            rows = conn.execute(
+        async with get_pool().acquire() as conn:
+            rows = await conn.fetch(
                 """SELECT agent_name, outcome, cost_usd, tokens_input, tokens_output,
                           attempts, elapsed_seconds, error
-                   FROM harness_log WHERE prospect_id = ? AND created_at >= datetime(?, 'unixepoch')
+                   FROM bedrock.pebble_harness_log
+                   WHERE prospect_id = $1 AND created_at >= to_timestamp($2)
                    ORDER BY created_at ASC""",
-                (contact_id, start_ts),
-            ).fetchall()
-            agents_log = [
-                {
-                    "name": r["agent_name"],
-                    "outcome": r["outcome"],
-                    "elapsed_seconds": r["elapsed_seconds"] or 0.0,
-                    "cost_usd": r["cost_usd"] or 0.0,
-                    "tokens_input": r["tokens_input"] or 0,
-                    "tokens_output": r["tokens_output"] or 0,
-                    "attempts": r["attempts"] or 1,
-                    "error": r["error"],
-                    "records_found": None,
-                }
-                for r in rows
-            ]
-        finally:
-            conn.close()
+                contact_id, start_ts,
+            )
+        agents_log = [
+            {
+                "name": r["agent_name"],
+                "outcome": r["outcome"],
+                "elapsed_seconds": r["elapsed_seconds"] or 0.0,
+                "cost_usd": r["cost_usd"] or 0.0,
+                "tokens_input": r["tokens_input"] or 0,
+                "tokens_output": r["tokens_output"] or 0,
+                "attempts": r["attempts"] or 1,
+                "error": r["error"],
+                "records_found": None,
+            }
+            for r in rows
+        ]
 
         # Update the session that research_single_prospect already saved
-        update_session_metadata(
+        await update_session_metadata(
             contact_id=contact_id,
             tier="T3",
             agents_log=agents_log,
@@ -273,7 +271,7 @@ async def handle_t3(
 
     # Fetch the saved profile for display
     from ..storage.db import get_profile
-    saved_profile = get_profile(contact_id)
+    saved_profile = await get_profile(contact_id)
     profile = saved_profile or {}
     claims = profile.get("claims", [])
     summary = profile.get("summary", "")
