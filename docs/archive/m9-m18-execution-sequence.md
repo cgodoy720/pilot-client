@@ -1,3 +1,6 @@
+> **Archived 2026-03-30.** This execution sequence (M9→M18) is complete.
+> For current milestone status, see `docs/PLAN-INDEX.md`.
+
 # Complete Execution Sequence: M9 → M18
 
 **Purpose**: Definitive execution order for all remaining milestones, database-schema-first.

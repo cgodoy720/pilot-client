@@ -122,23 +122,27 @@ description     TEXT
 opportunity_id  TEXT NULL          -- optional link to SF Opportunity
 created_at      TIMESTAMPTZ
 updated_at      TIMESTAMPTZ
+deleted_at      TIMESTAMPTZ           -- soft delete (M18)
+deleted_by      TEXT                  -- audit: who deleted
 ```
 
 ### `bedrock.workstream`
 ```
 id              UUID PK
-project_id      UUID FK -> project (CASCADE)
+project_id      UUID FK -> project (CASCADE — retained for admin purge; app uses soft-delete)
 name            TEXT
 description     TEXT
 sort_order      INT
 created_at      TIMESTAMPTZ
 updated_at      TIMESTAMPTZ
+deleted_at      TIMESTAMPTZ           -- soft delete (M18, cascade from project)
+deleted_by      TEXT
 ```
 
 ### `bedrock.milestone`
 ```
 id              UUID PK
-workstream_id   UUID FK -> workstream (CASCADE)
+workstream_id   UUID FK -> workstream (CASCADE — retained for admin purge; app uses soft-delete)
 title           TEXT
 status          TEXT CHECK ('On Track'|'At Risk'|'Needs Attention'|'Completed')
 priority        TEXT CHECK ('Now'|'Later'|'On-going')
@@ -148,12 +152,14 @@ source_links    TEXT[]
 sort_order      INT
 created_at      TIMESTAMPTZ
 updated_at      TIMESTAMPTZ
+deleted_at      TIMESTAMPTZ           -- soft delete (M18, cascade from workstream)
+deleted_by      TEXT
 ```
 
 ### `bedrock.project_task`
 ```
 id              UUID PK
-milestone_id    UUID FK -> milestone (CASCADE)
+milestone_id    UUID FK -> milestone (CASCADE — retained for admin purge; app uses soft-delete)
 title           TEXT
 status          TEXT CHECK ('Not Started'|'In Progress'|'Completed'|'Blocked'|'On Hold')
 owner           TEXT               -- free text
@@ -166,6 +172,8 @@ depends_on      UUID[]             -- references other project_task.id
 sort_order      INT
 created_at      TIMESTAMPTZ
 updated_at      TIMESTAMPTZ
+deleted_at      TIMESTAMPTZ           -- soft delete (M18, cascade from milestone)
+deleted_by      TEXT
 ```
 
 ### `bedrock.sf_task_dependency`
@@ -373,19 +381,20 @@ updated_at      TIMESTAMPTZ DEFAULT now()
 
 ## Sprint Roadmap
 
-See `tasks/m9-m18-execution-sequence.md` for definitive execution order.
+See `docs/PLAN-INDEX.md` for current milestone status and execution order.
 
 ```
-M9:  Complete Database Schema Deployment (bedrock. prefix + all new DDL)
-M10: Activities Foundation (backend endpoints + sync)
-M11: Pebble PostgreSQL Migration (SQLite → asyncpg)
-M12: Pebble Access Control (RBAC + cost limits)
-M13: Activities Timeline + Modals (frontend)
-M14: Pebble Persistence + CRM Bridge
-M15: Chrome Extension
-M16: Integration + QA
-M17: SF Audit + UX Polish
-M18: Project Soft-Delete
+✅ M9:  Complete Database Schema Deployment (bedrock. prefix + all new DDL)
+✅ M10: Activities Foundation (backend endpoints + sync)
+✅ M11: Pebble PostgreSQL Migration (SQLite → asyncpg)
+✅ M12: Pebble Access Control (RBAC + cost limits)
+   M13: Activities Timeline + Modals (frontend)
+   M14: Pebble Persistence + CRM Bridge (BLOCKED)
+   M15: Chrome Extension
+   M16: Integration + QA
+   M17: SF Audit + UX Polish
+✅ M18: Project Soft-Delete
+   M19: Project Ownership Model (NEW)
 ```
 
 Note: Pebble stays Python/FastAPI (performance + security advantages for I/O-bound LLM workload). PRD Node.js references are about the target Pursuit platform, not Pebble.

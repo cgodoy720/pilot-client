@@ -16,4 +16,6 @@ For current docs, use:
 | IMPLEMENTATION_PLAN_REVISED, PRE_BUILD_CHECKLIST | Phase plans and checklists |
 | QUICK_START, DEMO_SETUP, ACTION_PLAN | Setup and demo instructions (superseded by DEV_SETUP_GUIDE) |
 
+| m9-m18-execution-sequence.md | M9→M18 execution order and dependency graph (completed 2026-03-30) |
+
 Kept for reference; do not treat as current.

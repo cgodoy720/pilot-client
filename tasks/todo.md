@@ -96,25 +96,15 @@ PRs 2, 4✓, 8✓, 9, 10✓ ship independently.
 - See `tasks/pebble-evolution-roadmap.md` for Stages 2-4 (future work)
 - See `tasks/pebble-stage1-issues.md` for known issues and deferred items
 
-## Next: Project Delete-Safety (M8)
+## Project Delete-Safety — Shipped as M18 (2026-03-30)
 
-> Prompted by M7 review — the delete flow works but has no guardrails. Projects + all attached workstreams/milestones/tasks are permanently destroyed on delete. This needs hardening before team rollout.
+> Core soft-delete shipped in M18 (PR #85). Ownership model deferred to M19.
 
 ### Scope
-1. **Project Ownership Model** — `owner` (user who created) + `contributors` (can edit tasks/milestones but cannot delete the project). Schema: `project.owner_email`, `project_contributor` junction table.
-2. **Soft-Delete with Trash Bin** — Deleted projects move to a `deleted_at` state instead of being destroyed. Trash bin UI shows deleted projects for 60 days. After 60 days, a scheduled cleanup permanently removes them.
-3. **Permission Checks** — Only project owner can delete. Contributors see disabled delete button with tooltip explaining why. Backend enforces this.
-4. **Trash Recovery** — "Restore" button in trash bin. Restores the project and all attached workstreams/milestones/tasks.
-
-### Design Decisions Needed
-- Tiered roles beyond Owner/Contributor? (Viewer?)
-- Should trash bin be a separate page or a section within Projects?
-- Should attached Opportunity links survive soft-delete and restore?
-- How does this interact with the existing `permission_profile` table?
-
-### Dependencies
-- Requires active user identity (already available via JWT `email` field)
-- No Salesforce dependency — this is purely local PostgreSQL
+1. **Project Ownership Model** — Deferred to M19
+2. ~~**Soft-Delete with Trash Bin**~~ — ✅ Shipped in M18
+3. **Permission Checks** — Deferred to M19 (currently any auth user can delete; M19 adds owner-only)
+4. ~~**Trash Recovery**~~ — ✅ Shipped in M18
 
 ## Future Considerations
 

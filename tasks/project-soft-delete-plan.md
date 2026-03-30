@@ -1,7 +1,7 @@
 # Project Hierarchy Soft-Delete Plan
 
 **Milestone**: M18
-**Status**: Planned (identified during M10 planning, 2026-03-26)
+**Status**: Complete (shipped 2026-03-30, PR #85)
 **Priority**: High — mitigates irreversible data loss from accidental deletes. Team is actively using Projects.
 **Dependency**: M10 (Activities Foundation) — M10 establishes the soft-delete pattern (deleted_at, partial index, UPSERT WHERE guard). M18 applies that proven pattern to projects + refactors CASCADE.
 **Can parallel with**: M13 (Activities Timeline) — touches completely different files
@@ -71,3 +71,15 @@ Wrap in a transaction. All-or-nothing.
 - `app_user` already uses `is_active BOOLEAN` which is effectively soft-delete
 - The CASCADE refactor (Phase 2) is the hard part — needs careful transaction handling
 - Consider: should hard-delete still be available to admins? (Emergency cleanup)
+
+## Implementation Notes (2026-03-30)
+
+Shipped with scope additions beyond original plan:
+- `deleted_by TEXT` audit column on all 4 hierarchy tables (not in original plan)
+- Trash UI in sidebar with collapsible section, visible to all users (not in original plan)
+- Admin-only permanent purge via `DELETE /projects/{id}/purge` (not in original plan)
+- Timestamp-matching restore: only restores cascade-deleted children, preserves individually-deleted items (not in original plan)
+- 90-day retention window (updated from original 60-day)
+- 42 tests covering auth, CRUD, soft-delete, restore, purge, trash list
+
+Deferred to M19: Project ownership model (owner_email, contributors, owner-only delete).
