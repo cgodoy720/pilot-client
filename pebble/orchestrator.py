@@ -122,7 +122,7 @@ class ProspectBudgetTracker:
         return self.total_cost_usd > self.cap_usd
 
 
-def _log_result(result, agent_name: str, prospect_id: str | None = None) -> None:
+def _log_result(result, agent_name: str, prospect_id: str | None = None, user_email: str | None = None) -> None:
     """Log harness outcome to harness_log."""
     log_harness_outcome(
         agent_name=agent_name,
@@ -134,6 +134,7 @@ def _log_result(result, agent_name: str, prospect_id: str | None = None) -> None
         elapsed_seconds=result.elapsed_seconds,
         error=result.error,
         prospect_id=prospect_id,
+        user_email=user_email,
     )
 
 
@@ -530,6 +531,7 @@ async def quorum_verify_claims(
     prospect: dict,
     client: ModelClient,
     budget: ProspectBudgetTracker,
+    user_email: str | None = None,
 ) -> list[dict]:
     """Quorum Sensing: 3 independent Haiku verifiers, majority vote (2-of-3) to include a claim."""
     if not claims or budget.exceeded():
@@ -595,6 +597,7 @@ async def quorum_verify_claims(
                     "origin": claim.get("origin", "unknown"),
                 }),
                 prospect_id=prospect.get("id"),
+                user_email=user_email,
             )
 
     logger.info("Quorum verification: %d/%d claims passed (2-of-3 vote)", len(verified), len(claims))
@@ -613,6 +616,7 @@ async def quorum_verify_claims(
             },
         }),
         prospect_id=prospect.get("id"),
+        user_email=user_email,
     )
 
     return verified
@@ -803,6 +807,7 @@ async def research_single_prospect(
     contact_id: str,
     client: ModelClient,
     cancel_check: Callable[[], bool],
+    user_email: str | None = None,
 ) -> dict:
     """Full per-prospect research pipeline.
 
@@ -914,7 +919,7 @@ async def research_single_prospect(
             wikipedia_context = "\n\n".join(parts) if parts else None
         verified_claims = all_claims
         if all_claims and not budget.exceeded():
-            verified_claims = await quorum_verify_claims(all_claims, prospect, client, budget)
+            verified_claims = await quorum_verify_claims(all_claims, prospect, client, budget, user_email=user_email)
 
         # Cancel checkpoint: before synthesis (most expensive LLM call)
         if cancel_check():

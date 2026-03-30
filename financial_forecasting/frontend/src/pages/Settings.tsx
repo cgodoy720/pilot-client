@@ -93,7 +93,9 @@ const PERMISSION_GROUPS = [
   {
     label: 'Pebble',
     keys: [
-      { key: 'use_pebble_chat', label: 'Use Ask Pebble (Chat & Tiered Research)' },
+      { key: 'use_pebble_chat', label: 'Use Ask Pebble (Chat)' },
+      { key: 'use_pebble_research', label: 'Use Pebble Research (Tiered & Batch)' },
+      { key: 'pebble_crm_write', label: 'Pebble CRM Write (via Chat)' },
     ],
   },
   {

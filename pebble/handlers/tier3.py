@@ -23,6 +23,7 @@ async def handle_t3(
     route: RouteResult,
     crm_bridge,
     client=None,
+    user_email: str | None = None,
 ) -> HandlerResponse:
     """Run T3 (Full Research Brief) — quorum verification + Opus synthesis.
 
@@ -223,6 +224,7 @@ async def handle_t3(
                 contact_id=contact_id,
                 client=model_client,
                 cancel_check=lambda: False,
+                user_email=user_email,
             )
         except Exception as e:
             logger.error("T3 pipeline failed for %s: %s", name, e)

@@ -46,6 +46,7 @@ async def dispatch_handler(
     conversation_context: Optional[list[dict]] = None,
     client=None,
     user_permissions: Optional[dict] = None,
+    user_email: str | None = None,
 ) -> HandlerResponse:
     """Route a classified query to the appropriate handler.
 
@@ -166,13 +167,13 @@ async def dispatch_handler(
             response = await handle_l1(route, crm_bridge, search_results, client)
     elif route.level == 10:
         from .tier1 import handle_t1
-        response = await handle_t1(route, crm_bridge, client)
+        response = await handle_t1(route, crm_bridge, client, user_email=user_email)
     elif route.level == 20:
         from .tier2 import handle_t2
-        response = await handle_t2(route, crm_bridge, client)
+        response = await handle_t2(route, crm_bridge, client, user_email=user_email)
     elif route.level == 30:
         from .tier3 import handle_t3
-        response = await handle_t3(route, crm_bridge, client)
+        response = await handle_t3(route, crm_bridge, client, user_email=user_email)
     else:
         response = HandlerResponse(
             text="I'm not sure how to handle that query.",

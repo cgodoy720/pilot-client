@@ -21,6 +21,7 @@ async def handle_t1(
     route: RouteResult,
     crm_bridge,
     client=None,
+    user_email: str | None = None,
 ) -> HandlerResponse:
     """Run T1 (ID & Triage) for a single prospect.
 

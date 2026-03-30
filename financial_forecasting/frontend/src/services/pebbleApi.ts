@@ -19,6 +19,14 @@ if (process.env.REACT_APP_PEBBLE_API_KEY) {
   pebbleApi.defaults.headers.common['X-Api-Key'] = process.env.REACT_APP_PEBBLE_API_KEY;
 }
 
+/**
+ * Set the X-User-Email header on all Pebble API requests.
+ * Called once from PermissionsContext when the user's email is resolved.
+ */
+export const setPebbleUserEmail = (email: string) => {
+  pebbleApi.defaults.headers.common['X-User-Email'] = email;
+};
+
 export interface ProspectInput {
   id: string;
   first_name?: string;
@@ -87,6 +95,10 @@ export const pebbleService = {
     pebbleApi.get<ResearchSessionDetail>(`/api/v1/research/history/${sessionId}`),
 
   health: () => pebbleApi.get('/health'),
+
+  // Budget tracking
+  getBudget: () =>
+    pebbleApi.get<{ daily_limit_usd: number; spent_today_usd: number; remaining_usd: number; query_count_today: number }>('/api/v1/budget'),
 
   // Ask Pebble chat
   chatQuery: (body: ChatQueryRequest) =>

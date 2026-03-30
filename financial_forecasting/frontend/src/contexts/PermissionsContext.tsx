@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { apiService } from '../services/api';
+import { setPebbleUserEmail } from '../services/pebbleApi';
 import { useAuth } from './AuthContext';
 
 interface PermissionsData {
@@ -66,6 +67,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => {
     fetchPermissions();
   }, [fetchPermissions]);
+
+  // Set X-User-Email header on Pebble API when user email is resolved
+  useEffect(() => {
+    if (data?.email) {
+      setPebbleUserEmail(data.email);
+    }
+  }, [data?.email]);
 
   const can = useCallback(
     (key: string) => {

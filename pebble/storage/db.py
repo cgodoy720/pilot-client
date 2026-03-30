@@ -124,6 +124,15 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_batch_prospects_batch
                 ON batch_prospects(batch_id);
+
+            -- Per-user daily cost tracking (M12 — access control)
+            CREATE TABLE IF NOT EXISTS daily_usage (
+                user_email TEXT NOT NULL,
+                date TEXT NOT NULL,
+                total_cost_usd REAL DEFAULT 0.0,
+                query_count INTEGER DEFAULT 0,
+                PRIMARY KEY (user_email, date)
+            );
         """)
         conn.commit()
 
@@ -157,6 +166,12 @@ def init_db() -> None:
             conn.execute("ALTER TABLE research_sessions ADD COLUMN batch_id TEXT")
         except Exception:
             pass
+
+        # M12: Add user_email to harness_log for per-user cost attribution
+        try:
+            conn.execute("ALTER TABLE harness_log ADD COLUMN user_email TEXT")
+        except Exception:
+            pass
         conn.commit()
     finally:
         conn.close()
@@ -172,14 +187,45 @@ def log_harness_outcome(
     elapsed_seconds: float = 0,
     error: str | None = None,
     prospect_id: str | None = None,
+    user_email: str | None = None,
 ) -> None:
     conn = get_db()
     try:
         conn.execute(
             """INSERT INTO harness_log
-               (agent_name, outcome, cost_usd, tokens_input, tokens_output, attempts, elapsed_seconds, error, prospect_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (agent_name, outcome, cost_usd, tokens_input, tokens_output, attempts, elapsed_seconds, error, prospect_id),
+               (agent_name, outcome, cost_usd, tokens_input, tokens_output, attempts, elapsed_seconds, error, prospect_id, user_email)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (agent_name, outcome, cost_usd, tokens_input, tokens_output, attempts, elapsed_seconds, error, prospect_id, user_email),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_daily_usage(user_email: str, date: str) -> dict | None:
+    """Get daily cost usage for a user. Returns None if no usage recorded."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT total_cost_usd, query_count FROM daily_usage WHERE user_email = ? AND date = ?",
+            (user_email, date),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def increment_daily_usage(user_email: str, date: str, cost: float) -> None:
+    """Atomically increment daily cost and query count for a user."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO daily_usage (user_email, date, total_cost_usd, query_count)
+               VALUES (?, ?, ?, 1)
+               ON CONFLICT (user_email, date) DO UPDATE SET
+                   total_cost_usd = daily_usage.total_cost_usd + excluded.total_cost_usd,
+                   query_count = daily_usage.query_count + 1""",
+            (user_email, date, cost),
         )
         conn.commit()
     finally:

@@ -78,8 +78,9 @@ const ALL_MENU_ITEMS = [
 const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', '/projects', '/settings']);
 
 // Map nav paths to required permissions (undefined = no permission needed)
-const NAV_PERMISSIONS: Record<string, string | undefined> = {
-  '/pebble': 'use_pebble_chat',
+// Values can be a string (single permission) or a function (custom logic)
+const NAV_PERMISSIONS: Record<string, string | ((can: (k: string) => boolean) => boolean) | undefined> = {
+  '/pebble': (can) => can('use_pebble_chat') || can('use_pebble_research'),
   '/cashflow': 'view_cashflow_forecasts',
   '/settings': undefined, // visible to all, tabs gated inside
 };
@@ -105,7 +106,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     // Filter by permissions
     return items.filter((item) => {
       const perm = NAV_PERMISSIONS[item.path];
-      return perm === undefined || can(perm);
+      if (perm === undefined) return true;
+      if (typeof perm === 'function') return perm(can);
+      return can(perm);
     });
   }, [navPhase, can]);
 

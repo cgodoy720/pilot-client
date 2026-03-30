@@ -58,11 +58,14 @@ const TARGET_FIELDS = [
   { id: 'organizations', label: 'Organization(s)' },
 ];
 
+type PebbleTab = 'research' | 'import' | 'chat';
+
 const Pebble: React.FC = () => {
   const { user } = useAuth();
   const { can } = usePermissions();
   const hasAskPebble = can('use_pebble_chat');
-  const [tab, setTab] = useState(0);
+  const hasResearch = can('use_pebble_research');
+  const [tab, setTab] = useState<PebbleTab>(hasResearch ? 'research' : 'chat');
 
   // ── Research tab state ──
   const [contactId, setContactId] = useState('');
@@ -116,6 +119,32 @@ const Pebble: React.FC = () => {
   const [historyBatches, setHistoryBatches] = useState<HistoryBatch[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // ── Budget state ──
+  const [budget, setBudget] = useState<{ daily_limit_usd: number; spent_today_usd: number; remaining_usd: number; query_count_today: number } | null>(null);
+
+  const fetchBudget = useCallback(async () => {
+    try {
+      const res = await pebbleService.getBudget();
+      setBudget(res.data);
+    } catch { /* budget is supplementary */ }
+  }, []);
+
+  // ── Build visible tabs based on permissions ──
+  const visibleTabs = React.useMemo(() => {
+    const tabs: { id: PebbleTab; label: string }[] = [];
+    if (hasResearch) tabs.push({ id: 'research', label: 'Research' });
+    if (hasResearch) tabs.push({ id: 'import', label: 'Bulk Import' });
+    if (hasAskPebble) tabs.push({ id: 'chat', label: 'Ask Pebble' });
+    return tabs;
+  }, [hasResearch, hasAskPebble]);
+
+  // Default to first visible tab if current tab is not visible
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.find(t => t.id === tab)) {
+      setTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs, tab]);
+
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
@@ -130,7 +159,8 @@ const Pebble: React.FC = () => {
 
   useEffect(() => {
     fetchHistory();
-  }, [fetchHistory]);
+    fetchBudget();
+  }, [fetchHistory, fetchBudget]);
 
   const handleLoadSession = async (session: ResearchSession) => {
     try {
@@ -140,7 +170,7 @@ const Pebble: React.FC = () => {
       setLastContactId(session.contact_id);
       setTierResults([]);  // Clear live results when loading historical
       setCurrentBatchId(null);  // New research should start a fresh batch
-      setTab(0);
+      setTab('research');
       toast.success(`Loaded profile for ${session.prospect_name || session.contact_id}`);
     } catch {
       toast.error('Failed to load session');
@@ -212,8 +242,9 @@ const Pebble: React.FC = () => {
         }
       }
 
-      // Refresh history sidebar — all tiers now save sessions
+      // Refresh history sidebar and budget — all tiers now save sessions
       fetchHistory();
+      fetchBudget();
 
       const tierLabel = `T${selectedTier}`;
       const costStr = data.cost_usd > 0 ? ` ($${data.cost_usd.toFixed(3)})` : '';
@@ -329,14 +360,22 @@ const Pebble: React.FC = () => {
         Enriches from ProPublica 990, SEC EDGAR, FEC, USAspending, OpenCorporates, and Wikipedia.
       </Typography>
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label="Research" />
-        <Tab label="Bulk Import" />
-        {hasAskPebble && <Tab label="Ask Pebble" />}
-      </Tabs>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+        <Tabs value={visibleTabs.findIndex(t => t.id === tab)} onChange={(_, v) => setTab(visibleTabs[v].id)} sx={{ flex: 1 }}>
+          {visibleTabs.map(t => <Tab key={t.id} label={t.label} />)}
+        </Tabs>
+        {budget && hasResearch && (
+          <Chip
+            size="small"
+            label={`$${budget.remaining_usd.toFixed(2)} / $${budget.daily_limit_usd.toFixed(2)} remaining`}
+            color={budget.remaining_usd > 1 ? 'default' : budget.remaining_usd > 0 ? 'warning' : 'error'}
+            variant="outlined"
+          />
+        )}
+      </Box>
 
-      {/* ── Tab 0: Single-Prospect Research ── */}
-      {tab === 0 && (
+      {/* ── Tab: Single-Prospect Research ── */}
+      {tab === 'research' && hasResearch && (
         <>
           <Card sx={{ mb: 2 }}>
             <CardContent>
@@ -642,8 +681,8 @@ const Pebble: React.FC = () => {
         </>
       )}
 
-      {/* ── Tab 1: Bulk Import ── */}
-      {tab === 1 && (
+      {/* ── Tab: Bulk Import ── */}
+      {tab === 'import' && hasResearch && (
         <>
           <Card sx={{ mb: 2 }}>
             <CardContent>
@@ -949,7 +988,7 @@ const Pebble: React.FC = () => {
                   }}
                   onViewProfile={(prospectId) => {
                     setLastContactId(prospectId);
-                    setTab(0);
+                    setTab('research');
                   }}
                 />
               </CardContent>
@@ -957,8 +996,8 @@ const Pebble: React.FC = () => {
           )}
         </>
       )}
-      {/* ── Tab 2: Ask Pebble (permission-gated) ── */}
-      {tab === 2 && hasAskPebble && (
+      {/* ── Tab: Ask Pebble (permission-gated) ── */}
+      {tab === 'chat' && hasAskPebble && (
         <Card>
           <CardContent>
             <PebbleChat mode="embedded" userEmail={user?.email} />

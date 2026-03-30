@@ -3,6 +3,7 @@
 import hmac
 import logging
 import os
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -31,6 +32,96 @@ async def verify_api_key(request: Request):
     provided = request.headers.get("X-Api-Key", "")
     if not provided or not hmac.compare_digest(provided, _PEBBLE_API_KEY):
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
+
+
+# ---------------------------------------------------------------------------
+# Permission verification (Bedrock callback + in-memory cache)
+# ---------------------------------------------------------------------------
+_permission_cache: dict[str, dict] = {}
+_PERMISSION_CACHE_TTL = 300  # 5 minutes
+
+DAILY_COST_LIMIT = float(os.getenv("PEBBLE_DAILY_COST_LIMIT_USD", "5.0"))
+
+
+async def _fetch_user_permissions(email: str) -> dict:
+    """Call Bedrock's internal permission endpoint via CRM bridge client."""
+    from .crm_bridge import _get_client
+    client = _get_client()
+    resp = await client.get(f"/api/permissions/internal/{email}")
+    resp.raise_for_status()
+    return resp.json().get("permissions", {})
+
+
+def require_pebble_permission(permission_key: str):
+    """FastAPI dependency: verify user has a specific Pebble permission.
+
+    Reads X-User-Email header (NOT body — avoids double body consumption).
+    Calls Bedrock to resolve permissions, caches result for 5 min.
+    Stores verified email + full permission map on request.state.
+    """
+    async def _check(request: Request):
+        user_email = request.headers.get("X-User-Email", "").strip()
+        if not user_email:
+            raise HTTPException(status_code=403, detail="X-User-Email header required")
+
+        now = time.time()
+        cached = _permission_cache.get(user_email)
+        if cached and cached["expires"] > now:
+            perms = cached["permissions"]
+        else:
+            try:
+                perms = await _fetch_user_permissions(user_email)
+                _permission_cache[user_email] = {
+                    "permissions": perms, "expires": now + _PERMISSION_CACHE_TTL,
+                }
+            except Exception as e:
+                logging.getLogger("pebble.main").warning(
+                    "Permission check failed for %s: %s", user_email, e,
+                )
+                if cached:
+                    perms = cached["permissions"]
+                else:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Cannot verify permissions — try again later",
+                    )
+
+        if not perms.get(permission_key, False):
+            raise HTTPException(
+                status_code=403, detail=f"Permission denied: {permission_key}",
+            )
+
+        request.state.user_email = user_email
+        request.state.user_permissions = perms
+        return user_email
+    return _check
+
+
+def check_daily_cost_limit():
+    """FastAPI dependency: reject if user exceeded daily cost limit.
+
+    Must run AFTER require_pebble_permission (reads request.state.user_email).
+    Only applied to research endpoints, not chat.
+    """
+    async def _check(request: Request):
+        user_email = getattr(request.state, "user_email", None)
+        if not user_email:
+            return
+
+        from datetime import date as _date
+        from .storage.db import get_daily_usage
+
+        usage = get_daily_usage(user_email, str(_date.today()))
+        if usage and usage["total_cost_usd"] >= DAILY_COST_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Daily cost limit (${DAILY_COST_LIMIT:.2f}) exceeded. "
+                    f"Used: ${usage['total_cost_usd']:.2f} across {usage['query_count']} queries."
+                ),
+            )
+    return _check
+
 
 from . import crm_bridge
 from .schemas import ResearchRequest, ResearchFeedback, CancelRequest
@@ -81,7 +172,7 @@ app.add_middleware(
     allow_origins=_pebble_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cookie"],
+    allow_headers=["Content-Type", "Authorization", "X-Api-Key", "Cookie", "X-User-Email"],
 )
 
 # Rate limiting
@@ -99,7 +190,7 @@ def _error_response(code: str, message: str, status: int = 400) -> dict:
     return {"success": False, "error": {"code": code, "message": message}}
 
 
-@app.post("/api/v1/research/cancel", dependencies=[Depends(verify_api_key)])
+@app.post("/api/v1/research/cancel", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_research"))])
 async def cancel_research(body: CancelRequest):
     """Cancel a running research job by job_id."""
     _cancel_flags.add(body.job_id)
@@ -116,31 +207,19 @@ def _is_cancelled(job_id: str | None) -> bool:
 # Ask Pebble — chat endpoint
 # ---------------------------------------------------------------------------
 
-_CHAT_ALLOWED_EMAILS = set(
-    e.strip()
-    for e in os.getenv("PEBBLE_CHAT_ALLOWED_EMAILS", "jp@pursuit.org,nick@pursuit.org").split(",")
-    if e.strip()
-)
 
-_CHAT_WRITE_EMAILS = set(
-    e.strip()
-    for e in os.getenv("PEBBLE_CHAT_WRITE_EMAILS", "").split(",")
-    if e.strip()
-)
-
-
-@app.post("/api/v1/chat/query", dependencies=[Depends(verify_api_key)])
+@app.post("/api/v1/chat/query", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 @limiter.limit("30/minute")
 async def chat_query(request: Request, body: dict):
     """Ask Pebble chat endpoint — classify → disambiguate → handle → respond."""
-    import time
+    import time as _time
     import uuid as _uuid
     from .schemas.chat import ChatQueryRequest, ChatQueryResponse
     from .router import classify_query
     from .handlers import dispatch_handler
     from .storage.db import ensure_conversation, save_chat_message
 
-    start = time.time()
+    start = _time.time()
 
     # Parse and validate request
     try:
@@ -148,13 +227,10 @@ async def chat_query(request: Request, body: dict):
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    # Access gate (defense-in-depth — primary gate is frontend permission)
-    if req.user_email and req.user_email not in _CHAT_ALLOWED_EMAILS:
-        raise HTTPException(status_code=403, detail="Chat access not enabled for this user")
-
-    # Ensure conversation exists
+    # Ensure conversation exists (use verified email from permission check)
+    user_email = getattr(request.state, "user_email", req.user_email or "unknown")
     conversation_id = req.conversation_id or str(_uuid.uuid4())
-    ensure_conversation(conversation_id, req.user_email or "unknown")
+    ensure_conversation(conversation_id, user_email)
 
     # Save user message
     save_chat_message(
@@ -189,9 +265,10 @@ async def chat_query(request: Request, body: dict):
             for m in prior[-6:]  # last 3 turns
         ]
 
-    # Resolve write permissions
+    # Resolve write permissions from RBAC (replaces PEBBLE_CHAT_WRITE_EMAILS env var)
+    perms = getattr(request.state, "user_permissions", {})
     user_permissions = None
-    if req.user_email and req.user_email in _CHAT_WRITE_EMAILS:
+    if perms.get("pebble_crm_write", False):
         user_permissions = {"crm_write": True}
 
     # Dispatch to handler
@@ -201,9 +278,10 @@ async def chat_query(request: Request, body: dict):
         conversation_context=conversation_messages,
         client=client,
         user_permissions=user_permissions,
+        user_email=user_email,
     )
 
-    elapsed = time.time() - start
+    elapsed = _time.time() - start
 
     # Save assistant message
     metadata = {
@@ -248,7 +326,7 @@ async def chat_query(request: Request, body: dict):
     )
 
 
-@app.get("/api/v1/chat/history", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/chat/history", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def chat_history(
     conversation_id: str | None = None,
     user_email: str | None = None,
@@ -265,11 +343,11 @@ async def chat_history(
         return {"conversations": conversations}
 
 
-@app.post("/api/v1/research/tiered", dependencies=[Depends(verify_api_key)])
+@app.post("/api/v1/research/tiered", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_research")), Depends(check_daily_cost_limit())])
 @limiter.limit("15/minute")
 async def tiered_research(request: Request, body: dict):
     """Single-prospect tiered research — pick T1, T2, or T3."""
-    import time
+    import time as _time
     import uuid as _uuid
 
     from .schemas.profile import TieredResearchRequest
@@ -283,7 +361,8 @@ async def tiered_research(request: Request, body: dict):
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    start = time.time()
+    start = _time.time()
+    user_email = getattr(request.state, "user_email", None)
     contact_id = req.contact_id or f"{req.first_name}_{req.last_name}".strip("_").lower() or str(_uuid.uuid4())
     name = f"{req.first_name} {req.last_name}".strip()
 
@@ -309,8 +388,14 @@ async def tiered_research(request: Request, body: dict):
         from .model_client import ModelClient
         client = ModelClient()
 
-    response = await handler(route, crm_bridge, client)
-    elapsed = time.time() - start
+    response = await handler(route, crm_bridge, client, user_email=user_email)
+    elapsed = _time.time() - start
+
+    # Track daily cost
+    if user_email and response.cost_usd > 0:
+        from datetime import date as _date
+        from .storage.db import increment_daily_usage
+        increment_daily_usage(user_email, str(_date.today()), response.cost_usd)
 
     # Save session for T1/T2 (T3 saves in its handler)
     if req.tier in (1, 2):
@@ -349,7 +434,7 @@ async def tiered_research(request: Request, body: dict):
     }
 
 
-@app.post("/api/v1/research/batch", dependencies=[Depends(verify_api_key)])
+@app.post("/api/v1/research/batch", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_research")), Depends(check_daily_cost_limit())])
 @limiter.limit("2/minute")
 async def batch_research(request: Request, body: dict):
     """Batch tiered research — run T1/T2/T3 on a list of prospects."""
@@ -370,7 +455,8 @@ async def batch_research(request: Request, body: dict):
     target_tier = body.get("target_tier", 1)
     batch_id = body.get("batch_id") or str(_uuid.uuid4())
     selected_ids = body.get("selected_ids")
-    user_email = body.get("user_email", "unknown")
+    # Prefer verified email from permission check; fall back to body for backwards compat
+    user_email = getattr(request.state, "user_email", None) or body.get("user_email", "unknown")
 
     if len(prospects) > 500:
         raise HTTPException(400, "Maximum 500 prospects per batch")
@@ -420,7 +506,7 @@ async def batch_research(request: Request, body: dict):
                     "org_name": row.get("prospect_org", ""),
                 },
             )
-            resp = await handler(route, crm_bridge, client)
+            resp = await handler(route, crm_bridge, client, user_email=user_email)
             return row["id"], resp
 
         chunk_results = await asyncio.gather(
@@ -452,6 +538,12 @@ async def batch_research(request: Request, body: dict):
 
     update_batch_status(batch_id, "completed", completed, total_cost)
 
+    # Track daily cost
+    if user_email and user_email != "unknown" and total_cost > 0:
+        from datetime import date as _date
+        from .storage.db import increment_daily_usage
+        increment_daily_usage(user_email, str(_date.today()), total_cost)
+
     return {
         "batch_id": batch_id,
         "status": "completed",
@@ -462,7 +554,7 @@ async def batch_research(request: Request, body: dict):
     }
 
 
-@app.get("/api/v1/research/batch/{batch_id}", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/research/batch/{batch_id}", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_research"))])
 async def get_batch(batch_id: str):
     """Get batch status and prospect results."""
     from .storage.db import get_batch_status, get_batch_prospects
@@ -474,7 +566,7 @@ async def get_batch(batch_id: str):
     return {"batch": status, "prospects": prospects}
 
 
-@app.post("/api/v1/research/request", dependencies=[Depends(verify_api_key)])
+@app.post("/api/v1/research/request", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_research")), Depends(check_daily_cost_limit())])
 @limiter.limit("10/minute")
 async def research_request(request: Request, body: ResearchRequest):
     """Accept research request. Runs Stage 1 enrichment when prospects provided."""
@@ -484,6 +576,7 @@ async def research_request(request: Request, body: ResearchRequest):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY not configured")
 
+    user_email = getattr(request.state, "user_email", None)
     job_id = body.job_id
 
     # Build prospect map from request
@@ -498,6 +591,7 @@ async def research_request(request: Request, body: ResearchRequest):
 
     client = ModelClient()
     results = []
+    total_cost = 0.0
 
     cancelled = False
 
@@ -515,8 +609,10 @@ async def research_request(request: Request, body: ResearchRequest):
             contact_id=cid,
             client=client,
             cancel_check=lambda: _is_cancelled(job_id),
+            user_email=user_email,
         )
         results.append(result)
+        total_cost += result.get("cost_usd", 0) or 0
         if result.get("cancelled"):
             cancelled = True
             break
@@ -525,11 +621,17 @@ async def research_request(request: Request, body: ResearchRequest):
     if job_id:
         _cancel_flags.discard(job_id)
 
+    # Track daily cost
+    if user_email and total_cost > 0:
+        from datetime import date as _date
+        from .storage.db import increment_daily_usage
+        increment_daily_usage(user_email, str(_date.today()), total_cost)
+
     status = "cancelled" if cancelled else "completed"
     return {"status": status, "contact_ids": body.contact_ids, "results": results}
 
 
-@app.get("/api/v1/research/profiles/{contact_id}/export", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/research/profiles/{contact_id}/export", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def export_profile(contact_id: str, format: str = "md"):
     """Export a research profile as Markdown (or PDF in the future)."""
     profile = get_profile(contact_id)
@@ -567,7 +669,7 @@ async def export_profile(contact_id: str, format: str = "md"):
     )
 
 
-@app.get("/api/v1/research/profiles/{contact_id}", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/research/profiles/{contact_id}", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def get_research_profile(contact_id: str):
     """Get research profile for a contact. Stub: returns null if not found."""
     profile = get_profile(contact_id)
@@ -576,26 +678,26 @@ async def get_research_profile(contact_id: str):
     return {"profile": profile}
 
 
-@app.post("/api/v1/research/feedback", dependencies=[Depends(verify_api_key)])
+@app.post("/api/v1/research/feedback", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def research_feedback(body: ResearchFeedback):
     """Store human feedback on a claim."""
     save_feedback(body.claim_id, body.correct, text=body.text, contact_id=body.contact_id)
     return {"ok": True}
 
 
-@app.get("/api/v1/research/feedback/trends", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/research/feedback/trends", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def feedback_trends(days: int = 30):
     """Return feedback accuracy trends over the last N days."""
     return get_feedback_trends(days)
 
 
-@app.get("/api/v1/research/feedback/{contact_id}", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/research/feedback/{contact_id}", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def contact_feedback(contact_id: str):
     """Return all feedback for a contact."""
     return {"feedback": get_feedback_for_contact(contact_id)}
 
 
-@app.get("/api/v1/research/history", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/research/history", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def research_history(limit: int = 100, grouped: bool = False):
     """Return recent research sessions, optionally grouped by batch."""
     if grouped:
@@ -605,13 +707,30 @@ async def research_history(limit: int = 100, grouped: bool = False):
     return {"sessions": sessions}
 
 
-@app.get("/api/v1/research/history/{session_id}", dependencies=[Depends(verify_api_key)])
+@app.get("/api/v1/research/history/{session_id}", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def research_session(session_id: str):
     """Return a full research session including profile."""
     session = get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
+
+
+@app.get("/api/v1/budget", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
+async def get_budget(request: Request):
+    """Get user's daily cost budget status."""
+    from datetime import date as _date
+    from .storage.db import get_daily_usage
+
+    user_email = request.state.user_email
+    usage = get_daily_usage(user_email, str(_date.today()))
+    spent = usage["total_cost_usd"] if usage else 0.0
+    return {
+        "daily_limit_usd": DAILY_COST_LIMIT,
+        "spent_today_usd": round(spent, 4),
+        "remaining_usd": round(max(0, DAILY_COST_LIMIT - spent), 4),
+        "query_count_today": usage["query_count"] if usage else 0,
+    }
 
 
 @app.get("/health")

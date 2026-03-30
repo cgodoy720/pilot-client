@@ -28,6 +28,7 @@ async def handle_t2(
     route: RouteResult,
     crm_bridge,
     client=None,
+    user_email: str | None = None,
 ) -> HandlerResponse:
     """Run T2 (Structured Intelligence) for a single prospect.
 
