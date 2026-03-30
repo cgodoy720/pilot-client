@@ -2,7 +2,7 @@
 
 Master index of all planned and completed milestones. Unique numbering — no duplicates, no ambiguity.
 
-**Last completed:** M17 Session 1 (SF Audit + Prospect CRM Schema, 2026-03-30)
+**Last completed:** M17 (SF Audit + Prospect CRM Mapping — all 3 sessions, 2026-03-30)
 **Last shipped:** M18 (Project Soft-Delete, 2026-03-30)
 
 ---
@@ -22,10 +22,10 @@ M18 ✅  Project Soft-Delete
  ├──► M15 (Chrome Extension) ──────┘    (wiring + regression)
  │    Session 1: Manifest + scripts
  │    Session 2: Popup + flows
- ├──► M17 (SF Audit + Prospect CRM)   ← 3 sessions, absorbs M14
+ ├──► M17 (SF Audit + Prospect CRM) ✅ ← 3 sessions, absorbs M14
  │    Session 1: Schema + validation + storage ✅
- │    Session 2: T1-T3 pipeline + persistence
- │    Session 3: Drift detection + integration test
+ │    Session 2: T1-T3 pipeline + persistence ✅
+ │    Session 3: Drift detection + integration test ✅
  └──► M19 (Project Ownership)         ← 1 session, deferred from M8
 ```
 
@@ -41,7 +41,7 @@ M18 ✅  Project Soft-Delete
 | ~~M14: Pebble Persistence + CRM Bridge~~ | `tasks/sprint11-pebble-persistence-crm.md` | M11 ✅ | — | **Absorbed into M17** | Conflict log, scratchpad, CRM bridge updates moved to M17 Sessions 2-3. |
 | **M15: Activities Chrome Extension** | `tasks/sprint9-activities-extension-plan.md` (9C section) | M10 ✅ | L (2 sessions) | Ready | **Session 1**: Manifest V3 + service worker + content scripts + API client. **Session 2**: Popup UI + OppPicker + CascadeFlow + testing. Parallel with M13 (no frontend dependency). |
 | **M16: Activities Integration + QA** | `tasks/sprint9-activities-extension-plan.md` (9D section) | M13 + M15 | S (1 session) | Planned | Wire modals into pages, global search, full regression. Worktree for safety. |
-| **M17: SF Audit + Prospect CRM Mapping** | `tasks/sprint13-sf-audit-ux-polish.md` | M12 ✅ | L (3 sessions, absorbs M14) | **Session 1 complete** | SF describe() audit, prospect_sf_* typed tables, sf_field_requirements, schema drift detection, frontend validation, T1-T3 population pipeline, CRM bridge updates. Plan: `.claude/plans/effervescent-coalescing-marble.md`. |
+| **M17: SF Audit + Prospect CRM Mapping** | `tasks/sprint13-sf-audit-ux-polish.md` | M12 ✅ | L (3 sessions, absorbs M14) | **Complete** | SF describe() audit, prospect_sf_* typed tables, sf_field_requirements, schema drift detection + admin endpoints, T1-T3 population pipeline, CRM bridge updates, integration tests. Plan: `.claude/plans/effervescent-coalescing-marble.md`. |
 | **M19: Project Ownership Model** | (plan needed) | M18 ✅ | S-M | Planned | owner_email + contributors, owner-only delete. Deferred from M8 scope. |
 | Bedrock UI Improvements | `tasks/bedrock-ui-improvements.md` | Nothing | Ongoing | Mixed | 5 small, 7 medium, 3 large. Parallel with all tracks. |
 | Google OAuth Setup | (in .cursor/plans/) | Nothing | S | Partially done | FRONTEND_URL env, OAUTH_SPRINT_CHECKLIST, redirect fix. |
