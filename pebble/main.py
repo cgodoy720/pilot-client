@@ -505,6 +505,7 @@ async def batch_research(request: Request, body: dict):
                 entities={
                     "person_name": row.get("prospect_name", ""),
                     "org_name": row.get("prospect_org", ""),
+                    "batch_prospect_id": row["id"],
                 },
             )
             resp = await handler(route, crm_bridge, client, user_email=user_email)

@@ -921,7 +921,7 @@ async def save_conflicts(
 
 
 async def save_scratchpad(
-    session_id: str,
+    session_id: str | None,
     contact_id: str,
     scratchpad_json: str,
     status: str = "active",

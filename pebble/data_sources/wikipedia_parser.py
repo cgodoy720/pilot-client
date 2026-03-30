@@ -45,11 +45,15 @@ _CURRENT_RE = re.compile(r"\b(?:current(?:ly)?|present|serves?\s+as|serving\s+as
 
 # Common infobox fields of interest
 _INFOBOX_FIELDS = {
+    # Person fields
     "occupation", "title", "organization", "boards", "known_for",
     "alma_mater", "birth_date", "nationality", "spouse", "children",
     "net_worth", "employer", "party", "office", "term_start", "term_end",
     "predecessor", "successor", "education", "residence", "awards",
     "name", "birth_name", "birth_place", "death_date", "death_place",
+    # Organization fields (Infobox company / Infobox organization)
+    "industry", "website", "homepage", "type", "founded", "headquarters",
+    "num_employees", "revenue", "founder",
 }
 
 

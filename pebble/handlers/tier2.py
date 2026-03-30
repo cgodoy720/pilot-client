@@ -190,6 +190,37 @@ async def handle_t2(
     ctx.forager_claims = forager_claims
     ctx.mark_tier_complete("T2")
 
+    # Populate prospect CRM mapping (batch flow only)
+    batch_prospect_id = route.entities.get("batch_prospect_id")
+    if batch_prospect_id:
+        from ..sf_field_extractor import extract_sf_fields
+        from ..storage.db import (
+            save_prospect_sf_contact, save_prospect_sf_account,
+            save_prospect_sf_opportunity,
+        )
+        try:
+            contact_data, account_data, opp_data = extract_sf_fields(ctx, route, "T2")
+            await save_prospect_sf_contact(batch_prospect_id, contact_data)
+            await save_prospect_sf_account(batch_prospect_id, account_data)
+            # Only save opportunity if we have substantive data
+            if any(v for k, v in opp_data.items() if k not in ("last_enriched_tier", "sources", "suggested_stage", "notes")):
+                await save_prospect_sf_opportunity(batch_prospect_id, opp_data)
+        except Exception as e:
+            logger.warning("T2 prospect_sf population failed for %s: %s", name, e)
+
+    # Persist scratchpad
+    import json as _json
+    from ..storage.db import save_scratchpad
+    try:
+        await save_scratchpad(
+            session_id=None,
+            contact_id=prospect_id,
+            scratchpad_json=_json.dumps(scratchpad.to_dict()),
+            status="completed",
+        )
+    except Exception as e:
+        logger.warning("T2 scratchpad persistence failed for %s: %s", name, e)
+
     # --- Format output across 5 dimensions ---
     all_claims = ctx.all_claims()
     dimensions = _organize_by_dimension(all_claims)

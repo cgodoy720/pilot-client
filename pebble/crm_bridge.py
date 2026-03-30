@@ -275,6 +275,84 @@ async def create_opportunity(
         return None
 
 
+# ---------------------------------------------------------------------------
+# CRM update operations (Pebble → Bedrock → Salesforce)
+# ---------------------------------------------------------------------------
+
+async def update_contact(sf_id: str, updates: dict) -> Optional[Dict]:
+    """Update a Salesforce contact via Bedrock.
+
+    Returns {"id": "003xx...", "message": "..."} on success, None on failure.
+    """
+    try:
+        client = _get_client()
+        resp = await client.put(
+            f"/api/salesforce/contacts/{sf_id}",
+            json={"updates": updates},
+        )
+        resp.raise_for_status()
+        return resp.json().get("data")
+    except httpx.TimeoutException:
+        logger.warning("CRM bridge timeout: update_contact id=%s", sf_id)
+        return None
+    except httpx.HTTPStatusError as e:
+        logger.warning("CRM bridge HTTP %s: update_contact id=%s", e.response.status_code, sf_id)
+        return None
+    except Exception as e:
+        logger.error("CRM bridge error: update_contact id=%s: %s", sf_id, e)
+        return None
+
+
+async def update_account(sf_id: str, updates: dict) -> Optional[Dict]:
+    """Update a Salesforce account via Bedrock.
+
+    Returns {"id": "001xx...", "message": "..."} on success, None on failure.
+    """
+    try:
+        client = _get_client()
+        resp = await client.put(
+            f"/api/salesforce/accounts/{sf_id}",
+            json={"updates": updates},
+        )
+        resp.raise_for_status()
+        return resp.json().get("data")
+    except httpx.TimeoutException:
+        logger.warning("CRM bridge timeout: update_account id=%s", sf_id)
+        return None
+    except httpx.HTTPStatusError as e:
+        logger.warning("CRM bridge HTTP %s: update_account id=%s", e.response.status_code, sf_id)
+        return None
+    except Exception as e:
+        logger.error("CRM bridge error: update_account id=%s: %s", sf_id, e)
+        return None
+
+
+async def update_opportunity(sf_id: str, updates: dict) -> Optional[Dict]:
+    """Update a Salesforce opportunity via Bedrock.
+
+    Returns {"id": "006xx...", "message": "..."} on success, None on failure.
+    Note: Opportunity updates require user JWT auth (ownership enforcement).
+    This method will fail when called with internal API key only.
+    """
+    try:
+        client = _get_client()
+        resp = await client.put(
+            f"/api/salesforce/opportunities/{sf_id}",
+            json={"updates": updates},
+        )
+        resp.raise_for_status()
+        return resp.json().get("data")
+    except httpx.TimeoutException:
+        logger.warning("CRM bridge timeout: update_opportunity id=%s", sf_id)
+        return None
+    except httpx.HTTPStatusError as e:
+        logger.warning("CRM bridge HTTP %s: update_opportunity id=%s", e.response.status_code, sf_id)
+        return None
+    except Exception as e:
+        logger.error("CRM bridge error: update_opportunity id=%s: %s", sf_id, e)
+        return None
+
+
 async def health() -> bool:
     """Check if the Bedrock API is reachable."""
     try:

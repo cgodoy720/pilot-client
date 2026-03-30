@@ -161,6 +161,18 @@ async def handle_t1(
 
     ctx.mark_tier_complete("T1")
 
+    # Populate prospect CRM mapping (batch flow only)
+    batch_prospect_id = route.entities.get("batch_prospect_id")
+    if batch_prospect_id:
+        from ..sf_field_extractor import extract_sf_fields
+        from ..storage.db import save_prospect_sf_contact, save_prospect_sf_account
+        try:
+            contact_data, account_data, _ = extract_sf_fields(ctx, route, "T1")
+            await save_prospect_sf_contact(batch_prospect_id, contact_data)
+            await save_prospect_sf_account(batch_prospect_id, account_data)
+        except Exception as e:
+            logger.warning("T1 prospect_sf population failed for %s: %s", name, e)
+
     # Identity assessment via Haiku
     confidence = "low" if not claims else "medium"
     summary = f"Found {len(claims)} data points for {name}."
