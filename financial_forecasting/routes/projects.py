@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from auth import require_auth
 from db import get_db
+from routes.permissions import require_admin
 from security import validate_salesforce_id
 
 logger = logging.getLogger(__name__)
@@ -125,9 +126,26 @@ class ProjectImportPayload(BaseModel):
 async def list_projects(user=Depends(require_auth), conn=Depends(get_db)):
     """List all projects."""
     rows = await conn.fetch(
-        "SELECT id, name, description, created_at, updated_at FROM bedrock.project ORDER BY created_at"
+        "SELECT id, name, description, created_at, updated_at FROM bedrock.project "
+        "WHERE deleted_at IS NULL ORDER BY created_at"
     )
     return {"success": True, "data": [dict(r) for r in rows]}
+
+
+@router.get("/projects/trash")
+async def list_deleted_projects(user=Depends(require_auth), conn=Depends(get_db)):
+    """List soft-deleted projects (trash view)."""
+    rows = await conn.fetch(
+        "SELECT id, name, description, deleted_at, deleted_by "
+        "FROM bedrock.project WHERE deleted_at IS NOT NULL "
+        "ORDER BY deleted_at DESC"
+    )
+    return {"success": True, "data": [
+        {"id": str(r["id"]), "name": r["name"], "description": r["description"],
+         "deleted_at": r["deleted_at"].isoformat() if r["deleted_at"] else None,
+         "deleted_by": r["deleted_by"]}
+        for r in rows
+    ]}
 
 
 @router.get("/projects/{project_id}")
@@ -135,7 +153,7 @@ async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(
     """Get a full project tree: workstreams → milestones → tasks (single query)."""
     pid = uuid.UUID(project_id)
 
-    project = await conn.fetchrow("SELECT * FROM bedrock.project WHERE id = $1", pid)
+    project = await conn.fetchrow("SELECT * FROM bedrock.project WHERE id = $1 AND deleted_at IS NULL", pid)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -149,9 +167,9 @@ async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(
             t.deadline AS t_deadline, t.start_date AS t_start_date, t.description AS t_desc,
             t.updates AS t_updates, t.links AS t_links, t.depends_on AS t_depends, t.sort_order AS t_sort
         FROM bedrock.workstream w
-        LEFT JOIN bedrock.milestone m ON m.workstream_id = w.id
-        LEFT JOIN bedrock.project_task t ON t.milestone_id = m.id
-        WHERE w.project_id = $1
+        LEFT JOIN bedrock.milestone m ON m.workstream_id = w.id AND m.deleted_at IS NULL
+        LEFT JOIN bedrock.project_task t ON t.milestone_id = m.id AND t.deleted_at IS NULL
+        WHERE w.project_id = $1 AND w.deleted_at IS NULL
         ORDER BY w.sort_order, m.sort_order, t.sort_order
         """,
         pid,
@@ -236,18 +254,96 @@ async def update_project(project_id: str, body: ProjectUpdate, user=Depends(requ
         raise HTTPException(status_code=400, detail="No fields to update")
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [pid] + list(fields.values())
-    await conn.execute(f"UPDATE bedrock.project SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.project SET {sets} WHERE id = $1 AND deleted_at IS NULL", *vals)
     return {"success": True, "data": {"message": "Project updated"}}
 
 
 @router.delete("/projects/{project_id}")
 async def delete_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
-    """Delete a project and all its workstreams/milestones/tasks (cascading)."""
+    """Soft-delete a project and cascade to all children."""
     pid = uuid.UUID(project_id)
-    result = await conn.execute("DELETE FROM bedrock.project WHERE id = $1", pid)
-    if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail="Project not found")
-    return {"success": True, "data": {"message": "Project deleted"}}
+    email = user.get("email", "")
+    async with conn.transaction():
+        result = await conn.execute(
+            "UPDATE bedrock.project SET deleted_at = now(), deleted_by = $2 "
+            "WHERE id = $1 AND deleted_at IS NULL",
+            pid, email,
+        )
+        if result == "UPDATE 0":
+            raise HTTPException(status_code=404, detail="Project not found")
+        await conn.execute(
+            "UPDATE bedrock.workstream SET deleted_at = now(), deleted_by = $2 "
+            "WHERE project_id = $1 AND deleted_at IS NULL",
+            pid, email,
+        )
+        await conn.execute(
+            "UPDATE bedrock.milestone SET deleted_at = now(), deleted_by = $2 "
+            "WHERE workstream_id IN (SELECT id FROM bedrock.workstream WHERE project_id = $1) "
+            "AND deleted_at IS NULL",
+            pid, email,
+        )
+        await conn.execute(
+            "UPDATE bedrock.project_task SET deleted_at = now(), deleted_by = $2 "
+            "WHERE milestone_id IN ("
+            "  SELECT m.id FROM bedrock.milestone m"
+            "  JOIN bedrock.workstream w ON w.id = m.workstream_id"
+            "  WHERE w.project_id = $1"
+            ") AND deleted_at IS NULL",
+            pid, email,
+        )
+    return {"success": True, "data": {"message": "Project moved to trash"}}
+
+
+@router.post("/projects/{project_id}/restore")
+async def restore_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Restore a soft-deleted project and its cascade-deleted children."""
+    pid = uuid.UUID(project_id)
+    async with conn.transaction():
+        project = await conn.fetchrow(
+            "SELECT deleted_at FROM bedrock.project WHERE id = $1 AND deleted_at IS NOT NULL",
+            pid,
+        )
+        if not project:
+            raise HTTPException(status_code=404, detail="Deleted project not found")
+        cascade_ts = project["deleted_at"]
+
+        await conn.execute(
+            "UPDATE bedrock.project SET deleted_at = NULL, deleted_by = NULL WHERE id = $1", pid
+        )
+        await conn.execute(
+            "UPDATE bedrock.workstream SET deleted_at = NULL, deleted_by = NULL "
+            "WHERE project_id = $1 AND deleted_at = $2",
+            pid, cascade_ts,
+        )
+        await conn.execute(
+            "UPDATE bedrock.milestone SET deleted_at = NULL, deleted_by = NULL "
+            "WHERE workstream_id IN (SELECT id FROM bedrock.workstream WHERE project_id = $1) "
+            "AND deleted_at = $2",
+            pid, cascade_ts,
+        )
+        await conn.execute(
+            "UPDATE bedrock.project_task SET deleted_at = NULL, deleted_by = NULL "
+            "WHERE milestone_id IN ("
+            "  SELECT m.id FROM bedrock.milestone m"
+            "  JOIN bedrock.workstream w ON w.id = m.workstream_id"
+            "  WHERE w.project_id = $1"
+            ") AND deleted_at = $2",
+            pid, cascade_ts,
+        )
+    return {"success": True, "data": {"message": "Project restored"}}
+
+
+@router.delete("/projects/{project_id}/purge")
+async def purge_project(project_id: str, user=Depends(require_admin), conn=Depends(get_db)):
+    """Permanently delete a soft-deleted project. Admin only. CASCADE handles children."""
+    pid = uuid.UUID(project_id)
+    check = await conn.fetchrow(
+        "SELECT id FROM bedrock.project WHERE id = $1 AND deleted_at IS NOT NULL", pid
+    )
+    if not check:
+        raise HTTPException(status_code=404, detail="Deleted project not found")
+    await conn.execute("DELETE FROM bedrock.project WHERE id = $1", pid)
+    return {"success": True, "data": {"message": "Project permanently deleted"}}
 
 
 # ── Project ↔ Opportunity Linking ──
@@ -321,7 +417,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
 
     pid = uuid.UUID(project_id)
 
-    project = await conn.fetchrow("SELECT id FROM bedrock.project WHERE id = $1", pid)
+    project = await conn.fetchrow("SELECT id FROM bedrock.project WHERE id = $1 AND deleted_at IS NULL", pid)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -333,10 +429,30 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
 
     async with conn.transaction():
         if body.replace:
-            await conn.execute("DELETE FROM bedrock.workstream WHERE project_id = $1", pid)
+            import_email = user.get("email", "")
+            await conn.execute(
+                "UPDATE bedrock.project_task SET deleted_at = now(), deleted_by = $2 "
+                "WHERE milestone_id IN ("
+                "  SELECT m.id FROM bedrock.milestone m"
+                "  JOIN bedrock.workstream w ON w.id = m.workstream_id"
+                "  WHERE w.project_id = $1"
+                ") AND deleted_at IS NULL",
+                pid, import_email,
+            )
+            await conn.execute(
+                "UPDATE bedrock.milestone SET deleted_at = now(), deleted_by = $2 "
+                "WHERE workstream_id IN (SELECT id FROM bedrock.workstream WHERE project_id = $1) "
+                "AND deleted_at IS NULL",
+                pid, import_email,
+            )
+            await conn.execute(
+                "UPDATE bedrock.workstream SET deleted_at = now(), deleted_by = $2 "
+                "WHERE project_id = $1 AND deleted_at IS NULL",
+                pid, import_email,
+            )
 
         existing_ws = await conn.fetch(
-            "SELECT id, name FROM bedrock.workstream WHERE project_id = $1", pid
+            "SELECT id, name FROM bedrock.workstream WHERE project_id = $1 AND deleted_at IS NULL", pid
         )
         ws_by_name = {r["name"].lower(): r for r in existing_ws}
 
@@ -348,7 +464,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                 wid = existing["id"]
                 if ws.description:
                     await conn.execute(
-                        "UPDATE bedrock.workstream SET description = $2, sort_order = $3 WHERE id = $1",
+                        "UPDATE bedrock.workstream SET description = $2, sort_order = $3 WHERE id = $1 AND deleted_at IS NULL",
                         wid, ws.description, ws_idx,
                     )
                 summary["workstreams"]["updated"] += 1
@@ -362,7 +478,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                 summary["workstreams"]["new"] += 1
 
             existing_ms = await conn.fetch(
-                "SELECT id, title FROM bedrock.milestone WHERE workstream_id = $1", wid
+                "SELECT id, title FROM bedrock.milestone WHERE workstream_id = $1 AND deleted_at IS NULL", wid
             )
             ms_by_title = {r["title"].lower(): r for r in existing_ms}
 
@@ -373,7 +489,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                 if existing_m:
                     mid = existing_m["id"]
                     await conn.execute(
-                        "UPDATE bedrock.milestone SET status = $2, priority = $3, owner = $4, sort_order = $5 WHERE id = $1",
+                        "UPDATE bedrock.milestone SET status = $2, priority = $3, owner = $4, sort_order = $5 WHERE id = $1 AND deleted_at IS NULL",
                         mid, ms.status, ms.priority, ms.owner, ms_idx,
                     )
                     summary["milestones"]["updated"] += 1
@@ -387,7 +503,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                     summary["milestones"]["new"] += 1
 
                 existing_tasks = await conn.fetch(
-                    "SELECT id, title, status, owner, deadline, start_date FROM bedrock.project_task WHERE milestone_id = $1", mid
+                    "SELECT id, title, status, owner, deadline, start_date FROM bedrock.project_task WHERE milestone_id = $1 AND deleted_at IS NULL", mid
                 )
                 task_by_title = {r["title"].lower(): r for r in existing_tasks}
 
@@ -411,7 +527,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
                         if changed:
                             await conn.execute(
                                 "UPDATE bedrock.project_task SET status = $2, owner = $3, deadline = $4, "
-                                "start_date = $5, description = $6, sort_order = $7 WHERE id = $1",
+                                "start_date = $5, description = $6, sort_order = $7 WHERE id = $1 AND deleted_at IS NULL",
                                 existing_t["id"], task.status, task.owner,
                                 deadline_val, start_val, task.description, t_idx,
                             )
@@ -454,15 +570,35 @@ async def update_workstream(workstream_id: str, body: WorkstreamUpdate, user=Dep
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [wid] + list(fields.values())
-    await conn.execute(f"UPDATE bedrock.workstream SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.workstream SET {sets} WHERE id = $1 AND deleted_at IS NULL", *vals)
     return {"success": True, "data": {"message": "Workstream updated"}}
 
 
 @router.delete("/workstreams/{workstream_id}")
 async def delete_workstream(workstream_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Soft-delete a workstream and cascade to milestones + tasks."""
     wid = uuid.UUID(workstream_id)
-    await conn.execute("DELETE FROM bedrock.workstream WHERE id = $1", wid)
-    return {"success": True, "data": {"message": "Workstream deleted"}}
+    email = user.get("email", "")
+    async with conn.transaction():
+        result = await conn.execute(
+            "UPDATE bedrock.workstream SET deleted_at = now(), deleted_by = $2 "
+            "WHERE id = $1 AND deleted_at IS NULL",
+            wid, email,
+        )
+        if result == "UPDATE 0":
+            raise HTTPException(status_code=404, detail="Workstream not found")
+        await conn.execute(
+            "UPDATE bedrock.milestone SET deleted_at = now(), deleted_by = $2 "
+            "WHERE workstream_id = $1 AND deleted_at IS NULL",
+            wid, email,
+        )
+        await conn.execute(
+            "UPDATE bedrock.project_task SET deleted_at = now(), deleted_by = $2 "
+            "WHERE milestone_id IN (SELECT id FROM bedrock.milestone WHERE workstream_id = $1) "
+            "AND deleted_at IS NULL",
+            wid, email,
+        )
+    return {"success": True, "data": {"message": "Workstream moved to trash"}}
 
 
 # ── Milestone CRUD ──
@@ -489,15 +625,29 @@ async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depend
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [mid] + list(fields.values())
-    await conn.execute(f"UPDATE bedrock.milestone SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.milestone SET {sets} WHERE id = $1 AND deleted_at IS NULL", *vals)
     return {"success": True, "data": {"message": "Milestone updated"}}
 
 
 @router.delete("/milestones/{milestone_id}")
 async def delete_milestone(milestone_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Soft-delete a milestone and cascade to tasks."""
     mid = uuid.UUID(milestone_id)
-    await conn.execute("DELETE FROM bedrock.milestone WHERE id = $1", mid)
-    return {"success": True, "data": {"message": "Milestone deleted"}}
+    email = user.get("email", "")
+    async with conn.transaction():
+        result = await conn.execute(
+            "UPDATE bedrock.milestone SET deleted_at = now(), deleted_by = $2 "
+            "WHERE id = $1 AND deleted_at IS NULL",
+            mid, email,
+        )
+        if result == "UPDATE 0":
+            raise HTTPException(status_code=404, detail="Milestone not found")
+        await conn.execute(
+            "UPDATE bedrock.project_task SET deleted_at = now(), deleted_by = $2 "
+            "WHERE milestone_id = $1 AND deleted_at IS NULL",
+            mid, email,
+        )
+    return {"success": True, "data": {"message": "Milestone moved to trash"}}
 
 
 # ── Project Task CRUD ──
@@ -552,15 +702,23 @@ async def update_project_task(task_id: str, body: ProjectTaskUpdate, user=Depend
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [tid] + list(fields.values())
-    await conn.execute(f"UPDATE bedrock.project_task SET {sets} WHERE id = $1", *vals)
+    await conn.execute(f"UPDATE bedrock.project_task SET {sets} WHERE id = $1 AND deleted_at IS NULL", *vals)
     return {"success": True, "data": {"message": "Task updated"}}
 
 
 @router.delete("/project-tasks/{task_id}")
 async def delete_project_task(task_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+    """Soft-delete a task."""
     tid = uuid.UUID(task_id)
-    await conn.execute("DELETE FROM bedrock.project_task WHERE id = $1", tid)
-    return {"success": True, "data": {"message": "Task deleted"}}
+    email = user.get("email", "")
+    result = await conn.execute(
+        "UPDATE bedrock.project_task SET deleted_at = now(), deleted_by = $2 "
+        "WHERE id = $1 AND deleted_at IS NULL",
+        tid, email,
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"success": True, "data": {"message": "Task moved to trash"}}
 
 
 # ── Salesforce Task ↔ Project Bridge ──
@@ -621,7 +779,7 @@ async def get_project_by_opportunity(opportunity_id: str, user=Depends(require_a
     """Check if a project exists for the given opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
     row = await conn.fetchrow(
-        "SELECT id, name, description, opportunity_id FROM bedrock.project WHERE opportunity_id = $1",
+        "SELECT id, name, description, opportunity_id FROM bedrock.project WHERE opportunity_id = $1 AND deleted_at IS NULL",
         opportunity_id,
     )
     if not row:
@@ -635,7 +793,7 @@ async def get_sf_task_project_link(sf_task_id: str, user=Depends(require_auth), 
     validate_salesforce_id(sf_task_id, "sf_task_id")
     row = await conn.fetchrow(
         "SELECT stp.id, stp.sf_task_id, stp.project_id, stp.milestone_id, p.name as project_name "
-        "FROM bedrock.sf_task_project stp JOIN bedrock.project p ON p.id = stp.project_id "
+        "FROM bedrock.sf_task_project stp JOIN bedrock.project p ON p.id = stp.project_id AND p.deleted_at IS NULL "
         "WHERE stp.sf_task_id = $1",
         sf_task_id,
     )

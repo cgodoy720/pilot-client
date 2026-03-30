@@ -60,7 +60,10 @@ const Projects: React.FC = () => {
     }
   }, []);
 
-  const { projects, isLoading: projectsLoading, createProject, deleteProject } = useProjects();
+  const {
+    projects, isLoading: projectsLoading, createProject, deleteProject,
+    deletedProjects, restoreProject, purgeProject,
+  } = useProjects();
 
   useEffect(() => {
     if (projects.length === 0) return;
@@ -124,6 +127,9 @@ const Projects: React.FC = () => {
             }
           }}
           onCollapse={() => setPrefs((p) => ({ ...p, sidebarCollapsed: true }))}
+          deletedProjects={deletedProjects}
+          onRestoreProject={restoreProject}
+          onPurgeProject={purgeProject}
         />
       )}
 
