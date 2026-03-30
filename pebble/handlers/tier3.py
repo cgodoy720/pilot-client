@@ -112,6 +112,10 @@ async def handle_t3(
             })
             logger.warning("T3 org intelligence failed: %s", e)
 
+        session_id = str(uuid.uuid4())
+        conflicts = []
+        verified_claims = []
+
         try:
             # URL verification
             t0_urls = time.time()
@@ -141,11 +145,16 @@ async def handle_t3(
                     parts.append("Infobox: " + ", ".join(f"{k}: {v}" for k, v in infobox.items()))
                 wikipedia_context = "\n\n".join(parts) if parts else None
 
-            # Conflict detection
+            # Conflict detection + persistence
             from ..clusters.conflict_detector import detect_conflicts
             conflicts = detect_conflicts(all_claims, person_name)
             if conflicts:
                 logger.info("T3: detected %d claim conflicts", len(conflicts))
+                from ..storage.db import save_conflicts as _save_conflicts
+                try:
+                    await _save_conflicts(session_id, contact_id, conflicts)
+                except Exception as conflict_err:
+                    logger.warning("T3 conflict persistence failed: %s", conflict_err)
 
             # Quorum verification
             t0_quorum = time.time()
@@ -201,7 +210,7 @@ async def handle_t3(
         # Save profile and session
         await save_profile(contact_id, profile)
         await save_session(
-            session_id=str(uuid.uuid4()),
+            session_id=session_id,
             contact_id=contact_id,
             profile=profile,
             prospect_name=name,
@@ -213,6 +222,43 @@ async def handle_t3(
             batch_id=route.entities.get("batch_id"),
         )
         ctx.mark_tier_complete("T3")
+
+        # Populate prospect CRM mapping (batch flow only)
+        batch_prospect_id = route.entities.get("batch_prospect_id")
+        if batch_prospect_id:
+            from ..sf_field_extractor import extract_sf_fields
+            from ..storage.db import (
+                save_prospect_sf_contact, save_prospect_sf_account,
+                save_prospect_sf_opportunity,
+            )
+            try:
+                ctx.condense()
+                contact_data, account_data, opp_data = extract_sf_fields(ctx, route, "T3")
+                await save_prospect_sf_contact(batch_prospect_id, contact_data)
+                await save_prospect_sf_account(batch_prospect_id, account_data)
+                await save_prospect_sf_opportunity(batch_prospect_id, opp_data)
+            except Exception as e:
+                logger.warning("T3 prospect_sf population failed for %s: %s", name, e)
+
+        # Persist T3 synthesis metadata as scratchpad
+        import json as _json
+        from ..storage.db import save_scratchpad
+        try:
+            t3_meta = {
+                "tier": "T3",
+                "conflicts_detected": len(conflicts) if conflicts else 0,
+                "verified_claims_count": len(verified_claims),
+                "synthesis_confidence": profile.get("confidence_score", "unknown"),
+                "org_recommendations_count": len(recommendations),
+            }
+            await save_scratchpad(
+                session_id=session_id,
+                contact_id=contact_id,
+                scratchpad_json=_json.dumps(t3_meta),
+                status="completed",
+            )
+        except Exception as e:
+            logger.warning("T3 scratchpad persistence failed: %s", e)
 
     else:
         # No T2 context — run the full pipeline (Path B)
@@ -268,6 +314,44 @@ async def handle_t3(
             batch_id=route.entities.get("batch_id"),
         )
         ctx.mark_tier_complete("T3")
+
+        # Conflict detection + persistence (Path B doesn't have this in the orchestrator)
+        from ..clusters.conflict_detector import detect_conflicts as _detect_conflicts
+        from ..storage.db import save_conflicts as _save_conflicts_b, get_profile as _get_profile_b
+        try:
+            saved_profile_b = await _get_profile_b(contact_id)
+            if saved_profile_b:
+                claims_b = saved_profile_b.get("claims", [])
+                conflicts_b = _detect_conflicts(claims_b, person_name)
+                if conflicts_b:
+                    async with get_pool().acquire() as conn2:
+                        session_row = await conn2.fetchrow(
+                            "SELECT id FROM bedrock.pebble_research_sessions "
+                            "WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 1",
+                            contact_id,
+                        )
+                    if session_row:
+                        await _save_conflicts_b(str(session_row["id"]), contact_id, conflicts_b)
+                        logger.info("T3 Path B: persisted %d conflicts", len(conflicts_b))
+        except Exception as e:
+            logger.warning("T3 Path B conflict detection/persistence failed: %s", e)
+
+        # Populate prospect CRM mapping (batch flow only)
+        batch_prospect_id = route.entities.get("batch_prospect_id")
+        if batch_prospect_id:
+            from ..sf_field_extractor import extract_sf_fields
+            from ..storage.db import (
+                save_prospect_sf_contact, save_prospect_sf_account,
+                save_prospect_sf_opportunity,
+            )
+            try:
+                ctx.condense()
+                contact_data, account_data, opp_data = extract_sf_fields(ctx, route, "T3")
+                await save_prospect_sf_contact(batch_prospect_id, contact_data)
+                await save_prospect_sf_account(batch_prospect_id, account_data)
+                await save_prospect_sf_opportunity(batch_prospect_id, opp_data)
+            except Exception as e:
+                logger.warning("T3 Path B prospect_sf population failed for %s: %s", name, e)
 
     # Fetch the saved profile for display
     from ..storage.db import get_profile

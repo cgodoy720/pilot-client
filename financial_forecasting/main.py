@@ -685,7 +685,7 @@ async def update_account(
     account_id: str,
     update_request: AccountUpdateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(check_permission("edit_accounts")),
+    user = Depends(check_permission_or_internal("edit_accounts")),
 ):
     """Update a Salesforce account."""
     validate_salesforce_id(account_id, "account_id")
@@ -710,7 +710,7 @@ async def update_contact(
     contact_id: str,
     update_request: ContactUpdateRequest,
     client: UnifiedMCPClient = Depends(get_mcp_client),
-    user = Depends(check_permission("edit_contacts")),
+    user = Depends(check_permission_or_internal("edit_contacts")),
 ):
     """Update a Salesforce contact."""
     validate_salesforce_id(contact_id, "contact_id")

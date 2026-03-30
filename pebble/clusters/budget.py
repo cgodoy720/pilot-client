@@ -44,6 +44,16 @@ class ClusterBudget:
             return 0.0
         return time.time() - self.started_at
 
+    def to_dict(self) -> dict:
+        """Serialize budget state for persistence."""
+        return {
+            "max_api_calls": self.max_api_calls,
+            "api_calls_used": self.api_calls_used,
+            "max_seconds": self.max_seconds,
+            "elapsed_seconds": round(self.elapsed(), 3),
+            "failed_sources": list(self.failed_sources),
+        }
+
 
 @dataclass
 class ResearchScratchpad:
@@ -82,3 +92,17 @@ class ResearchScratchpad:
 
     def mark_error(self, cluster: str) -> None:
         self.cluster_status[cluster] = "error"
+
+    def to_dict(self) -> dict:
+        """Serialize scratchpad state for persistence."""
+        return {
+            "prospect_type": self.prospect_type.value if hasattr(self.prospect_type, "value") else str(self.prospect_type),
+            "cluster_status": dict(self.cluster_status),
+            "financial_budget": self.financial_budget.to_dict(),
+            "affiliation_budget": self.affiliation_budget.to_dict(),
+            "profile_budget": self.profile_budget.to_dict(),
+            "skipped_sources": list(self.skipped_sources),
+            "source_outcomes": dict(self.source_outcomes),
+            "connected_orgs": [o if isinstance(o, (str, dict)) else str(o) for o in self.connected_orgs],
+            "findings_summary": self.findings_summary,
+        }
