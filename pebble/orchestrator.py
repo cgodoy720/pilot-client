@@ -122,9 +122,9 @@ class ProspectBudgetTracker:
         return self.total_cost_usd > self.cap_usd
 
 
-def _log_result(result, agent_name: str, prospect_id: str | None = None, user_email: str | None = None) -> None:
+async def _log_result(result, agent_name: str, prospect_id: str | None = None, user_email: str | None = None) -> None:
     """Log harness outcome to harness_log."""
-    log_harness_outcome(
+    await log_harness_outcome(
         agent_name=agent_name,
         outcome=result.outcome.value,
         cost_usd=result.cost_usd if result.outcome == AgentOutcome.SUCCESS else None,
@@ -138,7 +138,7 @@ def _log_result(result, agent_name: str, prospect_id: str | None = None, user_em
     )
 
 
-def stage1_enrich_prospect(
+async def stage1_enrich_prospect(
     prospect: dict,
     structured_claims: list[dict],
     propublica_data: dict | None,
@@ -176,9 +176,9 @@ def stage1_enrich_prospect(
         data={"prospect": prospect, "context_parts": context_parts},
         source_urls=sources,
     )
-    result = harness.execute_task(spec)
+    result = await asyncio.to_thread(harness.execute_task, spec)
 
-    _log_result(result, "api_response_extractor", prospect["id"])
+    await _log_result(result, "api_response_extractor", prospect["id"])
 
     llm_claims = []
     if result.outcome in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
@@ -208,31 +208,6 @@ def stage1_enrich_prospect(
     }
 
 
-def stage1_batch_summary(prospects: list[dict], client: ModelClient, budget: ProspectBudgetTracker) -> dict | None:
-    """Batch summary for ~50 contacts. Returns summary text or None."""
-    if not prospects or budget.exceeded():
-        return None
-
-    names = [f"{p.get('first_name', '')} {p.get('last_name', '')} ({p.get('organization', '')})" for p in prospects[:50]]
-    harness = WorkerHarness("batch_summarizer", harness_config_for_agent("batch_summarizer"), client)
-    spec = TaskSpec(
-        agent_name="batch_summarizer",
-        data={"prospect_names": names},
-    )
-    result = harness.execute_task(spec)
-
-    _log_result(result, "batch_summarizer", None)
-
-    if result.outcome == AgentOutcome.SUCCESS:
-        budget.add(result.cost_usd)
-        content = result.data.get("content", "") if result.data else ""
-        try:
-            raw = _strip_fences(content)
-            return json.loads(raw) if raw.strip().startswith("{") else {"summary": content}
-        except json.JSONDecodeError:
-            return {"summary": content}
-    return None
-
 
 def stage2_score(prospects: list[dict], amount: float = 0, probability: float = 50) -> float:
     """Stage 2: Quick-score formula. amount x (probability/100) x size_factor."""
@@ -243,104 +218,8 @@ def stage2_score(prospects: list[dict], amount: float = 0, probability: float = 
     return amount * (probability / 100) * size_factor
 
 
-def stage3_fact_check_and_synthesize(
-    claims: list[dict],
-    prospect: dict,
-    client: ModelClient,
-    budget: ProspectBudgetTracker,
-    wikipedia_context: str | None = None,
-) -> dict:
-    """
-    Stage 3 (reduced): Fact-check (Opus) + Profile Synthesizer (Opus).
-    Returns profile with claims, summary, confidence_score.
-    """
-    if budget.exceeded():
-        return {"claims": claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["budget"]}
 
-    # Fact-check: verify claims have source support
-    ranked = _rank_claims(claims)
-    claims_json = _safe_truncate(ranked[:20], max_chars=6000)
-    wiki_section = ""
-    if wikipedia_context:
-        wiki_section = f"\n\nWikipedia context (use for biographical depth, cross-reference with claims):\n{wikipedia_context[:2000]}"
-
-    prompt = f"""Verify these claims are supported by their source URLs. Remove any claim that cannot be verified.
-Prospect: {prospect.get('first_name', '')} {prospect.get('last_name', '')} at {prospect.get('organization', '')}
-
-Claims:
-{claims_json}{wiki_section}
-
-Output JSON: {{"verified_claims": [{{"text", "source_url", "confidence"}}]}}
-"""
-    harness = WorkerHarness("fact_check_agent", harness_config_for_agent("fact_check_agent"), client)
-    result = harness.execute(prompt, system="You verify claims against sources. Only include claims with valid source_url. Output valid JSON only, no markdown fences.")
-
-    _log_result(result, "fact_check_agent", prospect.get("id"))
-
-    if result.outcome not in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
-        return {"claims": claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["fact_check_agent"]}
-
-    budget.add(result.cost_usd)
-
-    verified = claims
-    try:
-        raw = _strip_fences(result.data.get("content", "{}"))
-        data = json.loads(raw)
-        verified = data.get("verified_claims", claims)
-    except (json.JSONDecodeError, TypeError):
-        pass
-
-    # Profile Synthesizer — rank claims so forager findings survive truncation
-    ranked_verified = _rank_claims(verified)
-    verified_json = _safe_truncate(ranked_verified, max_chars=6000)
-    wiki_synth = f"\n\nWikipedia context:\n{wikipedia_context[:2000]}" if wikipedia_context else ""
-    name = f"{prospect.get('first_name', '')} {prospect.get('last_name', '')}".strip()
-
-    synth_system = (
-        "You write prospect research summaries for nonprofit development officers. "
-        "Prioritize: executive roles, board seats, organizational leadership, and giving "
-        "capacity indicators over individual transaction records. "
-        'Claims tagged origin:"forager" are cross-referenced analytical findings — weight these heavily. '
-        'Claims tagged origin:"template" are raw data points from public databases. '
-        "Always distinguish current from former positions. Never state someone 'serves as' a role "
-        "unless evidence shows the position is active. Use 'formerly served as' for past positions. "
-        "Output valid JSON only, no markdown fences."
-    )
-
-    prompt2 = (
-        f"Write a 2-3 sentence research brief for a development officer about {name}. "
-        f"Focus on: current role, organizational affiliations, board service, giving capacity, "
-        f"and philanthropic activity. Mention individual donations only if they reveal a "
-        f"pattern (e.g., consistent max-out giving, bipartisan strategy).\n\n"
-        f"Claims (ranked by analytical value):\n{verified_json}{wiki_synth}\n\n"
-        f'Output JSON: {{"summary": "...", "confidence_score": "high|medium|low"}}'
-    )
-
-    harness2 = WorkerHarness("profile_synthesizer", harness_config_for_agent("profile_synthesizer"), client)
-    result2 = harness2.execute(prompt2, system=synth_system)
-
-    _log_result(result2, "profile_synthesizer", prospect.get("id"))
-
-    if result2.outcome not in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
-        return {"claims": verified, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["profile_synthesizer"]}
-
-    budget.add(result2.cost_usd)
-
-    try:
-        raw2 = _strip_fences(result2.data.get("content", "{}"))
-        data2 = json.loads(raw2)
-        return {
-            "claims": verified,
-            "summary": data2.get("summary", ""),
-            "confidence_score": data2.get("confidence_score", "medium"),
-            "partial": False,
-            "failed_agents": [],
-        }
-    except json.JSONDecodeError:
-        return {"claims": verified, "summary": "", "confidence_score": "medium", "partial": False, "failed_agents": []}
-
-
-def score_source_richness(
+async def score_source_richness(
     propublica_data: dict | None,
     sec_data: dict | None,
     fec_data: list | None,
@@ -396,7 +275,7 @@ def score_source_richness(
     # Sources that consistently fail (e.g., OpenCorporates 401s) get dampened toward 0.
     # Sources with high verification pass rates stay at full strength.
     for source_name in scores:
-        reliability = get_source_reliability(source_name)
+        reliability = await get_source_reliability(source_name)
         scores[source_name] *= reliability
 
     return scores
@@ -502,7 +381,7 @@ async def activate_foragers(
     async def _run_forager(agent_name: str, spec: TaskSpec) -> list[dict]:
         harness = WorkerHarness(agent_name, harness_config_for_agent(agent_name), client)
         result = await asyncio.to_thread(harness.execute_task, spec)
-        _log_result(result, agent_name, prospect.get("id"))
+        await _log_result(result, agent_name, prospect.get("id"))
 
         if result.outcome in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
             budget.add(result.cost_usd)
@@ -556,7 +435,7 @@ async def quorum_verify_claims(
             data={"claims_text": claims_text},
         )
         result = await asyncio.to_thread(harness.execute_task, spec)
-        _log_result(result, agent_name, prospect.get("id"))
+        await _log_result(result, agent_name, prospect.get("id"))
 
         if result.outcome in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
             budget.add(result.cost_usd)
@@ -586,7 +465,7 @@ async def quorum_verify_claims(
             rejecting_verifiers = [
                 verifier_names[j] for j, approved_set in enumerate(results) if i not in approved_set
             ]
-            log_harness_outcome(
+            await log_harness_outcome(
                 agent_name="quorum_rejection",
                 outcome="rejected",
                 error=json.dumps({
@@ -603,7 +482,7 @@ async def quorum_verify_claims(
     logger.info("Quorum verification: %d/%d claims passed (2-of-3 vote)", len(verified), len(claims))
 
     # Log quorum summary for Level 3 yield analysis (accepted + rejected in one entry)
-    log_harness_outcome(
+    await log_harness_outcome(
         agent_name="quorum_summary",
         outcome="success",
         error=json.dumps({
@@ -622,7 +501,7 @@ async def quorum_verify_claims(
     return verified
 
 
-def synthesize_profile(
+async def synthesize_profile(
     verified_claims: list[dict],
     prospect: dict,
     client: ModelClient,
@@ -679,9 +558,9 @@ def synthesize_profile(
     )
 
     harness = WorkerHarness("profile_synthesizer", harness_config_for_agent("profile_synthesizer"), client)
-    result = harness.execute(prompt, system=system)
+    result = await asyncio.to_thread(harness.execute, prompt, system=system)
 
-    _log_result(result, "profile_synthesizer", prospect.get("id"))
+    await _log_result(result, "profile_synthesizer", prospect.get("id"))
 
     if result.outcome not in (AgentOutcome.SUCCESS, AgentOutcome.ESCALATED):
         return {"claims": verified_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["profile_synthesizer"]}
@@ -839,11 +718,11 @@ async def research_single_prospect(
         sec_data = research_data["sec_data"]
 
         # Score source richness (waggle dance)
-        source_scores = score_source_richness(
+        source_scores = await score_source_richness(
             propublica_data, sec_data, fec_data, edgar_data,
             usa_data, wiki_data, oc_data,
         )
-        save_source_scores(contact_id, source_scores)
+        await save_source_scores(contact_id, source_scores)
         logger.info("Source scores for %s: %s", contact_id, source_scores)
 
         # Build structured claims from templates (no LLM)
@@ -857,8 +736,8 @@ async def research_single_prospect(
         # Cancel checkpoint: before LLM-heavy stages
         if cancel_check():
             logger.info("Cancelled before foragers for %s", contact_id)
-            save_profile(contact_id, {"claims": structured_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
-            _save_session_for_prospect(contact_id, {"claims": structured_claims}, name, primary_org, budget, "cancelled")
+            await save_profile(contact_id, {"claims": structured_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
+            await _save_session_for_prospect(contact_id, {"claims": structured_claims}, name, primary_org, budget, "cancelled")
             return {"contact_id": contact_id, "claims_count": len(structured_claims), "cancelled": True}
 
         # Activate specialist foragers (conditional on richness thresholds)
@@ -876,7 +755,7 @@ async def research_single_prospect(
         )
 
         # Stage 1: LLM extraction for ProPublica + SEC only
-        enriched = stage1_enrich_prospect(prospect, structured_claims, propublica_data, sec_data, client, budget)
+        enriched = await stage1_enrich_prospect(prospect, structured_claims, propublica_data, sec_data, client, budget)
         llm_claims = [c for c in enriched.get("claims", []) if isinstance(c, dict) and c.get("source_url")]
 
         # Merge all claims: template + forager + llm-extracted
@@ -890,8 +769,8 @@ async def research_single_prospect(
         # Cancel checkpoint: before verification and synthesis
         if cancel_check():
             logger.info("Cancelled before verification for %s", contact_id)
-            save_profile(contact_id, {"claims": all_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
-            _save_session_for_prospect(contact_id, {"claims": all_claims}, name, primary_org, budget, "cancelled")
+            await save_profile(contact_id, {"claims": all_claims, "summary": "", "confidence_score": "low", "partial": True, "failed_agents": ["cancelled"]})
+            await _save_session_for_prospect(contact_id, {"claims": all_claims}, name, primary_org, budget, "cancelled")
             return {"contact_id": contact_id, "claims_count": len(all_claims), "cancelled": True}
 
         # URL pre-filter: drop claims with dead source URLs
@@ -924,13 +803,13 @@ async def research_single_prospect(
         # Cancel checkpoint: before synthesis (most expensive LLM call)
         if cancel_check():
             logger.info("Cancelled before synthesis for %s", contact_id)
-            save_profile(contact_id, {"claims": verified_claims, "summary": "", "confidence_score": "medium", "partial": True, "failed_agents": ["cancelled"]})
-            _save_session_for_prospect(contact_id, {"claims": verified_claims}, name, primary_org, budget, "cancelled")
+            await save_profile(contact_id, {"claims": verified_claims, "summary": "", "confidence_score": "medium", "partial": True, "failed_agents": ["cancelled"]})
+            await _save_session_for_prospect(contact_id, {"claims": verified_claims}, name, primary_org, budget, "cancelled")
             return {"contact_id": contact_id, "claims_count": len(verified_claims), "cancelled": True}
 
         # Synthesis (Opus, with pre-verified origin-tagged claims)
         if verified_claims and not budget.exceeded():
-            profile_data = synthesize_profile(verified_claims, prospect, client, budget, wikipedia_context=wikipedia_context)
+            profile_data = await synthesize_profile(verified_claims, prospect, client, budget, wikipedia_context=wikipedia_context)
             profile = {
                 "claims": profile_data.get("claims", verified_claims),
                 "summary": profile_data.get("summary", ""),
@@ -956,14 +835,14 @@ async def research_single_prospect(
             "failed_agents": ["pipeline_error"],
         }
 
-    save_profile(contact_id, profile)
+    await save_profile(contact_id, profile)
     # Save session history entry
     session_status = "cancelled" if cancel_check() else "completed"
-    _save_session_for_prospect(contact_id, profile, name, primary_org, budget, session_status)
+    await _save_session_for_prospect(contact_id, profile, name, primary_org, budget, session_status)
     return {"contact_id": contact_id, "claims_count": len(profile["claims"])}
 
 
-def _save_session_for_prospect(
+async def _save_session_for_prospect(
     contact_id: str,
     profile: dict,
     name: str,
@@ -972,7 +851,7 @@ def _save_session_for_prospect(
     status: str,
 ) -> None:
     """Save a research session entry. Shared by normal and cancel paths."""
-    save_session(
+    await save_session(
         session_id=str(uuid.uuid4()),
         contact_id=contact_id,
         profile=profile,

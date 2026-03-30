@@ -463,8 +463,11 @@ CREATE TABLE IF NOT EXISTS bedrock.pebble_research_sessions (
     cost_usd      NUMERIC,
     prospect_name TEXT,
     prospect_org  TEXT,
-    status        TEXT DEFAULT 'completed',
-    created_at    TIMESTAMPTZ DEFAULT now()
+    status          TEXT DEFAULT 'completed',
+    tier            TEXT,
+    agents_log_json TEXT,
+    batch_id        TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_pebble_rs_contact ON bedrock.pebble_research_sessions(contact_id);
 
@@ -491,6 +494,7 @@ CREATE TABLE IF NOT EXISTS bedrock.pebble_harness_log (
     elapsed_seconds NUMERIC,
     error           TEXT,
     prospect_id     TEXT,
+    user_email      TEXT,
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 
@@ -610,7 +614,8 @@ BEGIN
         'pebble_chat_conversations',
         'pebble_research_batches',
         'pebble_batch_prospects',
-        'pebble_scratchpad'
+        'pebble_scratchpad',
+        'pebble_daily_usage'
     ])
     LOOP
         EXECUTE format(

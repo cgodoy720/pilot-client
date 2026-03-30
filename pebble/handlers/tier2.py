@@ -130,7 +130,7 @@ async def handle_t2(
         })
 
     # --- Score source richness ---
-    source_scores = score_source_richness(
+    source_scores = await score_source_richness(
         ctx.raw_data.get("propublica_data"),
         ctx.raw_data.get("sec_data"),
         ctx.raw_data.get("fec_data"),

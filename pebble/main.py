@@ -111,7 +111,7 @@ def check_daily_cost_limit():
         from datetime import date as _date
         from .storage.db import get_daily_usage
 
-        usage = get_daily_usage(user_email, str(_date.today()))
+        usage = await get_daily_usage(user_email, str(_date.today()))
         if usage and usage["total_cost_usd"] >= DAILY_COST_LIMIT:
             raise HTTPException(
                 status_code=429,
@@ -126,7 +126,7 @@ def check_daily_cost_limit():
 from . import crm_bridge
 from .schemas import ResearchRequest, ResearchFeedback, CancelRequest
 from .storage.db import (
-    init_db, get_profile, save_feedback,
+    init_db, close_db, get_profile, save_feedback,
     get_feedback_for_contact, get_feedback_trends,
     get_recent_sessions, get_session,
 )
@@ -144,7 +144,7 @@ async def lifespan(app: FastAPI):
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    init_db()
+    await init_db()
     logger.info(
         "Pebble starting — ANTHROPIC_API_KEY=%s, OPENROUTER_API_KEY=%s, FEC_API_KEY=%s",
         "set" if os.getenv("ANTHROPIC_API_KEY") else "MISSING",
@@ -152,6 +152,7 @@ async def lifespan(app: FastAPI):
         "set" if os.getenv("FEC_API_KEY") else "MISSING",
     )
     yield
+    await close_db()
     await crm_bridge.close()
 
 
@@ -230,10 +231,10 @@ async def chat_query(request: Request, body: dict):
     # Ensure conversation exists (use verified email from permission check)
     user_email = getattr(request.state, "user_email", req.user_email or "unknown")
     conversation_id = req.conversation_id or str(_uuid.uuid4())
-    ensure_conversation(conversation_id, user_email)
+    await ensure_conversation(conversation_id, user_email)
 
     # Save user message
-    save_chat_message(
+    await save_chat_message(
         message_id=str(_uuid.uuid4()),
         conversation_id=conversation_id,
         role="user",
@@ -247,7 +248,7 @@ async def chat_query(request: Request, body: dict):
         client = ModelClient()
 
     from .context_resolver import resolve_pronouns
-    resolved_query = resolve_pronouns(req.query, req.conversation_id)
+    resolved_query = await resolve_pronouns(req.query, req.conversation_id)
     route = await classify_query(resolved_query, req.mode, client=client)
 
     # Stash original query for CRM agent (not on RouteResult by default)
@@ -256,7 +257,7 @@ async def chat_query(request: Request, body: dict):
     # Fetch conversation context for CRM agent (prior messages only)
     from .storage.db import get_conversation_messages
     conversation_messages = None
-    raw_msgs = get_conversation_messages(conversation_id, limit=10)
+    raw_msgs = await get_conversation_messages(conversation_id, limit=10)
     if raw_msgs and len(raw_msgs) > 1:
         # Exclude the current query (last message) to avoid duplication
         prior = raw_msgs[:-1]
@@ -300,7 +301,7 @@ async def chat_query(request: Request, body: dict):
     tier_label = {-1: "redirect", 0: "T0", 1: "T0.5", 10: "T1", 20: "T2", 30: "T3"}.get(
         response.level, f"T{response.level}"
     )
-    save_chat_message(
+    await save_chat_message(
         message_id=str(_uuid.uuid4()),
         conversation_id=conversation_id,
         role="assistant",
@@ -336,10 +337,10 @@ async def chat_history(
     from .storage.db import get_conversation_messages, get_recent_conversations
 
     if conversation_id:
-        messages = get_conversation_messages(conversation_id, limit=50)
+        messages = await get_conversation_messages(conversation_id, limit=50)
         return {"conversation_id": conversation_id, "messages": messages}
     else:
-        conversations = get_recent_conversations(user_email, limit=limit)
+        conversations = await get_recent_conversations(user_email, limit=limit)
         return {"conversations": conversations}
 
 
@@ -395,7 +396,7 @@ async def tiered_research(request: Request, body: dict):
     if user_email and response.cost_usd > 0:
         from datetime import date as _date
         from .storage.db import increment_daily_usage
-        increment_daily_usage(user_email, str(_date.today()), response.cost_usd)
+        await increment_daily_usage(user_email, str(_date.today()), response.cost_usd)
 
     # Save session for T1/T2 (T3 saves in its handler)
     if req.tier in (1, 2):
@@ -408,7 +409,7 @@ async def tiered_research(request: Request, body: dict):
             "partial": False,
             "failed_agents": [a["name"] for a in response.agents_log if a["outcome"] in ("error", "timeout")],
         }
-        save_session(
+        await save_session(
             session_id=str(_uuid.uuid4()),
             contact_id=contact_id,
             profile=session_profile,
@@ -464,16 +465,16 @@ async def batch_research(request: Request, body: dict):
         raise HTTPException(400, "target_tier must be 1, 2, or 3")
 
     # Create or resume batch
-    existing = get_batch_status(batch_id)
+    existing = await get_batch_status(batch_id)
     if not existing and prospects:
         batch_prospects = [
             {"id": str(_uuid.uuid4()), "name": p.get("name", ""), "organization": p.get("organization", "")}
             for p in prospects
         ]
-        create_batch(batch_id, user_email, batch_prospects)
+        await create_batch(batch_id, user_email, batch_prospects)
 
     # Get prospect list (filter to selected_ids if advancing)
-    batch_rows = get_batch_prospects(batch_id)
+    batch_rows = await get_batch_prospects(batch_id)
     if selected_ids:
         batch_rows = [r for r in batch_rows if r["id"] in selected_ids]
 
@@ -522,7 +523,7 @@ async def batch_research(request: Request, body: dict):
             completed += 1
             total_cost += resp.cost_usd
 
-            update_batch_prospect(
+            await update_batch_prospect(
                 prospect_id=prospect_id,
                 current_tier=tier_label,
                 identity_confidence=resp.data.get("identity_card", {}).get("confidence", "none") if resp.data else "none",
@@ -536,13 +537,13 @@ async def batch_research(request: Request, body: dict):
                 "cost_usd": resp.cost_usd,
             })
 
-    update_batch_status(batch_id, "completed", completed, total_cost)
+    await update_batch_status(batch_id, "completed", completed, total_cost)
 
     # Track daily cost
     if user_email and user_email != "unknown" and total_cost > 0:
         from datetime import date as _date
         from .storage.db import increment_daily_usage
-        increment_daily_usage(user_email, str(_date.today()), total_cost)
+        await increment_daily_usage(user_email, str(_date.today()), total_cost)
 
     return {
         "batch_id": batch_id,
@@ -559,10 +560,10 @@ async def get_batch(batch_id: str):
     """Get batch status and prospect results."""
     from .storage.db import get_batch_status, get_batch_prospects
 
-    status = get_batch_status(batch_id)
+    status = await get_batch_status(batch_id)
     if not status:
         raise HTTPException(404, "Batch not found")
-    prospects = get_batch_prospects(batch_id)
+    prospects = await get_batch_prospects(batch_id)
     return {"batch": status, "prospects": prospects}
 
 
@@ -625,7 +626,7 @@ async def research_request(request: Request, body: ResearchRequest):
     if user_email and total_cost > 0:
         from datetime import date as _date
         from .storage.db import increment_daily_usage
-        increment_daily_usage(user_email, str(_date.today()), total_cost)
+        await increment_daily_usage(user_email, str(_date.today()), total_cost)
 
     status = "cancelled" if cancelled else "completed"
     return {"status": status, "contact_ids": body.contact_ids, "results": results}
@@ -634,22 +635,21 @@ async def research_request(request: Request, body: ResearchRequest):
 @app.get("/api/v1/research/profiles/{contact_id}/export", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def export_profile(contact_id: str, format: str = "md"):
     """Export a research profile as Markdown (or PDF in the future)."""
-    profile = get_profile(contact_id)
+    profile = await get_profile(contact_id)
     if profile is None:
         raise HTTPException(status_code=404, detail="Profile not found")
 
     # Try to find prospect name/org from the most recent session
-    from .storage.db import get_db
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT prospect_name, prospect_org FROM research_sessions WHERE contact_id = ? ORDER BY created_at DESC LIMIT 1",
-            (contact_id,),
-        ).fetchone()
-        prospect_name = row["prospect_name"] if row else contact_id
-        prospect_org = row["prospect_org"] if row else ""
-    finally:
-        conn.close()
+    from .storage.db import get_pool
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT prospect_name, prospect_org "
+            "FROM bedrock.pebble_research_sessions "
+            "WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 1",
+            contact_id,
+        )
+    prospect_name = row["prospect_name"] if row else contact_id
+    prospect_org = row["prospect_org"] if row else ""
 
     md_text = render_profile_markdown(profile, prospect_name, prospect_org)
 
@@ -672,7 +672,7 @@ async def export_profile(contact_id: str, format: str = "md"):
 @app.get("/api/v1/research/profiles/{contact_id}", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def get_research_profile(contact_id: str):
     """Get research profile for a contact. Stub: returns null if not found."""
-    profile = get_profile(contact_id)
+    profile = await get_profile(contact_id)
     if profile is None:
         return {"profile": None}
     return {"profile": profile}
@@ -681,20 +681,20 @@ async def get_research_profile(contact_id: str):
 @app.post("/api/v1/research/feedback", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def research_feedback(body: ResearchFeedback):
     """Store human feedback on a claim."""
-    save_feedback(body.claim_id, body.correct, text=body.text, contact_id=body.contact_id)
+    await save_feedback(body.claim_id, body.correct, text=body.text, contact_id=body.contact_id)
     return {"ok": True}
 
 
 @app.get("/api/v1/research/feedback/trends", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def feedback_trends(days: int = 30):
     """Return feedback accuracy trends over the last N days."""
-    return get_feedback_trends(days)
+    return await get_feedback_trends(days)
 
 
 @app.get("/api/v1/research/feedback/{contact_id}", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def contact_feedback(contact_id: str):
     """Return all feedback for a contact."""
-    return {"feedback": get_feedback_for_contact(contact_id)}
+    return {"feedback": await get_feedback_for_contact(contact_id)}
 
 
 @app.get("/api/v1/research/history", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
@@ -702,15 +702,15 @@ async def research_history(limit: int = 100, grouped: bool = False):
     """Return recent research sessions, optionally grouped by batch."""
     if grouped:
         from .storage.db import get_sessions_grouped
-        return {"batches": get_sessions_grouped(limit)}
-    sessions = get_recent_sessions(limit)
+        return {"batches": await get_sessions_grouped(limit)}
+    sessions = await get_recent_sessions(limit)
     return {"sessions": sessions}
 
 
 @app.get("/api/v1/research/history/{session_id}", dependencies=[Depends(verify_api_key), Depends(require_pebble_permission("use_pebble_chat"))])
 async def research_session(session_id: str):
     """Return a full research session including profile."""
-    session = get_session(session_id)
+    session = await get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
@@ -723,7 +723,7 @@ async def get_budget(request: Request):
     from .storage.db import get_daily_usage
 
     user_email = request.state.user_email
-    usage = get_daily_usage(user_email, str(_date.today()))
+    usage = await get_daily_usage(user_email, str(_date.today()))
     spent = usage["total_cost_usd"] if usage else 0.0
     return {
         "daily_limit_usd": DAILY_COST_LIMIT,

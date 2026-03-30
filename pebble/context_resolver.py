@@ -22,7 +22,7 @@ _ALL_PRONOUNS = re.compile(
 _BOLD_NAME = re.compile(r"\*\*([^*]+)\*\*")
 
 
-def resolve_pronouns(query: str, conversation_id: str | None) -> str:
+async def resolve_pronouns(query: str, conversation_id: str | None) -> str:
     """Replace pronoun references with concrete entity names from conversation history.
 
     Returns the query unchanged if:
@@ -41,7 +41,7 @@ def resolve_pronouns(query: str, conversation_id: str | None) -> str:
     # Lazy import to avoid circular dependencies at module level
     from .storage.db import get_conversation_messages
 
-    messages = get_conversation_messages(conversation_id, limit=10)
+    messages = await get_conversation_messages(conversation_id, limit=10)
     if not messages:
         logger.debug("No messages found for conversation %s", conversation_id)
         return query
