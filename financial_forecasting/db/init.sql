@@ -327,6 +327,22 @@ SET permissions = permissions || '{
 }'::jsonb
 WHERE name = 'Admin' AND NOT (permissions ? 'edit_accounts');
 
+-- Backfill: add Pebble research + CRM write permissions to existing profiles
+-- Admin: full Pebble access (chat auto-granted via code, research + write explicit)
+UPDATE bedrock.permission_profile
+SET permissions = permissions || '{"use_pebble_research": true, "pebble_crm_write": true}'::jsonb
+WHERE name = 'Admin' AND NOT (permissions ? 'use_pebble_research');
+
+-- Manager: research yes, CRM write no (admin-only for now)
+UPDATE bedrock.permission_profile
+SET permissions = permissions || '{"use_pebble_research": true, "pebble_crm_write": false}'::jsonb
+WHERE name = 'Manager' AND NOT (permissions ? 'use_pebble_research');
+
+-- Fundraiser: no Pebble access by default
+UPDATE bedrock.permission_profile
+SET permissions = permissions || '{"use_pebble_research": false, "pebble_crm_write": false}'::jsonb
+WHERE name = 'Fundraiser' AND NOT (permissions ? 'use_pebble_research');
+
 -- ---------------------------------------------------------------------------
 -- Activities (synced from SF Tasks + Events, plus manual/extension entries)
 -- ---------------------------------------------------------------------------
@@ -575,6 +591,16 @@ CREATE TABLE IF NOT EXISTS bedrock.pebble_scratchpad (
     updated_at      TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_pebble_sp_session ON bedrock.pebble_scratchpad(session_id);
+
+-- Per-user daily cost tracking (M12 — Pebble access control)
+CREATE TABLE IF NOT EXISTS bedrock.pebble_daily_usage (
+    user_email  TEXT NOT NULL,
+    date        DATE NOT NULL,
+    total_cost_usd NUMERIC DEFAULT 0.0,
+    query_count INTEGER DEFAULT 0,
+    updated_at  TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_email, date)
+);
 
 -- Updated-at triggers for pebble tables that have updated_at columns
 DO $$
