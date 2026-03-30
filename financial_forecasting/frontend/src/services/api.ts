@@ -478,6 +478,15 @@ export const apiService = {
   deleteProject: (projectId: string) =>
     api.delete(`/api/projects/${projectId}`),
 
+  getDeletedProjects: () =>
+    api.get('/api/projects/trash'),
+
+  restoreProject: (projectId: string) =>
+    api.post(`/api/projects/${projectId}/restore`),
+
+  purgeProject: (projectId: string) =>
+    api.delete(`/api/projects/${projectId}/purge`),
+
   linkOpportunity: (projectId: string, data: { opportunity_id: string; role?: string }) =>
     api.post(`/api/projects/${projectId}/opportunities`, data),
 

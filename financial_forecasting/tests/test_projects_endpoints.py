@@ -1,10 +1,11 @@
-"""Tests for Projects router — CRUD + auth enforcement."""
+"""Tests for Projects router — CRUD, soft-delete, restore, purge, auth enforcement."""
 
 import sys
 import os
 import json
 import uuid
-from unittest.mock import AsyncMock
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, call
 
 import pytest
 
@@ -20,6 +21,7 @@ app.router.on_startup.clear()
 app.router.on_shutdown.clear()
 
 TEST_USER = {"user_id": "test_user", "email": "test@pursuit.org", "name": "Test"}
+ADMIN_USER = {"user_id": "admin_user", "email": "admin@pursuit.org", "name": "Admin"}
 PROJECT_ID = str(uuid.uuid4())
 WORKSTREAM_ID = str(uuid.uuid4())
 MILESTONE_ID = str(uuid.uuid4())
@@ -34,13 +36,22 @@ class MockDBRow(dict):
             raise AttributeError(key)
 
 
+class MockTransaction:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+
 @pytest.fixture
 def mock_db():
     db = AsyncMock()
     db.fetch = AsyncMock(return_value=[])
     db.fetchrow = AsyncMock(return_value=None)
     db.fetchval = AsyncMock(return_value=0)
-    db.execute = AsyncMock(return_value="DELETE 1")
+    db.execute = AsyncMock(return_value="UPDATE 1")
+    db.transaction = MockTransaction
     return db
 
 
@@ -48,6 +59,19 @@ def mock_db():
 def authed_client(mock_db):
     app.dependency_overrides[get_current_user] = lambda: TEST_USER
     app.dependency_overrides[require_auth] = lambda: TEST_USER
+    app.dependency_overrides[get_db] = lambda: mock_db
+    with TestClient(app, raise_server_exceptions=False) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def admin_client(mock_db):
+    """Client with admin user — for purge endpoint tests."""
+    from routes.permissions import require_admin
+    app.dependency_overrides[get_current_user] = lambda: ADMIN_USER
+    app.dependency_overrides[require_auth] = lambda: ADMIN_USER
+    app.dependency_overrides[require_admin] = lambda: ADMIN_USER
     app.dependency_overrides[get_db] = lambda: mock_db
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
@@ -76,6 +100,12 @@ class TestProjectsAuthEnforcement:
 
     def test_get_project_requires_auth(self, unauthed_client):
         assert unauthed_client.get(f"/api/projects/{PROJECT_ID}").status_code == 401
+
+    def test_trash_requires_auth(self, unauthed_client):
+        assert unauthed_client.get("/api/projects/trash").status_code == 401
+
+    def test_restore_requires_auth(self, unauthed_client):
+        assert unauthed_client.post(f"/api/projects/{PROJECT_ID}/restore").status_code == 401
 
     def test_create_workstream_requires_auth(self, unauthed_client):
         resp = unauthed_client.post(f"/api/projects/{PROJECT_ID}/workstreams", json={"name": "Test"})
@@ -149,13 +179,6 @@ class TestUpdateWorkstream:
         assert resp.status_code == 200
 
 
-class TestDeleteWorkstream:
-    def test_deletes_workstream(self, authed_client, mock_db):
-        mock_db.execute = AsyncMock(return_value="DELETE 1")
-        resp = authed_client.delete(f"/api/workstreams/{WORKSTREAM_ID}")
-        assert resp.status_code == 200
-
-
 class TestCreateMilestone:
     def test_creates_milestone(self, authed_client, mock_db):
         mock_db.fetchrow = AsyncMock(return_value=MockDBRow(
@@ -192,8 +215,189 @@ class TestUpdateProjectTask:
         assert resp.status_code == 200
 
 
-class TestDeleteProjectTask:
-    def test_deletes_task(self, authed_client, mock_db):
-        mock_db.execute = AsyncMock(return_value="DELETE 1")
+# ===========================================================================
+# SOFT-DELETE — project cascade
+# ===========================================================================
+
+
+class TestSoftDeleteProject:
+    def test_soft_delete_returns_moved_to_trash(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        resp = authed_client.delete(f"/api/projects/{PROJECT_ID}")
+        assert resp.status_code == 200
+        assert "moved to trash" in resp.json()["data"]["message"]
+
+    def test_soft_delete_uses_update_not_delete(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        authed_client.delete(f"/api/projects/{PROJECT_ID}")
+        # Verify all execute calls use UPDATE (soft-delete), not DELETE
+        for c in mock_db.execute.call_args_list:
+            sql = c[0][0]
+            assert "UPDATE" in sql
+            assert "DELETE" not in sql
+
+    def test_soft_delete_cascades_to_children(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        authed_client.delete(f"/api/projects/{PROJECT_ID}")
+        # 4 UPDATEs: project, workstreams, milestones, tasks
+        assert mock_db.execute.call_count == 4
+
+    def test_soft_delete_nonexistent_returns_404(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 0")
+        resp = authed_client.delete(f"/api/projects/{PROJECT_ID}")
+        assert resp.status_code == 404
+
+    def test_soft_delete_sets_deleted_by(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        authed_client.delete(f"/api/projects/{PROJECT_ID}")
+        first_call = mock_db.execute.call_args_list[0]
+        sql = first_call[0][0]
+        assert "deleted_by" in sql
+        # email is passed as second positional arg
+        assert first_call[0][2] == "test@pursuit.org"
+
+
+class TestSoftDeleteWorkstream:
+    def test_soft_delete_workstream(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        resp = authed_client.delete(f"/api/workstreams/{WORKSTREAM_ID}")
+        assert resp.status_code == 200
+        assert "moved to trash" in resp.json()["data"]["message"]
+
+    def test_soft_delete_workstream_cascades(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        authed_client.delete(f"/api/workstreams/{WORKSTREAM_ID}")
+        # 3 UPDATEs: workstream, milestones, tasks
+        assert mock_db.execute.call_count == 3
+
+    def test_soft_delete_workstream_not_found(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 0")
+        resp = authed_client.delete(f"/api/workstreams/{WORKSTREAM_ID}")
+        assert resp.status_code == 404
+
+
+class TestSoftDeleteMilestone:
+    def test_soft_delete_milestone(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        resp = authed_client.delete(f"/api/milestones/{MILESTONE_ID}")
+        assert resp.status_code == 200
+        assert "moved to trash" in resp.json()["data"]["message"]
+
+    def test_soft_delete_milestone_cascades(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        authed_client.delete(f"/api/milestones/{MILESTONE_ID}")
+        # 2 UPDATEs: milestone, tasks
+        assert mock_db.execute.call_count == 2
+
+    def test_soft_delete_milestone_not_found(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 0")
+        resp = authed_client.delete(f"/api/milestones/{MILESTONE_ID}")
+        assert resp.status_code == 404
+
+
+class TestSoftDeleteTask:
+    def test_soft_delete_task(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
         resp = authed_client.delete(f"/api/project-tasks/{TASK_ID}")
         assert resp.status_code == 200
+        assert "moved to trash" in resp.json()["data"]["message"]
+
+    def test_soft_delete_task_not_found(self, authed_client, mock_db):
+        mock_db.execute = AsyncMock(return_value="UPDATE 0")
+        resp = authed_client.delete(f"/api/project-tasks/{TASK_ID}")
+        assert resp.status_code == 404
+
+
+# ===========================================================================
+# TRASH LIST
+# ===========================================================================
+
+
+class TestTrashList:
+    def test_list_deleted_projects(self, authed_client, mock_db):
+        deleted_at = datetime(2026, 3, 28, tzinfo=timezone.utc)
+        mock_db.fetch = AsyncMock(return_value=[
+            MockDBRow(id=uuid.UUID(PROJECT_ID), name="Old Project", description="", deleted_at=deleted_at, deleted_by="test@pursuit.org"),
+        ])
+        resp = authed_client.get("/api/projects/trash")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert len(data) == 1
+        assert data[0]["name"] == "Old Project"
+        assert data[0]["deleted_by"] == "test@pursuit.org"
+
+    def test_trash_empty(self, authed_client, mock_db):
+        mock_db.fetch = AsyncMock(return_value=[])
+        resp = authed_client.get("/api/projects/trash")
+        assert resp.status_code == 200
+        assert resp.json()["data"] == []
+
+
+# ===========================================================================
+# RESTORE
+# ===========================================================================
+
+
+class TestRestoreProject:
+    def test_restore_project(self, authed_client, mock_db):
+        cascade_ts = datetime(2026, 3, 28, tzinfo=timezone.utc)
+        mock_db.fetchrow = AsyncMock(return_value=MockDBRow(deleted_at=cascade_ts))
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        resp = authed_client.post(f"/api/projects/{PROJECT_ID}/restore")
+        assert resp.status_code == 200
+        assert "restored" in resp.json()["data"]["message"]
+
+    def test_restore_clears_deleted_at(self, authed_client, mock_db):
+        cascade_ts = datetime(2026, 3, 28, tzinfo=timezone.utc)
+        mock_db.fetchrow = AsyncMock(return_value=MockDBRow(deleted_at=cascade_ts))
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        authed_client.post(f"/api/projects/{PROJECT_ID}/restore")
+        # 4 UPDATEs: project + 3 cascade tables
+        assert mock_db.execute.call_count == 4
+        # All should SET deleted_at = NULL
+        for c in mock_db.execute.call_args_list:
+            sql = c[0][0]
+            assert "deleted_at = NULL" in sql
+
+    def test_restore_nonexistent_returns_404(self, authed_client, mock_db):
+        mock_db.fetchrow = AsyncMock(return_value=None)
+        resp = authed_client.post(f"/api/projects/{PROJECT_ID}/restore")
+        assert resp.status_code == 404
+
+    def test_restore_uses_timestamp_matching(self, authed_client, mock_db):
+        cascade_ts = datetime(2026, 3, 28, 12, 0, 0, tzinfo=timezone.utc)
+        mock_db.fetchrow = AsyncMock(return_value=MockDBRow(deleted_at=cascade_ts))
+        mock_db.execute = AsyncMock(return_value="UPDATE 1")
+        authed_client.post(f"/api/projects/{PROJECT_ID}/restore")
+        # Child UPDATEs (calls 2-4) should pass cascade_ts
+        for c in mock_db.execute.call_args_list[1:]:
+            assert cascade_ts in c[0], f"Expected cascade_ts in args: {c[0]}"
+
+
+# ===========================================================================
+# PURGE (admin only)
+# ===========================================================================
+
+
+class TestPurgeProject:
+    def test_purge_hard_deletes(self, admin_client, mock_db):
+        mock_db.fetchrow = AsyncMock(return_value=MockDBRow(id=uuid.UUID(PROJECT_ID)))
+        mock_db.execute = AsyncMock(return_value="DELETE 1")
+        resp = admin_client.delete(f"/api/projects/{PROJECT_ID}/purge")
+        assert resp.status_code == 200
+        assert "permanently deleted" in resp.json()["data"]["message"]
+        # Verify actual DELETE (not UPDATE)
+        delete_call = mock_db.execute.call_args_list[0]
+        assert "DELETE FROM" in delete_call[0][0]
+
+    def test_purge_nonexistent_returns_404(self, admin_client, mock_db):
+        mock_db.fetchrow = AsyncMock(return_value=None)
+        resp = admin_client.delete(f"/api/projects/{PROJECT_ID}/purge")
+        assert resp.status_code == 404
+
+    def test_purge_requires_admin(self, authed_client, mock_db):
+        """Non-admin users should not be able to purge."""
+        resp = authed_client.delete(f"/api/projects/{PROJECT_ID}/purge")
+        # Without require_admin override, the dependency rejects (403 or 500 if
+        # permissions lookup fails on mock DB — either way, NOT 200)
+        assert resp.status_code != 200

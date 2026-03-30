@@ -140,8 +140,8 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({ task, onClose, muta
         <Box>
           {confirmDelete ? (
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <Typography variant="caption" color="error">Confirm delete?</Typography>
-              <Button size="small" color="error" variant="contained" onClick={handleDelete}>Yes, delete</Button>
+              <Typography variant="caption" color="error">Move to trash?</Typography>
+              <Button size="small" color="error" variant="contained" onClick={handleDelete}>Yes, move to trash</Button>
               <Button size="small" onClick={() => setConfirmDelete(false)}>Cancel</Button>
             </Box>
           ) : (

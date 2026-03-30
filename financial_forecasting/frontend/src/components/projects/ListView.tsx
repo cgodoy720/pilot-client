@@ -257,11 +257,11 @@ const ListView: React.FC<ListViewProps> = ({ workstream, mutations }) => {
       </Card>
 
       <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
-        <DialogTitle>Delete {deleteConfirm?.type}?</DialogTitle>
+        <DialogTitle>Move to trash?</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete &quot;{deleteConfirm?.title}&quot;?
-            {deleteConfirm?.type === 'milestone' && ' All tasks in this milestone will also be deleted.'}
+            Move &quot;{deleteConfirm?.title}&quot; to trash?
+            {deleteConfirm?.type === 'milestone' && ' All tasks in this milestone will also be moved to trash.'}
           </Typography>
         </DialogContent>
         <DialogActions>

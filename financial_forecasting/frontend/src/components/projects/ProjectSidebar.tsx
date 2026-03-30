@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import {
   Box, List, ListItemButton, ListItemText, ListItemIcon, Typography,
   IconButton, TextField, Button, Dialog, DialogTitle, DialogContent,
-  DialogContentText, DialogActions, Divider, Tooltip,
+  DialogContentText, DialogActions, Divider, Tooltip, Collapse,
 } from '@mui/material';
 import {
   ChevronLeft as CollapseIcon, Add as AddIcon, Delete as DeleteIcon,
   FolderOpen as FolderIcon, Folder as FolderClosedIcon,
+  RestoreFromTrash as RestoreIcon, DeleteForever as PurgeIcon,
+  ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import type { Project } from './types';
+import type { DeletedProject } from './useProjects';
 
 interface ProjectSidebarProps {
   projects: Project[];
@@ -17,15 +21,30 @@ interface ProjectSidebarProps {
   onCreateProject: (name: string) => Promise<any>;
   onDeleteProject: (id: string) => void;
   onCollapse: () => void;
+  deletedProjects?: DeletedProject[];
+  onRestoreProject?: (id: string) => void;
+  onPurgeProject?: (id: string) => void;
+}
+
+function timeAgo(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return '1d ago';
+  return `${days}d ago`;
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   projects, selectedId, onSelect, onCreateProject, onDeleteProject, onCollapse,
+  deletedProjects = [], onRestoreProject, onPurgeProject,
 }) => {
   const [newProjectName, setNewProjectName] = useState('');
   const [showNewInput, setShowNewInput] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [creating, setCreating] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [purgeTarget, setPurgeTarget] = useState<DeletedProject | null>(null);
+  const { isAdmin } = usePermissions();
 
   const handleCreate = async () => {
     const name = newProjectName.trim();
@@ -53,6 +72,13 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     }
   };
 
+  const handleConfirmPurge = () => {
+    if (purgeTarget && onPurgeProject) {
+      onPurgeProject(purgeTarget.id);
+      setPurgeTarget(null);
+    }
+  };
+
   return (
     <Box sx={{ width: 220, minWidth: 220, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.paper' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 1 }}>
@@ -71,7 +97,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
             </ListItemIcon>
             <ListItemText primary={p.name} primaryTypographyProps={{ variant: 'body2', fontWeight: p.id === selectedId ? 600 : 400, noWrap: true }} />
             {projects.length > 1 && (
-              <Tooltip title="Delete project">
+              <Tooltip title="Move to trash">
                 <IconButton size="small" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setDeleteTarget(p); }} sx={{ opacity: 0.4, '&:hover': { opacity: 1 } }}>
                   <DeleteIcon sx={{ fontSize: 14 }} />
                 </IconButton>
@@ -80,6 +106,50 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           </ListItemButton>
         ))}
       </List>
+
+      {/* Trash section */}
+      {deletedProjects.length > 0 && (
+        <>
+          <Divider />
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', px: 1.5, py: 0.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+            onClick={() => setTrashOpen(!trashOpen)}
+          >
+            <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ flex: 1, fontSize: '0.7rem' }}>
+              Trash ({deletedProjects.length})
+            </Typography>
+            {trashOpen ? <ExpandLessIcon sx={{ fontSize: 16, color: 'text.secondary' }} /> : <ExpandMoreIcon sx={{ fontSize: 16, color: 'text.secondary' }} />}
+          </Box>
+          <Collapse in={trashOpen}>
+            <List dense sx={{ py: 0 }}>
+              {deletedProjects.map((dp) => (
+                <Box key={dp.id} sx={{ display: 'flex', alignItems: 'center', px: 1.5, py: 0.25, gap: 0.5 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="caption" noWrap sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75rem' }}>
+                      {dp.name}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem' }}>
+                      {timeAgo(dp.deleted_at)}
+                    </Typography>
+                  </Box>
+                  <Tooltip title="Restore">
+                    <IconButton size="small" onClick={() => onRestoreProject?.(dp.id)} sx={{ p: 0.25 }}>
+                      <RestoreIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                    </IconButton>
+                  </Tooltip>
+                  {isAdmin && (
+                    <Tooltip title="Delete permanently">
+                      <IconButton size="small" onClick={() => setPurgeTarget(dp)} sx={{ p: 0.25 }}>
+                        <PurgeIcon sx={{ fontSize: 14, color: 'error.main' }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              ))}
+            </List>
+          </Collapse>
+        </>
+      )}
 
       <Divider />
       <Box sx={{ p: 1 }}>
@@ -101,14 +171,27 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
         )}
       </Box>
 
+      {/* Soft-delete confirmation */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs">
-        <DialogTitle>Delete Project</DialogTitle>
+        <DialogTitle>Move to Trash</DialogTitle>
         <DialogContent>
-          <DialogContentText>Delete &ldquo;{deleteTarget?.name}&rdquo; and all its workstreams, milestones, and tasks? This cannot be undone.</DialogContentText>
+          <DialogContentText>Move &ldquo;{deleteTarget?.name}&rdquo; and all its workstreams, milestones, and tasks to trash? You can restore it later.</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button onClick={handleConfirmDelete} color="error" variant="contained">Delete</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">Move to Trash</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Permanent delete confirmation (admin only) */}
+      <Dialog open={!!purgeTarget} onClose={() => setPurgeTarget(null)} maxWidth="xs">
+        <DialogTitle>Permanently Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Permanently delete &ldquo;{purgeTarget?.name}&rdquo;? This cannot be undone.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPurgeTarget(null)}>Cancel</Button>
+          <Button onClick={handleConfirmPurge} color="error" variant="contained">Delete Forever</Button>
         </DialogActions>
       </Dialog>
     </Box>

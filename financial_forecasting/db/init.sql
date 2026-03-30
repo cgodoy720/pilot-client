@@ -68,6 +68,36 @@ EXCEPTION
     WHEN duplicate_column THEN NULL;
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- Soft-delete columns for project hierarchy (M18 — data loss prevention)
+-- Pattern: proven in bedrock.activity (see line ~403)
+-- ---------------------------------------------------------------------------
+DO $$ BEGIN ALTER TABLE bedrock.project ADD COLUMN deleted_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE bedrock.project ADD COLUMN deleted_by TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN ALTER TABLE bedrock.workstream ADD COLUMN deleted_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE bedrock.workstream ADD COLUMN deleted_by TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN ALTER TABLE bedrock.milestone ADD COLUMN deleted_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE bedrock.milestone ADD COLUMN deleted_by TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN ALTER TABLE bedrock.project_task ADD COLUMN deleted_at TIMESTAMPTZ;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE bedrock.project_task ADD COLUMN deleted_by TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Partial indexes for soft-delete filtering (follows activity pattern, line ~420)
+CREATE INDEX IF NOT EXISTS idx_project_not_deleted ON bedrock.project(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_workstream_not_deleted ON bedrock.workstream(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_milestone_not_deleted ON bedrock.milestone(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_project_task_not_deleted ON bedrock.project_task(deleted_at) WHERE deleted_at IS NULL;
+
 -- Updated-at trigger
 CREATE OR REPLACE FUNCTION bedrock.set_updated_at()
 RETURNS TRIGGER AS $$
