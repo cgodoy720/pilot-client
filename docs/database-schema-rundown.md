@@ -388,13 +388,13 @@ See `docs/PLAN-INDEX.md` for current milestone status and execution order.
 ✅ M10: Activities Foundation (backend endpoints + sync)
 ✅ M11: Pebble PostgreSQL Migration (SQLite → asyncpg)
 ✅ M12: Pebble Access Control (RBAC + cost limits)
-   M13: Activities Timeline + Modals (frontend)
-   M14: Pebble Persistence + CRM Bridge (BLOCKED)
-   M15: Chrome Extension
-   M16: Integration + QA
-   M17: SF Audit + UX Polish
+   M13: Activities Timeline + Modals — 2 sessions (frontend, depends M10)
+   M14: Pebble Persistence + CRM Bridge (BLOCKED on SF field defs)
+   M15: Chrome Extension — 2 sessions (depends M10, parallel with M13)
+   M16: Integration + QA — 1 session (depends M13 + M15)
+   M17: SF Field Validation — 1 session (depends M12)
 ✅ M18: Project Soft-Delete
-   M19: Project Ownership Model (NEW)
+   M19: Project Ownership Model — 1 session (depends M18)
 ```
 
 Note: Pebble stays Python/FastAPI (performance + security advantages for I/O-bound LLM workload). PRD Node.js references are about the target Pursuit platform, not Pebble.

@@ -16,13 +16,18 @@ M11 ✅  Pebble PostgreSQL Migration
 M12 ✅  Pebble Access Control
 M18 ✅  Project Soft-Delete
  │
- ├──► M13 (Activities Timeline)  ─► M15 (Chrome Extension) ─► M16 (Integration + QA)
- ├──► M17 (SF Audit + UX Polish)     ← quick win
- ├──► M19 (Project Ownership)         ← deferred from M8
+ ├──► M13 (Activities Timeline)  ──┐
+ │    Session 1: Timeline component │
+ │    Session 2: Detail modals      ├──► M16 (Integration + QA)
+ ├──► M15 (Chrome Extension) ──────┘    (wiring + regression)
+ │    Session 1: Manifest + scripts
+ │    Session 2: Popup + flows
+ ├──► M17 (SF field validation)       ← 1 session, quick win
+ ├──► M19 (Project Ownership)         ← 1 session, deferred from M8
  └──► M14 (Pebble Persistence)       ← BLOCKED on SF field definitions
 ```
 
-**M13 and M17 are unblocked.** M14 is code-ready but blocked on external SF field definitions from senior devs.
+**M13, M15, and M17 are all unblocked.** M13 and M15 can run in parallel (both depend only on M10 ✅). M16 depends on both M13 + M15. M14 is code-ready but blocked on external SF field definitions from senior devs.
 
 ---
 
@@ -30,11 +35,11 @@ M18 ✅  Project Soft-Delete
 
 | Milestone | Plan File | Depends On | Size | Status | Summary |
 |-----------|-----------|------------|------|--------|---------|
-| **M13: Activities Timeline + Modals** | `tasks/sprint9-activities-extension-plan.md` (9B section) | M10 ✅ | L | Ready | ActivityTimeline component, Opportunity/Contact detail modals. |
+| **M13: Activities Timeline + Modals** | `tasks/sprint9-activities-extension-plan.md` (9B section) | M10 ✅ | L (2 sessions) | Ready | **Session 1**: Activity TS types + API methods + ActivityTimeline component. **Session 2**: OpportunityDetailModal + ContactDetailModal + page wiring. |
 | **M14: Pebble Persistence + CRM Bridge** | `tasks/sprint11-pebble-persistence-crm.md` | M11 ✅ | M (~1-2 sessions) | BLOCKED on SF field definitions | Wire conflict_log, scratchpad; PATCH/PUT to CRM bridge. |
-| **M15: Activities Chrome Extension** | `tasks/sprint9-activities-extension-plan.md` (9C section) | M13 | L | Planned | Manifest V3, Gmail/GCal content scripts, Opp-first cascade, GCS attachments, thread detection. |
-| **M16: Activities Integration + QA** | `tasks/sprint9-activities-extension-plan.md` (9D section) | M15 | M | Planned | Wire modals into pages, global search, full regression. Worktree for safety. |
-| **M17: SF Audit + UX Polish** | `tasks/sprint13-sf-audit-ux-polish.md` | M12 ✅ | S (~1 session) | Ready | Audit SF required fields via describe(), sync frontend validation. M12 already shipped the budget chip. |
+| **M15: Activities Chrome Extension** | `tasks/sprint9-activities-extension-plan.md` (9C section) | M10 ✅ | L (2 sessions) | Ready | **Session 1**: Manifest V3 + service worker + content scripts + API client. **Session 2**: Popup UI + OppPicker + CascadeFlow + testing. Parallel with M13 (no frontend dependency). |
+| **M16: Activities Integration + QA** | `tasks/sprint9-activities-extension-plan.md` (9D section) | M13 + M15 | S (1 session) | Planned | Wire modals into pages, global search, full regression. Worktree for safety. |
+| **M17: SF Field Validation** | `tasks/sprint13-sf-audit-ux-polish.md` | M12 ✅ | S (1 session) | Ready | Audit SF required fields via describe(), sync frontend validation rules. (Pebble cost display + failed agents already shipped in M12.) |
 | **M19: Project Ownership Model** | (plan needed) | M18 ✅ | S-M | Planned | owner_email + contributors, owner-only delete. Deferred from M8 scope. |
 | Bedrock UI Improvements | `tasks/bedrock-ui-improvements.md` | Nothing | Ongoing | Mixed | 5 small, 7 medium, 3 large. Parallel with all tracks. |
 | Google OAuth Setup | (in .cursor/plans/) | Nothing | S | Partially done | FRONTEND_URL env, OAUTH_SPRINT_CHECKLIST, redirect fix. |
