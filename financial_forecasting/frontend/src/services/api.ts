@@ -10,6 +10,12 @@ import type {
   ContactUpdatePayload,
   PaymentUpdatePayload,
 } from '../types/api';
+import type {
+  ActivityCreatePayload,
+  ActivityUpdatePayload,
+  ActivityFilterParams,
+  ActivitySearchParams,
+} from '../types/activity';
 
 // Create axios instance with default config
 const api: AxiosInstance = axios.create({
@@ -537,6 +543,30 @@ export const apiService = {
     api.get(`/api/projects/by-opportunity/${opportunityId}`),
   getSfTaskProjectLink: (sfTaskId: string) =>
     api.get(`/api/sf-task-project/by-task/${sfTaskId}`),
+
+  // Activities (M10 backend — CRUD, search, sync, insights)
+  getActivities: (params?: ActivityFilterParams) =>
+    api.get('/api/activities', { params }),
+  getActivity: (id: string) =>
+    api.get(`/api/activities/${id}`),
+  createActivity: (data: ActivityCreatePayload) =>
+    api.post('/api/activities', data),
+  updateActivity: (id: string, data: ActivityUpdatePayload) =>
+    api.put(`/api/activities/${id}`, data),
+  deleteActivity: (id: string) =>
+    api.delete(`/api/activities/${id}`),
+  searchActivities: (params: ActivitySearchParams) =>
+    api.get('/api/activities/search', { params }),
+  activitySyncCount: () =>
+    api.post('/api/activities/sync/count'),
+  activitySyncTrigger: () =>
+    api.post('/api/activities/sync/trigger'),
+  activitySyncStatus: () =>
+    api.get('/api/activities/sync/status'),
+  activityMatchContext: (params: { email?: string; name?: string }) =>
+    api.get('/api/activities/match-context', { params }),
+  activityInsights: (params: { opportunity_id?: string; account_id?: string }) =>
+    api.post('/api/activities/insights', null, { params }),
 
   // Cache Management
   clearCache: () =>
