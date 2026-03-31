@@ -2,7 +2,7 @@
 
 *Bedrock organizes what you know. Pebble discovers what you don't.*
 
-Version: 0.4 | Date: 2026-03-28 | Author: JP
+Version: 1.0 | Date: 2026-03-31 | Author: JP
 
 A guide for the Pursuit fundraising team. No technical background required. Feedback welcome — this is a living document.
 
@@ -50,18 +50,21 @@ This is a phased rollout. Each role starts with the features most relevant to th
 
 ### For Relationship Managers — Erica, Guilherme
 
-RMs own and manage fundraising Opportunities. Your focus in Phase 1: clean up your top 20–30 Opportunities and build fluency with the Priorities and Pipeline pages.
+RMs own and manage fundraising Opportunities. Your focus in Phase 1: clean up your top 20-30 Opportunities and build fluency with the Priorities and Pipeline pages.
 
 | What you can do | Status |
 | :---- | :---- |
 | See your weekly priorities — deadlines, tasks, calendar, goal progress — in one view (filter by weighted or total) | Working today |
 | Edit your own Opportunities — change stage, amount, close date — and it saves to Salesforce instantly | Working today |
 | View the Dashboard to see pipeline health and cash flow projections (read-only) | Working today |
-| Create new opportunities, accounts, and contacts without opening Salesforce | Working today |
+| Create and edit accounts and contacts for your pipeline | Working today |
 | Create and complete tasks on your own Opportunities — assigned, dated, tracked — saves to Salesforce | Working today |
-| Upload a CSV prospect list and manage leads | Working today |
+| Lock an Opportunity to protect it from accidental edits (unlock anytime) | Working today |
+| Search for any record across the CRM (read-only access to others' Opportunities) | Working today |
 
 **What you won't see yet:** Projects tab and Pebble are not in your view for Phase 1. These come later as we expand.
+
+**Why these boundaries:** Your Opportunities are your territory. Clean, accurate data on the top 30-60 Opps is the #1 goal in Week 1. Nobody else edits your deals without your knowledge. We expand access as the team builds confidence in the core workflows.
 
 #### Try these workflows
 
@@ -71,7 +74,7 @@ RMs own and manage fundraising Opportunities. Your focus in Phase 1: clean up yo
 
 3. **Pipeline cleanup (15 min):** Go to **Pipeline**. Sort by close date. Find Opportunities with dates in the past or stages that haven't changed in months. Update the ones you know about. Flag the ones you're unsure about — send JP a Slack message.
 
-> **Coming soon:** Gantt-style task dependencies when Projects expands to RMs. Pebble auto-research to prep for funder meetings — walk in knowing the prospect's board seats, giving history, and wealth indicators without Googling.
+> **Coming soon:** Pebble auto-research to prep for funder meetings — walk in knowing the prospect's board seats, giving history, and wealth indicators without Googling. The manual 20-minute Google session becomes a 30-second Pebble query.
 
 ---
 
@@ -88,7 +91,9 @@ As Executive, you see everything in the MVP page set except Pebble (JP and Jac a
 | Create and assign tasks to track team commitments | Working today |
 | View and explore the Projects page for cross-functional visibility | Working today |
 
-**What you won't see yet:** Pebble is restricted to JP and Jac during Phase 1.
+**What you won't see yet:** Pebble is restricted to JP and Jac during Phase 1. You cannot edit Opportunities directly — that's RM territory. Give feedback via tasks or verbally.
+
+**Your job in beta:** Stress-test the Dashboard and projections. Do the numbers match your mental model? What's confusing? What's missing? Every piece of feedback shapes the next build.
 
 #### Try these workflows
 
@@ -98,11 +103,11 @@ As Executive, you see everything in the MVP page set except Pebble (JP and Jac a
 
 3. **Pipeline meeting (30 min):** Project the Dashboard on screen during your next pipeline meeting. Walk through the funnel together. When someone commits to a follow-up, create a Task right there — assigned, dated, linked to the Opportunity. No more "I'll send that in an email."
 
-> **Coming soon:** Pebble bulk research to assess prospect quality across the pipeline. Concentration risk alerts when too much revenue depends on one funder.
+> **Coming soon:** Pebble bulk research to assess prospect quality across the pipeline. Concentration risk alerts when too much revenue depends on one funder. AI portfolio recommendations: who should own which Opportunities, and why.
 
 ---
 
-### For the Project Managers — Laura, Johnny, Allie
+### For Project Managers — Laura, Johnny, Allie
 
 PMs manage Projects (like AI Jobs Institute) and coordinate across the fundraising pipeline. You can see everything in the CRM (read-only) but can only edit within the Projects tab. Your focus in Phase 1: validate the project structure, link relevant Opportunities, and build out task timelines.
 
@@ -125,7 +130,13 @@ PMs manage Projects (like AI Jobs Institute) and coordinate across the fundraisi
 
 3. **Coordinate with an RM (coming soon):** You notice a grant tied to your project needs a budget revision Task. Instead of Slacking the RM, you'll click "Request Task" on their Opportunity, fill in the details, and they'll get a notification to accept or decline. Clean, tracked, no context lost.
 
-> **Coming soon:** Pebble quick CRM lookups to help you find the right Opportunities to link. Complex dependency visualization across projects and pipeline milestones.
+> **Coming soon:** Complex dependency visualization in Gantt view — multi-predecessor chains, critical path highlighting. Project ownership model. Pebble quick CRM lookups to help find the right Opportunities to link.
+
+---
+
+### For Developers — JP, Jac
+
+Full Admin access. Everything visible, everything editable — including Pebble research and chat. JP and Jac test new features before they roll out, maintain data quality, manage user profiles, and investigate bugs.
 
 ---
 
@@ -134,6 +145,18 @@ PMs manage Projects (like AI Jobs Institute) and coordinate across the fundraisi
 When you edit an opportunity or create a task in Bedrock, those changes save back to Salesforce. You're not maintaining two systems — Bedrock is your Salesforce interface, just simpler. Salesforce stays the system of record underneath.
 
 This is a phased rollout — each profile starts with core features and we expand access as the team builds confidence. Your access is scoped to what you need right now. If something feels missing, tell JP — every feature request gets a timeline, never "maybe later."
+
+---
+
+## Pages at a Glance
+
+| Page | URL | Who sees it | What it does |
+|------|-----|-------------|--------------|
+| **Priorities** | /priorities | Everyone | Your weekly command center — calendar, task inbox, top Opportunities ranked by value and urgency |
+| **Dashboard** | /dashboard | Everyone | Revenue snapshot — total pipeline, weighted pipeline, quarterly projections, pipeline funnel |
+| **Pipeline** | /pipeline | Everyone | Stage-based funnel of all Opportunities with filtering |
+| **Projects** | /projects | Executive, PM, Dev | Workstreams, milestones, tasks — Gantt, Kanban, List, and Executive views |
+| **Settings** | /settings | Everyone | Salesforce connection, Google account, profile settings |
 
 ---
 
@@ -152,7 +175,7 @@ This is a phased rollout — each profile starts with core features and we expan
 - Project management (Gantt, Kanban, List, and Executive views with task dependencies)
 - Role-based permissions and navigation (each profile sees only the pages relevant to their role)
 - Duplicate detection (automatic — when creating records through Pebble, it checks for existing matches and asks before creating duplicates; fiscal-year-aware for opportunity renewals)
-- Pebble prospect research *(JP and Jac testing in Phase 1; team access after cost guardrails in M12)*
+- Pebble prospect research *(JP and Jac testing in Phase 1; team access after cost guardrails)*
 
 ### Coming Next
 
@@ -160,29 +183,21 @@ This is a phased rollout — each profile starts with core features and we expan
 
 - PM task requests — Project Managers can request task additions on Opportunities they don't own, with owner approval via Notifications
 - Automation Review (Slack messages → proposed CRM updates → approve or reject)
-- Giving capacity scoring (prospect type inference + composite wealth score)
-- Invoice matching (link Sage invoices to Salesforce opportunities)
-- Network map (LinkedIn and Salesforce connections visualized)
-- Cashflow detail views (deeper analysis beyond the dashboard summary)
-- Activity feeds per account (Slack, meeting notes, email — one view)
-- Manual activity entry (log a call or meeting note in Bedrock)
+- Activity timeline (call, email, meeting history per contact in one view)
+- Chrome extension (log emails and meetings from Gmail and Google Calendar)
 - Stale deal flagging (auto-flag opportunities with no activity for 30+ days)
 - Decision audit trail (record why you pursued or passed on a prospect)
 - Grant requirements capture (reporting schedules, metrics, funder obligations)
-- Sage Intacct invoice creation
-- Gmail activity integration
-- Ask Pebble — conversational CRM intelligence: instant lookups, tiered research (quick check → structured intel → full brief), and record creation with built-in duplicate safeguards
+- Ask Pebble — conversational CRM intelligence: instant lookups, tiered research (quick check → structured intel → full brief)
 
 ### On the Roadmap
 
-*(Planned, 1–3 weeks out)*
+*(Planned, 1-3 weeks out)*
 
 - AI portfolio recommendations (who should own which opportunities, and why)
 - Pebble bulk research (quick-check hundreds → deep-research the best fits → auto-categorize)
-- Pebble warm intro paths (who on our team knows this prospect?)
-- Live Pebble assistant (proactive research and action recommendations)
 - Kanban drag-and-drop pipeline view
-- Google Calendar sync & Chrome extension for logging in GCal and Gmail
+- Sage Intacct integration (invoice push, payment pull)
 - Concentration risk alerts
 
 ---
@@ -196,7 +211,7 @@ This is a phased rollout — each profile starts with core features and we expan
 
 **What Bedrock replaces:** The spreadsheets. The tab-switching. The "ask someone who remembers" workflow.
 
-**What Bedrock does NOT replace:** Email, your judgment about relationships, Salesforce (it's still underneath; although we could migrate away eventually), Sage (still the financial system of record).
+**What Bedrock does NOT replace:** Email, your judgment about relationships, Salesforce (it's still underneath), Sage (still the financial system of record).
 
 ---
 
@@ -204,9 +219,9 @@ This is a phased rollout — each profile starts with core features and we expan
 
 ### Pre-Launch
 
-JP seeds Bedrock with your actual Salesforce data — you'll see real opportunities, not a demo. Each user is assigned a permission profile (Admin, Executive, Relationship Manager, or Project Manager) that determines which pages and features you see.
+JP seeds Bedrock with your actual Salesforce data — you'll see real opportunities, not a demo. Each user is assigned a permission profile (Developer/Admin, Executive, Relationship Manager, or Project Manager) that determines which pages and features you see.
 
-**Phase 1 participants:** JP and Jac (Admin), Nick (Executive), Erica and Guilherme (RM), Laura, Johnny, and Allie (PM).
+**Phase 1 participants:** JP and Jac (Developer/Admin), Nick (Executive), Erica and Guilherme (RM), Laura, Johnny, and Allie (PM).
 
 ### Phase 1 — Week 1: Explore and Break Things
 
@@ -229,13 +244,13 @@ Everyone: Log in, click everything, screenshot anything confusing and send to JP
 
 ### Phase 1 — Week 2: Active Use
 
-**RMs:** Use Bedrock as your primary pipeline view. Clean up stale Opportunities. Create Tasks instead of using Salesforce directly. Goal: your top 20–30 Opps are clean and current.
+**RMs:** Use Bedrock as your primary pipeline view. Clean up stale Opportunities. Create Tasks instead of using Salesforce directly. Goal: your top 20-30 Opps are clean and current.
 
 **CEO:** Run your next pipeline meeting from the Dashboard. Assign follow-up Tasks during the meeting.
 
 **PMs:** Link Opportunities to your projects. Build out the project timeline with Tasks and dependencies.
 
-**Everyone:** 15-minute check-in with JP. Walk through any "I expected X but got Y" moments. JP prioritizes fixes and feature requests from Week 1–2 feedback.
+**Everyone:** 15-minute check-in with JP. Walk through any "I expected X but got Y" moments. JP prioritizes fixes and feature requests from Week 1-2 feedback.
 
 ### Phase 1 — What "Success" Looks Like (Before We Expand)
 
@@ -261,7 +276,6 @@ Phase 1 metrics met → Phase 2 unlocks:
 - PM task-request feature ships — PMs can request task additions on Opportunities via Notifications
 - Pebble access expands beyond JP and Jac (after per-user cost controls are in place)
 - Additional users onboarded as trust in core workflows is established
-- Bulk cleanup tool ships ~1 week after rollout
 
 ### Ongoing
 
@@ -275,12 +289,11 @@ Phase 1 metrics met → Phase 2 unlocks:
 
 Being honest about where things stand builds trust faster than overpromising.
 
-- This is a custom internal tool being actively developed by one person. It will improve every week. Some edges will be rough.
+- This is a custom internal tool being actively developed. It will improve every week. Some edges will be rough.
 - It won't send emails or schedule events. It tracks relationships, money, and decisions.
 - It won't auto-generate outreach messages. Pebble provides intelligence; you write the message in your own voice.
 - It won't let you edit someone else's Opportunities or Tasks unless your role allows it. This is by design — ownership sovereignty protects your records and keeps data clean.
 - It's not replacing Salesforce. It makes Salesforce data useful by combining it with everything else.
-- Features like Slack automation, cashflow analysis, giving capacity scoring, and invoice matching are built and being tested — they'll be unlocked once the team is comfortable with the core workflows.
 - Pebble is in testing with JP and Jac only. Each research run uses paid AI services. Self-service access is coming once per-user cost controls are in place.
 - There will be bugs. Reporting them to JP is helpful, not annoying.
 
@@ -296,4 +309,4 @@ The near-term targets: Bedrock as the primary pipeline tool, at least one retire
 - AI portfolio intelligence: who should own which opportunities, based on relationship history, workload, and funder fit
 - Bedrock merges into Pursuit's unified AI-native learning platform — one login, one system
 
-*For the full vision, Pebble architecture, permission details, and sprint plan, see the [Addendum](ONBOARDING-ADDENDUM.md).*
+*For the full vision, Pebble architecture, permission details, progressive workflows, and sprint plan, see the [Addendum](ONBOARDING-ADDENDUM.md).*

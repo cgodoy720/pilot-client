@@ -3,8 +3,8 @@
 ## Level 0 — Orientation
 - [Overview](overview.md) — Vision, Bedrock, long-term platform
 - [Scope Constitution](crm-scope-constitution.md) — What's in/out
-- [Onboarding PRD](ONBOARDINGPRD.md) — What Bedrock & Pebble do for the team
-- [Onboarding Addendum](ONBOARDING-ADDENDUM.md) — Vision, Pebble evolution, sprint plan
+- [Onboarding PRD](ONBOARDINGPRD.md) — Getting started guide: 3 roles, permissions, day-by-day onboarding
+- [Onboarding Addendum](ONBOARDING-ADDENDUM.md) — Exhaustive companion: workflows, permission matrix, Pebble roadmap, Task Request spec, feature roadmap
 
 ## Level 1 — Architecture
 - [Entity Map](crm-architecture/entity-map.md)
