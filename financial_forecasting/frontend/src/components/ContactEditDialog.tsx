@@ -18,11 +18,18 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  Tabs,
+  Tab,
 } from '@mui/material';
-import { OpenInNew as OpenInNewIcon } from '@mui/icons-material';
+import {
+  OpenInNew as OpenInNewIcon,
+  History as HistoryIcon,
+  Edit as EditIcon,
+} from '@mui/icons-material';
 import { useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import ConfirmSaveButton from './ConfirmSaveButton';
+import ActivityTimeline from './ActivityTimeline';
 import { apiService } from '../services/api';
 import { usePermissions } from '../contexts/PermissionsContext';
 
@@ -114,6 +121,7 @@ const ContactEditDialog: React.FC<ContactEditDialogProps> = ({
   const [originalRecord, setOriginalRecord] = useState<Record<string, any> | null>(null);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [dialogTab, setDialogTab] = useState(0);
 
   const [users, setUsers] = useState<UserOption[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
@@ -136,8 +144,10 @@ const ContactEditDialog: React.FC<ContactEditDialogProps> = ({
       setOriginalRecord(null);
       setEditForm({});
       setErrors({});
+      setDialogTab(0);
       return;
     }
+    setDialogTab(0);
 
     let resolved: Record<string, any> | null = null;
 
@@ -315,6 +325,19 @@ const ContactEditDialog: React.FC<ContactEditDialogProps> = ({
 
         {originalRecord && (
           <>
+            {/* ── Tab navigation ─────────────────────────────────────── */}
+            <Tabs
+              value={dialogTab}
+              onChange={(_, v) => setDialogTab(v)}
+              sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Tab label="Details" icon={<EditIcon />} iconPosition="start" sx={{ textTransform: 'none' }} />
+              <Tab label="Activities" icon={<HistoryIcon />} iconPosition="start" sx={{ textTransform: 'none' }} />
+            </Tabs>
+
+            {/* ── Tab 0: Details (existing form) ─────────────────────── */}
+            {dialogTab === 0 && (
+            <>
             {/* ── Section 1: Identity ──────────────────────────────── */}
             <Grid container spacing={2}>
               <Grid item xs={12} sm={3}>
@@ -853,19 +876,28 @@ const ContactEditDialog: React.FC<ContactEditDialogProps> = ({
                 />
               </>
             )}
+            </>
+            )}
+
+            {/* ── Tab 1: Activities ──────────────────────────────────── */}
+            {dialogTab === 1 && contactId && (
+              <ActivityTimeline contactId={contactId} maxHeight={500} />
+            )}
           </>
         )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 1.5 }}>
-        <Button onClick={onClose}>Cancel</Button>
-        <ConfirmSaveButton
-          onConfirm={handleSave}
-          loading={saving}
-          disabled={!canEdit || !originalRecord}
-        >
-          Save
-        </ConfirmSaveButton>
+        <Button onClick={onClose}>{dialogTab === 0 ? 'Cancel' : 'Close'}</Button>
+        {dialogTab === 0 && (
+          <ConfirmSaveButton
+            onConfirm={handleSave}
+            loading={saving}
+            disabled={!canEdit || !originalRecord}
+          >
+            Save
+          </ConfirmSaveButton>
+        )}
       </DialogActions>
     </Dialog>
   );

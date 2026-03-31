@@ -30,6 +30,7 @@ import {
   Refresh as RefreshIcon,
   Save as SaveIcon,
   VideoCall as VideoCallIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import {
   DataGrid,
@@ -49,6 +50,7 @@ import { getStageHexColor } from '../types/salesforce';
 import { buildSchemaColumns, SchemaField } from '../utils/schemaColumns';
 import { editActionColumn } from '../components/EditRowButton';
 import AccountEditDialog from '../components/AccountEditDialog';
+import ActivityTimeline from '../components/ActivityTimeline';
 import { usePermissions } from '../contexts/PermissionsContext';
 import { useDialogStack } from '../contexts/DialogStackContext';
 
@@ -880,6 +882,7 @@ const Accounts: React.FC = () => {
               <Tab label={`Open Pipeline (${openOpps.length})`} />
               <Tab label={`Won/Collecting (${wonOpps.length})`} />
               <Tab label="Contacts" icon={<PersonIcon />} iconPosition="start" />
+              <Tab label="Activities" icon={<HistoryIcon />} iconPosition="start" />
               <Tab label={`Slack Activity (${slackActivity?.total || 0})`} icon={<ChatIcon />} iconPosition="start" />
               <Tab label={`Fireflies Meetings (${firefliesActivity?.total || 0})`} icon={<VideoCallIcon />} iconPosition="start" />
             </Tabs>
@@ -970,8 +973,18 @@ const Accounts: React.FC = () => {
             </Box>
           )}
 
+          {/* Activities Timeline */}
+          {activeTab === 4 && selectedAccount && (
+            <Box sx={{ height: 400 }}>
+              <ActivityTimeline
+                accountId={selectedAccount.Id || selectedAccount.id}
+                maxHeight={380}
+              />
+            </Box>
+          )}
+
           {/* Slack Activity */}
-          {activeTab === 4 && (
+          {activeTab === 5 && (
             <Box sx={{ height: 400, overflow: 'auto' }}>
               {slackActivity?.configured === false ? (
                 <Alert severity="info" sx={{ mt: 2 }}>
@@ -1048,7 +1061,7 @@ const Accounts: React.FC = () => {
           )}
 
           {/* Fireflies Meetings */}
-          {activeTab === 5 && (
+          {activeTab === 6 && (
             <Box sx={{ height: 400, overflow: 'auto' }}>
               {firefliesActivity?.configured === false ? (
                 <Alert severity="info" sx={{ mt: 2 }}>
