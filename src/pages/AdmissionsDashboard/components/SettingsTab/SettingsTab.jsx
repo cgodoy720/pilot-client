@@ -341,7 +341,8 @@ const AddQuestionForm = ({ sections, token, onCreated }) => {
         body: JSON.stringify({ ...formData, section_id: parseInt(formData.section_id) })
       });
       const data = await res.json();
-      if (data.success) { onCreated(); setFormData({ section_id: '', prompt: '', response_type: 'text', is_required: false }); setOpen(false); Swal.fire({ icon: 'success', title: 'Question Created', timer: 1200, showConfirmButton: false }); }
+      if (res.ok && data.success) { onCreated(); setFormData({ section_id: '', prompt: '', response_type: 'text', is_required: false }); setOpen(false); Swal.fire({ icon: 'success', title: 'Question Created', timer: 1200, showConfirmButton: false }); }
+      else { Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Failed to create question.' }); }
     } catch (err) { Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to create question.' }); }
     finally { setSaving(false); }
   };
