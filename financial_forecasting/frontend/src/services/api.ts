@@ -136,7 +136,7 @@ export const apiService = {
 
   // Salesforce Task Dependencies (stored locally)
   getTaskDependenciesForOpp: (taskIds: string[]) =>
-    api.get('/api/salesforce/opportunities/_/task-dependencies', { params: { task_ids: taskIds.join(',') } }),
+    api.get('/api/salesforce/task-dependencies', { params: { task_ids: taskIds.join(',') } }),
   getTaskDependencies: (taskId: string) =>
     api.get(`/api/salesforce/tasks/${taskId}/dependencies`),
   addTaskDependency: (taskId: string, dependsOnId: string) =>

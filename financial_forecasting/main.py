@@ -33,7 +33,7 @@ from models import (
 )
 from forecasting_engine import ForecastingEngine
 from data_sync import DataSyncService
-from db import init_db, close_db, get_db
+from db import init_db, close_db, get_db, get_db_status
 from routes.projects import router as projects_router
 from routes.auth import router as auth_router, get_google_credentials, PBD_CALENDAR_ID
 from routes.sf_dependencies import router as sf_deps_router
@@ -238,12 +238,15 @@ def get_forecasting_engine() -> ForecastingEngine:
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
+    db_status = get_db_status()
+    db_healthy = db_status == "connected"
     return ApiResponse(
-        success=True,
-        data={"status": "healthy"},
+        success=db_healthy,
+        data={"status": "healthy" if db_healthy else "degraded"},
         meta={
             "timestamp": datetime.utcnow().isoformat(),
             "services": {
+                "database": db_status,
                 "mcp_client": "mcp_client" in _services,
                 "forecasting_engine": "forecasting_engine" in _services,
                 "data_sync_service": "data_sync_service" in _services,
