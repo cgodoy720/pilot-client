@@ -45,13 +45,19 @@ import {
   AutoAwesome as AutoAwesomeIcon,
   FiberManualRecord as BulletIcon,
   CheckCircleOutline as CheckIcon,
+  Sync as SyncIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns';
 import { useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { useActivities } from '../hooks/useActivities';
 import { apiService } from '../services/api';
+import { usePermissions } from '../contexts/PermissionsContext';
 import LogActivityDialog from './LogActivityDialog';
+import ActivitySyncPopover from './ActivitySyncPopover';
+import ActivityDetailDialog from './ActivityDetailDialog';
+import { highlightText } from '../utils/highlightText';
 import type { Activity, ActivityType, ActivityInsightsResponse } from '../types/activity';
 
 // ---------------------------------------------------------------------------
@@ -143,8 +149,11 @@ function ActivityCard({
   currentEntityType,
   oppNameMap,
   acctNameMap,
+  contactNameMap,
   onEdit,
   onDelete,
+  onViewDetails,
+  searchTerm,
 }: {
   activity: Activity;
   expanded: boolean;
@@ -152,8 +161,11 @@ function ActivityCard({
   currentEntityType: 'opportunity' | 'account' | 'contact';
   oppNameMap: Map<string, string>;
   acctNameMap: Map<string, string>;
+  contactNameMap: Map<string, string>;
   onEdit?: (activity: Activity) => void;
   onDelete?: (activity: Activity) => void;
+  onViewDetails?: (activity: Activity) => void;
+  searchTerm?: string;
 }) {
   const config = ACTIVITY_TYPE_CONFIG[activity.type] || ACTIVITY_TYPE_CONFIG.note;
   const activityDate = activity.activity_date ? parseISO(activity.activity_date) : null;
@@ -182,6 +194,7 @@ function ActivityCard({
         cursor: hasExpandableContent ? 'pointer' : 'default',
       }}
       onClick={hasExpandableContent ? onToggle : undefined}
+      onDoubleClick={onViewDetails ? () => onViewDetails(activity) : undefined}
     >
       {/* Type icon gutter */}
       <Box
@@ -207,7 +220,7 @@ function ActivityCard({
         {/* Header row: subject + metadata */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.4 }} noWrap>
-            {activity.subject}
+            {searchTerm ? highlightText(activity.subject, searchTerm) : activity.subject}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
             <Chip label={config.label} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
@@ -221,42 +234,49 @@ function ActivityCard({
                 {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
               </IconButton>
             )}
-            {/* 3-dot menu — only for manual activities */}
-            {isManual && (
-              <>
-                <IconButton
-                  size="small"
-                  sx={{ p: 0.25 }}
-                  onClick={(e) => { e.stopPropagation(); setMenuAnchorEl(e.currentTarget); }}
-                  aria-label="Activity actions"
+            {/* 3-dot menu — all activities get View Details; manual also get Edit/Delete */}
+            <IconButton
+              size="small"
+              sx={{ p: 0.25 }}
+              onClick={(e) => { e.stopPropagation(); setMenuAnchorEl(e.currentTarget); }}
+              aria-label="Activity actions"
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={Boolean(menuAnchorEl)}
+              onClose={() => setMenuAnchorEl(null)}
+              onClick={(e) => e.stopPropagation()}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <MenuItem
+                onClick={() => { setMenuAnchorEl(null); onViewDetails?.(activity); }}
+                sx={{ fontSize: '0.85rem' }}
+              >
+                <ListItemIcon sx={{ minWidth: 32 }}><VisibilityIcon fontSize="small" /></ListItemIcon>
+                View Details
+              </MenuItem>
+              {isManual && (
+                <MenuItem
+                  onClick={() => { setMenuAnchorEl(null); onEdit?.(activity); }}
+                  sx={{ fontSize: '0.85rem' }}
                 >
-                  <MoreVertIcon fontSize="small" />
-                </IconButton>
-                <Menu
-                  anchorEl={menuAnchorEl}
-                  open={Boolean(menuAnchorEl)}
-                  onClose={() => setMenuAnchorEl(null)}
-                  onClick={(e) => e.stopPropagation()}
-                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  <ListItemIcon sx={{ minWidth: 32 }}><EditIcon fontSize="small" /></ListItemIcon>
+                  Edit
+                </MenuItem>
+              )}
+              {isManual && (
+                <MenuItem
+                  onClick={() => { setMenuAnchorEl(null); onDelete?.(activity); }}
+                  sx={{ fontSize: '0.85rem', color: 'error.main' }}
                 >
-                  <MenuItem
-                    onClick={() => { setMenuAnchorEl(null); onEdit?.(activity); }}
-                    sx={{ fontSize: '0.85rem' }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 32 }}><EditIcon fontSize="small" /></ListItemIcon>
-                    Edit
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => { setMenuAnchorEl(null); onDelete?.(activity); }}
-                    sx={{ fontSize: '0.85rem', color: 'error.main' }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 32 }}><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
-                    Delete
-                  </MenuItem>
-                </Menu>
-              </>
-            )}
+                  <ListItemIcon sx={{ minWidth: 32 }}><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+                  Delete
+                </MenuItem>
+              )}
+            </Menu>
           </Box>
         </Box>
 
@@ -274,7 +294,9 @@ function ActivityCard({
               lineHeight: 1.4,
             }}
           >
-            {activity.email_snippet || activity.description}
+            {searchTerm
+              ? highlightText((activity.email_snippet || activity.description) || '', searchTerm)
+              : (activity.email_snippet || activity.description)}
           </Typography>
         )}
 
@@ -301,6 +323,32 @@ function ActivityCard({
               sx={{ height: 18, fontSize: '0.6rem' }}
             />
           )}
+          {activity.contact_ids && activity.contact_ids.length > 0 && currentEntityType !== 'contact' && (() => {
+            const MAX_VISIBLE = 2;
+            const visible = activity.contact_ids.slice(0, MAX_VISIBLE);
+            const overflow = activity.contact_ids.length - MAX_VISIBLE;
+            return (
+              <>
+                {visible.map((cId) => (
+                  <Chip
+                    key={cId}
+                    label={`Contact: ${contactNameMap.get(cId) || cId.slice(0, 8) + '...'}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ height: 18, fontSize: '0.6rem' }}
+                  />
+                ))}
+                {overflow > 0 && (
+                  <Chip
+                    label={`+${overflow} more`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ height: 18, fontSize: '0.6rem' }}
+                  />
+                )}
+              </>
+            );
+          })()}
           {activity.logged_by && (
             <Chip label={activity.logged_by} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />
           )}
@@ -422,6 +470,8 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   maxHeight = 500,
 }) => {
   const queryClient = useQueryClient();
+  const { can } = usePermissions();
+  const canSync = can('trigger_data_sync');
 
   // ── Filter state ─────────────────────────────────────────────────────────
   const [typeFilter, setTypeFilter] = useState<ActivityType[]>([]);
@@ -435,6 +485,10 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   const [editTarget, setEditTarget] = useState<Activity | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // ── Sync & detail state ─────────────────────────────────────────────────
+  const [syncAnchorEl, setSyncAnchorEl] = useState<HTMLElement | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Activity | null>(null);
 
   // ── AI Insights state ────────────────────────────────────────────────────
   const [insightsOpen, setInsightsOpen] = useState(false);
@@ -501,7 +555,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   });
 
   // ── Entity name resolution maps ──────────────────────────────────────────
-  const { oppNameMap, acctNameMap } = useMemo(() => {
+  const { oppNameMap, acctNameMap, contactNameMap } = useMemo(() => {
     const oppMap = new Map<string, string>();
     for (const o of toArray(queryClient.getQueryData('opportunities'))) {
       if (o.Id && o.Name) oppMap.set(o.Id, o.Name);
@@ -510,7 +564,11 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
     for (const a of toArray(queryClient.getQueryData('accounts'))) {
       if (a.Id && a.Name) acctMap.set(a.Id, a.Name);
     }
-    return { oppNameMap: oppMap, acctNameMap: acctMap };
+    const contactMap = new Map<string, string>();
+    for (const c of toArray(queryClient.getQueryData('all-contacts'))) {
+      if (c.Id && c.Name) contactMap.set(c.Id, c.Name);
+    }
+    return { oppNameMap: oppMap, acctNameMap: acctMap, contactNameMap: contactMap };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activities]);
 
@@ -552,6 +610,10 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
   const handleDelete = useCallback((activity: Activity) => {
     setDeleteTarget(activity);
+  }, []);
+
+  const handleViewDetails = useCallback((activity: Activity) => {
+    setDetailTarget(activity);
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
@@ -677,6 +739,17 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
         {/* RIGHT group: action buttons */}
         <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
+          {canSync && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<SyncIcon />}
+              onClick={(e) => setSyncAnchorEl(e.currentTarget)}
+              sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+            >
+              Sync
+            </Button>
+          )}
           {canShowInsights && (
             <Button
               size="small"
@@ -891,8 +964,11 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                     currentEntityType={currentEntityType}
                     oppNameMap={oppNameMap}
                     acctNameMap={acctNameMap}
+                    contactNameMap={contactNameMap}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onViewDetails={handleViewDetails}
+                    searchTerm={debouncedSearch || undefined}
                   />
                 ))}
               </Box>
@@ -961,6 +1037,24 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Sync Popover */}
+      <ActivitySyncPopover
+        anchorEl={syncAnchorEl}
+        onClose={() => setSyncAnchorEl(null)}
+        onSyncComplete={() => queryClient.invalidateQueries('activities')}
+      />
+
+      {/* Activity Detail Dialog */}
+      <ActivityDetailDialog
+        activity={detailTarget}
+        onClose={() => setDetailTarget(null)}
+        onEdit={(a) => { setDetailTarget(null); setEditTarget(a); }}
+        onDelete={(a) => { setDetailTarget(null); setDeleteTarget(a); }}
+        oppNameMap={oppNameMap}
+        acctNameMap={acctNameMap}
+        contactNameMap={contactNameMap}
+      />
     </Box>
   );
 };
