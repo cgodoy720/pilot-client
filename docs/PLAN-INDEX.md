@@ -2,8 +2,9 @@
 
 Master index of all planned and completed milestones. Unique numbering — no duplicates, no ambiguity.
 
-**Last completed:** M17 (SF Audit + Prospect CRM Mapping — all 3 sessions, 2026-03-30)
+**Last completed:** M18 (Project Soft-Delete, 2026-03-30)
 **Last shipped:** M18 (Project Soft-Delete, 2026-03-30)
+**Next up:** Sprint A (Permission Profiles + Nav Gating, pre-launch blocker) → M20 (Task Requests) + M19 (Project Ownership)
 
 ---
 
@@ -26,10 +27,13 @@ M18 ✅  Project Soft-Delete
  │    Session 1: Schema + validation + storage ✅
  │    Session 2: T1-T3 pipeline + persistence ✅
  │    Session 3: Drift detection + integration test ✅
- └──► M19 (Project Ownership)         ← 1 session, deferred from M8
+ ├──► M19 (Project Ownership)         ← 1 session, deferred from M8
+ └──► M20 (Task Request System)      ← 2 sessions, post-launch
+      Session 1: Backend (table + API + permissions)
+      Session 2: Frontend (notifications + modal + status)
 ```
 
-**M13 and M15 are unblocked** and can run in parallel (both depend only on M10 ✅). M16 depends on both M13 + M15. **M14 has been absorbed into M17** — the SF describe() audit resolved the field definition blocker.
+**M13 and M15 are unblocked** and can run in parallel (both depend only on M10 ✅). M16 depends on both M13 + M15. **M14 has been absorbed into M17** — the SF describe() audit resolved the field definition blocker. **M20 depends on permission profile setup** (Sprint A, pre-launch) — PM profile must exist before task request endpoints can be gated.
 
 ---
 
@@ -43,6 +47,7 @@ M18 ✅  Project Soft-Delete
 | **M16: Activities Integration + QA** | `tasks/sprint9-activities-extension-plan.md` (9D section) | M13 + M15 | S (1 session) | Planned | Wire modals into pages, global search, full regression. Worktree for safety. |
 | **M17: SF Audit + Prospect CRM Mapping** | `tasks/sprint13-sf-audit-ux-polish.md` | M12 ✅ | L (3 sessions, absorbs M14) | **Complete** | SF describe() audit, prospect_sf_* typed tables, sf_field_requirements, schema drift detection + admin endpoints, T1-T3 population pipeline, CRM bridge updates, integration tests. Plan: `.claude/plans/effervescent-coalescing-marble.md`. |
 | **M19: Project Ownership Model** | (plan needed) | M18 ✅ | S-M | Planned | owner_email + contributors, owner-only delete. Deferred from M8 scope. |
+| **M20: Task Request System** | `product/ONBOARDING-ADDENDUM.md` §F + `.claude/plans/quizzical-riding-brooks.md` §3 | Sprint A (profiles) | M (2 sessions) | Planned | **Session 1**: `bedrock.task_request` table + 5 API endpoints + permission gating. **Session 2**: NotificationType extensions + Accept/Reject UI in NotificationDropdown + "Request Task" modal + PM status view. Enables PM-RM coordination without violating Opp ownership. |
 | Bedrock UI Improvements | `tasks/bedrock-ui-improvements.md` | Nothing | Ongoing | Mixed | 5 small, 7 medium, 3 large. Parallel with all tracks. |
 | Google OAuth Setup | (in .cursor/plans/) | Nothing | S | Partially done | FRONTEND_URL env, OAUTH_SPRINT_CHECKLIST, redirect fix. |
 
