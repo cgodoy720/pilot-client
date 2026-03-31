@@ -5,7 +5,7 @@
  * when editing a row inline.
  */
 import React from 'react';
-import { Autocomplete, TextField } from '@mui/material';
+import { Autocomplete, TextField, Tooltip } from '@mui/material';
 import { GridRenderEditCellParams, useGridApiContext } from '@mui/x-data-grid';
 import { apiService } from '../../services/api';
 
@@ -73,18 +73,20 @@ export function OwnerEditCell(props: GridRenderEditCellParams) {
   const selectedUser = options.find((user) => user.Id === value);
 
   return (
-    <Autocomplete
-      value={selectedUser || null}
-      onChange={handleChange}
-      options={options}
-      getOptionLabel={(option) => option.Name || ''}
-      isOptionEqualToValue={(option, val) => option.Id === val?.Id}
-      autoFocus={hasFocus}
-      fullWidth
-      sx={{ width: '100%' }}
-      renderInput={(params) => (
-        <TextField {...params} placeholder="Search users..." variant="standard" />
-      )}
-    />
+    <Tooltip title="Changing the owner may affect who can edit this opportunity" placement="top">
+      <Autocomplete
+        value={selectedUser || null}
+        onChange={handleChange}
+        options={options}
+        getOptionLabel={(option) => option.Name || ''}
+        isOptionEqualToValue={(option, val) => option.Id === val?.Id}
+        autoFocus={hasFocus}
+        fullWidth
+        sx={{ width: '100%' }}
+        renderInput={(params) => (
+          <TextField {...params} placeholder="Search users..." variant="standard" />
+        )}
+      />
+    </Tooltip>
   );
 }

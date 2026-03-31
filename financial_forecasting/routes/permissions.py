@@ -15,20 +15,21 @@ from security import validate_salesforce_id, escape_soql_string
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/permissions", tags=["permissions"])
 
-# All 24 permission keys — used for validation
+# All 32 permission keys — used for validation
 PERMISSION_KEYS = [
     "view_opportunities", "edit_own_opportunities", "edit_all_opportunities",
     "create_opportunities", "bulk_update_opportunities", "lock_own_opportunities",
     "reassign_opportunities",
     "view_tasks", "edit_own_tasks", "edit_all_tasks", "create_tasks",
-    "view_revenue_dashboard", "view_cashflow_forecasts",
-    "view_sage_invoices_payments", "create_sage_invoices",
-    "match_invoices", "manage_payment_schedules", "generate_financial_reports",
-    "trigger_data_sync", "manage_users_roles",
-    "use_pebble_chat", "use_pebble_research", "pebble_crm_write",
     "edit_accounts", "create_accounts",
     "edit_contacts", "create_contacts",
     "edit_payments", "create_payments",
+    "view_projects", "edit_projects",
+    "view_revenue_dashboard", "view_cashflow_forecasts",
+    "view_sage_invoices_payments", "create_sage_invoices",
+    "match_invoices", "manage_payment_schedules", "generate_financial_reports",
+    "use_pebble_chat", "use_pebble_research", "pebble_crm_write",
+    "trigger_data_sync", "manage_users_roles", "edit_permission_profiles",
 ]
 
 
@@ -107,6 +108,24 @@ async def require_admin(user=Depends(require_auth), db=Depends(get_db)):
     perms = user_data.get("permissions") or {}
     if not perms.get("manage_users_roles", False):
         raise HTTPException(403, "Admin access required")
+    return user
+
+
+# System-level keys that only admins can toggle (escalation guard)
+SYSTEM_KEYS = frozenset([
+    "manage_users_roles", "edit_permission_profiles",
+    "trigger_data_sync", "pebble_crm_write",
+])
+
+
+async def require_profile_editor(user=Depends(require_auth), db=Depends(get_db)):
+    """Require edit_permission_profiles OR manage_users_roles."""
+    user_data = await get_user_permissions(user.get("email", ""), db)
+    perms = user_data.get("permissions") or {}
+    if not (perms.get("edit_permission_profiles") or perms.get("manage_users_roles")):
+        raise HTTPException(403, "Permission denied: edit_permission_profiles")
+    user["_permissions"] = perms
+    user["_app_user"] = user_data
     return user
 
 
@@ -306,9 +325,9 @@ async def create_profile(body: ProfileCreate, user=Depends(require_admin), db=De
 
 @router.put("/profiles/{profile_id}")
 async def update_profile(
-    profile_id: str, body: ProfileUpdate, user=Depends(require_admin), db=Depends(get_db)
+    profile_id: str, body: ProfileUpdate, user=Depends(require_profile_editor), db=Depends(get_db)
 ):
-    """Update a permission profile."""
+    """Update a permission profile. Admins can edit all keys; profile editors cannot toggle system keys."""
     pid = uuid.UUID(profile_id)
     existing = await db.fetchrow("SELECT * FROM bedrock.permission_profile WHERE id = $1", pid)
     if not existing:
@@ -324,6 +343,13 @@ async def update_profile(
         updates["is_default"] = body.is_default
     if body.permissions is not None:
         clean_perms = {k: body.permissions.get(k, False) for k in PERMISSION_KEYS}
+        # Escalation guard: non-admins cannot toggle system-level keys.
+        # Preserve existing DB values for those keys regardless of what the client sends.
+        caller_perms = user.get("_permissions", {})
+        if not caller_perms.get("manage_users_roles"):
+            existing_perms = _parse_perms(existing["permissions"])
+            for key in SYSTEM_KEYS:
+                clean_perms[key] = existing_perms.get(key, False)
         updates["permissions"] = clean_perms
     if not updates:
         return {"success": True, "data": dict(existing)}
@@ -398,6 +424,142 @@ async def update_user(user_id: str, body: UserUpdate, user=Depends(require_admin
         "LEFT JOIN bedrock.permission_profile pp ON pp.id = au.profile_id WHERE au.id = $1", uid
     )
     return {"success": True, "data": dict(row)}
+
+
+# ── Permission Unlock Requests ──
+
+
+class UnlockRequestCreate(BaseModel):
+    profile_id: str
+    permission_key: str
+
+
+class UnlockRequestResolve(BaseModel):
+    admin_note: str = ""
+
+
+@router.post("/unlock-requests")
+async def create_unlock_request(
+    body: UnlockRequestCreate, user=Depends(require_profile_editor), db=Depends(get_db)
+):
+    """Create a permission unlock request for a system-level key."""
+    if body.permission_key not in SYSTEM_KEYS:
+        raise HTTPException(400, f"Key '{body.permission_key}' is not a system-level key")
+    # Check for duplicate pending request
+    existing = await db.fetchrow(
+        "SELECT id FROM bedrock.permission_unlock_request "
+        "WHERE profile_id = $1 AND permission_key = $2 AND status = 'pending'",
+        uuid.UUID(body.profile_id), body.permission_key,
+    )
+    if existing:
+        raise HTTPException(409, "A pending request already exists for this key")
+    row = await db.fetchrow(
+        "INSERT INTO bedrock.permission_unlock_request "
+        "(profile_id, permission_key, requester_email) "
+        "VALUES ($1, $2, $3) RETURNING *",
+        uuid.UUID(body.profile_id), body.permission_key, user.get("email"),
+    )
+    return {"success": True, "data": dict(row)}
+
+
+@router.get("/unlock-requests")
+async def list_unlock_requests(
+    request: Request, status: Optional[str] = None,
+    user=Depends(require_auth), db=Depends(get_db),
+):
+    """List unlock requests. Admins see all; profile editors see only their own."""
+    user_data = await get_user_permissions(user.get("email", ""), db)
+    perms = user_data.get("permissions") or {}
+
+    base_query = (
+        "SELECT ur.*, pp.name as profile_name "
+        "FROM bedrock.permission_unlock_request ur "
+        "LEFT JOIN bedrock.permission_profile pp ON pp.id = ur.profile_id"
+    )
+    conditions = []
+    params: list = []
+
+    if perms.get("manage_users_roles"):
+        # Admin: see all requests, optionally filtered by status
+        if status:
+            conditions.append(f"ur.status = ${len(params) + 1}")
+            params.append(status)
+    elif perms.get("edit_permission_profiles"):
+        # Profile editor: only own requests
+        conditions.append(f"ur.requester_email = ${len(params) + 1}")
+        params.append(user.get("email"))
+        if status:
+            conditions.append(f"ur.status = ${len(params) + 1}")
+            params.append(status)
+    else:
+        raise HTTPException(403, "Permission denied")
+
+    if conditions:
+        base_query += " WHERE " + " AND ".join(conditions)
+    base_query += " ORDER BY ur.created_at DESC"
+
+    rows = await db.fetch(base_query, *params)
+    return {"success": True, "data": [dict(r) for r in rows]}
+
+
+@router.post("/unlock-requests/{request_id}/approve")
+async def approve_unlock_request(
+    request_id: str, user=Depends(require_admin), db=Depends(get_db)
+):
+    """Approve an unlock request and auto-toggle the permission on the profile."""
+    rid = uuid.UUID(request_id)
+    req = await db.fetchrow(
+        "SELECT * FROM bedrock.permission_unlock_request WHERE id = $1", rid
+    )
+    if not req:
+        raise HTTPException(404, "Unlock request not found")
+    if req["status"] != "pending":
+        raise HTTPException(400, f"Request is already {req['status']}")
+    # Mark as approved
+    await db.execute(
+        "UPDATE bedrock.permission_unlock_request "
+        "SET status = 'approved', resolved_at = now(), resolved_by = $1 "
+        "WHERE id = $2",
+        user.get("email"), rid,
+    )
+    # Auto-toggle: set the permission key to true on the profile
+    perm_patch = json.dumps({req["permission_key"]: True})
+    await db.execute(
+        "UPDATE bedrock.permission_profile "
+        "SET permissions = permissions || $1::jsonb, updated_at = now() "
+        "WHERE id = $2",
+        perm_patch, req["profile_id"],
+    )
+    updated = await db.fetchrow(
+        "SELECT * FROM bedrock.permission_unlock_request WHERE id = $1", rid
+    )
+    return {"success": True, "data": dict(updated)}
+
+
+@router.post("/unlock-requests/{request_id}/reject")
+async def reject_unlock_request(
+    request_id: str, body: UnlockRequestResolve,
+    user=Depends(require_admin), db=Depends(get_db),
+):
+    """Reject an unlock request with an optional admin note."""
+    rid = uuid.UUID(request_id)
+    req = await db.fetchrow(
+        "SELECT * FROM bedrock.permission_unlock_request WHERE id = $1", rid
+    )
+    if not req:
+        raise HTTPException(404, "Unlock request not found")
+    if req["status"] != "pending":
+        raise HTTPException(400, f"Request is already {req['status']}")
+    await db.execute(
+        "UPDATE bedrock.permission_unlock_request "
+        "SET status = 'rejected', resolved_at = now(), resolved_by = $1, admin_note = $2 "
+        "WHERE id = $3",
+        user.get("email"), body.admin_note, rid,
+    )
+    updated = await db.fetchrow(
+        "SELECT * FROM bedrock.permission_unlock_request WHERE id = $1", rid
+    )
+    return {"success": True, "data": dict(updated)}
 
 
 # ── Opportunity Lock ──

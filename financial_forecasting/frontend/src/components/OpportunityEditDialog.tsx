@@ -615,6 +615,15 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
                   )}
                 />
               </Grid>
+              {canEditOwner && selectedOwner && originalOpp?.OwnerId !== selectedOwner?.Id
+                && selectedOwner?.Id !== sfUserId && !can('edit_all_opportunities') && (
+                <Grid item xs={12}>
+                  <Alert severity="warning" variant="outlined">
+                    <strong>Heads up:</strong> Reassigning to {selectedOwner.Name} means you won't be
+                    able to edit this opportunity afterward.
+                  </Alert>
+                </Grid>
+              )}
               <Grid item xs={12} sm={6}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <Autocomplete

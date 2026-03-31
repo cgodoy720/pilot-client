@@ -11,6 +11,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import { LeadsProvider } from './contexts/LeadsContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import PermissionGate from './components/PermissionGate';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -221,9 +222,11 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Suspense fallback={<LazyFallback />}>
-                        <Projects />
-                      </Suspense>
+                      <PermissionGate permission="view_projects">
+                        <Suspense fallback={<LazyFallback />}>
+                          <Projects />
+                        </Suspense>
+                      </PermissionGate>
                     </Layout>
                   </ProtectedRoute>
                 }
@@ -244,7 +247,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Pebble />
+                      <PermissionGate permission={(can) => can('use_pebble_chat') || can('use_pebble_research')}>
+                        <Pebble />
+                      </PermissionGate>
                     </Layout>
                   </ProtectedRoute>
                 }

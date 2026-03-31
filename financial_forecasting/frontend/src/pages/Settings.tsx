@@ -47,6 +47,7 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon,
   Save as SaveIcon,
+  LockOutlined as LockOutlinedIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/PermissionsContext';
@@ -99,13 +100,27 @@ const PERMISSION_GROUPS = [
     ],
   },
   {
+    label: 'Projects',
+    keys: [
+      { key: 'view_projects', label: 'View Projects' },
+      { key: 'edit_projects', label: 'Create / Edit / Delete Projects' },
+    ],
+  },
+  {
     label: 'System',
     keys: [
       { key: 'trigger_data_sync', label: 'Trigger Data Sync' },
       { key: 'manage_users_roles', label: 'Manage Users & Roles (Admin)' },
+      { key: 'edit_permission_profiles', label: 'Edit Permission Profiles' },
     ],
   },
 ];
+
+// System-level keys only admins can toggle (matches backend SYSTEM_KEYS)
+const SYSTEM_KEYS = new Set([
+  'manage_users_roles', 'edit_permission_profiles',
+  'trigger_data_sync', 'pebble_crm_write',
+]);
 
 interface SFStatus {
   connected: boolean;
@@ -170,8 +185,13 @@ const Settings: React.FC = () => {
 
   const { can: canDo } = usePermissions();
   const isAdmin = canDo('manage_users_roles');
+  const canEditProfiles = canDo('edit_permission_profiles') || isAdmin;
   const queryClient = useQueryClient();
-  const [settingsTab, setSettingsTab] = useState(0);
+  const [settingsTab, setSettingsTab] = useState(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'users' || tab === 'profiles' || tab === 'connections') return tab;
+    return 'connections';
+  });
 
   // Admin data queries (only fetch if admin)
   const { data: appUsersData } = useQuery('app-users', async () => {
@@ -181,7 +201,7 @@ const Settings: React.FC = () => {
   const { data: profilesData } = useQuery('permission-profiles', async () => {
     const res = await apiService.getPermissionProfiles();
     return res.data?.data || [];
-  }, { enabled: isAdmin });
+  }, { enabled: canEditProfiles });
 
   const appUsers: any[] = appUsersData || [];
   const profiles: any[] = profilesData || [];
@@ -215,6 +235,38 @@ const Settings: React.FC = () => {
   const [editDefault, setEditDefault] = useState(false);
   const [createMode, setCreateMode] = useState(false);
 
+  // Unlock request queries and mutations
+  const { data: pendingRequests } = useQuery(
+    ['unlock-requests', editProfile?.id],
+    async () => {
+      const res = await apiService.getUnlockRequests({ status: 'pending' });
+      return res.data?.data || [];
+    },
+    { enabled: canEditProfiles && !!editProfile }
+  );
+
+  const createUnlockMutation = useMutation(
+    async (data: { profile_id: string; permission_key: string }) => {
+      const res = await apiService.createUnlockRequest(data);
+      return res.data;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('unlock-requests');
+        toast.success('Unlock request sent to admin');
+      },
+      onError: (err: any) => {
+        toast.error(err.response?.data?.detail || 'Failed to send request');
+      },
+    }
+  );
+
+  const handleRequestUnlock = (key: string) => {
+    if (editProfile?.id) {
+      createUnlockMutation.mutate({ profile_id: editProfile.id, permission_key: key });
+    }
+  };
+
   const openEditProfile = (profile: any) => {
     setEditProfile(profile);
     setEditName(profile.name);
@@ -247,13 +299,13 @@ const Settings: React.FC = () => {
       </Typography>
 
       <Tabs value={settingsTab} onChange={(_, v) => setSettingsTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Tab label="Connections" />
-        {isAdmin && <Tab label="Users" />}
-        {isAdmin && <Tab label="Permission Profiles" />}
+        <Tab label="Connections" value="connections" />
+        {isAdmin && <Tab label="Users" value="users" />}
+        {canEditProfiles && <Tab label="Permission Profiles" value="profiles" />}
       </Tabs>
 
       {/* ── Connections Tab ── */}
-      {settingsTab === 0 && (
+      {settingsTab === 'connections' && (
       <Box>
       {/* User Profile */}
       <Card sx={{ mb: 3 }}>
@@ -549,7 +601,7 @@ const Settings: React.FC = () => {
     )}
 
     {/* ── Users Tab (Admin only) ── */}
-    {settingsTab === 1 && isAdmin && (
+    {settingsTab === 'users' && isAdmin && (
       <Card>
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>User Management</Typography>
@@ -598,14 +650,16 @@ const Settings: React.FC = () => {
     )}
 
     {/* ── Permission Profiles Tab (Admin only) ── */}
-    {settingsTab === 2 && isAdmin && (
+    {settingsTab === 'profiles' && canEditProfiles && (
       <Card>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Permission Profiles</Typography>
-            <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={openCreateProfile}>
-              New Profile
-            </Button>
+            {isAdmin && (
+              <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={openCreateProfile}>
+                New Profile
+              </Button>
+            )}
           </Box>
           <Table size="small">
             <TableHead>
@@ -628,11 +682,13 @@ const Settings: React.FC = () => {
                     <TableCell>{userCount}</TableCell>
                     <TableCell align="right">
                       <IconButton size="small" onClick={() => openEditProfile(p)} title="Edit"><EditIcon fontSize="small" /></IconButton>
-                      <IconButton
-                        size="small" color="error"
-                        onClick={() => { if (window.confirm(`Delete "${p.name}"?`)) deleteProfileMutation.mutate(p.id); }}
-                        title="Delete" disabled={userCount > 0}
-                      ><DeleteIcon fontSize="small" /></IconButton>
+                      {isAdmin && (
+                        <IconButton
+                          size="small" color="error"
+                          onClick={() => { if (window.confirm(`Delete "${p.name}"?`)) deleteProfileMutation.mutate(p.id); }}
+                          title="Delete" disabled={userCount > 0}
+                        ><DeleteIcon fontSize="small" /></IconButton>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -685,19 +741,43 @@ const Settings: React.FC = () => {
               {group.label}
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 0.5 }}>
-              {group.keys.map(({ key, label }) => (
-                <FormControlLabel
-                  key={key}
-                  control={
-                    <Checkbox
-                      checked={editPerms[key] || false}
-                      onChange={(e) => setEditPerms({ ...editPerms, [key]: e.target.checked })}
-                      size="small"
-                    />
-                  }
-                  label={<Typography variant="body2">{label}</Typography>}
-                />
-              ))}
+              {group.keys.map(({ key, label }) => {
+                const isSystemKey = SYSTEM_KEYS.has(key);
+                const isLocked = isSystemKey && !isAdmin;
+                const hasPendingRequest = isLocked && pendingRequests?.some(
+                  (r: any) => r.permission_key === key && r.profile_id === editProfile?.id
+                );
+                return isLocked ? (
+                  <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+                    <Checkbox checked={editPerms[key] || false} disabled size="small" />
+                    <Typography variant="body2" color="text.disabled">{label}</Typography>
+                    <LockOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                    {hasPendingRequest ? (
+                      <Chip label="Requested" size="small" color="info" variant="outlined" />
+                    ) : (
+                      <Button size="small" variant="text" sx={{ textTransform: 'none', minWidth: 0 }} onClick={() => handleRequestUnlock(key)}>
+                        Request Unlock
+                      </Button>
+                    )}
+                  </Box>
+                ) : (
+                  <FormControlLabel
+                    key={key}
+                    control={
+                      <Checkbox
+                        checked={editPerms[key] || false}
+                        onChange={(e) => setEditPerms({ ...editPerms, [key]: e.target.checked })}
+                        size="small"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" color="text.primary">
+                        {label}
+                      </Typography>
+                    }
+                  />
+                );
+              })}
             </Box>
             <Divider sx={{ mt: 1 }} />
           </Box>

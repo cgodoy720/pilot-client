@@ -235,7 +235,57 @@ CREATE TABLE IF NOT EXISTS bedrock.opportunity_lock (
 );
 CREATE INDEX IF NOT EXISTS idx_opp_lock_locked_by ON bedrock.opportunity_lock(locked_by);
 
--- Seed permission profiles (idempotent via ON CONFLICT)
+-- ── Sprint A Migration: 4-profile rollout (idempotent) ──
+-- Runs BEFORE seed INSERTs. On first run: renames/deletes old profiles.
+-- On subsequent runs: UPDATEs match 0 rows, DELETEs match 0 rows. Safe.
+
+-- Step 1: Rename Fundraiser → Relationship Manager (preserves UUID)
+UPDATE bedrock.permission_profile
+SET name = 'Relationship Manager',
+    description = 'Edit own opportunities and tasks, create accounts and contacts — no projects, no Pebble',
+    permissions = '{
+        "view_opportunities": true,
+        "edit_own_opportunities": true,
+        "edit_all_opportunities": false,
+        "create_opportunities": true,
+        "bulk_update_opportunities": false,
+        "lock_own_opportunities": true,
+        "reassign_opportunities": false,
+        "view_tasks": true,
+        "edit_own_tasks": true,
+        "edit_all_tasks": false,
+        "create_tasks": true,
+        "edit_accounts": true,
+        "create_accounts": true,
+        "edit_contacts": true,
+        "create_contacts": true,
+        "edit_payments": false,
+        "create_payments": false,
+        "view_projects": false,
+        "edit_projects": false,
+        "view_revenue_dashboard": true,
+        "view_cashflow_forecasts": true,
+        "view_sage_invoices_payments": false,
+        "create_sage_invoices": false,
+        "match_invoices": false,
+        "manage_payment_schedules": false,
+        "generate_financial_reports": false,
+        "use_pebble_chat": false,
+        "use_pebble_research": false,
+        "pebble_crm_write": false,
+        "trigger_data_sync": false,
+        "manage_users_roles": false,
+        "edit_permission_profiles": false
+    }'::jsonb
+WHERE name = 'Fundraiser';
+
+-- Step 2: Delete Manager profile (only if no users assigned)
+DELETE FROM bedrock.permission_profile
+WHERE name = 'Manager'
+  AND NOT EXISTS (SELECT 1 FROM bedrock.app_user WHERE profile_id = bedrock.permission_profile.id);
+
+-- ── Seed permission profiles (idempotent via ON CONFLICT) ──
+
 INSERT INTO bedrock.permission_profile (name, description, is_default, permissions)
 VALUES (
     'Admin',
@@ -253,6 +303,14 @@ VALUES (
         "edit_own_tasks": true,
         "edit_all_tasks": true,
         "create_tasks": true,
+        "edit_accounts": true,
+        "create_accounts": true,
+        "edit_contacts": true,
+        "create_contacts": true,
+        "edit_payments": true,
+        "create_payments": true,
+        "view_projects": true,
+        "edit_projects": true,
         "view_revenue_dashboard": true,
         "view_cashflow_forecasts": true,
         "view_sage_invoices_payments": true,
@@ -260,15 +318,19 @@ VALUES (
         "match_invoices": true,
         "manage_payment_schedules": true,
         "generate_financial_reports": true,
+        "use_pebble_chat": true,
+        "use_pebble_research": true,
+        "pebble_crm_write": true,
         "trigger_data_sync": true,
-        "manage_users_roles": true
+        "manage_users_roles": true,
+        "edit_permission_profiles": true
     }'::jsonb
 ) ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO bedrock.permission_profile (name, description, is_default, permissions)
 VALUES (
-    'Fundraiser',
-    'Standard fundraiser access — own opportunities and tasks, no financial writes',
+    'Relationship Manager',
+    'Edit own opportunities and tasks, create accounts and contacts — no projects, no Pebble',
     true,
     '{
         "view_opportunities": true,
@@ -277,11 +339,19 @@ VALUES (
         "create_opportunities": true,
         "bulk_update_opportunities": false,
         "lock_own_opportunities": true,
-        "reassign_opportunities": true,
+        "reassign_opportunities": false,
         "view_tasks": true,
         "edit_own_tasks": true,
         "edit_all_tasks": false,
         "create_tasks": true,
+        "edit_accounts": true,
+        "create_accounts": true,
+        "edit_contacts": true,
+        "create_contacts": true,
+        "edit_payments": false,
+        "create_payments": false,
+        "view_projects": false,
+        "edit_projects": false,
         "view_revenue_dashboard": true,
         "view_cashflow_forecasts": true,
         "view_sage_invoices_payments": false,
@@ -289,89 +359,117 @@ VALUES (
         "match_invoices": false,
         "manage_payment_schedules": false,
         "generate_financial_reports": false,
+        "use_pebble_chat": false,
+        "use_pebble_research": false,
+        "pebble_crm_write": false,
         "trigger_data_sync": false,
-        "manage_users_roles": false
+        "manage_users_roles": false,
+        "edit_permission_profiles": false
     }'::jsonb
 ) ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO bedrock.permission_profile (name, description, is_default, permissions)
 VALUES (
-    'Manager',
-    'Full CRM access — edit and reassign all opportunities, manage all tasks, view financials',
+    'Executive',
+    'View pipeline and projects, create tasks, edit permission profiles — no Opp editing, no Pebble',
     false,
     '{
         "view_opportunities": true,
-        "edit_own_opportunities": true,
-        "edit_all_opportunities": true,
-        "create_opportunities": true,
-        "bulk_update_opportunities": true,
-        "lock_own_opportunities": true,
-        "reassign_opportunities": true,
+        "edit_own_opportunities": false,
+        "edit_all_opportunities": false,
+        "create_opportunities": false,
+        "bulk_update_opportunities": false,
+        "lock_own_opportunities": false,
+        "reassign_opportunities": false,
         "view_tasks": true,
         "edit_own_tasks": true,
-        "edit_all_tasks": true,
+        "edit_all_tasks": false,
         "create_tasks": true,
+        "edit_accounts": false,
+        "create_accounts": false,
+        "edit_contacts": false,
+        "create_contacts": false,
+        "edit_payments": false,
+        "create_payments": false,
+        "view_projects": true,
+        "edit_projects": false,
         "view_revenue_dashboard": true,
         "view_cashflow_forecasts": true,
-        "view_sage_invoices_payments": true,
+        "view_sage_invoices_payments": false,
         "create_sage_invoices": false,
         "match_invoices": false,
         "manage_payment_schedules": false,
-        "generate_financial_reports": true,
+        "generate_financial_reports": false,
+        "use_pebble_chat": false,
+        "use_pebble_research": false,
+        "pebble_crm_write": false,
         "trigger_data_sync": false,
         "manage_users_roles": false,
-        "use_pebble_chat": true
+        "edit_permission_profiles": true
     }'::jsonb
 ) ON CONFLICT (name) DO NOTHING;
 
--- Backfill: add reassign_opportunities to existing profiles that lack it
-UPDATE bedrock.permission_profile
-SET permissions = permissions || '{"reassign_opportunities": true}'::jsonb
-WHERE NOT (permissions ? 'reassign_opportunities');
+INSERT INTO bedrock.permission_profile (name, description, is_default, permissions)
+VALUES (
+    'Project Manager',
+    'Full project editing, CRM read-only — no Opp or Task editing, Pebble, or system access',
+    false,
+    '{
+        "view_opportunities": true,
+        "edit_own_opportunities": false,
+        "edit_all_opportunities": false,
+        "create_opportunities": false,
+        "bulk_update_opportunities": false,
+        "lock_own_opportunities": false,
+        "reassign_opportunities": false,
+        "view_tasks": true,
+        "edit_own_tasks": false,
+        "edit_all_tasks": false,
+        "create_tasks": false,
+        "edit_accounts": false,
+        "create_accounts": false,
+        "edit_contacts": false,
+        "create_contacts": false,
+        "edit_payments": false,
+        "create_payments": false,
+        "view_projects": true,
+        "edit_projects": true,
+        "view_revenue_dashboard": true,
+        "view_cashflow_forecasts": true,
+        "view_sage_invoices_payments": false,
+        "create_sage_invoices": false,
+        "match_invoices": false,
+        "manage_payment_schedules": false,
+        "generate_financial_reports": false,
+        "use_pebble_chat": false,
+        "use_pebble_research": false,
+        "pebble_crm_write": false,
+        "trigger_data_sync": false,
+        "manage_users_roles": false,
+        "edit_permission_profiles": false
+    }'::jsonb
+) ON CONFLICT (name) DO NOTHING;
 
--- Backfill: add Account/Contact/Payment permissions to existing profiles
--- Fundraisers: Account/Contact edit yes, Payment edit no (finance-sensitive)
+-- Backfill: add Sprint A keys to Admin (auto-granted via code, but explicit for DB clarity)
 UPDATE bedrock.permission_profile
-SET permissions = permissions || '{
-    "edit_accounts": true, "create_accounts": true,
-    "edit_contacts": true, "create_contacts": true,
-    "edit_payments": false, "create_payments": false
-}'::jsonb
-WHERE name = 'Fundraiser' AND NOT (permissions ? 'edit_accounts');
+SET permissions = permissions || '{"view_projects": true, "edit_projects": true, "edit_permission_profiles": true}'::jsonb
+WHERE name = 'Admin' AND NOT (permissions ? 'view_projects');
 
--- Manager: full CRM access including payments
-UPDATE bedrock.permission_profile
-SET permissions = permissions || '{
-    "edit_accounts": true, "create_accounts": true,
-    "edit_contacts": true, "create_contacts": true,
-    "edit_payments": true, "create_payments": true
-}'::jsonb
-WHERE name = 'Manager' AND NOT (permissions ? 'edit_accounts');
+-- ── Permission unlock request table ──
 
--- Admin: auto-granted via code (permissions.py line 61-65), but explicit for DB clarity
-UPDATE bedrock.permission_profile
-SET permissions = permissions || '{
-    "edit_accounts": true, "create_accounts": true,
-    "edit_contacts": true, "create_contacts": true,
-    "edit_payments": true, "create_payments": true
-}'::jsonb
-WHERE name = 'Admin' AND NOT (permissions ? 'edit_accounts');
-
--- Backfill: add Pebble research + CRM write permissions to existing profiles
--- Admin: full Pebble access (chat auto-granted via code, research + write explicit)
-UPDATE bedrock.permission_profile
-SET permissions = permissions || '{"use_pebble_research": true, "pebble_crm_write": true}'::jsonb
-WHERE name = 'Admin' AND NOT (permissions ? 'use_pebble_research');
-
--- Manager: research yes, CRM write no (admin-only for now)
-UPDATE bedrock.permission_profile
-SET permissions = permissions || '{"use_pebble_research": true, "pebble_crm_write": false}'::jsonb
-WHERE name = 'Manager' AND NOT (permissions ? 'use_pebble_research');
-
--- Fundraiser: no Pebble access by default
-UPDATE bedrock.permission_profile
-SET permissions = permissions || '{"use_pebble_research": false, "pebble_crm_write": false}'::jsonb
-WHERE name = 'Fundraiser' AND NOT (permissions ? 'use_pebble_research');
+CREATE TABLE IF NOT EXISTS bedrock.permission_unlock_request (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    requester_email TEXT NOT NULL,
+    profile_id      UUID NOT NULL REFERENCES bedrock.permission_profile(id) ON DELETE CASCADE,
+    permission_key  TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'approved', 'rejected')),
+    admin_note      TEXT DEFAULT '',
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    resolved_at     TIMESTAMPTZ,
+    resolved_by     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_unlock_req_status ON bedrock.permission_unlock_request(status);
 
 -- ---------------------------------------------------------------------------
 -- Activities (synced from SF Tasks + Events, plus manual/extension entries)

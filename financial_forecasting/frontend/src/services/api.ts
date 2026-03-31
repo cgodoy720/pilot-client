@@ -47,8 +47,15 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response) {
-      // Server responded with error status
-      console.error('API Error:', error.response.status, error.response.data);
+      const status = error.response.status;
+      const detail = (error.response.data as any)?.detail || '';
+      // Permission denied from check_permission() — show a user-friendly toast
+      if (status === 403 && typeof detail === 'string' && detail.startsWith('Permission denied:')) {
+        import('react-hot-toast').then(({ toast }) => {
+          toast.error(detail.replace('Permission denied: ', 'You need the ') + ' permission');
+        });
+      }
+      console.error('API Error:', status, error.response.data);
     } else if (error.request) {
       // Request made but no response
       console.error('Network Error:', error.request);
@@ -589,6 +596,16 @@ export const apiService = {
     api.get('/api/permissions/users'),
   updateAppUser: (userId: string, data: { profile_id?: string; sf_user_id?: string; name?: string; is_active?: boolean }) =>
     api.put(`/api/permissions/users/${userId}`, data),
+
+  // Permission unlock requests
+  createUnlockRequest: (data: { profile_id: string; permission_key: string }) =>
+    api.post('/api/permissions/unlock-requests', data),
+  getUnlockRequests: (params?: { status?: string }) =>
+    api.get('/api/permissions/unlock-requests', { params }),
+  approveUnlockRequest: (id: string) =>
+    api.post(`/api/permissions/unlock-requests/${id}/approve`),
+  rejectUnlockRequest: (id: string, note?: string) =>
+    api.post(`/api/permissions/unlock-requests/${id}/reject`, { admin_note: note || '' }),
 
   // Opportunity Locks
   getOpportunityLocks: () =>

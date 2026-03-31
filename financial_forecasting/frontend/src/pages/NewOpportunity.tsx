@@ -33,6 +33,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
 import ConfirmSaveButton from '../components/ConfirmSaveButton';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 interface Account {
   Id: string;
@@ -173,6 +174,8 @@ const NewOpportunity: React.FC = () => {
       enabled: !!formData.accountId, // Only fetch when account is selected
     }
   );
+
+  const { sfUserId, can: canPerm } = usePermissions();
 
   // Ensure all data is always an array
   const accounts = Array.isArray(accountsData) ? accountsData : (accountsData?.accounts || []);
@@ -378,6 +381,10 @@ const NewOpportunity: React.FC = () => {
   const selectedOwner = users?.find((user: User) => user.Id === formData.ownerId);
   const selectedContact = contacts?.find((contact: Contact) => contact.Id === formData.contactId);
   const selectedRecordType = RECORD_TYPES.find((rt) => rt.id === formData.recordTypeId);
+
+  const selectedOwnerName = usersData?.find((u: any) => u.Id === formData.ownerId)?.Name || 'another user';
+  const isAssigningToOther = formData.ownerId && formData.ownerId !== sfUserId;
+  const showOwnerWarning = isAssigningToOther && !canPerm('edit_all_opportunities');
 
   return (
     <Box>
@@ -689,6 +696,15 @@ const NewOpportunity: React.FC = () => {
                     noOptionsText="No team members found"
                   />
                 </Grid>
+
+                {showOwnerWarning && (
+                  <Grid item xs={12}>
+                    <Alert severity="warning" variant="outlined" sx={{ mt: -1 }}>
+                      <strong>Heads up:</strong> Assigning this opportunity to {selectedOwnerName} means
+                      you won't be able to edit it afterward. Only the owner or an admin can make changes.
+                    </Alert>
+                  </Grid>
+                )}
               </Grid>
             </Box>
           )}
@@ -771,6 +787,11 @@ const NewOpportunity: React.FC = () => {
                             <PersonIcon fontSize="small" color="action" />
                             <Typography variant="body1">{selectedOwner?.Name}</Typography>
                           </Box>
+                          {showOwnerWarning && (
+                            <Alert severity="warning" variant="outlined" sx={{ mt: 1 }}>
+                              You are assigning this opportunity to {selectedOwnerName}. You won't be able to edit it after saving.
+                            </Alert>
+                          )}
                         </Grid>
                       </Grid>
                     </CardContent>

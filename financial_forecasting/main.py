@@ -360,6 +360,29 @@ async def get_opportunities(
 
 
 
+@app.post("/api/salesforce/opportunities")
+async def create_opportunity(
+    opp_data: Dict[str, Any],
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user = Depends(check_permission("create_opportunities")),
+):
+    """Create a new Salesforce opportunity."""
+    try:
+        salesforce = client.salesforce
+        result = await salesforce.create_record("Opportunity", opp_data)
+        if result and (result.get("id") or result.get("Id")):
+            new_id = result.get("id") or result.get("Id")
+            cache.invalidate_prefix("opps:")
+            logger.info(f"Opportunity created: {new_id} by {user.get('email', 'unknown')}")
+            return ApiResponse(success=True, data={"id": new_id, "message": "Opportunity created"})
+        raise HTTPException(400, "Failed to create opportunity — no ID returned")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating opportunity: {e}")
+        raise HTTPException(500, str(e))
+
+
 @app.put("/api/salesforce/opportunities/{opportunity_id}")
 async def update_opportunity(
     opportunity_id: str,
