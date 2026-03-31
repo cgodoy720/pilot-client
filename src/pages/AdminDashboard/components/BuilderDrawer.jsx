@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink, FileSignature, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
@@ -225,6 +225,18 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [prompts, setPrompts] = useState(null);
   const [videos, setVideos] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [docusignStatus, setDocusignStatus] = useState(undefined); // undefined = loading, null = not found
+
+  useEffect(() => {
+    if (!builder?.user_id) return;
+    setDocusignStatus(undefined);
+    fetch(`${API_URL}/api/docusign/status/${builder.user_id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setDocusignStatus(data?.docusign ?? null))
+      .catch(() => setDocusignStatus(null));
+  }, [builder?.user_id, token]);
 
   useEffect(() => {
     if (!builder?.user_id) return;
@@ -344,6 +356,36 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
             </div>
           ) : (
             <>
+              {/* Good Job Agreement */}
+              <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 ${
+                docusignStatus?.hasSigned
+                  ? 'bg-indigo-50 border-indigo-200'
+                  : 'bg-[#FAFAFA] border-[#E3E3E3]'
+              }`}>
+                <FileSignature size={16} className={docusignStatus?.hasSigned ? 'text-indigo-500' : 'text-slate-300'} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-[#1E1E1E]">Good Job Agreement</p>
+                  {docusignStatus === undefined ? (
+                    <p className="text-[10px] text-slate-400">Checking…</p>
+                  ) : docusignStatus?.hasSigned ? (
+                    <div className="flex items-center gap-1 text-[10px] text-indigo-600">
+                      <CheckCircle size={10} />
+                      <span>Signed via DocuSign</span>
+                      {docusignStatus.signedAt && (
+                        <span className="flex items-center gap-0.5 ml-1 text-indigo-400">
+                          <Clock size={9} />
+                          {new Date(docusignStatus.signedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-400">
+                      {docusignStatus ? `Status: ${docusignStatus.status}` : 'Not signed yet'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Work Product */}
               <Section icon={BookOpen} title="Work Product" count={Array.isArray(wpItems) ? wpItems.length : 0}>
                 {Array.isArray(wpItems) && wpItems.length > 0 ? (
