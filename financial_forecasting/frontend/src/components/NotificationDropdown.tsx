@@ -20,6 +20,7 @@ import {
   PersonAdd as PersonAddIcon,
   SwapHoriz as SwapHorizIcon,
   EventBusy as EventBusyIcon,
+  LockOpenOutlined as LockOpenOutlinedIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   OpenInNew as OpenInNewIcon,
@@ -61,6 +62,7 @@ const TYPE_ICONS: Record<NotificationType, React.ReactElement> = {
   'ownership-gained': <SwapHorizIcon sx={{ fontSize: 18 }} />,
   'ownership-lost': <SwapHorizIcon sx={{ fontSize: 18 }} />,
   'close-date-warning': <EventBusyIcon sx={{ fontSize: 18 }} />,
+  'permission-request': <LockOpenOutlinedIcon sx={{ fontSize: 18 }} />,
 };
 
 function relativeTime(iso: string): string {
@@ -104,7 +106,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
   const handleAction = (n: CrmNotification) => {
     handleClose();
-    if (n.type === 'task-assignment' && n.taskId) {
+    if (n.type === 'permission-request') {
+      navigate('/settings?tab=profiles');
+    } else if (n.type === 'task-assignment' && n.taskId) {
       onOpenTask(n.taskId, n.whatId ?? null);
     } else if (n.opportunityId) {
       onOpenOpp(n.opportunityId);
@@ -273,6 +277,18 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         </Box>
                       )}
 
+                      {n.type === 'permission-request' && (
+                        <Box sx={{ mb: 1 }}>
+                          <Chip
+                            label={n.subtitle}
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            sx={{ fontSize: '0.7rem', height: 22 }}
+                          />
+                        </Box>
+                      )}
+
                       {/* Action buttons */}
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Button
@@ -282,7 +298,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                           onClick={() => handleAction(n)}
                           sx={{ textTransform: 'none', fontSize: '0.75rem' }}
                         >
-                          {n.type === 'task-assignment' ? 'Open Task' : 'Open Opportunity'}
+                          {n.type === 'task-assignment' ? 'Open Task' : n.type === 'permission-request' ? 'View Profiles' : 'Open Opportunity'}
                         </Button>
                         {n.isNew && (
                           <Tooltip title="Mark as read">

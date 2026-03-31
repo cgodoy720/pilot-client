@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from auth import require_auth
 from db import get_db
-from routes.permissions import require_admin
+from routes.permissions import require_admin, check_permission
 from security import validate_salesforce_id
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,7 @@ class ProjectImportPayload(BaseModel):
 
 
 @router.get("/projects")
-async def list_projects(user=Depends(require_auth), conn=Depends(get_db)):
+async def list_projects(user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
     """List all projects."""
     rows = await conn.fetch(
         "SELECT id, name, description, created_at, updated_at FROM bedrock.project "
@@ -133,7 +133,7 @@ async def list_projects(user=Depends(require_auth), conn=Depends(get_db)):
 
 
 @router.get("/projects/trash")
-async def list_deleted_projects(user=Depends(require_auth), conn=Depends(get_db)):
+async def list_deleted_projects(user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """List soft-deleted projects (trash view)."""
     rows = await conn.fetch(
         "SELECT id, name, description, deleted_at, deleted_by "
@@ -149,7 +149,7 @@ async def list_deleted_projects(user=Depends(require_auth), conn=Depends(get_db)
 
 
 @router.get("/projects/{project_id}")
-async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def get_project(project_id: str, user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
     """Get a full project tree: workstreams → milestones → tasks (single query)."""
     pid = uuid.UUID(project_id)
 
@@ -231,7 +231,7 @@ async def get_project(project_id: str, user=Depends(require_auth), conn=Depends(
 
 
 @router.post("/projects")
-async def create_project(body: ProjectCreate, user=Depends(require_auth), conn=Depends(get_db)):
+async def create_project(body: ProjectCreate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Create a new project."""
     row = await conn.fetchrow(
         "INSERT INTO bedrock.project (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at",
@@ -246,7 +246,7 @@ async def create_project(body: ProjectCreate, user=Depends(require_auth), conn=D
 
 
 @router.put("/projects/{project_id}")
-async def update_project(project_id: str, body: ProjectUpdate, user=Depends(require_auth), conn=Depends(get_db)):
+async def update_project(project_id: str, body: ProjectUpdate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Update a project."""
     pid = uuid.UUID(project_id)
     fields = body.model_dump(exclude_none=True)
@@ -259,7 +259,7 @@ async def update_project(project_id: str, body: ProjectUpdate, user=Depends(requ
 
 
 @router.delete("/projects/{project_id}")
-async def delete_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def delete_project(project_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Soft-delete a project and cascade to all children."""
     pid = uuid.UUID(project_id)
     email = user.get("email", "")
@@ -295,7 +295,7 @@ async def delete_project(project_id: str, user=Depends(require_auth), conn=Depen
 
 
 @router.post("/projects/{project_id}/restore")
-async def restore_project(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def restore_project(project_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Restore a soft-deleted project and its cascade-deleted children."""
     pid = uuid.UUID(project_id)
     async with conn.transaction():
@@ -350,7 +350,7 @@ async def purge_project(project_id: str, user=Depends(require_admin), conn=Depen
 
 
 @router.post("/projects/{project_id}/opportunities")
-async def link_opportunity(project_id: str, body: OpportunityLink, user=Depends(require_auth), conn=Depends(get_db)):
+async def link_opportunity(project_id: str, body: OpportunityLink, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Link a CRM Opportunity to a Project."""
     pid = uuid.UUID(project_id)
     validate_salesforce_id(body.opportunity_id, "opportunity_id")
@@ -374,7 +374,7 @@ async def link_opportunity(project_id: str, body: OpportunityLink, user=Depends(
 
 
 @router.delete("/projects/{project_id}/opportunities/{opportunity_id}")
-async def unlink_opportunity(project_id: str, opportunity_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def unlink_opportunity(project_id: str, opportunity_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Remove the link between a Project and an Opportunity."""
     pid = uuid.UUID(project_id)
     validate_salesforce_id(opportunity_id, "opportunity_id")
@@ -388,7 +388,7 @@ async def unlink_opportunity(project_id: str, opportunity_id: str, user=Depends(
 
 
 @router.get("/projects/{project_id}/opportunities")
-async def get_project_opportunities(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def get_project_opportunities(project_id: str, user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
     """Get all Opportunities linked to a Project."""
     pid = uuid.UUID(project_id)
     rows = await conn.fetch(
@@ -407,7 +407,7 @@ async def get_project_opportunities(project_id: str, user=Depends(require_auth),
 
 
 @router.post("/projects/{project_id}/import")
-async def import_project_data(project_id: str, body: ProjectImportPayload, user=Depends(require_auth), conn=Depends(get_db)):
+async def import_project_data(project_id: str, body: ProjectImportPayload, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Bulk import workstreams/milestones/tasks into a project.
 
     Smart merge: matches by name/title (case-insensitive) within hierarchy.
@@ -551,7 +551,7 @@ async def import_project_data(project_id: str, body: ProjectImportPayload, user=
 
 
 @router.post("/projects/{project_id}/workstreams")
-async def create_workstream(project_id: str, body: WorkstreamCreate, user=Depends(require_auth), conn=Depends(get_db)):
+async def create_workstream(project_id: str, body: WorkstreamCreate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     pid = uuid.UUID(project_id)
     row = await conn.fetchrow(
         """INSERT INTO bedrock.workstream (project_id, name, description, sort_order)
@@ -562,7 +562,7 @@ async def create_workstream(project_id: str, body: WorkstreamCreate, user=Depend
 
 
 @router.put("/workstreams/{workstream_id}")
-async def update_workstream(workstream_id: str, body: WorkstreamUpdate, user=Depends(require_auth), conn=Depends(get_db)):
+async def update_workstream(workstream_id: str, body: WorkstreamUpdate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     wid = uuid.UUID(workstream_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -575,7 +575,7 @@ async def update_workstream(workstream_id: str, body: WorkstreamUpdate, user=Dep
 
 
 @router.delete("/workstreams/{workstream_id}")
-async def delete_workstream(workstream_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def delete_workstream(workstream_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Soft-delete a workstream and cascade to milestones + tasks."""
     wid = uuid.UUID(workstream_id)
     email = user.get("email", "")
@@ -605,7 +605,7 @@ async def delete_workstream(workstream_id: str, user=Depends(require_auth), conn
 
 
 @router.post("/workstreams/{workstream_id}/milestones")
-async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depends(require_auth), conn=Depends(get_db)):
+async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     wid = uuid.UUID(workstream_id)
     row = await conn.fetchrow(
         """INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, description, source_links, sort_order)
@@ -617,7 +617,7 @@ async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depen
 
 
 @router.put("/milestones/{milestone_id}")
-async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depends(require_auth), conn=Depends(get_db)):
+async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     mid = uuid.UUID(milestone_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -630,7 +630,7 @@ async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depend
 
 
 @router.delete("/milestones/{milestone_id}")
-async def delete_milestone(milestone_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def delete_milestone(milestone_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Soft-delete a milestone and cascade to tasks."""
     mid = uuid.UUID(milestone_id)
     email = user.get("email", "")
@@ -654,7 +654,7 @@ async def delete_milestone(milestone_id: str, user=Depends(require_auth), conn=D
 
 
 @router.post("/milestones/{milestone_id}/tasks")
-async def create_project_task(milestone_id: str, body: ProjectTaskCreate, user=Depends(require_auth), conn=Depends(get_db)):
+async def create_project_task(milestone_id: str, body: ProjectTaskCreate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     mid = uuid.UUID(milestone_id)
     deadline = None
     if body.deadline:
@@ -678,7 +678,7 @@ async def create_project_task(milestone_id: str, body: ProjectTaskCreate, user=D
 
 
 @router.put("/project-tasks/{task_id}")
-async def update_project_task(task_id: str, body: ProjectTaskUpdate, user=Depends(require_auth), conn=Depends(get_db)):
+async def update_project_task(task_id: str, body: ProjectTaskUpdate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     tid = uuid.UUID(task_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -707,7 +707,7 @@ async def update_project_task(task_id: str, body: ProjectTaskUpdate, user=Depend
 
 
 @router.delete("/project-tasks/{task_id}")
-async def delete_project_task(task_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def delete_project_task(task_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Soft-delete a task."""
     tid = uuid.UUID(task_id)
     email = user.get("email", "")
@@ -732,7 +732,7 @@ class SfTaskProjectLink(BaseModel):
 
 @router.post("/projects/{project_id}/sf-tasks")
 async def link_sf_task_to_project(
-    project_id: str, body: SfTaskProjectLink, user=Depends(require_auth), conn=Depends(get_db)
+    project_id: str, body: SfTaskProjectLink, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)
 ):
     """Link a Salesforce task to a project (and optionally a milestone)."""
     pid = uuid.UUID(project_id)
@@ -753,7 +753,7 @@ async def link_sf_task_to_project(
 
 
 @router.delete("/sf-task-project/{link_id}")
-async def unlink_sf_task_from_project(link_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def unlink_sf_task_from_project(link_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """Remove a Salesforce task ↔ project link."""
     lid = uuid.UUID(link_id)
     result = await conn.execute("DELETE FROM bedrock.sf_task_project WHERE id = $1", lid)
@@ -763,7 +763,7 @@ async def unlink_sf_task_from_project(link_id: str, user=Depends(require_auth), 
 
 
 @router.get("/projects/{project_id}/sf-tasks")
-async def get_project_sf_tasks(project_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def get_project_sf_tasks(project_id: str, user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
     """Get all Salesforce task IDs linked to a project."""
     pid = uuid.UUID(project_id)
     rows = await conn.fetch(
@@ -775,7 +775,7 @@ async def get_project_sf_tasks(project_id: str, user=Depends(require_auth), conn
 
 
 @router.get("/projects/by-opportunity/{opportunity_id}")
-async def get_project_by_opportunity(opportunity_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def get_project_by_opportunity(opportunity_id: str, user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
     """Check if a project exists for the given opportunity."""
     validate_salesforce_id(opportunity_id, "opportunity_id")
     row = await conn.fetchrow(
@@ -788,7 +788,7 @@ async def get_project_by_opportunity(opportunity_id: str, user=Depends(require_a
 
 
 @router.get("/sf-task-project/by-task/{sf_task_id}")
-async def get_sf_task_project_link(sf_task_id: str, user=Depends(require_auth), conn=Depends(get_db)):
+async def get_sf_task_project_link(sf_task_id: str, user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
     """Get the project link for a specific Salesforce task (if any)."""
     validate_salesforce_id(sf_task_id, "sf_task_id")
     row = await conn.fetchrow(

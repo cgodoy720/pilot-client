@@ -1,4 +1,4 @@
-"""Tests for Projects router — CRUD, soft-delete, restore, purge, auth enforcement."""
+"""Tests for Projects router — CRUD, soft-delete, restore, purge, auth enforcement, permissions."""
 
 import sys
 import os
@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from main import app, get_current_user
 from auth import require_auth
 from db import get_db
+from routes.permissions import check_permission
 
 app.router.on_startup.clear()
 app.router.on_shutdown.clear()
@@ -26,6 +27,33 @@ PROJECT_ID = str(uuid.uuid4())
 WORKSTREAM_ID = str(uuid.uuid4())
 MILESTONE_ID = str(uuid.uuid4())
 TASK_ID = str(uuid.uuid4())
+
+# Full-access permissions for the default test user (simulates Admin profile)
+_ALL_PERMS = {
+    "view_opportunities": True, "edit_own_opportunities": True, "edit_all_opportunities": True,
+    "create_opportunities": True, "bulk_update_opportunities": True, "lock_own_opportunities": True,
+    "reassign_opportunities": True, "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": True,
+    "create_tasks": True, "edit_accounts": True, "create_accounts": True, "edit_contacts": True,
+    "create_contacts": True, "edit_payments": True, "create_payments": True,
+    "view_projects": True, "edit_projects": True,
+    "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
+    "view_sage_invoices_payments": True, "create_sage_invoices": True,
+    "match_invoices": True, "manage_payment_schedules": True, "generate_financial_reports": True,
+    "use_pebble_chat": True, "use_pebble_research": True, "pebble_crm_write": True,
+    "trigger_data_sync": True, "manage_users_roles": True, "edit_permission_profiles": True,
+}
+
+def _make_user_row(email="test@pursuit.org", perms=None):
+    """Return a MockDBRow matching the permission_profile join query shape."""
+    return MockDBRow(
+        id=uuid.UUID("00000000-0000-4000-8000-000000000001"),
+        sf_user_id="005x0000001234",
+        email=email,
+        name="Test",
+        is_active=True,
+        permissions=perms or _ALL_PERMS,
+        profile_name="Admin",
+    )
 
 
 class MockDBRow(dict):
@@ -55,20 +83,31 @@ def mock_db():
     return db
 
 
+import routes.permissions as _perms_mod
+_original_get_user_permissions = _perms_mod.get_user_permissions
+
+async def _fake_admin_perms(email, db):
+    """Fake get_user_permissions that always returns admin-level access."""
+    return dict(_make_user_row(email=email))
+
+
 @pytest.fixture
 def authed_client(mock_db):
+    _perms_mod.get_user_permissions = _fake_admin_perms
     app.dependency_overrides[get_current_user] = lambda: TEST_USER
     app.dependency_overrides[require_auth] = lambda: TEST_USER
     app.dependency_overrides[get_db] = lambda: mock_db
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     app.dependency_overrides.clear()
+    _perms_mod.get_user_permissions = _original_get_user_permissions
 
 
 @pytest.fixture
 def admin_client(mock_db):
     """Client with admin user — for purge endpoint tests."""
     from routes.permissions import require_admin
+    _perms_mod.get_user_permissions = _fake_admin_perms
     app.dependency_overrides[get_current_user] = lambda: ADMIN_USER
     app.dependency_overrides[require_auth] = lambda: ADMIN_USER
     app.dependency_overrides[require_admin] = lambda: ADMIN_USER
@@ -76,6 +115,7 @@ def admin_client(mock_db):
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     app.dependency_overrides.clear()
+    _perms_mod.get_user_permissions = _original_get_user_permissions
 
 
 @pytest.fixture
@@ -401,3 +441,149 @@ class TestPurgeProject:
         # Without require_admin override, the dependency rejects (403 or 500 if
         # permissions lookup fails on mock DB — either way, NOT 200)
         assert resp.status_code != 200
+
+
+# ===========================================================================
+# PERMISSION GATING — view_projects / edit_projects enforcement
+# ===========================================================================
+
+
+RM_PROFILE_ID = str(uuid.uuid4())
+PM_PROFILE_ID = str(uuid.uuid4())
+EXEC_PROFILE_ID = str(uuid.uuid4())
+PERM_USER_ID = str(uuid.uuid4())
+
+# Full 32-key permission dicts for each profile
+
+RM_PERMS = json.dumps({
+    "view_opportunities": True, "edit_own_opportunities": True, "edit_all_opportunities": False,
+    "create_opportunities": True, "bulk_update_opportunities": False, "lock_own_opportunities": True,
+    "reassign_opportunities": False,
+    "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": False, "create_tasks": True,
+    "edit_accounts": True, "create_accounts": True,
+    "edit_contacts": True, "create_contacts": True,
+    "edit_payments": False, "create_payments": False,
+    "view_projects": False, "edit_projects": False,
+    "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
+    "view_sage_invoices_payments": False, "create_sage_invoices": False,
+    "match_invoices": False, "manage_payment_schedules": False, "generate_financial_reports": False,
+    "use_pebble_chat": False, "use_pebble_research": False, "pebble_crm_write": False,
+    "trigger_data_sync": False, "manage_users_roles": False, "edit_permission_profiles": False,
+})
+
+PM_PERMS = json.dumps({
+    "view_opportunities": True, "edit_own_opportunities": True, "edit_all_opportunities": True,
+    "create_opportunities": True, "bulk_update_opportunities": True, "lock_own_opportunities": True,
+    "reassign_opportunities": True,
+    "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": True, "create_tasks": True,
+    "edit_accounts": True, "create_accounts": True,
+    "edit_contacts": True, "create_contacts": True,
+    "edit_payments": True, "create_payments": True,
+    "view_projects": True, "edit_projects": True,
+    "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
+    "view_sage_invoices_payments": True, "create_sage_invoices": True,
+    "match_invoices": True, "manage_payment_schedules": True, "generate_financial_reports": True,
+    "use_pebble_chat": True, "use_pebble_research": True, "pebble_crm_write": False,
+    "trigger_data_sync": False, "manage_users_roles": False, "edit_permission_profiles": False,
+})
+
+EXEC_PERMS = json.dumps({
+    "view_opportunities": True, "edit_own_opportunities": False, "edit_all_opportunities": False,
+    "create_opportunities": False, "bulk_update_opportunities": False, "lock_own_opportunities": False,
+    "reassign_opportunities": False,
+    "view_tasks": True, "edit_own_tasks": False, "edit_all_tasks": False, "create_tasks": False,
+    "edit_accounts": False, "create_accounts": False,
+    "edit_contacts": False, "create_contacts": False,
+    "edit_payments": False, "create_payments": False,
+    "view_projects": True, "edit_projects": False,
+    "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
+    "view_sage_invoices_payments": True, "create_sage_invoices": False,
+    "match_invoices": False, "manage_payment_schedules": False, "generate_financial_reports": True,
+    "use_pebble_chat": True, "use_pebble_research": True, "pebble_crm_write": False,
+    "trigger_data_sync": False, "manage_users_roles": False, "edit_permission_profiles": False,
+})
+
+
+def _make_perm_user_row(perms_json, profile_name, profile_id):
+    return MockDBRow(
+        id=PERM_USER_ID, sf_user_id=None, email="test@pursuit.org",
+        name="Test User", is_active=True, permissions=perms_json,
+        profile_name=profile_name, profile_id=profile_id,
+    )
+
+
+class TestProjectPermissions:
+    """Verify view_projects / edit_projects gating on project endpoints."""
+
+    def _make_client(self, mock_db, user_row):
+        """Build a TestClient with mock_db returning the given user row."""
+        mock_db.fetchrow = AsyncMock(return_value=user_row)
+        app.dependency_overrides[get_current_user] = lambda: TEST_USER
+        app.dependency_overrides[require_auth] = lambda: TEST_USER
+        app.dependency_overrides[get_db] = lambda: mock_db
+        return TestClient(app, raise_server_exceptions=False)
+
+    # ── RM: view_projects=False, edit_projects=False ──
+
+    def test_rm_cannot_list_projects(self, mock_db):
+        row = _make_perm_user_row(RM_PERMS, "Relationship Manager", RM_PROFILE_ID)
+        with self._make_client(mock_db, row) as c:
+            resp = c.get("/api/projects")
+            assert resp.status_code == 403
+        app.dependency_overrides.clear()
+
+    def test_rm_cannot_create_project(self, mock_db):
+        row = _make_perm_user_row(RM_PERMS, "Relationship Manager", RM_PROFILE_ID)
+        with self._make_client(mock_db, row) as c:
+            resp = c.post("/api/projects", json={"name": "Sneaky Project"})
+            assert resp.status_code == 403
+        app.dependency_overrides.clear()
+
+    # ── PM: view_projects=True, edit_projects=True ──
+
+    def test_pm_can_list_projects(self, mock_db):
+        row = _make_perm_user_row(PM_PERMS, "Project Manager", PM_PROFILE_ID)
+        mock_db.fetch = AsyncMock(return_value=[])
+        with self._make_client(mock_db, row) as c:
+            resp = c.get("/api/projects")
+            assert resp.status_code == 200
+        app.dependency_overrides.clear()
+
+    def test_pm_can_create_project(self, mock_db):
+        row = _make_perm_user_row(PM_PERMS, "Project Manager", PM_PROFILE_ID)
+        new_project = MockDBRow(
+            id=PROJECT_ID, name="New Project", description="",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        # check_permission calls fetchrow for user perms; create_project calls fetchrow for INSERT RETURNING
+        async def smart_fetchrow(query, *args):
+            if "permission_profile" in query or "app_user" in query:
+                return row
+            return new_project
+        mock_db.fetchrow = AsyncMock(side_effect=smart_fetchrow)
+        mock_db.fetch = AsyncMock(return_value=[])
+        app.dependency_overrides[get_current_user] = lambda: TEST_USER
+        app.dependency_overrides[require_auth] = lambda: TEST_USER
+        app.dependency_overrides[get_db] = lambda: mock_db
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.post("/api/projects", json={"name": "New Project"})
+            assert resp.status_code == 200
+        app.dependency_overrides.clear()
+
+    # ── Executive: view_projects=True, edit_projects=False ──
+
+    def test_executive_can_list_projects(self, mock_db):
+        row = _make_perm_user_row(EXEC_PERMS, "Executive", EXEC_PROFILE_ID)
+        mock_db.fetch = AsyncMock(return_value=[])
+        with self._make_client(mock_db, row) as c:
+            resp = c.get("/api/projects")
+            assert resp.status_code == 200
+        app.dependency_overrides.clear()
+
+    def test_executive_cannot_create_project(self, mock_db):
+        row = _make_perm_user_row(EXEC_PERMS, "Executive", EXEC_PROFILE_ID)
+        with self._make_client(mock_db, row) as c:
+            resp = c.post("/api/projects", json={"name": "Blocked Project"})
+            assert resp.status_code == 403
+        app.dependency_overrides.clear()

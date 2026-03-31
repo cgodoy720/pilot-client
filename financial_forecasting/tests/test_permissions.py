@@ -28,7 +28,7 @@ app.router.on_shutdown.clear()
 
 TEST_USER = {"user_id": "test_user", "email": "test@pursuit.org", "name": "Test User"}
 ADMIN_PROFILE_ID = str(uuid.uuid4())
-FUNDRAISER_PROFILE_ID = str(uuid.uuid4())
+RM_PROFILE_ID = str(uuid.uuid4())
 USER_ID = str(uuid.uuid4())
 SF_USER_ID = "005TESTSFUSER0001"
 OPP_ID = "006TESTOPPORT01"
@@ -38,21 +38,31 @@ ADMIN_PERMS = json.dumps({
     "create_opportunities": True, "bulk_update_opportunities": True, "lock_own_opportunities": True,
     "reassign_opportunities": True,
     "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": True, "create_tasks": True,
+    "edit_accounts": True, "create_accounts": True,
+    "edit_contacts": True, "create_contacts": True,
+    "edit_payments": True, "create_payments": True,
+    "view_projects": True, "edit_projects": True,
     "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
     "view_sage_invoices_payments": True, "create_sage_invoices": True,
     "match_invoices": True, "manage_payment_schedules": True, "generate_financial_reports": True,
-    "trigger_data_sync": True, "manage_users_roles": True,
+    "use_pebble_chat": True, "use_pebble_research": True, "pebble_crm_write": True,
+    "trigger_data_sync": True, "manage_users_roles": True, "edit_permission_profiles": True,
 })
 
-FUNDRAISER_PERMS = json.dumps({
+RM_PERMS = json.dumps({
     "view_opportunities": True, "edit_own_opportunities": True, "edit_all_opportunities": False,
     "create_opportunities": True, "bulk_update_opportunities": False, "lock_own_opportunities": True,
-    "reassign_opportunities": True,
+    "reassign_opportunities": False,
     "view_tasks": True, "edit_own_tasks": True, "edit_all_tasks": False, "create_tasks": True,
+    "edit_accounts": True, "create_accounts": True,
+    "edit_contacts": True, "create_contacts": True,
+    "edit_payments": False, "create_payments": False,
+    "view_projects": False, "edit_projects": False,
     "view_revenue_dashboard": True, "view_cashflow_forecasts": True,
     "view_sage_invoices_payments": False, "create_sage_invoices": False,
     "match_invoices": False, "manage_payment_schedules": False, "generate_financial_reports": False,
-    "trigger_data_sync": False, "manage_users_roles": False,
+    "use_pebble_chat": False, "use_pebble_research": False, "pebble_crm_write": False,
+    "trigger_data_sync": False, "manage_users_roles": False, "edit_permission_profiles": False,
 })
 
 
@@ -72,11 +82,11 @@ def make_admin_user():
     )
 
 
-def make_fundraiser_user():
+def make_rm_user():
     return MockDBRow(
         id=USER_ID, sf_user_id=SF_USER_ID, email="test@pursuit.org",
-        name="Test User", is_active=True, permissions=FUNDRAISER_PERMS,
-        profile_name="Fundraiser", profile_id=FUNDRAISER_PROFILE_ID,
+        name="Test User", is_active=True, permissions=RM_PERMS,
+        profile_name="Relationship Manager", profile_id=RM_PROFILE_ID,
     )
 
 
@@ -114,9 +124,9 @@ def admin_client(mock_db, mock_client):
 
 
 @pytest.fixture
-def fundraiser_client(mock_db, mock_client):
-    """Client authenticated as fundraiser (non-admin)."""
-    mock_db.fetchrow = AsyncMock(return_value=make_fundraiser_user())
+def rm_client(mock_db, mock_client):
+    """Client authenticated as Relationship Manager (non-admin)."""
+    mock_db.fetchrow = AsyncMock(return_value=make_rm_user())
 
     app.dependency_overrides[get_current_user] = lambda: TEST_USER
     app.dependency_overrides[require_auth] = lambda: TEST_USER
@@ -181,8 +191,8 @@ class TestCreateProfile:
         })
         assert resp.status_code == 200
 
-    def test_fundraiser_cannot_create_profile(self, fundraiser_client):
-        resp = fundraiser_client.post("/api/permissions/profiles", json={
+    def test_rm_cannot_create_profile(self, rm_client):
+        resp = rm_client.post("/api/permissions/profiles", json={
             "name": "Hacker", "permissions": {"manage_users_roles": True},
         })
         assert resp.status_code == 403
@@ -219,8 +229,8 @@ class TestListUsers:
         assert resp.status_code == 200
         assert len(resp.json()["data"]) == 1
 
-    def test_fundraiser_cannot_list_users(self, fundraiser_client):
-        resp = fundraiser_client.get("/api/permissions/users")
+    def test_rm_cannot_list_users(self, rm_client):
+        resp = rm_client.get("/api/permissions/users")
         assert resp.status_code == 403
 
 
@@ -229,9 +239,9 @@ class TestUpdateUser:
         mock_db.fetchrow = AsyncMock(side_effect=[
             make_admin_user(),  # admin check
             MockDBRow(id=USER_ID, sf_user_id=SF_USER_ID, email="test@pursuit.org", name="Test", is_active=True, profile_id=ADMIN_PROFILE_ID),  # existing user
-            MockDBRow(id=USER_ID, sf_user_id=SF_USER_ID, email="test@pursuit.org", name="Test", is_active=True, profile_id=FUNDRAISER_PROFILE_ID, profile_name="Fundraiser"),  # after update
+            MockDBRow(id=USER_ID, sf_user_id=SF_USER_ID, email="test@pursuit.org", name="Test", is_active=True, profile_id=RM_PROFILE_ID, profile_name="Relationship Manager"),  # after update
         ])
-        resp = admin_client.put(f"/api/permissions/users/{USER_ID}", json={"profile_id": FUNDRAISER_PROFILE_ID})
+        resp = admin_client.put(f"/api/permissions/users/{USER_ID}", json={"profile_id": RM_PROFILE_ID})
         assert resp.status_code == 200
 
 
@@ -269,12 +279,12 @@ class TestUnlockOpportunity:
         resp = admin_client.delete(f"/api/opportunities/{OPP_ID}/lock")
         assert resp.status_code == 200
 
-    def test_non_owner_non_admin_cannot_unlock(self, fundraiser_client, mock_db):
+    def test_non_owner_non_admin_cannot_unlock(self, rm_client, mock_db):
         mock_db.fetchrow = AsyncMock(side_effect=[
-            make_fundraiser_user(),  # permission check
+            make_rm_user(),  # permission check
             MockDBRow(sf_opportunity_id=OPP_ID, locked_by="005DIFFERENTOWNER", locked_at="2026-01-01"),  # different owner
         ])
-        resp = fundraiser_client.delete(f"/api/opportunities/{OPP_ID}/lock")
+        resp = rm_client.delete(f"/api/opportunities/{OPP_ID}/lock")
         assert resp.status_code == 403
 
     def test_unlock_nonexistent_returns_404(self, admin_client, mock_db):
@@ -294,25 +304,25 @@ class TestUnlockOpportunity:
 class TestPermissionGating:
     """Verify that mutation endpoints now use check_permission, not just require_auth."""
 
-    def test_opportunity_update_requires_edit_permission(self, fundraiser_client, mock_db):
-        # Fundraiser has edit_own_opportunities but the endpoint should check
-        mock_db.fetchrow = AsyncMock(return_value=make_fundraiser_user())
-        resp = fundraiser_client.put(
+    def test_opportunity_update_requires_edit_permission(self, rm_client, mock_db):
+        # RM has edit_own_opportunities but the endpoint should check
+        mock_db.fetchrow = AsyncMock(return_value=make_rm_user())
+        resp = rm_client.put(
             f"/api/salesforce/opportunities/{OPP_ID}",
             json={"opportunity_id": OPP_ID, "updates": {"Amount": 100}, "user_id": "test"},
         )
-        # Should succeed since fundraiser has edit_own_opportunities
+        # Should succeed since RM has edit_own_opportunities
         assert resp.status_code in (200, 400, 500)  # 400/500 if SF not connected, but NOT 403
 
-    def test_sync_requires_trigger_permission(self, fundraiser_client, mock_db):
-        mock_db.fetchrow = AsyncMock(return_value=make_fundraiser_user())
-        resp = fundraiser_client.post("/api/sync/trigger")
-        # Fundraiser doesn't have trigger_data_sync — should be 403
+    def test_sync_requires_trigger_permission(self, rm_client, mock_db):
+        mock_db.fetchrow = AsyncMock(return_value=make_rm_user())
+        resp = rm_client.post("/api/sync/trigger")
+        # RM doesn't have trigger_data_sync — should be 403
         assert resp.status_code == 403
 
-    def test_matching_requires_match_permission(self, fundraiser_client, mock_db):
-        mock_db.fetchrow = AsyncMock(return_value=make_fundraiser_user())
-        resp = fundraiser_client.post("/api/matching/save-match", json={
+    def test_matching_requires_match_permission(self, rm_client, mock_db):
+        mock_db.fetchrow = AsyncMock(return_value=make_rm_user())
+        resp = rm_client.post("/api/matching/save-match", json={
             "invoice_id": "INV-001", "opportunity_id": OPP_ID,
             "confidence": "high", "notes": "", "customer_name": "Test",
             "invoice_amount": 1000, "invoice_date": "2026-01-01",

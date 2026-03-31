@@ -81,6 +81,7 @@ const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', 
 // Values can be a string (single permission) or a function (custom logic)
 const NAV_PERMISSIONS: Record<string, string | ((can: (k: string) => boolean) => boolean) | undefined> = {
   '/pebble': (can) => can('use_pebble_chat') || can('use_pebble_research'),
+  '/projects': 'view_projects',
   '/cashflow': 'view_cashflow_forecasts',
   '/settings': undefined, // visible to all, tabs gated inside
 };

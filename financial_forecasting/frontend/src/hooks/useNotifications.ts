@@ -2,11 +2,13 @@ import { useMemo, useCallback, useState } from 'react';
 import { useQuery } from 'react-query';
 import { parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { apiService } from '../services/api';
+import { usePermissions } from '../contexts/PermissionsContext';
 import { OPEN_STAGES } from '../types/salesforce';
 import type { InboxTask } from '../components/TaskInbox';
 import type {
   CrmNotification,
   NotificationSeverity,
+  NotificationType,
   NotificationState,
   OwnershipChangeRecord,
 } from '../types/notifications';
@@ -95,6 +97,7 @@ export function useNotifications(
   sfUserName: string | null | undefined,
 ): UseNotificationsResult {
   const [notifState, setNotifState] = useState<NotificationState>(readState);
+  const { isAdmin } = usePermissions();
 
   // ---- Queries (dedup with existing caches) ----------------------------
 
@@ -114,6 +117,15 @@ export function useNotifications(
       return (response.data || []) as OwnershipChangeRecord[];
     },
     { staleTime: 5 * 60 * 1000 },
+  );
+
+  const { data: unlockRequests } = useQuery(
+    'pending-unlock-requests',
+    async () => {
+      const res = await apiService.getUnlockRequests({ status: 'pending' });
+      return res.data?.data || [];
+    },
+    { enabled: isAdmin, staleTime: 5 * 60_000 },
   );
 
   // ---- Compute notifications -------------------------------------------
@@ -223,6 +235,19 @@ export function useNotifications(
       });
     }
 
+    // -- 4. Permission unlock requests (admin only) ---------------------
+
+    const permissionNotifications: CrmNotification[] = (unlockRequests || []).map((req: any) => ({
+      id: `permission-request:${req.id}`,
+      type: 'permission-request' as NotificationType,
+      severity: 'info' as NotificationSeverity,
+      title: `${req.requester_email} requested unlock`,
+      subtitle: `${req.permission_key}`,
+      timestamp: req.created_at,
+      isNew: !readSet.has(`permission-request:${req.id}`),
+    }));
+    items.push(...permissionNotifications);
+
     // -- Sort by timestamp descending, limit ----------------------------
     items.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
@@ -236,7 +261,7 @@ export function useNotifications(
     }
 
     return items.slice(0, MAX_NOTIFICATIONS);
-  }, [tasks, oppsData, ownershipData, sfUserId, sfUserName, notifState]);
+  }, [tasks, oppsData, ownershipData, unlockRequests, sfUserId, sfUserName, notifState]);
 
   // ---- Badge ----------------------------------------------------------
 

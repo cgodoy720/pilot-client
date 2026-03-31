@@ -12,7 +12,8 @@ export type NotificationType =
   | 'task-assignment'
   | 'ownership-gained'
   | 'ownership-lost'
-  | 'close-date-warning';
+  | 'close-date-warning'
+  | 'permission-request';
 
 export type NotificationSeverity = 'error' | 'warning' | 'info';
 
