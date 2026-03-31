@@ -51,6 +51,12 @@ const enhancedFetch = async (...args) => {
           console.log('🔒 Permission denied, letting component handle it...');
           return response;
         }
+
+        // Skip global handling for permissions API 403s (authorization, not authentication)
+        if (response.status === 403 && typeof url === 'string' && url.includes('/api/permissions/')) {
+          console.log('🔒 Permissions API access denied, letting component handle it...');
+          return response;
+        }
       } catch (parseError) {
         // If we can't parse the error, continue with normal global handling
         console.log('⚠️ Could not parse error data for verification check');
