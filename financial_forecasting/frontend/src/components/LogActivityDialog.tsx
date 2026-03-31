@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,7 +12,9 @@ import {
   InputLabel,
   Autocomplete,
   Box,
+  Chip,
   CircularProgress,
+  Typography,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQueryClient } from 'react-query';
@@ -100,6 +102,13 @@ const LogActivityDialog: React.FC<LogActivityDialogProps> = ({
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
+  const [suggestions, setSuggestions] = useState<{
+    contacts: any[];
+    opportunities: any[];
+    match_tier: number;
+  } | null>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const suggestionsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isEditMode = !!editActivity;
 
@@ -113,6 +122,12 @@ const LogActivityDialog: React.FC<LogActivityDialogProps> = ({
     if (!open) return;
     setErrors({});
     setSaving(false);
+    setSuggestions(null);
+    setSuggestionsLoading(false);
+    if (suggestionsTimerRef.current) {
+      clearTimeout(suggestionsTimerRef.current);
+      suggestionsTimerRef.current = null;
+    }
 
     if (editActivity) {
       setForm({
@@ -149,10 +164,59 @@ const LogActivityDialog: React.FC<LogActivityDialogProps> = ({
     [contacts, form.contactIds],
   );
 
+  // ── Smart entity suggestions (create mode only) ─────────────────────────
+  useEffect(() => {
+    if (isEditMode || form.subject.trim().length < 3) {
+      if (suggestionsTimerRef.current) clearTimeout(suggestionsTimerRef.current);
+      setSuggestions(null);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    if (suggestionsTimerRef.current) clearTimeout(suggestionsTimerRef.current);
+    setSuggestionsLoading(true);
+
+    suggestionsTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await apiService.activityMatchContext({ name: form.subject.trim() });
+        const data = res.data?.data || res.data;
+        if (data && (data.contacts?.length > 0 || data.opportunities?.length > 0)) {
+          setSuggestions(data);
+        } else {
+          setSuggestions(null);
+        }
+      } catch (err) {
+        console.warn('Match-context failed:', err);
+        setSuggestions(null);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      if (suggestionsTimerRef.current) clearTimeout(suggestionsTimerRef.current);
+    };
+  }, [form.subject, isEditMode]);
+
   // ── Handlers ─────────────────────────────────────────────────────────────
   const updateField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (field === 'subject') setErrors((prev) => ({ ...prev, subject: undefined }));
+  };
+
+  const handleSuggestOpportunity = (oppId: string) => {
+    updateField('opportunityId', oppId);
+    // Cascade: auto-fill account from the opportunity's AccountId
+    const opp = opportunities.find((o) => o.Id === oppId);
+    if (opp?.AccountId) {
+      updateField('accountId', opp.AccountId);
+    }
+  };
+
+  const handleSuggestContact = (contactId: string) => {
+    if (!form.contactIds.includes(contactId)) {
+      setForm((prev) => ({ ...prev, contactIds: [...prev.contactIds, contactId] }));
+    }
   };
 
   const validate = (): boolean => {
@@ -324,6 +388,57 @@ const LogActivityDialog: React.FC<LogActivityDialogProps> = ({
           onChange={(_e, newVal) => updateField('contactIds', newVal.map((c: any) => c.Id))}
           renderInput={(params) => <TextField {...params} label="Contacts" />}
         />
+
+        {/* Smart entity suggestions (create mode only) */}
+        {!isEditMode && (suggestionsLoading || suggestions) && (
+          <Box sx={{ mt: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Suggested links
+              </Typography>
+              {suggestionsLoading && <CircularProgress size={12} />}
+            </Box>
+            {suggestions && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {suggestions.opportunities.map((opp) => (
+                  <Chip
+                    key={opp.id}
+                    label={`Opp: ${opp.name}`}
+                    size="small"
+                    variant="outlined"
+                    clickable
+                    onClick={() => handleSuggestOpportunity(opp.id)}
+                    sx={{
+                      borderColor: 'primary.main',
+                      bgcolor: form.opportunityId === opp.id ? 'action.selected' : undefined,
+                    }}
+                  />
+                ))}
+                {suggestions.contacts.map((ct) => {
+                  const isSelected = form.contactIds.includes(ct.id);
+                  const confidenceColor =
+                    ct.confidence === 'high' ? 'success.main'
+                    : ct.confidence === 'medium' ? 'warning.main'
+                    : 'grey.500';
+                  return (
+                    <Chip
+                      key={ct.id}
+                      label={ct.title ? `${ct.name} (${ct.title})` : ct.name}
+                      size="small"
+                      variant="outlined"
+                      clickable
+                      onClick={() => handleSuggestContact(ct.id)}
+                      sx={{
+                        borderColor: confidenceColor,
+                        bgcolor: isSelected ? 'action.selected' : undefined,
+                      }}
+                    />
+                  );
+                })}
+              </Box>
+            )}
+          </Box>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 1.5 }}>
