@@ -22,14 +22,13 @@ class DependencyCreate(BaseModel):
 # ── Endpoints ──
 
 
-@router.get("/opportunities/{opp_id}/task-dependencies")
-async def get_opportunity_task_dependencies(
-    opp_id: str,
+@router.get("/task-dependencies")
+async def get_task_dependencies_bulk(
     task_ids: Optional[str] = Query(None, description="Comma-separated SF Task IDs to filter by"),
     user=Depends(require_auth),
     db=Depends(get_db),
 ):
-    """Get dependency edges for tasks under an opportunity.
+    """Get dependency edges for a set of tasks.
 
     Pass ?task_ids=00T...,00T... to filter to only deps involving those tasks.
     Without task_ids, returns an empty list (no global overfetch).

@@ -140,14 +140,14 @@ def client(mock_db, mock_client):
 
 class TestGetOpportunityTaskDependencies:
     def test_returns_empty_without_task_ids(self, client):
-        resp = client.get("/api/salesforce/opportunities/006TEST/task-dependencies")
+        resp = client.get("/api/salesforce/task-dependencies")
         assert resp.status_code == 200
         assert resp.json()["data"] == []
 
     def test_returns_deps_filtered_by_task_ids(self, client, mock_db):
         mock_db.fetch = AsyncMock(return_value=[make_dep_row()])
         resp = client.get(
-            "/api/salesforce/opportunities/006TEST/task-dependencies",
+            "/api/salesforce/task-dependencies",
             params={"task_ids": f"{SF_TASK_ID_1},{SF_TASK_ID_2}"},
         )
         assert resp.status_code == 200

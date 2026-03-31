@@ -1,7 +1,7 @@
 """Payment schedule CRUD endpoints."""
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -171,24 +171,110 @@ async def create_payment_schedule(
 
 
 # ---------------------------------------------------------------------------
-# Aspirational endpoints (not yet in simple_server.py — stub for future)
+# UPDATE / DELETE individual payments
 # ---------------------------------------------------------------------------
+
+
+class PaymentUpdate(BaseModel):
+    paid: Optional[bool] = None
+    received_date: Optional[str] = None  # YYYY-MM-DD
+    amount: Optional[float] = None
+    scheduled_date: Optional[str] = None  # YYYY-MM-DD
+
 
 @router.put("/api/opportunities/{opportunity_id}/payment-schedule/{payment_id}")
 async def update_payment(
     opportunity_id: str,
     payment_id: str,
+    body: PaymentUpdate,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
     user=Depends(check_permission("manage_payment_schedules")),
 ):
-    """Update a single payment in a schedule. (Not yet implemented.)"""
-    raise HTTPException(status_code=501, detail="Not implemented")
+    """Update a single payment — mark as received, change amount, etc."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
+    validate_salesforce_id(payment_id, "payment_id")
+    try:
+        salesforce = client.salesforce
+
+        # Build SF update fields
+        update_fields = {}
+        if body.paid is not None:
+            update_fields["npe01__Paid__c"] = body.paid
+        if body.received_date is not None:
+            update_fields["npe01__Payment_Date__c"] = body.received_date
+        elif body.paid is True:
+            # Auto-set received date to today if marking as paid without explicit date
+            from datetime import date
+            update_fields["npe01__Payment_Date__c"] = date.today().isoformat()
+        if body.paid is False:
+            # Clear received date when unmarking
+            update_fields["npe01__Payment_Date__c"] = None
+        if body.amount is not None:
+            update_fields["npe01__Payment_Amount__c"] = body.amount
+        if body.scheduled_date is not None:
+            update_fields["npe01__Scheduled_Date__c"] = body.scheduled_date
+
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        await salesforce.update_record("npe01__OppPayment__c", payment_id, update_fields)
+
+        # Check if all payments are now received → auto-advance opportunity
+        all_payments_received = False
+        if body.paid is True:
+            safe_opp_id = escape_soql_string(opportunity_id)
+            result = await salesforce.query(
+                f"SELECT Id, npe01__Paid__c FROM npe01__OppPayment__c "
+                f"WHERE npe01__Opportunity__c = '{safe_opp_id}'"
+            )
+            payments = result.get("records", [])
+            all_payments_received = all(
+                p.get("npe01__Paid__c", False) or p["Id"] == payment_id
+                for p in payments
+            )
+
+            if all_payments_received and payments:
+                # Auto-advance to Closed / Completed (Pursuit SF schema)
+                opp_result = await salesforce.query(
+                    f"SELECT StageName FROM Opportunity WHERE Id = '{safe_opp_id}'"
+                )
+                current_stage = opp_result["records"][0]["StageName"] if opp_result.get("records") else None
+                if current_stage and current_stage != "Closed / Completed":
+                    await salesforce.update_record(
+                        "Opportunity", opportunity_id,
+                        {"StageName": "Closed / Completed"},
+                    )
+                    logger.info(f"Opportunity {opportunity_id} auto-advanced to Closed / Completed")
+
+        return {
+            "success": True,
+            "message": "Payment updated",
+            "all_payments_received": all_payments_received,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error in update_payment")
+        raise HTTPException(status_code=500, detail="Failed to update payment")
 
 
 @router.delete("/api/opportunities/{opportunity_id}/payment-schedule/{payment_id}")
 async def delete_payment(
     opportunity_id: str,
     payment_id: str,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
     user=Depends(check_permission("manage_payment_schedules")),
 ):
-    """Delete a single payment from a schedule. (Not yet implemented.)"""
-    raise HTTPException(status_code=501, detail="Not implemented")
+    """Delete a single payment from a schedule."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
+    validate_salesforce_id(payment_id, "payment_id")
+    try:
+        salesforce = client.salesforce
+        await salesforce.delete_record("npe01__OppPayment__c", payment_id)
+        return {"success": True, "message": "Payment deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error in delete_payment")
+        raise HTTPException(status_code=500, detail="Failed to delete payment")

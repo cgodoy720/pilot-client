@@ -173,3 +173,4 @@ financial_forecasting/frontend/test-results/
 
 # Production environment
 financial_forecasting/frontend/.env.production
+.gstack/

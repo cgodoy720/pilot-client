@@ -66,7 +66,12 @@ const Projects: React.FC = () => {
   } = useProjects();
 
   useEffect(() => {
-    if (projects.length === 0) return;
+    if (projects.length === 0) {
+      // Clear stale selectedProjectId when there are no projects,
+      // so useProjectData doesn't try to fetch a non-existent project.
+      setPrefs((p) => p.selectedProjectId ? { ...p, selectedProjectId: null } : p);
+      return;
+    }
     // Use functional updater to read the latest selectedProjectId,
     // and only depend on [projects] to avoid a race condition where
     // a newly-created project's selection is overridden before the
@@ -101,9 +106,13 @@ const Projects: React.FC = () => {
   }
 
   if (error) {
+    const axiosError = error as any;
+    const detail = axiosError?.response?.data?.detail
+      || axiosError?.message
+      || 'Failed to load project data. Make sure the backend is running.';
     return (
       <Alert severity="error" sx={{ m: 2 }}>
-        Failed to load project data. Make sure PostgreSQL is running.
+        {detail}
       </Alert>
     );
   }
