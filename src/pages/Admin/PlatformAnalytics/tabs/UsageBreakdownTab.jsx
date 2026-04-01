@@ -85,11 +85,32 @@ const UsageBreakdownTab = ({ token, startDate, endDate }) => {
       completion: parseInt(d.completion_tokens, 10) || 0,
     }));
 
-  const modelChartData = (modelData || []).map(d => ({
-    model: shortenModel(d.model),
-    prompt: parseInt(d.prompt_tokens, 10) || 0,
-    completion: parseInt(d.completion_tokens, 10) || 0,
-  }));
+  const TOP_MODELS = 4;
+  const modelChartData = React.useMemo(() => {
+    if (!modelData || modelData.length === 0) return [];
+
+    const withTotals = modelData.map(d => ({
+      model: shortenModel(d.model),
+      prompt: parseInt(d.prompt_tokens, 10) || 0,
+      completion: parseInt(d.completion_tokens, 10) || 0,
+      total: (parseInt(d.prompt_tokens, 10) || 0) + (parseInt(d.completion_tokens, 10) || 0),
+    }));
+
+    withTotals.sort((a, b) => b.total - a.total);
+
+    if (withTotals.length <= TOP_MODELS) return withTotals;
+
+    const top = withTotals.slice(0, TOP_MODELS);
+    const rest = withTotals.slice(TOP_MODELS);
+    const otherPrompt = rest.reduce((sum, d) => sum + d.prompt, 0);
+    const otherCompletion = rest.reduce((sum, d) => sum + d.completion, 0);
+
+    if (otherPrompt + otherCompletion > 0) {
+      top.push({ model: 'Other', prompt: otherPrompt, completion: otherCompletion, total: otherPrompt + otherCompletion });
+    }
+
+    return top;
+  }, [modelData]);
 
   const tokenBreakdownChartData = (breakdownData || []).map(d => ({
     date: formatChartDate(d.date),

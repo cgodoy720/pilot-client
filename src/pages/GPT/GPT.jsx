@@ -584,13 +584,6 @@ function GPT() {
       } else {
       setMessages(messagesArray);
       setError('');
-        
-        // Check if we're waiting for an AI response (last message is from user)
-        if (messagesArray.length > 0) {
-          const lastMessage = messagesArray[messagesArray.length - 1];
-          const lastMessageRole = getMessageRole(lastMessage);
-          setIsAiThinking(lastMessageRole === 'user');
-        }
       }
       
       if (!isPolling) {
@@ -779,19 +772,18 @@ function GPT() {
           } else if (chunk.type === 'error') {
             console.error('Stream error:', chunk.error);
             setError(chunk.error || 'Failed to get response');
-            // Remove the streaming message on error
-            setMessages(prevMessages => 
-              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            // Remove both the streaming placeholder and optimistic user message
+            setMessages(prevMessages =>
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId && msg.message_id !== tempUserMessageId)
             );
-            setIsStreaming(false);
-            setIsSending(false);
-            setIsAiThinking(false);
+            // Restore user's message to input for easy retry
+            setNewMessage(chunk.userContent || messageToSend);
             setStreamingContent('');
           }
         },
         abortController.signal
       );
-      
+
       setTimeout(() => {
         fetchThreads({ silent: true });
       }, 1000);
@@ -803,15 +795,16 @@ function GPT() {
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
-      setMessages(prevMessages => 
-        prevMessages.filter(msg => 
+      setMessages(prevMessages =>
+        prevMessages.filter(msg =>
           msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
         )
       );
+      setStreamingContent('');
+    } finally {
       setIsSending(false);
       setIsStreaming(false);
       setIsAiThinking(false);
-      setStreamingContent('');
     }
   };
 
@@ -895,19 +888,18 @@ function GPT() {
           } else if (chunk.type === 'error') {
             console.error('Stream error:', chunk.error);
             setError(chunk.error || 'Failed to get response');
-            // Remove the streaming message on error
-            setMessages(prevMessages => 
-              prevMessages.filter(msg => msg.message_id !== streamingMessageId)
+            // Remove both the streaming placeholder and optimistic user message
+            setMessages(prevMessages =>
+              prevMessages.filter(msg => msg.message_id !== streamingMessageId && msg.message_id !== tempUserMessageId)
             );
-            setIsStreaming(false);
-            setIsSending(false);
-            setIsAiThinking(false);
+            // Restore user's message to input for easy retry
+            setNewMessage(chunk.userContent || messageToSend);
             setStreamingContent('');
           }
         },
         abortController.signal
       );
-      
+
       if (isFirstMessage) {
         setTimeout(() => {
           fetchThreads({ silent: true });
@@ -921,15 +913,16 @@ function GPT() {
       }
       console.error('Error sending message:', err);
       setError('Failed to send message. Please try again.');
-      setMessages(prevMessages => 
-        prevMessages.filter(msg => 
+      setMessages(prevMessages =>
+        prevMessages.filter(msg =>
           msg.message_id !== tempUserMessageId && msg.message_id !== streamingMessageId
         )
       );
+      setStreamingContent('');
+    } finally {
       setIsSending(false);
       setIsStreaming(false);
       setIsAiThinking(false);
-      setStreamingContent('');
     }
   };
 
