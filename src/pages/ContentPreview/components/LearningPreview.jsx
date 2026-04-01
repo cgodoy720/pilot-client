@@ -1097,7 +1097,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                       showPeerFeedbackButton={isRetrospectiveTask()}
                       onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
-                      showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
+                      showLlmDropdown={['conversation', 'personalized'].includes(tasks[currentTaskIndex]?.task_mode)}
                       onHeightChange={handleInputTrayHeightChange}
                     />
                   )}
