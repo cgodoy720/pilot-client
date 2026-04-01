@@ -751,10 +751,10 @@ function LearningPreview({ dayId, cohort, onBack }) {
       if (err.name === 'AbortError') return;
       console.error('Error sending message:', err);
     } finally {
+      setIsSending(false);
+      setIsStreaming(false);
       if (!abortController.signal.aborted) {
-        setIsSending(false);
         setIsAiThinking(false);
-        setIsStreaming(false);
       }
     }
   };

@@ -1064,11 +1064,10 @@ function Learning() {
       }
       setError('An error occurred. Please try again.');
     } finally {
-      // Only clear loading state if this request wasn't aborted
+      setIsSending(false);
+      setIsStreaming(false);
       if (!abortController.signal.aborted) {
-        setIsSending(false);
         setIsAiThinking(false);
-        setIsStreaming(false);
       }
     }
   };
