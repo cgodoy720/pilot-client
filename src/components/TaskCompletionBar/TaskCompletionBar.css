@@ -17,7 +17,7 @@
 }
 
 .task-completion-bar__content {
-  max-width: 664px;
+  max-width: 672px; /* matches max-w-2xl wrapper around AutoExpandTextarea */
   margin: 0 auto;
   background: linear-gradient(90deg, #4242EA 0%, #FFD3C2 123.12%);
   box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.15);
