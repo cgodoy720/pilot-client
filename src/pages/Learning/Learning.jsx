@@ -1064,11 +1064,10 @@ function Learning() {
       }
       setError('An error occurred. Please try again.');
     } finally {
-      // Only clear loading state if this request wasn't aborted
+      setIsSending(false);
+      setIsStreaming(false);
       if (!abortController.signal.aborted) {
-        setIsSending(false);
         setIsAiThinking(false);
-        setIsStreaming(false);
       }
     }
   };
@@ -1531,7 +1530,7 @@ function Learning() {
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                 showPeerFeedbackButton={isRetrospectiveTask()}
                 onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
-                showLlmDropdown={tasks[currentTaskIndex]?.task_mode === 'conversation'}
+                showLlmDropdown={['conversation', 'personalized'].includes(tasks[currentTaskIndex]?.task_mode)}
                 onHeightChange={handleInputTrayHeightChange}
               />
               )}

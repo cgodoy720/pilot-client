@@ -61,7 +61,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAssessmentGrades && { to: '/admin/assessment-grades', label: 'Assessments' },
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Stats' },
-    canViewContent && { to: '/content', label: 'Curriculum' },
+    // canViewContent && { to: '/content', label: 'Curriculum' }, // hidden — use Content Mgmt instead
     canViewContentPreview && { to: '/content-preview', label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', label: 'External Cohorts' },
   ].filter(Boolean) : [];
@@ -100,7 +100,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewAdminAttendance && { to: '/admin-attendance-dashboard', icon: CalendarIcon, label: 'Attendance' },
     canViewAdminDashboard && { to: '/admin-dashboard', icon: Settings, label: 'Cohort Stats' },
     // Enterprise Admin is rendered as an explicit nav link (not in customGrantedItems) to avoid duplication
-    canViewContent && { to: '/content', icon: Target, label: 'Curriculum' },
+    // canViewContent && { to: '/content', icon: Target, label: 'Curriculum' }, // hidden — use Content Mgmt instead
     canViewContentPreview && { to: '/content-preview', icon: Target, label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', icon: Building2, label: 'External Cohorts' },
     canViewFormBuilder && { to: '/forms', icon: ClipboardList, label: 'Form Builder' },

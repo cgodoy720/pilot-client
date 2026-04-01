@@ -5,6 +5,7 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import IntegrationsStatusTab from './tabs/IntegrationsStatusTab';
 import OverviewTab from './tabs/OverviewTab';
 import UsageBreakdownTab from './tabs/UsageBreakdownTab';
+import TaskInsightsTab from './tabs/TaskInsightsTab';
 import CostBillingTab from './tabs/CostBillingTab';
 import TrendsTab from './tabs/TrendsTab';
 
@@ -67,6 +68,9 @@ const PlatformAnalytics = () => {
 
         <SectionHeader>Usage Breakdown</SectionHeader>
         <UsageBreakdownTab token={token} startDate={startDate} endDate={endDate} />
+
+        <SectionHeader>Task Insights</SectionHeader>
+        <TaskInsightsTab token={token} startDate={startDate} endDate={endDate} />
 
         <SectionHeader>Cost & Billing</SectionHeader>
         <CostBillingTab token={token} startDate={startDate} endDate={endDate} />
