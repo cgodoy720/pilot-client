@@ -57,9 +57,8 @@ const Layout = ({ children, isLoading = false }) => {
     || canViewPermissionManagement || canViewWeeklyReports || canViewPlatformAnalytics;
   // Program dropdown -- staff/admin roles
   const programDropdownItems = isStaffOrAdminRole ? [
-    canViewAssessmentGrades && { to: '/admin/assessment-grades', label: 'Assessments' },
-    canViewAdminAttendance && { to: '/admin-attendance-dashboard', label: 'Attendance' },
-    canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Stats' },
+    canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Hub' },
+    canViewAdminDashboard && { to: '/program-analytics', label: 'Program Analytics' },
     canViewContentPreview && { to: '/content-preview', label: 'Content Mgmt' },
     canViewExternalCohorts && { to: '/external-cohorts', label: 'External Cohorts' },
   ].filter(Boolean) : [];

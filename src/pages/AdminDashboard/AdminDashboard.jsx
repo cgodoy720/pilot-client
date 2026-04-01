@@ -3,15 +3,19 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import useAuthStore from '../../stores/authStore';
 import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import SummaryTab from './tabs/SummaryTab';
+import OverviewTab from './tabs/OverviewTab';
 import BuildersTab from './tabs/BuildersTab';
+import PerformanceTab from './tabs/PerformanceTab';
+import AttendanceTab from './tabs/AttendanceTab';
 import SurveyTab from './tabs/SurveyTab';
+import AssessmentsTab from './tabs/AssessmentsTab';
 import L2SelectionsTab from './tabs/L2SelectionsTab';
-import VideoSubmissionsTab from './tabs/VideoSubmissionsTab';
+import LogsTab from './tabs/LogsTab';
 import { fetchPursuitBuilderCohorts } from './utils/cohortUtils';
-import { ExternalLink, BarChart3, Users, Star, UserCheck, Video } from 'lucide-react';
-
-const LEGACY_URL = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/';
+import {
+  LayoutDashboard, Users, TrendingUp, CalendarCheck,
+  Star, ClipboardList, UserCheck, FileText,
+} from 'lucide-react';
 
 const TAB_TRIGGER_CLASS =
   'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-600 font-medium px-4 py-2 rounded-md transition-all text-sm gap-1.5';
@@ -21,8 +25,7 @@ const AdminDashboard = () => {
   const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
-  const [activeTab, setActiveTab] = useState('summary');
-  const [iframeLoading, setIframeLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const [cohorts, setCohorts] = useState([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
@@ -52,24 +55,13 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-[#EFEFEF]">
       {!isSecondaryNavPage && (
         <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
-                Admin Dashboard
-              </h1>
-              <p className="text-slate-500 text-sm mt-0.5">
-                Platform overview for {user?.firstName ? `${user.firstName} ${user.lastName}` : 'administrators'}
-              </p>
-            </div>
-            <a
-              href={LEGACY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#4242EA] transition-colors"
-            >
-              <ExternalLink size={13} />
-              Legacy dashboard
-            </a>
+          <div className="max-w-7xl mx-auto">
+            <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
+              Cohort Hub
+            </h1>
+            <p className="text-slate-500 text-sm mt-0.5">
+              Platform overview for {user?.firstName ? `${user.firstName} ${user.lastName}` : 'administrators'}
+            </p>
           </div>
         </div>
       )}
@@ -91,69 +83,70 @@ const AdminDashboard = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-white border border-[#E3E3E3] p-1 mb-6 rounded-lg inline-flex flex-wrap gap-0.5">
-            <TabsTrigger value="summary" className={TAB_TRIGGER_CLASS}>
-              <BarChart3 size={14} />
-              Summary
+            <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>
+              <LayoutDashboard size={14} />
+              Overview
             </TabsTrigger>
-            <TabsTrigger value="builders" className={TAB_TRIGGER_CLASS}>
+            <TabsTrigger value="roster" className={TAB_TRIGGER_CLASS}>
               <Users size={14} />
-              Builders
+              Roster
             </TabsTrigger>
-            <TabsTrigger value="survey" className={TAB_TRIGGER_CLASS}>
+            <TabsTrigger value="performance" className={TAB_TRIGGER_CLASS}>
+              <TrendingUp size={14} />
+              Performance
+            </TabsTrigger>
+            <TabsTrigger value="attendance" className={TAB_TRIGGER_CLASS}>
+              <CalendarCheck size={14} />
+              Attendance
+            </TabsTrigger>
+            <TabsTrigger value="nps" className={TAB_TRIGGER_CLASS}>
               <Star size={14} />
-              NPS / Survey
+              NPS
+            </TabsTrigger>
+            <TabsTrigger value="assessments" className={TAB_TRIGGER_CLASS}>
+              <ClipboardList size={14} />
+              Assessments
             </TabsTrigger>
             <TabsTrigger value="l2" className={TAB_TRIGGER_CLASS}>
               <UserCheck size={14} />
-              L2 Selections
+              L2
             </TabsTrigger>
-            <TabsTrigger value="videos" className={TAB_TRIGGER_CLASS}>
-              <Video size={14} />
-              Videos
-            </TabsTrigger>
-            <TabsTrigger value="legacy" className={TAB_TRIGGER_CLASS}>
-              <ExternalLink size={14} />
-              Legacy View
+            <TabsTrigger value="logs" className={TAB_TRIGGER_CLASS}>
+              <FileText size={14} />
+              Logs
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="summary">
-            <SummaryTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
+          <TabsContent value="overview">
+            <OverviewTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
 
-          <TabsContent value="builders">
+          <TabsContent value="roster">
             <BuildersTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
 
-          <TabsContent value="survey">
-            <SurveyTab />
+          <TabsContent value="performance">
+            <PerformanceTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
+          </TabsContent>
+
+          <TabsContent value="attendance">
+            <AttendanceTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
+          </TabsContent>
+
+          <TabsContent value="nps">
+            <SurveyTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
+          </TabsContent>
+
+          <TabsContent value="assessments">
+            <AssessmentsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
 
           <TabsContent value="l2">
             <L2SelectionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
 
-          <TabsContent value="videos">
-            <VideoSubmissionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
-          </TabsContent>
-
-          <TabsContent value="legacy" className="rounded-lg overflow-hidden shadow">
-            <div className="relative bg-white rounded-lg overflow-hidden" style={{ minHeight: 'calc(100vh - 220px)' }}>
-              {iframeLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 gap-3">
-                  <div className="w-8 h-8 border-2 border-[#4242EA] border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm text-slate-400">Loading legacy dashboard...</span>
-                </div>
-              )}
-              <iframe
-                src={LEGACY_URL}
-                title="Legacy Admin Dashboard"
-                className="w-full border-none"
-                style={{ height: 'calc(100vh - 220px)' }}
-                onLoad={() => setIframeLoading(false)}
-                allow="fullscreen"
-              />
-            </div>
+          <TabsContent value="logs">
+            <LogsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
           </TabsContent>
         </Tabs>
       </div>

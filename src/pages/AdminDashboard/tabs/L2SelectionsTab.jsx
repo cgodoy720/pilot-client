@@ -250,17 +250,28 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
   );
   const selectedLevel = selectedCohort?.legacyName || '';
 
+  const isL1Cohort = useMemo(
+    () => selectedCohort?.name?.includes('L1') ?? false,
+    [selectedCohort]
+  );
+
   // ── Fetch builders + final demos ──
   const fetchBuilders = () => {
-    if (!selectedLevel) return;
+    const cohortId = selectedCohort?.cohort_id;
+    if (!cohortId) return;
     setLoading(true);
     setPage(0);
 
-    const buildersPromise = fetch(`${LEGACY_API}/builders?startDate=${startDate}&endDate=${endDate}&level=${encodeURIComponent(selectedLevel)}`)
-      .then(r => r.json()).catch(() => []);
+    const buildersPromise = cohortId && token
+      ? fetch(`${API_URL}/api/admin/dashboard/cohort-summary?cohortId=${cohortId}&startDate=${startDate}&endDate=${endDate}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then(r => r.json())
+          .then(d => d.builders || [])
+          .catch(() => [])
+      : Promise.resolve([]);
 
     // Fetch final demo submissions from our native endpoint (uses cohort_id)
-    const cohortId = selectedCohort?.cohort_id;
     const demosPromise = cohortId && token
       ? fetch(`${API_URL}/api/admin/dashboard/final-demos?cohortId=${cohortId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -307,7 +318,7 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
     }).catch(console.error).finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchBuilders(); }, [selectedLevel, selectedCohort?.cohort_id, token]);
+  useEffect(() => { fetchBuilders(); }, [selectedCohort?.cohort_id, token]);
 
   // ── Fetch human reviews when builders load ──
   useEffect(() => {
@@ -474,6 +485,18 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (!isL1Cohort) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+        <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest">Not available</p>
+        <h3 className="text-lg font-semibold text-[#1E1E1E]">L2 selections are for L1 cohorts</h3>
+        <p className="text-sm text-slate-500 max-w-sm">
+          Select an L1 cohort from the dropdown above to manage L2 builder selections.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

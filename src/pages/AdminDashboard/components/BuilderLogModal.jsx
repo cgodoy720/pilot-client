@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../../components/ui/sheet';
 import { Button } from '../../../components/ui/button';
 import { Label } from '../../../components/ui/label';
 import { Textarea } from '../../../components/ui/textarea';
@@ -168,15 +168,17 @@ const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-[#1E1E1E]">
-            {effectiveBuilder ? `Log Entry — ${effectiveBuilder.name || `${effectiveBuilder.first_name} ${effectiveBuilder.last_name}`}` : 'New Facilitator Log'}
-          </DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="px-6 pt-6 pb-4 border-b border-[#E3E3E3]">
+          <SheetTitle className="text-lg font-bold text-[#1E1E1E]">
+            {effectiveBuilder
+              ? 'Log Entry — ' + (effectiveBuilder.name || (effectiveBuilder.first_name + ' ' + effectiveBuilder.last_name))
+              : 'New Facilitator Log'}
+          </SheetTitle>
+        </SheetHeader>
 
-        <div className="space-y-5 pt-2">
+        <div className="space-y-5 px-6 py-5 overflow-y-auto flex-1">
           {/* Primary builder search (when no builder prop) */}
           {!builder && (
             <div>
@@ -431,8 +433,8 @@ const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => 
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };
 

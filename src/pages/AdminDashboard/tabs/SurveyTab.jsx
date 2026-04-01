@@ -50,7 +50,12 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
   );
 };
 
-const SurveyTab = () => {
+const SurveyTab = ({ selectedCohortId, cohorts = [] }) => {
+  const selectedCohortName = useMemo(
+    () => cohorts.find(c => c.cohort_id === selectedCohortId)?.name || '',
+    [cohorts, selectedCohortId]
+  );
+
   const [startDate, setStartDate] = useState('2025-09-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [npsMode, setNpsMode] = useState('calendar');
@@ -71,13 +76,19 @@ const SurveyTab = () => {
     }).finally(() => setLoading(false));
   }, [startDate, endDate, npsMode]);
 
+  // Filter npsData to selected cohort when one is selected
+  const filteredNpsData = useMemo(
+    () => selectedCohortName ? npsData.filter(d => d.cohort === selectedCohortName) : npsData,
+    [npsData, selectedCohortName]
+  );
+
   // Build chart data: pivot by week, one line per cohort
   const { chartData, cohortNames, cohortSummary } = useMemo(() => {
     const weekMap = {};
     const cohortSet = new Set();
     const summaryMap = {};
 
-    npsData.forEach((d) => {
+    filteredNpsData.forEach((d) => {
       // Program mode → "Week 1", "Week 2", etc. Calendar mode → "Dec 13", "Jan 24", etc.
       const weekLabel = npsMode === 'program'
         ? `Week ${d.program_week}`
@@ -113,7 +124,7 @@ const SurveyTab = () => {
       cohortNames: names,
       cohortSummary: summary,
     };
-  }, [npsData, npsMode]);
+  }, [filteredNpsData, npsMode]);
 
   return (
     <div className="space-y-6">

@@ -9,6 +9,7 @@ import Learning from './pages/Learning/Learning';
 import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AdminAttendanceDashboard from './pages/AdminAttendanceDashboard/AdminAttendanceDashboard';
+import ProgramAnalytics from './pages/ProgramAnalytics/ProgramAnalytics';
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
@@ -238,6 +239,13 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
               <AdminDashboard />
+            </PermissionRoute>
+          </Layout>
+        } />
+        <Route path="/program-analytics" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
+              <ProgramAnalytics />
             </PermissionRoute>
           </Layout>
         } />

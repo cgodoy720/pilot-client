@@ -218,15 +218,16 @@ const AttendanceCalendarGrid = React.memo(function AttendanceCalendarGrid({
   );
 });
 
-const AttendanceManagement = () => {
+const AttendanceManagement = ({ cohortName = '', initialBuilder = null }) => {
   const token = useAuthStore((s) => s.token);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedBuilder, setSelectedBuilder] = useState(null);
 
-  const [cohortFilter, setCohortFilter] = useState('all');
+  const [selectedBuilder, setSelectedBuilder] = useState(initialBuilder || null);
+
+  const [cohortFilter, setCohortFilter] = useState(cohortName || 'all');
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const initialBounds = getMonthBounds(new Date());
   const [startDate, setStartDate] = useState(initialBounds.start);

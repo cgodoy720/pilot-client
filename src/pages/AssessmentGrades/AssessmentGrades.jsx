@@ -10,7 +10,7 @@ import GradesTable from './components/GradesTable';
 import GradeViewModal from './GradeViewModal';
 import MassEmailModal from './MassEmailModal';
 
-const AssessmentGrades = () => {
+const AssessmentGrades = ({ initialCohort = '', embedded = false }) => {
   const user = useAuthStore((s) => s.user);
   const authToken = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
@@ -30,11 +30,11 @@ const AssessmentGrades = () => {
 
   // Filter states
   const [filters, setFilters] = useState({
-    cohort: '',
+    cohort: initialCohort,
     assessmentPeriod: ''
   });
-  const filtersRef = useRef(filters);
-  const appliedFiltersRef = useRef(filters);
+  const filtersRef = useRef({ cohort: initialCohort, assessmentPeriod: '' });
+  const appliedFiltersRef = useRef({ cohort: initialCohort, assessmentPeriod: '' });
   const latestGradesRequestIdRef = useRef(0);
   const activeGradesRequestControllerRef = useRef(null);
   const [availableCohorts, setAvailableCohorts] = useState([]);
@@ -478,7 +478,7 @@ const AssessmentGrades = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={embedded ? '' : 'min-h-screen bg-background'}>
       <div className="container mx-auto p-6 space-y-6">
         {/* Filters */}
         <FiltersSection
@@ -488,6 +488,7 @@ const AssessmentGrades = () => {
           onFilterChange={handleFilterChange}
           onApplyFilters={applyFilters}
           onClearFilters={clearFilters}
+          hideCohortFilter={embedded}
         />
 
         {/* Actions Bar */}
