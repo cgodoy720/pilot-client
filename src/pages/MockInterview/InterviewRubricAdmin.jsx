@@ -34,6 +34,10 @@ function InterviewRubricAdmin() {
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/api/admin/interview-rubrics`, { headers: getHeaders(token) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to load rubrics: ${res.status}`);
+      }
       const data = await res.json();
       setRubrics(data.rubrics || []);
     } catch (err) {

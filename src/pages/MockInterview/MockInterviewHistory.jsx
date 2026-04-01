@@ -17,7 +17,7 @@ function MockInterviewHistory() {
 
   useEffect(() => {
     loadHistory();
-  }, [page]);
+  }, [page, token]);
 
   const loadHistory = async () => {
     try {

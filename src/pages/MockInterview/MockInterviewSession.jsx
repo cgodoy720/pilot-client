@@ -82,6 +82,24 @@ function InterviewRoomContent({ interview, interviewId, authToken }) {
     source: Track.Source.Microphone,
   });
 
+  // Capture real-time transcriptions from LiveKit
+  useEffect(() => {
+    if (!room) return;
+
+    const handleTranscription = (segments, participant) => {
+      const finals = segments.filter((s) => s.final);
+      if (!finals.length) return;
+      const role = participant?.identity?.startsWith('builder-') ? 'candidate' : 'interviewer';
+      setTranscriptMessages((prev) => [
+        ...prev,
+        ...finals.map((s) => ({ role, content: s.text, timestamp: Date.now() })),
+      ]);
+    };
+
+    room.on('transcriptionReceived', handleTranscription);
+    return () => room.off('transcriptionReceived', handleTranscription);
+  }, [room]);
+
   const handleEndInterview = useCallback(async () => {
     setIsEnding(true);
     room?.disconnect();
@@ -91,8 +109,8 @@ function InterviewRoomContent({ interview, interviewId, authToken }) {
   const handleAbandon = useCallback(async () => {
     try {
       await abandonInterview(authToken, interviewId);
-    } catch {
-      // best effort
+    } catch (err) {
+      console.error('Failed to abandon interview:', err);
     }
     room?.disconnect();
     navigate('/pathfinder/mock-interview');
