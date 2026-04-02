@@ -242,6 +242,13 @@ const ProgramMetricsTab = () => {
     return Math.round((current.count / previous.count) * 100);
   };
 
+  const getPctOfCentered = (stage) => {
+    if (centeredCount === 0) return null;
+    return Math.round((stage.count / centeredCount) * 100);
+  };
+
+  const centeredLabel = stages[centeredIdx]?.label || stages[0]?.label || 'Leads';
+
   const activeFilterCount = [filters.gender, filters.nycha, filters.referral].filter(Boolean).length;
 
   // ---- Sort toggle ----
@@ -409,6 +416,18 @@ const ProgramMetricsTab = () => {
               <p className="text-xs text-slate-400 mt-0.5">Click a stage to recenter scale and view people</p>
             </CardHeader>
             <CardContent className="pt-4">
+              {/* Column headers */}
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <div className="w-32 flex-shrink-0" />
+                <div className="flex-1" />
+                <div className="w-16 flex-shrink-0" />
+                <div className="w-16 flex-shrink-0 text-right">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wide">vs prev</span>
+                </div>
+                <div className="w-24 flex-shrink-0 text-right">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wide">% of {centeredLabel}</span>
+                </div>
+              </div>
               <div className="space-y-1.5">
                 {stages.map((stage, idx) => {
                   const colors = STAGE_COLORS[stage.id] || STAGE_COLORS.leads;
@@ -416,6 +435,7 @@ const ProgramMetricsTab = () => {
                   const multiplierLabel = getMultiplierLabel(stage, idx);
                   const prev = idx > 0 ? stages[idx - 1] : null;
                   const convPct = getConversionPct(stage, prev);
+                  const pctOfCentered = getPctOfCentered(stage);
                   const isCentered = stage.id === (centeredStageId || stages[0]?.id);
                   const isDrillOpen = selectedStage?.id === stage.id;
 
@@ -447,17 +467,23 @@ const ProgramMetricsTab = () => {
                         <div className="w-16 flex-shrink-0 text-left">
                           <span className="text-xs font-bold text-[#1E1E1E]">{stage.count.toLocaleString()}</span>
                         </div>
-                        {/* Conversion badge */}
-                        <div className="w-14 flex-shrink-0 text-right">
+                        {/* % from previous */}
+                        <div className="w-16 flex-shrink-0 text-right">
                           {convPct !== null && (
                             <Badge className={`text-[10px] border-0 ${convPct >= 50 ? 'bg-green-100 text-green-700' : convPct >= 25 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
                               {convPct}%
                             </Badge>
                           )}
                         </div>
+                        {/* % of centered stage */}
+                        <div className="w-24 flex-shrink-0 text-right">
+                          <span className={`text-xs ${isCentered ? 'font-semibold text-[#4242EA]' : 'text-slate-500'}`}>
+                            {pctOfCentered != null ? `${pctOfCentered}%` : '—'}
+                          </span>
+                        </div>
                       </button>
                       {idx < stages.length - 1 && (
-                        <div className="flex items-center gap-2 h-2 ml-32">
+                        <div className="flex items-center gap-2 h-2">
                           <div className="w-32 flex-shrink-0" />
                           <div className="flex-1 flex justify-start pl-3">
                             <div className="w-px h-2 bg-[#E3E3E3]" />
@@ -468,7 +494,6 @@ const ProgramMetricsTab = () => {
                   );
                 })}
               </div>
-              <p className="text-[10px] text-slate-400 mt-4 text-right">% shows conversion from previous stage</p>
             </CardContent>
           </Card>
 
@@ -539,47 +564,6 @@ const ProgramMetricsTab = () => {
             </Card>
           )}
 
-          {/* Conversion table */}
-          <Card className="bg-white border border-[#E3E3E3]">
-            <CardHeader className="pb-3 border-b border-[#E3E3E3]">
-              <CardTitle className="text-base font-semibold text-[#1E1E1E]">Conversion Details</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-slate-400 text-xs uppercase tracking-wide border-b border-[#E3E3E3]">
-                    <th className="pb-2 pr-4 font-medium">Stage</th>
-                    <th className="pb-2 px-3 font-medium text-center">Count</th>
-                    <th className="pb-2 px-3 font-medium text-center">From Prev</th>
-                    <th className="pb-2 pl-3 font-medium text-center">From Leads</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#EFEFEF]">
-                  {stages.map((stage, idx) => {
-                    const prev = idx > 0 ? stages[idx - 1] : null;
-                    const convPrev = getConversionPct(stage, prev);
-                    const convLeads = getConversionPct(stage, stages[0]);
-                    return (
-                      <tr key={stage.id} className="hover:bg-[#EFEFEF]/50">
-                        <td className="py-2.5 pr-4 font-medium text-[#1E1E1E] text-xs">{stage.label}</td>
-                        <td className="py-2.5 px-3 text-center text-xs font-semibold text-[#1E1E1E]">{stage.count.toLocaleString()}</td>
-                        <td className="py-2.5 px-3 text-center">
-                          {convPrev !== null
-                            ? <span className={`text-xs font-semibold ${convPrev >= 50 ? 'text-green-600' : convPrev >= 25 ? 'text-yellow-600' : 'text-red-500'}`}>{convPrev}%</span>
-                            : <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className="py-2.5 pl-3 text-center">
-                          {idx > 0 && convLeads !== null
-                            ? <span className="text-xs text-slate-500">{convLeads}%</span>
-                            : <span className="text-slate-300">—</span>}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
         </>
       )}
     </div>
