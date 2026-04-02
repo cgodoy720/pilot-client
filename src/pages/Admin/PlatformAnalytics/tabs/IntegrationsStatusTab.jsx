@@ -391,11 +391,13 @@ const IntegrationsStatusTab = ({ token, startDate, endDate }) => {
           extra={
             anthropicTotals ? (
               <span className="text-xs text-slate-500">
-                {formatNumber(anthropicTotals.total)} tokens
+                {formatNumber(anthropicTotals.input + anthropicTotals.output)} tokens
                 <span className="text-slate-300 mx-1">·</span>
                 In: {formatNumber(anthropicTotals.input)}
                 <span className="text-slate-300 mx-1">·</span>
                 Out: {formatNumber(anthropicTotals.output)}
+                <span className="text-slate-300 mx-1">·</span>
+                Cache: {formatNumber(anthropicTotals.cache)}
               </span>
             ) : !extLoading ? (
               <span className="text-xs text-slate-400">No usage data</span>
