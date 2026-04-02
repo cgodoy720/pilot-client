@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import { getInterview, completeInterview } from '../../services/mockInterviewApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -20,7 +20,9 @@ import {
 function MockInterviewFeedback() {
   const { interviewId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const token = useAuthStore((s) => s.token);
+  const durationSeconds = location.state?.durationSeconds ?? null;
 
   const [interview, setInterview] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -71,7 +73,7 @@ function MockInterviewFeedback() {
   const generateFeedback = async () => {
     try {
       setGenerating(true);
-      const result = await completeInterview(token, interviewId);
+      const result = await completeInterview(token, interviewId, durationSeconds);
       setFeedback(result.feedback);
       if (result.interview) setInterview(result.interview);
     } catch (err) {

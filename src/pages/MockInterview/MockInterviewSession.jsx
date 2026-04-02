@@ -102,8 +102,11 @@ function InterviewRoomContent({ interview, interviewId, authToken }) {
 
   const handleEndInterview = useCallback(async () => {
     setIsEnding(true);
+    const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
     room?.disconnect();
-    navigate(`/pathfinder/mock-interview/feedback/${interviewId}`);
+    navigate(`/pathfinder/mock-interview/feedback/${interviewId}`, {
+      state: { durationSeconds },
+    });
   }, [interviewId, room, navigate]);
 
   const handleAbandon = useCallback(async () => {
