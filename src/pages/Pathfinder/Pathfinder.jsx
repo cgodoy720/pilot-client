@@ -88,7 +88,8 @@ function Pathfinder() {
         >
           Network
         </NavLink>
-        <NavLink
+        {/* Mock Interview tab hidden — still in development */}
+        {/* <NavLink
           to="/pathfinder/mock-interview"
           className={({ isActive }) =>
             `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
@@ -99,7 +100,7 @@ function Pathfinder() {
           }
         >
           Mock Interview
-        </NavLink>
+        </NavLink> */}
         {/* Jobs tab hidden for now — re-enable when ready */}
         {isStaff && (
           <NavLink
