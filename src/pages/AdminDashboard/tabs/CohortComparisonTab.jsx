@@ -223,10 +223,11 @@ const CohortTable = ({ title, cohorts, getNps, expanded, detail, onToggle }) => 
       </div>
 
       {/* header */}
-      <div className="grid grid-cols-[1fr_80px_80px_120px_120px_100px] items-center px-6 py-2 border-b border-[#E3E3E3] text-[11px] font-medium uppercase tracking-wide text-slate-400">
+      <div className="grid grid-cols-[1fr_80px_80px_80px_120px_120px_100px] items-center px-6 py-2 border-b border-[#E3E3E3] text-[11px] font-medium uppercase tracking-wide text-slate-400">
         <span>Cohort</span>
         <span className="text-right">Week</span>
-        <span className="text-right">Builders</span>
+        <span className="text-right">Original</span>
+        <span className="text-right">Active</span>
         <span className="text-right">Attendance</span>
         <span className="text-right">Submissions</span>
         <span className="text-right">NPS</span>
@@ -241,7 +242,7 @@ const CohortTable = ({ title, cohorts, getNps, expanded, detail, onToggle }) => 
         return (
           <React.Fragment key={c.cohort_id}>
             <button
-              className="w-full grid grid-cols-[1fr_80px_80px_120px_120px_100px] items-center px-6 py-3.5 border-b border-[#F0F0F0] last:border-0 hover:bg-[#FAFAFA] transition-colors text-left cursor-pointer"
+              className="w-full grid grid-cols-[1fr_80px_80px_80px_120px_120px_100px] items-center px-6 py-3.5 border-b border-[#F0F0F0] last:border-0 hover:bg-[#FAFAFA] transition-colors text-left cursor-pointer"
               onClick={() => onToggle(c)}
             >
               {/* name + date */}
@@ -257,7 +258,12 @@ const CohortTable = ({ title, cohorts, getNps, expanded, detail, onToggle }) => 
                 </span>
               </div>
 
-              {/* enrolled */}
+              {/* original enrolled */}
+              <div className="text-right">
+                <span className="text-sm text-slate-500">{c.original_enrolled}</span>
+              </div>
+
+              {/* active builders */}
               <div className="text-right">
                 <span className="text-sm font-medium text-[#1E1E1E]">{c.enrolled}</span>
               </div>
