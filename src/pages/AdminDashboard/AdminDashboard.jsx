@@ -10,7 +10,9 @@ import SurveyTab from './tabs/SurveyTab';
 import AssessmentsTab from './tabs/AssessmentsTab';
 import L2SelectionsTab from './tabs/L2SelectionsTab';
 import LogsTab from './tabs/LogsTab';
-import { fetchPursuitBuilderCohorts } from './utils/cohortUtils';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
+const STORAGE_KEY = 'pursuit_program_slug';
 
 const TABS = [
   { id: 'overview',    label: 'Overview' },
@@ -23,7 +25,7 @@ const TABS = [
   { id: 'logs',        label: 'Logs' },
 ];
 
-const TAB_BASE = 'px-5 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap';
+const TAB_BASE = 'px-5 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap';
 const TAB_ACTIVE = 'border-[#4242EA] text-[#4242EA]';
 const TAB_INACTIVE = 'border-transparent text-slate-500 hover:text-[#1E1E1E] hover:border-slate-300';
 
@@ -31,21 +33,42 @@ const AdminDashboard = () => {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
-  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
   const [activeTab, setActiveTab] = useState('overview');
 
+  const [programs, setPrograms] = useState([]);
+  const [programSlug, setProgramSlug] = useState(() => localStorage.getItem(STORAGE_KEY) || 'ai-native-builder');
   const [cohorts, setCohorts] = useState([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
 
+  // Load programs once
   useEffect(() => {
     if (!token) return;
-    fetchPursuitBuilderCohorts(token)
-      .then(data => {
-        setCohorts(data);
-        if (data.length > 0) setSelectedCohortId(data[0].cohort_id);
-      })
-      .catch(console.error);
+    fetch(`${API_BASE}/api/admin/dashboard/programs`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.json())
+      .then(data => { if (data.success) setPrograms(data.programs); })
+      .catch(() => {});
   }, [token]);
+
+  // Load cohorts when program changes
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE}/api/admin/dashboard/program-cohorts?programSlug=${programSlug}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.json())
+      .then(data => {
+        const list = data.cohorts || [];
+        setCohorts(list);
+        if (list.length > 0) setSelectedCohortId(list[0].cohort_id);
+        else setSelectedCohortId('');
+      })
+      .catch(() => { setCohorts([]); setSelectedCohortId(''); });
+  }, [token, programSlug]);
+
+  const handleProgramChange = (slug) => {
+    setProgramSlug(slug);
+    localStorage.setItem(STORAGE_KEY, slug);
+  };
 
   if (!canAccessPage('admin_dashboard')) {
     return (
@@ -60,16 +83,33 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#EFEFEF]">
-      {!isSecondaryNavPage && (
-        <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
-                Cohort Hub
-              </h1>
-              <p className="text-slate-500 text-sm mt-0.5">Per-cohort facilitator workspace</p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+      {/* Header */}
+      <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
+              Cohort Hub
+            </h1>
+            <p className="text-slate-500 text-sm mt-0.5">Per-cohort facilitator workspace</p>
+          </div>
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {programs.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500 font-medium">Program</label>
+                <select
+                  value={programSlug}
+                  onChange={(e) => handleProgramChange(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
+                >
+                  {programs.map(p => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.name}{p.organization ? ` — ${p.organization}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
               <label className="text-xs text-slate-500 font-medium">Cohort</label>
               <select
                 value={selectedCohortId}
@@ -81,10 +121,10 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Tab bar */}
-      <div className="bg-white border-b border-[#E3E3E3] px-8 flex overflow-x-auto">
+      <div className="bg-white border-b border-[#E3E3E3] px-8">
         <div className="max-w-7xl mx-auto w-full flex">
           {TABS.map(tab => (
             <button
