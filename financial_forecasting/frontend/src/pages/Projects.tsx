@@ -26,6 +26,7 @@ import GanttChart from '../components/projects/GanttChart';
 import ProjectSidebar from '../components/projects/ProjectSidebar';
 import ImportCsvDialog from '../components/projects/ImportCsvDialog';
 import LinkedOpportunities from '../components/projects/LinkedOpportunities';
+import ProjectTeam from '../components/projects/ProjectTeam';
 
 const PREFS_KEY = 'pursuit-projects-prefs';
 
@@ -63,6 +64,7 @@ const Projects: React.FC = () => {
   const {
     projects, isLoading: projectsLoading, createProject, deleteProject,
     deletedProjects, restoreProject, purgeProject,
+    addContributor, removeContributor, transferOwnership,
   } = useProjects();
 
   useEffect(() => {
@@ -86,7 +88,10 @@ const Projects: React.FC = () => {
     });
   }, [projects]);
 
-  const { workstreams, projectName, isLoading: dataLoading, error, mutations, invalidate } = useProjectData(prefs.selectedProjectId);
+  const {
+    workstreams, projectName, ownerEmail, contributors,
+    isLoading: dataLoading, error, mutations, invalidate,
+  } = useProjectData(prefs.selectedProjectId);
 
   const filtered = useMemo(
     () => applyFilters(workstreams, filters),
@@ -167,6 +172,16 @@ const Projects: React.FC = () => {
               <Box sx={{ mt: 0.5 }}>
                 <LinkedOpportunities projectId={prefs.selectedProjectId} />
               </Box>
+            )}
+            {prefs.selectedProjectId && (ownerEmail || contributors.length > 0) && (
+              <ProjectTeam
+                projectId={prefs.selectedProjectId}
+                ownerEmail={ownerEmail}
+                contributors={contributors}
+                onAddContributor={addContributor}
+                onRemoveContributor={removeContributor}
+                onTransferOwnership={transferOwnership}
+              />
             )}
           </Box>
 

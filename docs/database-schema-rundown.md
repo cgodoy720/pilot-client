@@ -120,11 +120,26 @@ id              UUID PK
 name            TEXT
 description     TEXT
 opportunity_id  TEXT NULL          -- optional link to SF Opportunity
+owner_email     TEXT NULL          -- project owner email (M19)
+created_by      TEXT NULL          -- who created the project (M19)
 created_at      TIMESTAMPTZ
 updated_at      TIMESTAMPTZ
 deleted_at      TIMESTAMPTZ           -- soft delete (M18)
 deleted_by      TEXT                  -- audit: who deleted
 ```
+
+### `bedrock.project_contributor` (M19)
+```
+id              UUID PK
+project_id      UUID FK -> project (CASCADE)
+user_email      TEXT NOT NULL
+role            TEXT CHECK ('editor') DEFAULT 'editor'
+added_by        TEXT
+added_at        TIMESTAMPTZ
+UNIQUE(project_id, user_email)
+```
+Many-to-many editors table. Owner is stored on `project.owner_email`, not here.
+Contributors survive soft-delete (CASCADE only fires on hard purge).
 
 ### `bedrock.workstream`
 ```

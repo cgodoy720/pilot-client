@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { apiService } from '../../services/api';
 import { AIJI_PROJECT_ID } from './constants';
-import type { Workstream, ProjectMutations } from './types';
+import type { Workstream, ProjectMutations, ProjectContributor } from './types';
 
 export function useProjectData(projectId: string | null = AIJI_PROJECT_ID) {
   const queryClient = useQueryClient();
@@ -21,6 +21,9 @@ export function useProjectData(projectId: string | null = AIJI_PROJECT_ID) {
 
   const workstreams: Workstream[] = projectData?.workstreams || [];
   const projectName: string = projectData?.name || '';
+  const ownerEmail: string | null = projectData?.owner_email || null;
+  const createdBy: string | null = projectData?.created_by || null;
+  const contributors: ProjectContributor[] = projectData?.contributors || [];
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries(QUERY_KEY);
@@ -79,5 +82,5 @@ export function useProjectData(projectId: string | null = AIJI_PROJECT_ID) {
       deleteMilestoneMutation.mutate(milestoneId),
   };
 
-  return { workstreams, projectName, isLoading, error, mutations, invalidate };
+  return { workstreams, projectName, ownerEmail, createdBy, contributors, isLoading, error, mutations, invalidate };
 }
