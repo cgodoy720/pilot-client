@@ -45,7 +45,7 @@ const CohortComparisonTab = () => {
   const [completed, setCompleted] = useState([]);
   const [npsMap, setNpsMap]       = useState({});   // cohort name → latest NPS
   const [expanded, setExpanded]   = useState(null); // cohort_id or null
-  const [detail, setDetail]       = useState({});   // cohort_id → { withdrawals }
+  const [detail, setDetail]       = useState({});   // cohort_id → { withdrawals, quotes }
 
   // ── fetch cohort metrics ──────────────────────────────────────────────────
 
@@ -96,18 +96,53 @@ const CohortComparisonTab = () => {
 
     if (detail[cid]) return; // already fetched
 
+    // Fetch withdrawals + NPS responses in parallel
+    const startDate = cohort.start_date
+      ? cohort.start_date.split('T')[0]
+      : '2024-01-01';
+    const today = new Date().toISOString().split('T')[0];
+
     try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/dashboard/cohort-week-detail?cohortId=${cid}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const [detailRes, responsesRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/dashboard/cohort-week-detail?cohortId=${cid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(r => r.json()),
+        fetch(`${LEGACY_API}/surveys/responses?startDate=${startDate}&endDate=${today}`)
+          .then(r => r.json())
+          .catch(() => []),
+      ]);
+
+      // Filter responses to this cohort (exact or partial name match)
+      const allResponses = Array.isArray(responsesRes) ? responsesRes : [];
+      const cohortResponses = allResponses.filter(r =>
+        r.cohort === cohort.name ||
+        (r.cohort && cohort.name &&
+          (r.cohort.toLowerCase().includes(cohort.name.toLowerCase().slice(0, 10)) ||
+           cohort.name.toLowerCase().includes(r.cohort.toLowerCase().slice(0, 10))))
       );
-      const json = await res.json();
+
+      // Sort newest first, take up to 3 with any text
+      const quotes = cohortResponses
+        .filter(r => r.what_we_did_well || r.what_to_improve)
+        .sort((a, b) => {
+          const da = new Date(a.task_date?.value || a.task_date || 0);
+          const db = new Date(b.task_date?.value || b.task_date || 0);
+          return db - da;
+        })
+        .slice(0, 3)
+        .map(r => ({
+          score: r.referral_likelihood,
+          well: r.what_we_did_well || null,
+          improve: r.what_to_improve || null,
+          date: r.task_date?.value || r.task_date || null,
+        }));
+
       setDetail(prev => ({
         ...prev,
-        [cid]: { withdrawals: json.withdrawals || [] },
+        [cid]: { withdrawals: detailRes.withdrawals || [], quotes },
       }));
     } catch {
-      setDetail(prev => ({ ...prev, [cid]: { withdrawals: [] } }));
+      setDetail(prev => ({ ...prev, [cid]: { withdrawals: [], quotes: [] } }));
     }
   };
 
@@ -264,7 +299,9 @@ const ExpandedRow = ({ cohort, detail, nps }) => {
   const loading = !detail;
 
   return (
-    <div className="bg-[#FAFAFA] border-b border-[#E3E3E3] px-6 py-4">
+    <div className="bg-[#FAFAFA] border-b border-[#E3E3E3] px-6 py-4 space-y-4">
+
+      {/* top row: withdrawals + NPS score */}
       <div className="grid grid-cols-2 gap-6 max-w-2xl">
 
         {/* withdrawals */}
@@ -290,7 +327,7 @@ const ExpandedRow = ({ cohort, detail, nps }) => {
           )}
         </div>
 
-        {/* NPS snapshot */}
+        {/* NPS score */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
             NPS (latest)
@@ -309,22 +346,62 @@ const ExpandedRow = ({ cohort, detail, nps }) => {
 
       </div>
 
+      {/* NPS response highlights */}
+      {loading ? (
+        <p className="text-xs text-slate-400">Loading responses...</p>
+      ) : detail.quotes && detail.quotes.length > 0 ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            Recent Responses
+          </p>
+          <div className="space-y-2">
+            {detail.quotes.map((q, i) => {
+              const isPromoter = q.score >= 9;
+              const isDetractor = q.score <= 6;
+              const scoreColor = isPromoter ? 'text-green-600 bg-green-50 border-green-200'
+                : isDetractor ? 'text-red-500 bg-red-50 border-red-200'
+                : 'text-yellow-600 bg-yellow-50 border-yellow-200';
+              return (
+                <div key={i} className="bg-white border border-[#E3E3E3] rounded px-3 py-2.5 text-xs space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-1.5 py-0.5 rounded border font-semibold text-[10px] ${scoreColor}`}>
+                      {q.score}/10
+                    </span>
+                    {q.date && (
+                      <span className="text-slate-400">
+                        {new Date(q.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
+                  {q.well && (
+                    <p className="text-slate-600">
+                      <span className="font-medium text-slate-500">Well: </span>{q.well}
+                    </p>
+                  )}
+                  {q.improve && (
+                    <p className="text-slate-600">
+                      <span className="font-medium text-slate-500">Improve: </span>{q.improve}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : detail.quotes && detail.quotes.length === 0 ? (
+        <p className="text-xs text-slate-400">No survey responses found for this cohort.</p>
+      ) : null}
+
       {/* metric context */}
-      <div className="mt-4 flex gap-6 text-xs text-slate-500">
+      <div className="flex gap-6 text-xs text-slate-500">
         {cohort.attendance.previous != null && (
-          <span>
-            Attendance prev week: <strong>{cohort.attendance.previous}%</strong>
-          </span>
+          <span>Attendance prev week: <strong>{cohort.attendance.previous}%</strong></span>
         )}
         {cohort.submission_rate.previous != null && (
-          <span>
-            Submissions prev week: <strong>{cohort.submission_rate.previous}%</strong>
-          </span>
+          <span>Submissions prev week: <strong>{cohort.submission_rate.previous}%</strong></span>
         )}
         {cohort.current_week != null && (
-          <span>
-            Currently on Week <strong>{cohort.current_week}</strong>
-          </span>
+          <span>Currently on Week <strong>{cohort.current_week}</strong></span>
         )}
       </div>
     </div>
