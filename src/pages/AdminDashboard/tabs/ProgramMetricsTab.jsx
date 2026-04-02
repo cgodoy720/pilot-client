@@ -46,7 +46,7 @@ const fmt = (d) => {
   catch { return d; }
 };
 
-const ProgramMetricsTab = () => {
+const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
   const token = useAuthStore((s) => s.token);
 
   // ---- Funnel state ----
@@ -57,9 +57,10 @@ const ProgramMetricsTab = () => {
 
   // ---- Filters ----
   const [cohorts, setCohorts] = useState([]);
+  const [referralChannels, setReferralChannels] = useState([]);
   const [referralSources, setReferralSources] = useState([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
-  const [filters, setFilters] = useState({ gender: '', nycha: '', referral: '' });
+  const [filters, setFilters] = useState({ gender: '', nycha: '', channel: '', source: '' });
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ---- Centering (scale reference) ----
@@ -94,8 +95,10 @@ const ProgramMetricsTab = () => {
     if (!token) return;
     fetch(`${API_URL}/api/permissions/cohorts?type=builder`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.success) setCohorts(d.data || d.cohorts || []); }).catch(() => {});
-    fetch(`${API_URL}/api/admin/dashboard/referral-sources`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { if (d.success) setReferralSources(d.sources || []); }).catch(() => {});
+    fetch(`${API_URL}/api/admin/dashboard/referral-filters`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => {
+        if (d.success) { setReferralChannels(d.channels || []); setReferralSources(d.sources || []); }
+      }).catch(() => {});
   }, [token]);
 
   // ---- Funnel fetch ----
@@ -103,10 +106,12 @@ const ProgramMetricsTab = () => {
     if (!token) return;
     setLoading(true); setError(null);
     const params = new URLSearchParams();
+    params.set('programSlug', programSlug);
     if (selectedCohortId) params.set('cohortId', selectedCohortId);
     if (filters.gender) params.set('gender', filters.gender);
     if (filters.nycha !== '') params.set('nycha', filters.nycha);
-    if (filters.referral) params.set('referral', filters.referral);
+    if (filters.channel) params.set('channel', filters.channel);
+    if (filters.source) params.set('source', filters.source);
     const qs = params.toString();
     fetch(`${API_URL}/api/admin/dashboard/program-funnel${qs ? `?${qs}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -120,7 +125,7 @@ const ProgramMetricsTab = () => {
       })
       .catch(() => setError('Network error'))
       .finally(() => setLoading(false));
-  }, [token, selectedCohortId, filters]);
+  }, [token, selectedCohortId, filters, programSlug]);
 
   useEffect(() => { fetchFunnel(); }, [fetchFunnel]);
 
@@ -249,7 +254,7 @@ const ProgramMetricsTab = () => {
 
   const centeredLabel = stages[centeredIdx]?.label || stages[0]?.label || 'Leads';
 
-  const activeFilterCount = [filters.gender, filters.nycha, filters.referral].filter(Boolean).length;
+  const activeFilterCount = [filters.gender, filters.nycha, filters.channel, filters.source].filter(Boolean).length;
 
   // ---- Sort toggle ----
   const handleSortClick = (key) => {
@@ -336,7 +341,8 @@ const ProgramMetricsTab = () => {
                 <span className="ml-1 bg-[#4242EA] text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">{activeFilterCount}</span>
               )}
             </Button>
-            {filtersOpen && (
+            {filtersOpen && <>
+              <div className="fixed inset-0 z-10" onClick={() => setFiltersOpen(false)} />
               <div className="absolute right-0 top-9 z-20 bg-white border border-[#E3E3E3] rounded-lg shadow-lg p-4 w-64 space-y-3">
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-1">Gender</p>
@@ -363,8 +369,18 @@ const ProgramMetricsTab = () => {
                   </Select>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-600 mb-1">Referral Source</p>
-                  <Select value={filters.referral || '__none'} onValueChange={v => setFilters(f => ({ ...f, referral: v === '__none' ? '' : v }))}>
+                  <p className="text-xs font-medium text-slate-600 mb-1">Channel</p>
+                  <Select value={filters.channel || '__none'} onValueChange={v => setFilters(f => ({ ...f, channel: v === '__none' ? '' : v }))}>
+                    <SelectTrigger className="h-8 text-xs border-[#E3E3E3]"><SelectValue placeholder="Any" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none" className="text-xs">Any</SelectItem>
+                      {referralChannels.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-1">Source</p>
+                  <Select value={filters.source || '__none'} onValueChange={v => setFilters(f => ({ ...f, source: v === '__none' ? '' : v }))}>
                     <SelectTrigger className="h-8 text-xs border-[#E3E3E3]"><SelectValue placeholder="Any" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none" className="text-xs">Any</SelectItem>
@@ -374,10 +390,10 @@ const ProgramMetricsTab = () => {
                 </div>
                 {activeFilterCount > 0 && (
                   <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-slate-500"
-                    onClick={() => setFilters({ gender: '', nycha: '', referral: '' })}>Clear filters</Button>
+                    onClick={() => setFilters({ gender: '', nycha: '', channel: '', source: '' })}>Clear filters</Button>
                 )}
               </div>
-            )}
+            </>}
           </div>
         </div>
       </div>
