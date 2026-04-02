@@ -11,6 +11,7 @@ import {
   ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { usePermissions } from '../../contexts/PermissionsContext';
+import { useAuth } from '../../contexts/AuthContext';
 import type { Project } from './types';
 import type { DeletedProject } from './useProjects';
 
@@ -26,12 +27,19 @@ interface ProjectSidebarProps {
   onPurgeProject?: (id: string) => void;
 }
 
+const RETENTION_DAYS = 60;
+
 function timeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const days = Math.floor(diff / 86400000);
   if (days === 0) return 'today';
   if (days === 1) return '1d ago';
   return `${days}d ago`;
+}
+
+function retentionDaysLeft(deletedAt: string): number {
+  const days = Math.floor((Date.now() - new Date(deletedAt).getTime()) / 86400000);
+  return Math.max(0, RETENTION_DAYS - days);
 }
 
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
@@ -45,6 +53,8 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const [trashOpen, setTrashOpen] = useState(false);
   const [purgeTarget, setPurgeTarget] = useState<DeletedProject | null>(null);
   const { isAdmin } = usePermissions();
+  const { user } = useAuth();
+  const currentEmail = user?.email || '';
 
   const handleCreate = async () => {
     const name = newProjectName.trim();
@@ -96,7 +106,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
               {p.id === selectedId ? <FolderIcon fontSize="small" color="primary" /> : <FolderClosedIcon fontSize="small" color="action" />}
             </ListItemIcon>
             <ListItemText primary={p.name} primaryTypographyProps={{ variant: 'body2', fontWeight: p.id === selectedId ? 600 : 400, noWrap: true }} />
-            {projects.length > 1 && (
+            {projects.length > 1 && (isAdmin || (p.owner_email && currentEmail === p.owner_email)) && (
               <Tooltip title="Move to trash">
                 <IconButton size="small" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setDeleteTarget(p); }} sx={{ opacity: 0.4, '&:hover': { opacity: 1 } }}>
                   <DeleteIcon sx={{ fontSize: 14 }} />
@@ -132,18 +142,29 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                       {timeAgo(dp.deleted_at)}
                     </Typography>
                   </Box>
-                  <Tooltip title="Restore">
-                    <IconButton size="small" onClick={() => onRestoreProject?.(dp.id)} sx={{ p: 0.25 }}>
-                      <RestoreIcon sx={{ fontSize: 14, color: 'success.main' }} />
-                    </IconButton>
-                  </Tooltip>
-                  {isAdmin && (
-                    <Tooltip title="Delete permanently">
-                      <IconButton size="small" onClick={() => setPurgeTarget(dp)} sx={{ p: 0.25 }}>
-                        <PurgeIcon sx={{ fontSize: 14, color: 'error.main' }} />
+                  {(isAdmin || (dp.owner_email && currentEmail === dp.owner_email)) && (
+                    <Tooltip title="Restore">
+                      <IconButton size="small" onClick={() => onRestoreProject?.(dp.id)} sx={{ p: 0.25 }}>
+                        <RestoreIcon sx={{ fontSize: 14, color: 'success.main' }} />
                       </IconButton>
                     </Tooltip>
                   )}
+                  {isAdmin && (() => {
+                    const daysLeft = retentionDaysLeft(dp.deleted_at);
+                    return daysLeft > 0 ? (
+                      <Tooltip title={`Permanent delete available in ${daysLeft}d`}>
+                        <span><IconButton size="small" disabled sx={{ p: 0.25 }}>
+                          <PurgeIcon sx={{ fontSize: 14 }} />
+                        </IconButton></span>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="Delete permanently">
+                        <IconButton size="small" onClick={() => setPurgeTarget(dp)} sx={{ p: 0.25 }}>
+                          <PurgeIcon sx={{ fontSize: 14, color: 'error.main' }} />
+                        </IconButton>
+                      </Tooltip>
+                    );
+                  })()}
                 </Box>
               ))}
             </List>

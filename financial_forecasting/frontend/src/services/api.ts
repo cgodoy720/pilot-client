@@ -512,6 +512,19 @@ export const apiService = {
   importProjectData: (projectId: string, data: { workstreams: any[]; replace?: boolean }) =>
     api.post(`/api/projects/${projectId}/import`, data),
 
+  // Project ownership & contributors (M19)
+  getProjectUsers: () =>
+    api.get('/api/projects/users'),
+
+  addProjectContributor: (projectId: string, data: { user_email: string }) =>
+    api.post(`/api/projects/${projectId}/contributors`, data),
+
+  removeProjectContributor: (projectId: string, userEmail: string) =>
+    api.delete(`/api/projects/${projectId}/contributors/${encodeURIComponent(userEmail)}`),
+
+  transferProjectOwnership: (projectId: string, data: { new_owner_email: string }) =>
+    api.put(`/api/projects/${projectId}/owner`, data),
+
   createWorkstream: (projectId: string, data: { name: string; description?: string; sort_order?: number }) =>
     api.post(`/api/projects/${projectId}/workstreams`, data),
 

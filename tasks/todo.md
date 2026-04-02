@@ -96,14 +96,14 @@ PRs 2, 4✓, 8✓, 9, 10✓ ship independently.
 - See `tasks/pebble-evolution-roadmap.md` for Stages 2-4 (future work)
 - See `tasks/pebble-stage1-issues.md` for known issues and deferred items
 
-## Project Delete-Safety — Shipped as M18 (2026-03-30)
+## Project Delete-Safety — M18 + M19 Complete (2026-03-31)
 
-> Core soft-delete shipped in M18 (PR #85). Ownership model deferred to M19.
+> Core soft-delete shipped in M18 (PR #85). Ownership model shipped in M19.
 
 ### Scope
-1. **Project Ownership Model** — Deferred to M19
+1. ~~**Project Ownership Model**~~ — ✅ Shipped in M19: `owner_email`/`created_by` on project, `project_contributor` table, owner-only delete/restore, contributor management UI
 2. ~~**Soft-Delete with Trash Bin**~~ — ✅ Shipped in M18
-3. **Permission Checks** — Deferred to M19 (currently any auth user can delete; M19 adds owner-only)
+3. ~~**Permission Checks**~~ — ✅ Shipped in M19: owner+admin gate on delete/restore, inline ownership checks, defense-in-depth UI gating
 4. ~~**Trash Recovery**~~ — ✅ Shipped in M18
 
 ## Future Considerations

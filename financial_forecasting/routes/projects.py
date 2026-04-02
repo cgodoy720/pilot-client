@@ -1,7 +1,9 @@
 """Projects API router — CRUD for projects, workstreams, milestones, and tasks."""
 
 import uuid
+import math
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -86,6 +88,14 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
 
 
+class ContributorAdd(BaseModel):
+    user_email: str
+
+
+class OwnerTransfer(BaseModel):
+    new_owner_email: str
+
+
 class OpportunityLink(BaseModel):
     opportunity_id: str
     role: str = "linked"
@@ -119,6 +129,53 @@ class ProjectImportPayload(BaseModel):
     replace: bool = False
 
 
+# ── Ownership helper (M19) ──
+
+
+async def _check_project_role(
+    conn, user: dict, project_id: uuid.UUID,
+    *, require_owner: bool = False,
+) -> dict:
+    """Check user's role on a project. Returns project row or raises 403/404.
+
+    If require_owner=True, only owner + admin can proceed.
+    If require_owner=False, owner + editors + admin can proceed.
+    """
+    project = await conn.fetchrow(
+        "SELECT id, name, owner_email FROM bedrock.project "
+        "WHERE id = $1 AND deleted_at IS NULL", project_id
+    )
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    email = user.get("email", "")
+    permissions = user.get("_permissions", {})
+    is_admin = permissions.get("manage_users_roles", False)
+
+    if is_admin:
+        return dict(project)
+
+    if project["owner_email"] and project["owner_email"] == email:
+        return dict(project)
+
+    if require_owner:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the project owner or an admin can perform this action",
+        )
+
+    contributor = await conn.fetchrow(
+        "SELECT id FROM bedrock.project_contributor "
+        "WHERE project_id = $1 AND user_email = $2", project_id, email
+    )
+    if not contributor:
+        raise HTTPException(
+            status_code=403, detail="You are not a contributor on this project"
+        )
+
+    return dict(project)
+
+
 # ── Project endpoints ──
 
 
@@ -126,8 +183,8 @@ class ProjectImportPayload(BaseModel):
 async def list_projects(user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
     """List all projects."""
     rows = await conn.fetch(
-        "SELECT id, name, description, created_at, updated_at FROM bedrock.project "
-        "WHERE deleted_at IS NULL ORDER BY created_at"
+        "SELECT id, name, description, owner_email, created_at, updated_at "
+        "FROM bedrock.project WHERE deleted_at IS NULL ORDER BY created_at"
     )
     return {"success": True, "data": [dict(r) for r in rows]}
 
@@ -136,16 +193,32 @@ async def list_projects(user=Depends(check_permission("view_projects")), conn=De
 async def list_deleted_projects(user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """List soft-deleted projects (trash view)."""
     rows = await conn.fetch(
-        "SELECT id, name, description, deleted_at, deleted_by "
+        "SELECT id, name, description, owner_email, deleted_at, deleted_by "
         "FROM bedrock.project WHERE deleted_at IS NOT NULL "
         "ORDER BY deleted_at DESC"
     )
     return {"success": True, "data": [
         {"id": str(r["id"]), "name": r["name"], "description": r["description"],
+         "owner_email": r["owner_email"],
          "deleted_at": r["deleted_at"].isoformat() if r["deleted_at"] else None,
          "deleted_by": r["deleted_by"]}
         for r in rows
     ]}
+
+
+@router.get("/projects/users")
+async def list_project_users(user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
+    """List active users eligible for project contributor picker (have edit_projects or admin)."""
+    rows = await conn.fetch(
+        "SELECT au.email, au.name "
+        "FROM bedrock.app_user au "
+        "JOIN bedrock.permission_profile pp ON pp.id = au.profile_id "
+        "WHERE au.is_active = true "
+        "AND (pp.permissions @> '{\"edit_projects\": true}'::jsonb "
+        "     OR pp.permissions @> '{\"manage_users_roles\": true}'::jsonb) "
+        "ORDER BY au.name, au.email"
+    )
+    return {"success": True, "data": [dict(r) for r in rows]}
 
 
 @router.get("/projects/{project_id}")
@@ -221,10 +294,24 @@ async def get_project(project_id: str, user=Depends(check_permission("view_proje
                 "sort_order": r["t_sort"],
             })
 
+    contributors = await conn.fetch(
+        "SELECT user_email, role, added_by, added_at "
+        "FROM bedrock.project_contributor WHERE project_id = $1 ORDER BY added_at",
+        pid,
+    )
+
     result = {
         "id": str(project["id"]),
         "name": project["name"],
         "description": project["description"],
+        "owner_email": project["owner_email"],
+        "created_by": project["created_by"],
+        "contributors": [
+            {"user_email": c["user_email"], "role": c["role"],
+             "added_by": c["added_by"],
+             "added_at": c["added_at"].isoformat() if c["added_at"] else None}
+            for c in contributors
+        ],
         "workstreams": list(ws_map.values()),
     }
     return {"success": True, "data": result}
@@ -232,22 +319,26 @@ async def get_project(project_id: str, user=Depends(check_permission("view_proje
 
 @router.post("/projects")
 async def create_project(body: ProjectCreate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
-    """Create a new project."""
+    """Create a new project. The creating user becomes the owner."""
+    creator_email = user.get("email", "")
     row = await conn.fetchrow(
-        "INSERT INTO bedrock.project (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at",
-        body.name, body.description,
+        "INSERT INTO bedrock.project (name, description, owner_email, created_by) "
+        "VALUES ($1, $2, $3, $3) RETURNING id, name, description, owner_email, created_by, created_at",
+        body.name, body.description, creator_email,
     )
     return {"success": True, "data": {
         "id": str(row["id"]),
         "name": row["name"],
         "description": row["description"],
+        "owner_email": row["owner_email"],
+        "created_by": row["created_by"],
         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
     }}
 
 
 @router.put("/projects/{project_id}")
 async def update_project(project_id: str, body: ProjectUpdate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
-    """Update a project."""
+    """Update a project (name/description)."""
     pid = uuid.UUID(project_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -260,9 +351,24 @@ async def update_project(project_id: str, body: ProjectUpdate, user=Depends(chec
 
 @router.delete("/projects/{project_id}")
 async def delete_project(project_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
-    """Soft-delete a project and cascade to all children."""
+    """Soft-delete a project and cascade to all children. Owner or admin only."""
     pid = uuid.UUID(project_id)
     email = user.get("email", "")
+    permissions = user.get("_permissions", {})
+    is_admin = permissions.get("manage_users_roles", False)
+
+    # Ownership gate: only owner or admin can delete
+    owner_row = await conn.fetchrow(
+        "SELECT owner_email FROM bedrock.project WHERE id = $1 AND deleted_at IS NULL", pid
+    )
+    if not owner_row:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not is_admin and (not owner_row["owner_email"] or owner_row["owner_email"] != email):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the project owner or an admin can delete this project",
+        )
+
     async with conn.transaction():
         result = await conn.execute(
             "UPDATE bedrock.project SET deleted_at = now(), deleted_by = $2 "
@@ -296,15 +402,27 @@ async def delete_project(project_id: str, user=Depends(check_permission("edit_pr
 
 @router.post("/projects/{project_id}/restore")
 async def restore_project(project_id: str, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
-    """Restore a soft-deleted project and its cascade-deleted children."""
+    """Restore a soft-deleted project and its cascade-deleted children. Owner or admin only."""
     pid = uuid.UUID(project_id)
     async with conn.transaction():
         project = await conn.fetchrow(
-            "SELECT deleted_at FROM bedrock.project WHERE id = $1 AND deleted_at IS NOT NULL",
+            "SELECT deleted_at, owner_email FROM bedrock.project "
+            "WHERE id = $1 AND deleted_at IS NOT NULL",
             pid,
         )
         if not project:
             raise HTTPException(status_code=404, detail="Deleted project not found")
+
+        # Inline ownership check (can't use helper — project is deleted)
+        email = user.get("email", "")
+        permissions = user.get("_permissions", {})
+        is_admin = permissions.get("manage_users_roles", False)
+        if not is_admin and (not project["owner_email"] or project["owner_email"] != email):
+            raise HTTPException(
+                status_code=403,
+                detail="Only the project owner or an admin can restore this project",
+            )
+
         cascade_ts = project["deleted_at"]
 
         await conn.execute(
@@ -335,15 +453,117 @@ async def restore_project(project_id: str, user=Depends(check_permission("edit_p
 
 @router.delete("/projects/{project_id}/purge")
 async def purge_project(project_id: str, user=Depends(require_admin), conn=Depends(get_db)):
-    """Permanently delete a soft-deleted project. Admin only. CASCADE handles children."""
+    """Permanently delete a soft-deleted project. Admin only, after 60-day retention."""
     pid = uuid.UUID(project_id)
     check = await conn.fetchrow(
-        "SELECT id FROM bedrock.project WHERE id = $1 AND deleted_at IS NOT NULL", pid
+        "SELECT id, deleted_at FROM bedrock.project WHERE id = $1 AND deleted_at IS NOT NULL", pid
     )
     if not check:
         raise HTTPException(status_code=404, detail="Deleted project not found")
+
+    # Enforce 60-day retention period
+    deleted_at = check["deleted_at"]
+    if deleted_at.tzinfo is None:
+        deleted_at = deleted_at.replace(tzinfo=timezone.utc)
+    retention = timedelta(days=60)
+    age = datetime.now(timezone.utc) - deleted_at
+    if age < retention:
+        days_left = math.ceil((retention - age).total_seconds() / 86400)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Projects must remain in trash for 60 days before permanent deletion. {days_left} day(s) remaining.",
+        )
+
     await conn.execute("DELETE FROM bedrock.project WHERE id = $1", pid)
     return {"success": True, "data": {"message": "Project permanently deleted"}}
+
+
+# ── Project Contributors & Ownership (M19) ──
+
+
+@router.post("/projects/{project_id}/contributors")
+async def add_contributor(
+    project_id: str, body: ContributorAdd,
+    user=Depends(check_permission("edit_projects")), conn=Depends(get_db),
+):
+    """Add an editor to a project. Owner or admin only."""
+    pid = uuid.UUID(project_id)
+    proj = await _check_project_role(conn, user, pid, require_owner=True)
+
+    if body.user_email == proj["owner_email"]:
+        raise HTTPException(status_code=400, detail="Cannot add the owner as a contributor")
+
+    row = await conn.fetchrow(
+        "INSERT INTO bedrock.project_contributor (project_id, user_email, added_by) "
+        "VALUES ($1, $2, $3) "
+        "ON CONFLICT (project_id, user_email) DO NOTHING "
+        "RETURNING id, project_id, user_email, role, added_by, added_at",
+        pid, body.user_email, user.get("email", ""),
+    )
+    if not row:
+        return {"success": True, "data": None, "message": "User is already a contributor"}
+    return {"success": True, "data": {
+        "user_email": row["user_email"], "role": row["role"],
+        "added_by": row["added_by"],
+        "added_at": row["added_at"].isoformat() if row["added_at"] else None,
+    }}
+
+
+@router.delete("/projects/{project_id}/contributors/{user_email}")
+async def remove_contributor(
+    project_id: str, user_email: str,
+    user=Depends(check_permission("edit_projects")), conn=Depends(get_db),
+):
+    """Remove an editor from a project. Owner or admin only."""
+    pid = uuid.UUID(project_id)
+    await _check_project_role(conn, user, pid, require_owner=True)
+
+    result = await conn.execute(
+        "DELETE FROM bedrock.project_contributor "
+        "WHERE project_id = $1 AND user_email = $2",
+        pid, user_email,
+    )
+    if result == "DELETE 0":
+        raise HTTPException(status_code=404, detail="Contributor not found")
+    return {"success": True, "data": {"message": "Contributor removed"}}
+
+
+@router.put("/projects/{project_id}/owner")
+async def transfer_ownership(
+    project_id: str, body: OwnerTransfer,
+    user=Depends(check_permission("edit_projects")), conn=Depends(get_db),
+):
+    """Transfer project ownership. Owner or admin only.
+
+    Old owner becomes editor; new owner is removed from contributors.
+    """
+    pid = uuid.UUID(project_id)
+    proj = await _check_project_role(conn, user, pid, require_owner=True)
+    old_owner = proj["owner_email"]
+
+    if body.new_owner_email == old_owner:
+        raise HTTPException(status_code=400, detail="New owner is already the owner")
+
+    async with conn.transaction():
+        # Demote old owner to editor (no-op if already a contributor)
+        if old_owner:
+            await conn.execute(
+                "INSERT INTO bedrock.project_contributor (project_id, user_email, added_by) "
+                "VALUES ($1, $2, $3) ON CONFLICT (project_id, user_email) DO NOTHING",
+                pid, old_owner, user.get("email", ""),
+            )
+        # Set new owner
+        await conn.execute(
+            "UPDATE bedrock.project SET owner_email = $2 WHERE id = $1",
+            pid, body.new_owner_email,
+        )
+        # Remove new owner from contributors (they're now the owner)
+        await conn.execute(
+            "DELETE FROM bedrock.project_contributor "
+            "WHERE project_id = $1 AND user_email = $2",
+            pid, body.new_owner_email,
+        )
+    return {"success": True, "data": {"message": f"Ownership transferred to {body.new_owner_email}"}}
 
 
 # ── Project ↔ Opportunity Linking ──

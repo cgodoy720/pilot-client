@@ -92,6 +92,28 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN ALTER TABLE bedrock.project_task ADD COLUMN deleted_by TEXT;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
+-- ---------------------------------------------------------------------------
+-- Ownership columns for project (M19 — project ownership model)
+-- ---------------------------------------------------------------------------
+DO $$ BEGIN ALTER TABLE bedrock.project ADD COLUMN owner_email TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE bedrock.project ADD COLUMN created_by TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Project contributors (M19 — many-to-many editors)
+CREATE TABLE IF NOT EXISTS bedrock.project_contributor (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id  UUID NOT NULL REFERENCES bedrock.project(id) ON DELETE CASCADE,
+    user_email  TEXT NOT NULL,
+    role        TEXT NOT NULL DEFAULT 'editor' CHECK (role IN ('editor')),
+    added_by    TEXT,
+    added_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(project_id, user_email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_contributor_project ON bedrock.project_contributor(project_id);
+CREATE INDEX IF NOT EXISTS idx_contributor_email ON bedrock.project_contributor(user_email);
+
 -- Partial indexes for soft-delete filtering (follows activity pattern, line ~420)
 CREATE INDEX IF NOT EXISTS idx_project_not_deleted ON bedrock.project(deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_workstream_not_deleted ON bedrock.workstream(deleted_at) WHERE deleted_at IS NULL;

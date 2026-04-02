@@ -79,10 +79,20 @@ export interface FilterState {
   owners: string[];
 }
 
+export interface ProjectContributor {
+  user_email: string;
+  role: 'editor';
+  added_by?: string;
+  added_at?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   description: string;
+  owner_email?: string;
+  created_by?: string;
+  contributors?: ProjectContributor[];
   created_at?: string;
   updated_at?: string;
 }

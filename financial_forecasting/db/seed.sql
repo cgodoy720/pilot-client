@@ -6,6 +6,11 @@ INSERT INTO bedrock.project (id, name, description) VALUES
   ('a0000000-0000-4000-8000-000000000001', 'AIJI', 'AI for Justice Initiative — strategic launch project')
 ON CONFLICT DO NOTHING;
 
+-- M19: Backfill ownership on seed project
+UPDATE bedrock.project
+SET owner_email = 'jp.dery@pursuit.org', created_by = 'jp.dery@pursuit.org'
+WHERE id = 'a0000000-0000-4000-8000-000000000001' AND owner_email IS NULL;
+
 -- Workstreams
 INSERT INTO bedrock.workstream (id, project_id, name, description, sort_order) VALUES
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
