@@ -266,7 +266,6 @@ function AssessmentTemplatesTab({ token }) {
                                     <div className="font-proxima">
                                       <span className="font-semibold">{a.level}</span>
                                       {' '}<span className="text-slate-600">{a.assessment_period}</span>
-                                      {' '}<span className="text-slate-400">(Day {a.trigger_day_number})</span>
                                     </div>
                                     <Button
                                       variant={a.is_active ? 'outline' : 'default'}
@@ -612,7 +611,6 @@ function AssessmentCreateDialog({ open, onOpenChange, token, onCreated }) {
     deliverables: [],
     deliverable_schema: null,
     level: '',
-    trigger_day_number: '',
     assessment_period: ''
   });
 
@@ -621,14 +619,15 @@ function AssessmentCreateDialog({ open, onOpenChange, token, onCreated }) {
       toast.error('Name and instructions are required');
       return;
     }
+    if (!form.level || !form.assessment_period) {
+      toast.error('Level and assessment period are required');
+      return;
+    }
     try {
-      await axios.post(`${API_URL}/api/admin/templates/assessments`, {
-        ...form,
-        trigger_day_number: form.trigger_day_number ? parseInt(form.trigger_day_number) : undefined
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${API_URL}/api/admin/templates/assessments`, form, { headers: { Authorization: `Bearer ${token}` } });
       toast.success('Template created');
       onOpenChange(false);
-      setForm({ assessment_name: '', assessment_type: 'technical', instructions: '', deliverables: [], deliverable_schema: null, level: '', trigger_day_number: '', assessment_period: '' });
+      setForm({ assessment_name: '', assessment_type: 'technical', instructions: '', deliverables: [], deliverable_schema: null, level: '', assessment_period: '' });
       onCreated();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to create template');
@@ -680,18 +679,14 @@ function AssessmentCreateDialog({ open, onOpenChange, token, onCreated }) {
           />
 
           <div className="border-t pt-4">
-            <p className="text-sm text-slate-500 font-proxima mb-3">Optionally create an assessment instance at the same time:</p>
-            <div className="grid grid-cols-3 gap-4">
+            <p className="text-sm text-slate-500 font-proxima mb-3">Assessment Instance</p>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="font-proxima">Level</Label>
+                <Label className="font-proxima">Level *</Label>
                 <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} placeholder="e.g. L2" className="font-proxima" />
               </div>
               <div>
-                <Label className="font-proxima">Trigger Day #</Label>
-                <Input type="number" value={form.trigger_day_number} onChange={(e) => setForm({ ...form, trigger_day_number: e.target.value })} placeholder="e.g. 20" className="font-proxima" />
-              </div>
-              <div>
-                <Label className="font-proxima">Period</Label>
+                <Label className="font-proxima">Period *</Label>
                 <Input value={form.assessment_period} onChange={(e) => setForm({ ...form, assessment_period: e.target.value })} placeholder="e.g. Week 8" className="font-proxima" />
               </div>
             </div>
@@ -707,22 +702,22 @@ function AssessmentCreateDialog({ open, onOpenChange, token, onCreated }) {
 }
 
 function InstanceCreateDialog({ open, onOpenChange, template, token, onCreated }) {
-  const [form, setForm] = useState({ level: '', trigger_day_number: '', assessment_period: '' });
+  const [form, setForm] = useState({ level: '', assessment_period: '' });
 
   const handleCreate = async () => {
-    if (!form.level || !form.trigger_day_number || !form.assessment_period) {
+    if (!form.level || !form.assessment_period) {
       toast.error('All fields are required');
       return;
     }
     try {
       await axios.post(
         `${API_URL}/api/admin/templates/assessments/${template.template_id}/instances`,
-        { ...form, trigger_day_number: parseInt(form.trigger_day_number) },
+        form,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success('Assessment instance created');
       onOpenChange(false);
-      setForm({ level: '', trigger_day_number: '', assessment_period: '' });
+      setForm({ level: '', assessment_period: '' });
       onCreated();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to create instance');
@@ -740,10 +735,6 @@ function InstanceCreateDialog({ open, onOpenChange, template, token, onCreated }
           <div>
             <Label className="font-proxima">Level *</Label>
             <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} placeholder="e.g. L1, L2" className="font-proxima" />
-          </div>
-          <div>
-            <Label className="font-proxima">Trigger Day Number *</Label>
-            <Input type="number" value={form.trigger_day_number} onChange={(e) => setForm({ ...form, trigger_day_number: e.target.value })} className="font-proxima" />
           </div>
           <div>
             <Label className="font-proxima">Assessment Period *</Label>

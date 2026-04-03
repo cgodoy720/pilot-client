@@ -141,7 +141,7 @@ export const useTaskInsights = (token, startDate, endDate) => {
 
 export const useRenderStatus = (token) => {
   return useQuery({
-    queryKey: ['integrations', 'render-status'],
+    queryKey: ['integrations', 'render-status', token],
     queryFn: () => fetchWithAuth(`${BASE}/integrations/render-status`, token),
     enabled: !!token,
     refetchInterval: 60_000,
@@ -151,7 +151,7 @@ export const useRenderStatus = (token) => {
 
 export const useRenderLogs = (token, enabled = false) => {
   return useQuery({
-    queryKey: ['integrations', 'render-logs'],
+    queryKey: ['integrations', 'render-logs', token],
     queryFn: () => fetchWithAuth(`${BASE}/integrations/render-logs`, token),
     enabled: !!token && enabled,
     staleTime: 120_000,
@@ -160,7 +160,7 @@ export const useRenderLogs = (token, enabled = false) => {
 
 export const useNetlifyStatus = (token) => {
   return useQuery({
-    queryKey: ['integrations', 'netlify-status'],
+    queryKey: ['integrations', 'netlify-status', token],
     queryFn: () => fetchWithAuth(`${BASE}/integrations/netlify-status`, token),
     enabled: !!token,
     refetchInterval: 60_000,

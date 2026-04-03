@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import { getInterview, completeInterview } from '../../services/mockInterviewApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -20,7 +20,9 @@ import {
 function MockInterviewFeedback() {
   const { interviewId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const token = useAuthStore((s) => s.token);
+  const durationSeconds = location.state?.durationSeconds ?? null;
 
   const [interview, setInterview] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -32,7 +34,7 @@ function MockInterviewFeedback() {
 
   useEffect(() => {
     loadInterview();
-  }, [interviewId]);
+  }, [interviewId, token]);
 
   const loadInterview = async () => {
     try {
@@ -46,15 +48,19 @@ function MockInterviewFeedback() {
       } else if (data.messages?.length > 0) {
         await generateFeedback();
       } else {
-        // Messages may not be saved yet (agent saves async). Retry after a short delay.
-        await new Promise((r) => setTimeout(r, 3000));
-        const retry = await getInterview(token, interviewId);
-        setMessages(retry.messages || []);
-        if (retry.interview.feedback_summary) {
-          setFeedback(retry.interview.feedback_summary);
-          setInterview(retry.interview);
-        } else if (retry.messages?.length > 0) {
-          await generateFeedback();
+        // Messages may not be saved yet (agent saves async). Retry with backoff.
+        for (const delay of [2000, 4000, 8000]) {
+          await new Promise((r) => setTimeout(r, delay));
+          const retry = await getInterview(token, interviewId);
+          setMessages(retry.messages || []);
+          if (retry.interview.feedback_summary) {
+            setFeedback(retry.interview.feedback_summary);
+            setInterview(retry.interview);
+            break;
+          } else if (retry.messages?.length > 0) {
+            await generateFeedback();
+            break;
+          }
         }
       }
     } catch (err) {
@@ -67,7 +73,7 @@ function MockInterviewFeedback() {
   const generateFeedback = async () => {
     try {
       setGenerating(true);
-      const result = await completeInterview(token, interviewId);
+      const result = await completeInterview(token, interviewId, durationSeconds);
       setFeedback(result.feedback);
       if (result.interview) setInterview(result.interview);
     } catch (err) {

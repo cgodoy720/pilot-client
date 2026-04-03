@@ -19,7 +19,7 @@ export async function startInterview(token, interviewType, focusArea) {
 }
 
 export async function completeInterview(token, interviewId, durationSeconds) {
-  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${interviewId}/complete`, {
+  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${encodeURIComponent(interviewId)}/complete`, {
     method: 'POST',
     headers: getHeaders(token),
     body: JSON.stringify({ durationSeconds }),
@@ -32,7 +32,7 @@ export async function completeInterview(token, interviewId, durationSeconds) {
 }
 
 export async function getInterview(token, interviewId) {
-  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${interviewId}`, {
+  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${encodeURIComponent(interviewId)}`, {
     headers: getHeaders(token),
   });
   if (!res.ok) {
@@ -58,7 +58,7 @@ export async function getInterviewHistory(token, page = 1, limit = 20) {
  * Stream the interviewer's first message (greeting + first question) as audio.
  */
 export async function streamFirstMessage(token, interviewId, model, { onAudio, onTranscript, onDone, onError }) {
-  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${interviewId}/first-message`, {
+  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${encodeURIComponent(interviewId)}/first-message`, {
     method: 'POST',
     headers: getHeaders(token),
     body: JSON.stringify({ model }),
@@ -77,7 +77,7 @@ export async function streamFirstMessage(token, interviewId, model, { onAudio, o
  * Send user audio and stream back the interviewer's audio response.
  */
 export async function streamInterviewResponse(token, interviewId, audioBase64, format, model, { onAudio, onTranscript, onDone, onError }) {
-  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${interviewId}/stream`, {
+  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${encodeURIComponent(interviewId)}/stream`, {
     method: 'POST',
     headers: getHeaders(token),
     body: JSON.stringify({ audio: audioBase64, format, model }),
@@ -121,7 +121,7 @@ async function processSSEStream(response, { onAudio, onTranscript, onDone, onErr
 }
 
 export async function abandonInterview(token, interviewId) {
-  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${interviewId}/abandon`, {
+  const res = await fetch(`${API_URL}/api/pathfinder/mock-interviews/${encodeURIComponent(interviewId)}/abandon`, {
     method: 'POST',
     headers: getHeaders(token),
   });

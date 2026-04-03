@@ -25,6 +25,14 @@ const shortenModel = (model) => {
   return model.replace(/^(anthropic|openai|google|deepseek|x-ai|moonshotai|minimax)\//, '');
 };
 
+const groupAnthropicModel = (model) => {
+  if (!model) return 'Unknown';
+  if (/sonnet/i.test(model)) return 'Claude Sonnet';
+  if (/opus/i.test(model)) return 'Claude Opus';
+  if (/haiku/i.test(model)) return 'Claude Haiku';
+  return model; // new model family (e.g. Mythos) — show as-is
+};
+
 const InfoCard = ({ title, children, description, scrollable }) => (
   <Card className="bg-white border border-[#E3E3E3]">
     <CardHeader>
@@ -211,11 +219,27 @@ const CostBillingTab = ({ token, startDate, endDate }) => {
           ) : anthropic?.error ? (
             <AlertBox message={anthropic.error} />
           ) : anthropic?.usage?.data ? (() => {
-            const nonEmptyBuckets = anthropic.usage.data.filter(
-              b => b.results && b.results.length > 0 &&
-              b.results.some(r => (r.uncached_input_tokens || 0) + (r.output_tokens || 0) > 0)
-            );
-            if (nonEmptyBuckets.length === 0) {
+            // Group by date + model family (Sonnet/Opus/Haiku)
+            const grouped = {};
+            anthropic.usage.data.forEach(bucket => {
+              const bucketDate = new Date(bucket.starting_at).toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric'
+              });
+              (bucket.results || []).forEach(r => {
+                const input = r.uncached_input_tokens || 0;
+                const output = r.output_tokens || 0;
+                const cache = r.cache_read_input_tokens || 0;
+                if (input + output === 0) return;
+                const family = groupAnthropicModel(r.model);
+                const key = `${bucketDate}|${family}`;
+                if (!grouped[key]) grouped[key] = { date: bucketDate, model: family, input: 0, output: 0, cache: 0 };
+                grouped[key].input += input;
+                grouped[key].output += output;
+                grouped[key].cache += cache;
+              });
+            });
+            const rows = Object.values(grouped);
+            if (rows.length === 0) {
               return <div className="text-center py-8 text-slate-400">No Anthropic usage data for this period</div>;
             }
             return (
@@ -230,22 +254,15 @@ const CostBillingTab = ({ token, startDate, endDate }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {nonEmptyBuckets.flatMap((bucket, bi) => {
-                    const bucketDate = new Date(bucket.starting_at).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric'
-                    });
-                    return bucket.results
-                      .filter(r => (r.uncached_input_tokens || 0) + (r.output_tokens || 0) > 0)
-                      .map((r, ri) => (
-                      <TableRow key={`${bi}-${ri}`}>
-                        <TableCell className="font-medium">{bucketDate}</TableCell>
-                        <TableCell>{r.model || 'All models'}</TableCell>
-                        <TableCell className="text-right">{formatNumber(r.uncached_input_tokens || 0)}</TableCell>
-                        <TableCell className="text-right">{formatNumber(r.output_tokens || 0)}</TableCell>
-                        <TableCell className="text-right">{formatNumber(r.cache_read_input_tokens || 0)}</TableCell>
-                      </TableRow>
-                    ));
-                  })}
+                  {rows.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{r.date}</TableCell>
+                      <TableCell>{r.model}</TableCell>
+                      <TableCell className="text-right">{formatNumber(r.input)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(r.output)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(r.cache)}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             );
