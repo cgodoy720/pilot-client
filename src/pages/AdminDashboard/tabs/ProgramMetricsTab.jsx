@@ -325,14 +325,6 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
           <p className="text-xs text-slate-500">All-time funnel from first contact through employment</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedCohortId || '__none'} onValueChange={v => setSelectedCohortId(v === '__none' ? '' : v)}>
-            <SelectTrigger className="h-8 text-xs w-44 border-[#E3E3E3] bg-white"><SelectValue placeholder="All cohorts" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none" className="text-xs">All cohorts</SelectItem>
-              {cohorts.map(c => <SelectItem key={c.cohort_id || c.id} value={c.cohort_id || c.id} className="text-xs">{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
           <div className="relative">
             <Button variant="outline" size="sm" className="h-8 text-xs border-[#E3E3E3] gap-1.5" onClick={() => setFiltersOpen(o => !o)}>
               <SlidersHorizontal className="w-3 h-3" />
@@ -342,7 +334,7 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
               )}
             </Button>
             {filtersOpen && <>
-              <div className="fixed inset-0 z-10" onClick={() => setFiltersOpen(false)} />
+              <div className="fixed inset-0 z-10" onMouseDown={(e) => { if (!e.target.closest('[data-radix-popper-content-wrapper]')) setFiltersOpen(false); }} />
               <div className="absolute right-0 top-9 z-20 bg-white border border-[#E3E3E3] rounded-lg shadow-lg p-4 w-64 space-y-3">
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-1">Gender</p>
