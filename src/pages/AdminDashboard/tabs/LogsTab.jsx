@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import {
-  ChevronRight, AlertTriangle, ArrowRight, Plus, MessageSquarePlus,
+  ChevronRight, AlertTriangle, ArrowRight, Plus, MessageSquarePlus, Search,
 } from 'lucide-react';
 import BuilderLogModal from '../components/BuilderLogModal';
 import useAuthStore from '../../../stores/authStore';
@@ -20,6 +20,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
   const [ticketNoteSaving, setTicketNoteSaving] = useState({});
   const [showLogModal, setShowLogModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [builderFilter, setBuilderFilter] = useState('');
 
   const fetchLogs = async () => {
     if (!selectedCohortId || !token) return;
@@ -44,14 +45,18 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
   }, [selectedCohortId, token, refreshKey]);
 
   const filteredTickets = useMemo(() => {
-    if (supportFilter === 'all') return supportTickets;
-    return supportTickets.filter(t => ['open', 'in_progress', 'follow_up'].includes(t.current_status));
-  }, [supportTickets, supportFilter]);
+    let list = supportTickets;
+    if (supportFilter !== 'all') list = list.filter(t => ['open', 'in_progress', 'follow_up'].includes(t.current_status));
+    if (builderFilter) list = list.filter(t => t.builder_name?.toLowerCase().includes(builderFilter.toLowerCase()));
+    return list;
+  }, [supportTickets, supportFilter, builderFilter]);
 
   const filteredNextSteps = useMemo(() => {
-    if (supportFilter === 'all') return nextStepLogs;
-    return nextStepLogs.filter(l => l.status !== 'closed');
-  }, [nextStepLogs, supportFilter]);
+    let list = nextStepLogs;
+    if (supportFilter !== 'all') list = list.filter(l => l.status !== 'closed');
+    if (builderFilter) list = list.filter(l => l.builder_name?.toLowerCase().includes(builderFilter.toLowerCase()));
+    return list;
+  }, [nextStepLogs, supportFilter, builderFilter]);
 
   const totalLogs = filteredTickets.length + filteredNextSteps.length;
 
@@ -122,6 +127,16 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
               <Badge className="bg-[#EFEFEF] text-slate-600 text-xs">{totalLogs}</Badge>
             </div>
             <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={builderFilter}
+                  onChange={(e) => setBuilderFilter(e.target.value)}
+                  placeholder="Filter by builder..."
+                  className="pl-8 pr-3 py-1.5 text-xs border border-[#E3E3E3] rounded-md bg-white focus:border-[#4242EA] focus:outline-none w-44"
+                />
+              </div>
               <button
                 onClick={() => setShowLogModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#4242EA] text-white hover:bg-[#3535c8] transition-colors"
@@ -174,7 +189,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                           <button
                             type="button"
                             onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
-                            className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-[#FAFAFA] transition-colors"
+                            className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors"
                           >
                             <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
                               <ChevronRight size={12} className="text-slate-400" />
@@ -261,7 +276,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                           <button
                             type="button"
                             onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
-                            className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-[#FAFAFA] transition-colors"
+                            className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors"
                           >
                             <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
                               <ChevronRight size={12} className="text-slate-400" />

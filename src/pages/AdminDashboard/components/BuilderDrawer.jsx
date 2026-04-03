@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2 } from 'lucide-react';
+import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import BuilderLogEntry from './BuilderLogEntry';
 import BuilderLogModal from './BuilderLogModal';
@@ -305,6 +305,10 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [rawConversations, setRawConversations] = useState([]);
   const [rawLoading, setRawLoading] = useState(false);
 
+  // Weekly Surveys state
+  const [surveyResponses, setSurveyResponses] = useState([]);
+  const [surveyLoading, setSurveyLoading] = useState(false);
+
   const [dataReady, setDataReady] = useState(false);
 
   useEffect(() => {
@@ -473,6 +477,26 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
 
   useEffect(() => { fetchLogs(); }, [builder?.user_id, token]);
 
+  // Fetch weekly survey responses for this builder
+  useEffect(() => {
+    if (!builder?.name) return;
+    setSurveyLoading(true);
+    const today = new Date().toISOString().split('T')[0];
+    const sixMonths = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    fetch(`${LEGACY_API}/surveys/responses?startDate=${sixMonths}&endDate=${today}`)
+      .then(r => r.json())
+      .then(data => {
+        const all = Array.isArray(data) ? data : [];
+        const builderName = builder.name.toLowerCase();
+        const matched = all.filter(r =>
+          r.user_name && r.user_name.toLowerCase() === builderName
+        ).sort((a, b) => new Date(b.task_date?.value || b.task_date || 0) - new Date(a.task_date?.value || a.task_date || 0));
+        setSurveyResponses(matched);
+      })
+      .catch(() => setSurveyResponses([]))
+      .finally(() => setSurveyLoading(false));
+  }, [builder?.name]);
+
   const handleLogStatusChange = (logId, newStatus) => {
     setBuilderLogs(prev => prev.map(l => l.log_id === logId ? { ...l, status: newStatus } : l));
   };
@@ -500,10 +524,10 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/20 z-[70]" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-[640px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed right-0 top-0 h-full w-full max-w-[640px] bg-white shadow-2xl z-[70] flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-[#E3E3E3] bg-white flex-shrink-0">
           <div>
@@ -642,6 +666,48 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                 ) : (
                   <p className="text-xs text-slate-400 text-center py-4">No standup or retro conversations yet.</p>
                 )}
+              </Section>
+
+              {/* Weekly Surveys */}
+              <Section icon={ClipboardList} title="Weekly Surveys" count={surveyResponses.length} defaultOpen={surveyResponses.length > 0}>
+                <div className="px-3 py-3 space-y-2">
+                  {surveyLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2].map(i => <div key={i} className="h-12 bg-[#EFEFEF] rounded animate-pulse" />)}
+                    </div>
+                  ) : surveyResponses.length > 0 ? (
+                    surveyResponses.map((r, i) => {
+                      const date = r.task_date?.value || r.task_date || '';
+                      const dateStr = date ? (() => { try { return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return '—'; } })() : '—';
+                      const score = r.referral_likelihood;
+                      const npsClass = score >= 9 ? 'bg-green-100 text-green-700' : score <= 6 ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700';
+                      return (
+                        <div key={r.id || i} className="bg-[#FAFAFA] rounded-md px-3 py-2 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400">{dateStr}</span>
+                            {score != null && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${npsClass}`}>
+                                NPS: {score}
+                              </span>
+                            )}
+                          </div>
+                          {r.what_we_did_well && (
+                            <p className="text-[11px] text-slate-600">
+                              <span className="font-medium text-green-600">Well: </span>{r.what_we_did_well}
+                            </p>
+                          )}
+                          {r.what_to_improve && (
+                            <p className="text-[11px] text-slate-600">
+                              <span className="font-medium text-red-500">Improve: </span>{r.what_to_improve}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-slate-400 text-center py-2">No survey responses.</p>
+                  )}
+                </div>
               </Section>
 
               {/* Builder Notes */}

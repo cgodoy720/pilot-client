@@ -11,7 +11,36 @@ const FiltersSection = ({
   onApplyFilters,
   onClearFilters,
   hideCohortFilter = false,
+  inline = false,
 }) => {
+  // Inline mode: just the period selector, no card wrapper
+  if (inline) {
+    return (
+      <div className="flex items-center gap-2">
+        <Select
+          value={filters.assessmentPeriod || "__ALL_PERIODS__"}
+          onValueChange={(value) => {
+            onFilterChange('assessmentPeriod', value === "__ALL_PERIODS__" ? '' : value);
+            // Auto-apply when inline
+            setTimeout(onApplyFilters, 0);
+          }}
+        >
+          <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectValue placeholder="All Periods" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__ALL_PERIODS__">All Periods</SelectItem>
+            {availablePeriods.map(period => (
+              <SelectItem key={period} value={period}>
+                {period}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-card border border-border rounded-lg p-6 mb-8">
       <div className={`grid grid-cols-1 ${hideCohortFilter ? '' : 'md:grid-cols-2'} gap-4 mb-4`}>

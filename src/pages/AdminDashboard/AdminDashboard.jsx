@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import useAuthStore from '../../stores/authStore';
 import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import OverviewTab from './tabs/OverviewTab';
-import BuildersTab from './tabs/BuildersTab';
-import PerformanceTab from './tabs/PerformanceTab';
-import AttendanceTab from './tabs/AttendanceTab';
-import SurveyTab from './tabs/SurveyTab';
+import TodayTab from './tabs/TodayTab';
 import AssessmentsTab from './tabs/AssessmentsTab';
 import L2SelectionsTab from './tabs/L2SelectionsTab';
 import LogsTab from './tabs/LogsTab';
@@ -16,10 +13,7 @@ const STORAGE_KEY = 'pursuit_program_slug';
 
 const TABS = [
   { id: 'overview',    label: 'Overview' },
-  { id: 'roster',      label: 'Roster' },
-  { id: 'performance', label: 'Performance' },
-  { id: 'attendance',  label: 'Attendance' },
-  { id: 'nps',         label: 'NPS' },
+  { id: 'today',       label: 'Today' },
   { id: 'assessments', label: 'Assessments' },
   { id: 'l2',          label: 'L2' },
   { id: 'logs',        label: 'Logs' },
@@ -69,6 +63,27 @@ const AdminDashboard = () => {
     setProgramSlug(slug);
     localStorage.setItem(STORAGE_KEY, slug);
   };
+
+  // L2 tab: only show when selected cohort's course level = L1
+  const selectedCohort = useMemo(
+    () => cohorts.find(c => c.cohort_id === selectedCohortId),
+    [cohorts, selectedCohortId]
+  );
+
+  const visibleTabs = useMemo(
+    () => TABS.filter(tab => {
+      if (tab.id === 'l2') return selectedCohort?.level === 'L1';
+      return true;
+    }),
+    [selectedCohort]
+  );
+
+  // If active tab became hidden (e.g., L2 hidden), reset to overview
+  useEffect(() => {
+    if (!visibleTabs.find(t => t.id === activeTab)) {
+      setActiveTab('overview');
+    }
+  }, [visibleTabs, activeTab]);
 
   if (!canAccessPage('admin_dashboard')) {
     return (
@@ -126,7 +141,7 @@ const AdminDashboard = () => {
       {/* Tab bar */}
       <div className="bg-white border-b border-[#E3E3E3] px-8">
         <div className="max-w-7xl mx-auto w-full flex">
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -140,11 +155,8 @@ const AdminDashboard = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-8 py-6">
-        {activeTab === 'overview'    && <OverviewTab    selectedCohortId={selectedCohortId} cohorts={cohorts} />}
-        {activeTab === 'roster'      && <BuildersTab    selectedCohortId={selectedCohortId} cohorts={cohorts} />}
-        {activeTab === 'performance' && <PerformanceTab selectedCohortId={selectedCohortId} cohorts={cohorts} />}
-        {activeTab === 'attendance'  && <AttendanceTab  selectedCohortId={selectedCohortId} cohorts={cohorts} />}
-        {activeTab === 'nps'         && <SurveyTab      selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+        {activeTab === 'overview'    && <OverviewTab    selectedCohortId={selectedCohortId} cohorts={cohorts} programSlug={programSlug} />}
+        {activeTab === 'today'       && <TodayTab       selectedCohortId={selectedCohortId} cohorts={cohorts} />}
         {activeTab === 'assessments' && <AssessmentsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />}
         {activeTab === 'l2'          && <L2SelectionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />}
         {activeTab === 'logs'        && <LogsTab        selectedCohortId={selectedCohortId} cohorts={cohorts} />}

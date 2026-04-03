@@ -10,7 +10,7 @@ import GradesTable from './components/GradesTable';
 import GradeViewModal from './GradeViewModal';
 import MassEmailModal from './MassEmailModal';
 
-const AssessmentGrades = ({ initialCohort = '', embedded = false }) => {
+const AssessmentGrades = ({ initialCohort = '', embedded = false, hideStatusBar = false }) => {
   const user = useAuthStore((s) => s.user);
   const authToken = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
@@ -479,31 +479,85 @@ const AssessmentGrades = ({ initialCohort = '', embedded = false }) => {
 
   return (
     <div className={embedded ? '' : 'min-h-screen bg-background'}>
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Filters */}
-        <FiltersSection
-          filters={filters}
-          availableCohorts={availableCohorts}
-          availablePeriods={availablePeriods}
-          onFilterChange={handleFilterChange}
-          onApplyFilters={applyFilters}
-          onClearFilters={clearFilters}
-          hideCohortFilter={embedded}
-        />
+      <div className={embedded ? 'space-y-4' : 'container mx-auto p-6 space-y-6'}>
+        {/* Filters — inline when embedded, full card otherwise */}
+        {embedded ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-card border border-border rounded-lg">
+            <div className="flex items-center gap-3">
+              <FiltersSection
+                filters={filters}
+                availableCohorts={availableCohorts}
+                availablePeriods={availablePeriods}
+                onFilterChange={handleFilterChange}
+                onApplyFilters={applyFilters}
+                onClearFilters={clearFilters}
+                inline
+              />
+              <button
+                onClick={() => handleSelectAll(selectedUsers.size !== assessmentGrades.length)}
+                className="px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#E3E3E3] text-slate-600 hover:border-[#4242EA] hover:text-[#4242EA] transition-colors"
+              >
+                {selectedUsers.size === assessmentGrades.length && assessmentGrades.length > 0 ? 'Deselect All' : 'Select All'}
+              </button>
+              {selectedUsers.size > 0 && (
+                <span className="text-xs text-muted-foreground">{selectedUsers.size} selected</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedUsers.size > 0 && (
+                <button
+                  onClick={handleSendEmails}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+                >
+                  Send Mass Email
+                </button>
+              )}
+              <button
+                onClick={loadAllRecords}
+                disabled={loading}
+                className="px-3 py-1.5 text-xs font-medium rounded-md bg-[#4242EA] text-white hover:bg-[#3535c8] disabled:opacity-50 transition-colors"
+              >
+                {loading ? 'Loading...' : 'Load All'}
+              </button>
+              <button
+                onClick={() => exportData('csv')}
+                className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#E3E3E3] text-slate-600 hover:border-[#4242EA] hover:text-[#4242EA] transition-colors"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
+                className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#E3E3E3] text-slate-600 hover:border-[#4242EA] hover:text-[#4242EA] transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <FiltersSection
+              filters={filters}
+              availableCohorts={availableCohorts}
+              availablePeriods={availablePeriods}
+              onFilterChange={handleFilterChange}
+              onApplyFilters={applyFilters}
+              onClearFilters={clearFilters}
+              hideCohortFilter={embedded}
+            />
+            <ActionsBar
+              selectedUsers={selectedUsers}
+              assessmentGrades={assessmentGrades}
+              loading={loading}
+              onSelectAll={handleSelectAll}
+              onSendEmails={handleSendEmails}
+              onLoadAllRecords={loadAllRecords}
+              onExportData={exportData}
+              onRefresh={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
+            />
+          </>
+        )}
 
-        {/* Actions Bar */}
-        <ActionsBar
-          selectedUsers={selectedUsers}
-          assessmentGrades={assessmentGrades}
-          loading={loading}
-          onSelectAll={handleSelectAll}
-          onSendEmails={handleSendEmails}
-          onLoadAllRecords={loadAllRecords}
-          onExportData={exportData}
-          onRefresh={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
-        />
-
-        {appliedFiltersRef.current.cohort && (
+        {!hideStatusBar && appliedFiltersRef.current.cohort && (
           <div className={`border rounded-lg p-3 text-sm ${hasCohortMismatch ? 'border-destructive bg-destructive/10 text-destructive' : 'border-border bg-muted/40 text-muted-foreground'}`}>
             <span className="font-medium">Applied cohort:</span> {appliedFiltersRef.current.cohort} •{' '}
             <span className="font-medium">Rendered rows:</span> {assessmentGrades.length} •{' '}
@@ -512,7 +566,7 @@ const AssessmentGrades = ({ initialCohort = '', embedded = false }) => {
         )}
 
         {/* Pagination Info */}
-        {assessmentGrades.length > 0 && (
+        {!hideStatusBar && assessmentGrades.length > 0 && (
           <div className="text-center text-sm text-muted-foreground py-2">
             Showing {assessmentGrades.length} of {pagination.total} assessment grades
             {pagination.hasMore && (
