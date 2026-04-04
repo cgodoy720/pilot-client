@@ -19,6 +19,7 @@ const STAGE_COLORS = {
   l3_completed:   { bar: '#047857', text: '#ffffff' },
   any_employment: { bar: '#FCD34D', text: '#78350F' },
   ft_employed:    { bar: '#F59E0B', text: '#ffffff' },
+  bond_eligible:  { bar: '#EF4444', text: '#ffffff' },
 };
 
 // Drill-down column definitions: { label, sortKey (null = not sortable) }
@@ -33,6 +34,7 @@ const DRILL_COLS = {
   l3_completed:   [{ label: 'Name', key: 'name' }, { label: 'Email', key: 'email' }, { label: 'Cohort', key: null }, { label: 'Status', key: null }, { label: 'Enrolled', key: 'enrolled_date' }],
   any_employment: [{ label: 'Name', key: 'name' }, { label: 'Email', key: 'email' }, { label: 'Role', key: null }, { label: 'Company', key: 'company_name' }, { label: 'Type', key: null }, { label: 'Start', key: 'start_date' }],
   ft_employed:    [{ label: 'Name', key: 'name' }, { label: 'Email', key: 'email' }, { label: 'Role', key: null }, { label: 'Company', key: 'company_name' }, { label: 'Start', key: 'start_date' }],
+  bond_eligible:  [{ label: 'Name', key: 'name' }, { label: 'Email', key: 'email' }, { label: 'Role', key: null }, { label: 'Company', key: 'company_name' }, { label: 'Salary', key: null }, { label: 'Start', key: 'start_date' }],
 };
 
 const ENROLLMENT_STAGES = new Set(['enrolled', 'l1_completed', 'l2_completed', 'l3_completed']);
@@ -301,6 +303,8 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
       cells = [name, email, row.role_title || '—', row.company_name || '—', row.employment_type || '—', row.engagement_stage || '—'];
     } else if (id === 'ft_employed') {
       cells = [name, email, row.role_title || '—', row.company_name || '—', fmt(row.start_date)];
+    } else if (id === 'bond_eligible') {
+      cells = [name, email, row.role_title || '—', row.company_name || '—', row.salary ? `$${Number(row.salary).toLocaleString()}` : '—', fmt(row.start_date)];
     }
     return (
       <tr key={rowIdx} className="hover:bg-[#EFEFEF]/50 border-b border-[#EFEFEF]">
@@ -313,8 +317,10 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
   const l3 = stages.find(s => s.id === 'l3_completed')?.count || 0;
   const anyEmp = stages.find(s => s.id === 'any_employment')?.count || 0;
   const ftEmp = stages.find(s => s.id === 'ft_employed')?.count || 0;
+  const bondElig = stages.find(s => s.id === 'bond_eligible')?.count || 0;
   const anyPct = l3 > 0 ? Math.round((anyEmp / l3) * 100) : null;
   const ftPct = l3 > 0 ? Math.round((ftEmp / l3) * 100) : null;
+  const bondPct = ftEmp > 0 ? Math.round((bondElig / ftEmp) * 100) : null;
 
   return (
     <div className="space-y-5">
@@ -399,7 +405,7 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
       ) : (
         <>
           {/* North-star metrics */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="bg-white border border-[#E3E3E3] rounded-lg p-4">
               <p className="text-xs text-slate-500 font-medium">Builders Employed</p>
               <p className="text-2xl font-bold text-[#1E1E1E] mt-1">{anyEmp.toLocaleString()}</p>
@@ -409,6 +415,11 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
               <p className="text-xs text-slate-500 font-medium">FT Employed</p>
               <p className="text-2xl font-bold text-[#1E1E1E] mt-1">{ftEmp.toLocaleString()}</p>
               <p className="text-xs text-slate-400 mt-0.5">{ftPct != null ? `${ftPct}% of L3 grads` : 'of L3 grads'}</p>
+            </div>
+            <div className="bg-white border border-[#E3E3E3] rounded-lg p-4">
+              <p className="text-xs text-slate-500 font-medium">Bond Eligible</p>
+              <p className="text-2xl font-bold text-red-500 mt-1">{bondElig.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{bondPct != null ? `${bondPct}% of FT employed` : 'salary > $85k'}</p>
             </div>
             <div className="bg-white border border-[#E3E3E3] rounded-lg p-4">
               <p className="text-xs text-slate-500 font-medium">Avg Salary</p>

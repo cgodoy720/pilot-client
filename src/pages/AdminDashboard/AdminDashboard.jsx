@@ -10,10 +10,12 @@ import LogsTab from './tabs/LogsTab';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 const STORAGE_KEY = 'pursuit_program_slug';
+const COHORT_STORAGE_KEY = 'pursuit_selected_cohort';
+const DEFAULT_COHORT_NAME = 'March 2026 L1';
 
 const TABS = [
-  { id: 'overview',    label: 'Overview' },
   { id: 'today',       label: 'Today' },
+  { id: 'overview',    label: 'Overview' },
   { id: 'assessments', label: 'Assessments' },
   { id: 'l2',          label: 'L2' },
   { id: 'logs',        label: 'Logs' },
@@ -27,12 +29,12 @@ const AdminDashboard = () => {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('today');
 
   const [programs, setPrograms] = useState([]);
   const [programSlug, setProgramSlug] = useState(() => localStorage.getItem(STORAGE_KEY) || 'ai-native-builder');
   const [cohorts, setCohorts] = useState([]);
-  const [selectedCohortId, setSelectedCohortId] = useState('');
+  const [selectedCohortId, setSelectedCohortId] = useState(() => localStorage.getItem(COHORT_STORAGE_KEY) || '');
 
   // Load programs once
   useEffect(() => {
@@ -53,8 +55,19 @@ const AdminDashboard = () => {
       .then(data => {
         const list = data.cohorts || [];
         setCohorts(list);
-        if (list.length > 0) setSelectedCohortId(list[0].cohort_id);
-        else setSelectedCohortId('');
+        // If we have a persisted selection and it exists in this program's cohorts, keep it
+        const persisted = localStorage.getItem(COHORT_STORAGE_KEY);
+        if (persisted && list.some(c => c.cohort_id === persisted)) {
+          setSelectedCohortId(persisted);
+        } else if (list.length > 0) {
+          // Default to March 2026 L1 if it exists, otherwise first cohort
+          const defaultCohort = list.find(c => c.name === DEFAULT_COHORT_NAME);
+          const id = defaultCohort ? defaultCohort.cohort_id : list[0].cohort_id;
+          setSelectedCohortId(id);
+          localStorage.setItem(COHORT_STORAGE_KEY, id);
+        } else {
+          setSelectedCohortId('');
+        }
       })
       .catch(() => { setCohorts([]); setSelectedCohortId(''); });
   }, [token, programSlug]);
@@ -62,6 +75,8 @@ const AdminDashboard = () => {
   const handleProgramChange = (slug) => {
     setProgramSlug(slug);
     localStorage.setItem(STORAGE_KEY, slug);
+    // Clear persisted cohort when switching programs — will re-default on load
+    localStorage.removeItem(COHORT_STORAGE_KEY);
   };
 
   // L2 tab: only show when selected cohort's course level = L1
@@ -128,7 +143,7 @@ const AdminDashboard = () => {
               <label className="text-xs text-slate-500 font-medium">Cohort</label>
               <select
                 value={selectedCohortId}
-                onChange={e => setSelectedCohortId(e.target.value)}
+                onChange={e => { setSelectedCohortId(e.target.value); localStorage.setItem(COHORT_STORAGE_KEY, e.target.value); }}
                 className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
               >
                 {cohorts.map(c => <option key={c.cohort_id} value={c.cohort_id}>{c.name}</option>)}
