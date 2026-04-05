@@ -4,10 +4,12 @@ import { Badge } from '../../../../components/ui/badge';
 import {
   Loader2, Server, Database, BarChart3, Bot, RefreshCw,
   CloudCog, Globe, ChevronDown, ChevronUp, X, CheckCircle, EyeOff,
+  Cog, Video, MessageSquare, FileSearch, ArrowUpDown, DatabaseZap,
 } from 'lucide-react';
 import { useMcpServerStatus, useMcpPgStatus, useMcpBqStatus } from '../hooks/useMcpStatus';
 import {
   useExternalUsage, useRenderStatus, useRenderLogs, useNetlifyStatus, useUpdateErrorStatus,
+  useGcpServicesStatus,
 } from '../hooks/usePlatformAnalytics';
 
 const formatNumber = (num) => {
@@ -223,6 +225,7 @@ const IntegrationsStatusTab = ({ token, startDate, endDate }) => {
   const { data: externalData, isLoading: extLoading } = useExternalUsage(token, startDate, endDate);
   const { data: renderData, isLoading: renderLoading, isError: renderError, refetch: refetchRender } = useRenderStatus(token);
   const { data: netlifyData, isLoading: netlifyLoading, isError: netlifyError, refetch: refetchNetlify } = useNetlifyStatus(token);
+  const { data: gcpServices, isLoading: gcpLoading, refetch: refetchGcp } = useGcpServicesStatus(token);
 
   const anthropicData = externalData?.anthropic?.usage?.data;
 
@@ -246,14 +249,17 @@ const IntegrationsStatusTab = ({ token, startDate, endDate }) => {
   const rStatus = renderError ? 'error' : renderData?.status || 'loading';
   const nStatus = netlifyError ? 'error' : netlifyData?.status || 'loading';
 
+  const gcpAllOk = gcpServices?.every(s => s.status === 'ok' || s.status === 'no_health_check') ?? false;
+
   const allConnected =
     serverStatus === 'ok' &&
     pgStatus === 'connected' &&
     bqStatus === 'connected' &&
     rStatus === 'ok' &&
-    nStatus === 'ok';
+    nStatus === 'ok' &&
+    gcpAllOk;
 
-  const anyLoading = serverLoading || pgLoading || bqLoading || renderLoading || netlifyLoading;
+  const anyLoading = serverLoading || pgLoading || bqLoading || renderLoading || netlifyLoading || gcpLoading;
 
   return (
     <div className="space-y-4">
@@ -405,6 +411,69 @@ const IntegrationsStatusTab = ({ token, startDate, endDate }) => {
           }
         />
       </div>
+
+      {/* GCP Cloud Run / Cloud Function services */}
+      {gcpLoading ? (
+        <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+          <Loader2 className="h-4 w-4 animate-spin" /> Checking GCP services...
+        </div>
+      ) : gcpServices && gcpServices.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">GCP Pipeline Services</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {gcpServices.map((svc) => {
+              const GCP_ICONS = {
+                'task-analysis': Cog,
+                'loom-transcript-analyzer': Video,
+                'feedback-sentiment-analysis': MessageSquare,
+                'application-analyzer': FileSearch,
+                'attendance-bq-sync': ArrowUpDown,
+                'supabase-bq-sync': DatabaseZap,
+              };
+              const GCP_COLORS = {
+                'task-analysis': 'bg-blue-500',
+                'loom-transcript-analyzer': 'bg-pink-500',
+                'feedback-sentiment-analysis': 'bg-cyan-500',
+                'application-analyzer': 'bg-amber-500',
+                'attendance-bq-sync': 'bg-slate-500',
+                'supabase-bq-sync': 'bg-purple-500',
+              };
+              const IconComp = GCP_ICONS[svc.id] || Cog;
+              const iconBg = GCP_COLORS[svc.id] || 'bg-slate-500';
+              const lastRanTs = svc.lastRun || svc.lastScheduledRun;
+              const lastRanLabel = lastRanTs ? formatTimestamp(lastRanTs) : null;
+
+              return (
+                <IntegrationCard
+                  key={svc.id}
+                  icon={IconComp}
+                  iconBg={iconBg}
+                  title={svc.name}
+                  subtitle={svc.subtitle}
+                  status={svc.status === 'no_health_check' ? 'ok' : svc.status === 'timeout' ? 'loading' : svc.status || 'loading'}
+                  latencyMs={svc.latencyMs}
+                  isLoading={false}
+                  extra={
+                    <span className="flex items-center gap-2 flex-wrap">
+                      {svc.status === 'timeout' && (
+                        <span className="text-xs text-amber-500">Cold start timeout</span>
+                      )}
+                      {svc.error && svc.status !== 'timeout' && (
+                        <span className="text-xs text-red-500 truncate max-w-[160px]" title={svc.error}>{svc.error}</span>
+                      )}
+                      {lastRanLabel && (
+                        <span className="text-xs text-slate-400">
+                          Last ran: <span className="font-medium text-slate-500">{lastRanLabel}</span>
+                        </span>
+                      )}
+                    </span>
+                  }
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Render expandable logs/errors panel */}
       {renderExpanded && (
