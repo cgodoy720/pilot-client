@@ -6,9 +6,7 @@ import FacilitatorTodos from '../components/FacilitatorTodos';
 import CurriculumScheduleView from '../components/CurriculumScheduleView';
 
 const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
-  const [selectedDate, setSelectedDate] = useState(
-    () => sessionStorage.getItem('pursuit_today_date') || new Date().toISOString().split('T')[0]
-  );
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [dayInfo, setDayInfo] = useState(null);
 
   const selectedCohort = useMemo(

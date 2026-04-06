@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '../../../components/ui/badge';
-import { Calendar, Clock, ChevronRight, Edit } from 'lucide-react';
+import { Calendar, Clock, ChevronRight, Edit, CheckCircle, Loader2, Circle } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { usePermissions } from '../../../hooks/usePermissions';
 import TaskEditDialog from '../../../components/curriculum/TaskEditDialog';
@@ -12,6 +12,81 @@ const formatTime = (time) => {
   const [hours, minutes] = time.split(':');
   const hour = parseInt(hours);
   return `${hour % 12 || 12}:${minutes} ${hour >= 12 ? 'PM' : 'AM'}`;
+};
+
+const STATUS_CONFIG = {
+  completed:   { label: 'Completed',   icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', dot: 'bg-green-500' },
+  in_progress: { label: 'In Progress', icon: Loader2,     color: 'text-yellow-600', bg: 'bg-yellow-50', dot: 'bg-yellow-400' },
+  not_started: { label: 'Not Started', icon: Circle,      color: 'text-slate-400', bg: 'bg-slate-50', dot: 'bg-slate-300' },
+};
+
+const TaskBuilderList = ({ taskId, selectedDate, selectedCohortId, token, prog }) => {
+  const [builders, setBuilders] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('completed');
+
+  useEffect(() => {
+    if (!taskId || !token) return;
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/dashboard/task-builder-status?cohortId=${selectedCohortId}&date=${selectedDate}&taskId=${taskId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (data.success) setBuilders(data.builders || []); })
+      .catch(() => setBuilders([]))
+      .finally(() => setLoading(false));
+  }, [taskId, selectedDate, selectedCohortId, token]);
+
+  if (loading) {
+    return <div className="py-3 text-center"><span className="text-[10px] text-slate-400">Loading builders...</span></div>;
+  }
+  if (!builders || builders.length === 0) return null;
+
+  const groups = {
+    completed: builders.filter(b => b.status === 'completed'),
+    in_progress: builders.filter(b => b.status === 'in_progress'),
+    not_started: builders.filter(b => b.status === 'not_started'),
+  };
+
+  return (
+    <div>
+      {/* Tab bar */}
+      <div className="flex border-b border-[#EFEFEF]">
+        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+          const count = groups[key]?.length || 0;
+          const isActive = activeTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-medium transition-colors border-b-2 ${
+                isActive ? `${cfg.color} border-current` : 'text-slate-400 border-transparent hover:text-slate-600'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+              {cfg.label}
+              <span className={`text-[10px] ${isActive ? '' : 'text-slate-300'}`}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Builder list */}
+      <div className="max-h-[200px] overflow-y-auto">
+        {groups[activeTab]?.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 px-3 py-2">
+            {groups[activeTab].map(b => (
+              <div key={b.userId} className="flex items-center gap-1.5 py-1">
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_CONFIG[activeTab].dot}`} />
+                <span className="text-xs text-[#1E1E1E] truncate">{b.name}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[10px] text-slate-400 text-center py-3">None</p>
+        )}
+      </div>
+    </div>
+  );
 };
 
 const CATEGORY_COLORS = {
@@ -276,36 +351,33 @@ const CurriculumScheduleView = ({ selectedDate, cohortName, selectedCohortId, on
                   <ChevronRight size={14} className={`text-slate-300 flex-shrink-0 mt-1 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                 </button>
 
-                {/* Expanded detail */}
+                {/* Expanded: description + actions + builder status list */}
                 {isExpanded && (
-                  <div className="px-4 pb-3 pl-[calc(5rem+12px)] space-y-2">
-                    {task.task_description && (
-                      <p className="text-xs text-slate-600 leading-relaxed">{task.task_description}</p>
-                    )}
-                    {prog && (
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-green-50 rounded p-1.5">
-                          <p className="text-sm font-bold text-green-600">{prog.completed}</p>
-                          <p className="text-[10px] text-green-700">Completed</p>
-                        </div>
-                        <div className="bg-yellow-50 rounded p-1.5">
-                          <p className="text-sm font-bold text-yellow-600">{prog.in_progress}</p>
-                          <p className="text-[10px] text-yellow-700">In Progress</p>
-                        </div>
-                        <div className="bg-slate-50 rounded p-1.5">
-                          <p className="text-sm font-bold text-slate-500">{Math.max(0, prog.present - prog.completed - prog.in_progress)}</p>
-                          <p className="text-[10px] text-slate-500">Not Started</p>
-                        </div>
-                      </div>
-                    )}
-                    {canEdit && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditingTask(task); }}
-                        className="flex items-center gap-1 text-[10px] font-medium text-[#4242EA] hover:underline"
-                      >
-                        <Edit size={10} /> Edit Task
-                      </button>
-                    )}
+                  <div className="border-t border-[#EFEFEF]">
+                    {/* Description + Edit row */}
+                    <div className="px-4 py-2.5 flex items-start justify-between gap-4">
+                      {task.task_description ? (
+                        <p className="text-xs text-slate-600 leading-relaxed flex-1">{task.task_description}</p>
+                      ) : (
+                        <span />
+                      )}
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingTask(task); }}
+                          className="flex items-center gap-1 text-xs font-medium text-[#4242EA] hover:underline flex-shrink-0"
+                        >
+                          <Edit size={12} /> Edit
+                        </button>
+                      )}
+                    </div>
+                    {/* Builder list */}
+                    <TaskBuilderList
+                      taskId={taskId}
+                      selectedDate={selectedDate}
+                      selectedCohortId={selectedCohortId}
+                      token={token}
+                      prog={prog}
+                    />
                   </div>
                 )}
               </div>

@@ -185,43 +185,8 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
                         ))}
                       </select>
                     )}
-                    {!b.attendanceId && (
-                      <button
-                        onClick={() => setAddingFor(addingFor === b.userId ? null : b.userId)}
-                        className="p-0.5 rounded text-slate-400 hover:text-[#4242EA] hover:bg-[#EFEFEF]"
-                        title="Add attendance record"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    )}
                   </div>
                 </div>
-                {addingFor === b.userId && (
-                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[#EFEFEF]">
-                    <select
-                      value={addStatus}
-                      onChange={e => setAddStatus(e.target.value)}
-                      className="text-[10px] border border-[#E3E3E3] rounded px-1.5 py-0.5 bg-white focus:outline-none"
-                    >
-                      {STATUS_OPTIONS.map(s => (
-                        <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleAddRecord(b)}
-                      disabled={savingAdd}
-                      className="text-[10px] px-2 py-0.5 bg-[#4242EA] text-white rounded hover:bg-[#3535c8] disabled:opacity-50"
-                    >
-                      {savingAdd ? '...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={() => setAddingFor(null)}
-                      className="text-[10px] px-2 py-0.5 text-slate-500 hover:text-[#1E1E1E]"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
