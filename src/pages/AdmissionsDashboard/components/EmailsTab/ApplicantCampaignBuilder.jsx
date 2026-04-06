@@ -87,8 +87,12 @@ export default function ApplicantCampaignBuilder({ token, campaign, onClose, onS
       if (res.ok) {
         const data = await res.json();
         setPreviewCount(data.count);
+      } else {
+        setPreviewCount(null);
       }
-    } catch {}
+    } catch {
+      setPreviewCount(null);
+    }
   };
 
   const handleSave = async (sendNow = false, schedule = false) => {

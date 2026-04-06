@@ -50,11 +50,15 @@ export default function ApplicantCampaignsTab({ token }) {
   const openAnalytics = async (campaign) => {
     setAnalyticsFor(campaign);
     setAnalyticsLoading(true);
+    setAnalyticsData(null);
     try {
       const res = await fetch(`${API}/api/admissions/applicant-campaigns/${campaign.campaign_id}/analytics`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) setAnalyticsData(await res.json());
+      if (!res.ok) throw new Error('Failed to load analytics');
+      setAnalyticsData(await res.json());
+    } catch (err) {
+      alert(err.message);
     } finally {
       setAnalyticsLoading(false);
     }
@@ -62,20 +66,30 @@ export default function ApplicantCampaignsTab({ token }) {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this campaign? This cannot be undone.')) return;
-    await fetch(`${API}/api/admissions/applicant-campaigns/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    fetchCampaigns();
+    try {
+      const res = await fetch(`${API}/api/admissions/applicant-campaigns/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+      fetchCampaigns();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const handleSend = async (id) => {
     if (!confirm('Send this campaign now?')) return;
-    await fetch(`${API}/api/admissions/applicant-campaigns/${id}/send`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    fetchCampaigns();
+    try {
+      const res = await fetch(`${API}/api/admissions/applicant-campaigns/${id}/send`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Send failed');
+      fetchCampaigns();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   // ── Analytics view ────────────────────────────────────────────────────────

@@ -44,21 +44,31 @@ export default function AutomationsTab({ token }) {
   useEffect(() => { fetchRules(); }, [fetchRules]);
 
   const handleToggle = async (rule) => {
-    await fetch(`${API}/api/admissions/automations/${rule.rule_id}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !rule.is_active })
-    });
-    fetchRules();
+    try {
+      const res = await fetch(`${API}/api/admissions/automations/${rule.rule_id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !rule.is_active })
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Toggle failed');
+      fetchRules();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const handleDelete = async (rule) => {
     if (!confirm(`Delete "${rule.name}"? This cannot be undone.`)) return;
-    await fetch(`${API}/api/admissions/automations/${rule.rule_id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    fetchRules();
+    try {
+      const res = await fetch(`${API}/api/admissions/automations/${rule.rule_id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Delete failed');
+      fetchRules();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const triggerDescription = (rule) => {
