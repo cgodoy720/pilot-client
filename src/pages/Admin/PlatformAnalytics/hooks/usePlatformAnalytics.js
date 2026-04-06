@@ -139,6 +139,16 @@ export const useTaskInsights = (token, startDate, endDate) => {
 // Integration status hooks (Render + Netlify)
 // ──────────────────────────────────────────────────────────────
 
+export const useGcpServicesStatus = (token) => {
+  return useQuery({
+    queryKey: ['integrations', 'gcp-services'],
+    queryFn: () => fetchWithAuth(`${BASE}/integrations/gcp-services`, token),
+    enabled: !!token,
+    refetchInterval: 120_000,
+    staleTime: 60_000,
+  });
+};
+
 export const useRenderStatus = (token) => {
   return useQuery({
     queryKey: ['integrations', 'render-status', token],
