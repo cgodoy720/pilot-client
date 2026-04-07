@@ -37,6 +37,9 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
+const toSnakeCase = (str) =>
+  str.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
 // ============================================================================
 // ASSESSMENT TEMPLATES TAB
 // ============================================================================
@@ -942,48 +945,121 @@ function SurveyTemplatesTab({ token }) {
   );
 }
 
-// Controlled JSON input that stores raw text locally and only commits valid JSON on blur
-function JsonInput({ value, onChange, multiline, ...props }) {
-  const [text, setText] = useState(() => JSON.stringify(value || [], null, multiline ? 2 : 0));
-  const [isValid, setIsValid] = useState(true);
-  const isFocusedRef = useRef(false);
+// ============================================================================
+// OPTIONS BUILDER (visual editor for {value, label} option arrays)
+// ============================================================================
 
-  // Sync from parent when value changes externally (not while user is typing)
-  useEffect(() => {
-    if (!isFocusedRef.current) {
-      setText(JSON.stringify(value || [], null, multiline ? 2 : 0));
-      setIsValid(true);
-    }
-  }, [value, multiline]);
+function OptionsBuilder({ options = [], onChange }) {
+  // Normalize: handle both string and {value, label} formats
+  const normalized = options.map((o) => {
+    if (typeof o === 'string') return o;
+    return o.label || o.value || '';
+  });
 
-  const handleChange = (e) => {
-    const raw = e.target.value;
-    setText(raw);
-    try {
-      const parsed = JSON.parse(raw);
-      setIsValid(true);
-      onChange(parsed);
-    } catch {
-      setIsValid(false);
-    }
+  const updateOption = (index, val) => {
+    const updated = [...normalized];
+    updated[index] = val;
+    onChange(updated.map((text) => ({ value: text, label: text })));
   };
 
-  const handleFocus = () => { isFocusedRef.current = true; };
-
-  const handleBlur = () => {
-    isFocusedRef.current = false;
-    try {
-      const parsed = JSON.parse(text);
-      setIsValid(true);
-      onChange(parsed);
-      setText(JSON.stringify(parsed, null, multiline ? 2 : 0));
-    } catch {
-      setIsValid(false);
-    }
+  const addOption = () => {
+    const updated = [...normalized, ''];
+    onChange(updated.map((text) => ({ value: text, label: text })));
   };
 
-  const Component = multiline ? Textarea : Input;
-  return <Component {...props} value={text} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur} style={isValid ? {} : { borderColor: '#ef4444' }} />;
+  const removeOption = (index) => {
+    const updated = normalized.filter((_, i) => i !== index);
+    onChange(updated.map((text) => ({ value: text, label: text })));
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <Label className="text-xs font-proxima font-semibold">Options ({normalized.length})</Label>
+        <Button size="sm" variant="outline" onClick={addOption} className="font-proxima text-xs h-7">
+          <Plus className="h-3 w-3 mr-1" /> Add Option
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {normalized.map((opt, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-proxima w-4 text-right">{i + 1}.</span>
+            <Input
+              value={opt}
+              onChange={(e) => updateOption(i, e.target.value)}
+              placeholder={`Option ${i + 1}`}
+              className="font-proxima text-sm flex-1 h-8"
+            />
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => removeOption(i)} disabled={normalized.length <= 1}>
+              <X className="h-3 w-3 text-red-500" />
+            </Button>
+          </div>
+        ))}
+        {normalized.length === 0 && (
+          <p className="text-xs text-slate-400 font-proxima italic">No options yet. Click "Add Option" to create one.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SCALE BUILDER (visual editor for numeric scale arrays)
+// ============================================================================
+
+function ScaleBuilder({ scale = [], onChange, leftLabel, rightLabel, onLeftLabelChange, onRightLabelChange }) {
+  const min = scale.length > 0 ? scale[0] : 1;
+  const max = scale.length > 0 ? scale[scale.length - 1] : 5;
+
+  const updateScale = (newMin, newMax) => {
+    const cMin = Math.max(0, Math.min(newMin, 100));
+    const cMax = Math.max(cMin, Math.min(newMax, 100));
+    if (cMax - cMin > 20) return; // safety limit
+    const arr = Array.from({ length: cMax - cMin + 1 }, (_, i) => cMin + i);
+    onChange(arr);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-proxima font-semibold">Scale Settings</Label>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs font-proxima">Min Value</Label>
+          <Input
+            type="number"
+            value={min}
+            onChange={(e) => updateScale(parseInt(e.target.value) || 0, max)}
+            className="font-proxima text-xs h-8"
+          />
+        </div>
+        <div>
+          <Label className="text-xs font-proxima">Max Value</Label>
+          <Input
+            type="number"
+            value={max}
+            onChange={(e) => updateScale(min, parseInt(e.target.value) || min)}
+            className="font-proxima text-xs h-8"
+          />
+        </div>
+        <div>
+          <Label className="text-xs font-proxima">Left Label</Label>
+          <Input value={leftLabel || ''} onChange={(e) => onLeftLabelChange(e.target.value)} className="font-proxima text-xs h-8" placeholder="e.g. Not likely" />
+        </div>
+        <div>
+          <Label className="text-xs font-proxima">Right Label</Label>
+          <Input value={rightLabel || ''} onChange={(e) => onRightLabelChange(e.target.value)} className="font-proxima text-xs h-8" placeholder="e.g. Very likely" />
+        </div>
+      </div>
+      <div className="flex items-center gap-1 flex-wrap mt-1">
+        <span className="text-xs text-slate-500 font-proxima mr-1">Preview:</span>
+        {(scale.length > 0 ? scale : [1, 2, 3, 4, 5]).map((v) => (
+          <span key={v} className="inline-flex items-center justify-center h-6 w-6 rounded bg-slate-100 text-xs font-proxima font-semibold text-slate-600">
+            {v}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function SurveyEditDialog({ open, onOpenChange, template, setTemplate, onSave }) {
@@ -993,7 +1069,28 @@ function SurveyEditDialog({ open, onOpenChange, template, setTemplate, onSave })
 
   const updateQuestion = (index, field, value) => {
     const updated = [...questions];
-    updated[index] = { ...updated[index], [field]: value };
+    const q = { ...updated[index], [field]: value };
+
+    // Auto-generate ID from question text (only if ID looks auto-generated)
+    if (field === 'question') {
+      const oldQ = updated[index];
+      const isAutoId = !oldQ.id || oldQ.id.startsWith('question_') || oldQ.id === toSnakeCase(oldQ.question || '').slice(0, 50);
+      if (isAutoId && value) {
+        q.id = toSnakeCase(value).slice(0, 50);
+      }
+    }
+
+    // Smart defaults when switching question type
+    if (field === 'type') {
+      if (value === 'options' && (!q.options || q.options.length === 0)) {
+        q.options = [{ value: 'Option 1', label: 'Option 1' }, { value: 'Option 2', label: 'Option 2' }];
+      }
+      if (value === 'scale' && (!q.scale || q.scale.length === 0)) {
+        q.scale = [1, 2, 3, 4, 5];
+      }
+    }
+
+    updated[index] = q;
     setTemplate({ ...template, questions: updated });
   };
 
@@ -1091,35 +1188,29 @@ function SurveyEditDialog({ open, onOpenChange, template, setTemplate, onSave })
                   </div>
 
                   <div>
-                    <Label className="text-xs font-proxima">Question ID</Label>
-                    <Input value={q.id || ''} onChange={(e) => updateQuestion(i, 'id', e.target.value)} className="font-proxima font-mono text-sm h-8" />
-                  </div>
-
-                  <div>
                     <Label className="text-xs font-proxima">Question Text</Label>
                     <Textarea value={q.question || ''} onChange={(e) => updateQuestion(i, 'question', e.target.value)} rows={2} className="font-proxima text-sm" />
                   </div>
 
+                  <div>
+                    <Label className="text-xs font-proxima">Question ID</Label>
+                    <Input value={q.id || ''} onChange={(e) => updateQuestion(i, 'id', e.target.value)} className={`font-proxima font-mono text-sm h-8 ${questions.filter((other, j) => j !== i && other.id === q.id).length > 0 ? 'border-red-400' : ''}`} />
+                    {questions.filter((other, j) => j !== i && other.id === q.id).length > 0 ? (
+                      <p className="text-xs text-red-500 font-proxima mt-0.5">Duplicate ID — each question needs a unique ID.</p>
+                    ) : (
+                      <p className="text-xs text-slate-400 font-proxima mt-0.5">Auto-generated from question text. Edit to customize.</p>
+                    )}
+                  </div>
+
                   {q.type === 'scale' && (
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-xs font-proxima">Scale (JSON array)</Label>
-                        <JsonInput
-                          value={q.scale}
-                          onChange={(parsed) => updateQuestion(i, 'scale', parsed)}
-                          className="font-proxima font-mono text-xs h-8"
-                          placeholder="[1,2,3,4,5]"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-proxima">Left Label</Label>
-                        <Input value={q.leftLabel || ''} onChange={(e) => updateQuestion(i, 'leftLabel', e.target.value)} className="font-proxima text-xs h-8" />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-proxima">Right Label</Label>
-                        <Input value={q.rightLabel || ''} onChange={(e) => updateQuestion(i, 'rightLabel', e.target.value)} className="font-proxima text-xs h-8" />
-                      </div>
-                    </div>
+                    <ScaleBuilder
+                      scale={q.scale || []}
+                      onChange={(newScale) => updateQuestion(i, 'scale', newScale)}
+                      leftLabel={q.leftLabel || ''}
+                      rightLabel={q.rightLabel || ''}
+                      onLeftLabelChange={(v) => updateQuestion(i, 'leftLabel', v)}
+                      onRightLabelChange={(v) => updateQuestion(i, 'rightLabel', v)}
+                    />
                   )}
 
                   {q.type === 'textarea' && (
@@ -1130,17 +1221,10 @@ function SurveyEditDialog({ open, onOpenChange, template, setTemplate, onSave })
                   )}
 
                   {q.type === 'options' && (
-                    <div>
-                      <Label className="text-xs font-proxima">Options (JSON array)</Label>
-                      <JsonInput
-                        value={q.options}
-                        onChange={(parsed) => updateQuestion(i, 'options', parsed)}
-                        multiline
-                        rows={3}
-                        className="font-proxima font-mono text-xs"
-                        placeholder='[{"value": "yes", "label": "Yes"}]'
-                      />
-                    </div>
+                    <OptionsBuilder
+                      options={q.options || []}
+                      onChange={(newOptions) => updateQuestion(i, 'options', newOptions)}
+                    />
                   )}
                 </div>
               ))}
