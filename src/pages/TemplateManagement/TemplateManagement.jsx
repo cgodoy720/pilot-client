@@ -942,6 +942,50 @@ function SurveyTemplatesTab({ token }) {
   );
 }
 
+// Controlled JSON input that stores raw text locally and only commits valid JSON on blur
+function JsonInput({ value, onChange, multiline, ...props }) {
+  const [text, setText] = useState(() => JSON.stringify(value || [], null, multiline ? 2 : 0));
+  const [isValid, setIsValid] = useState(true);
+  const isFocusedRef = useRef(false);
+
+  // Sync from parent when value changes externally (not while user is typing)
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setText(JSON.stringify(value || [], null, multiline ? 2 : 0));
+      setIsValid(true);
+    }
+  }, [value, multiline]);
+
+  const handleChange = (e) => {
+    const raw = e.target.value;
+    setText(raw);
+    try {
+      const parsed = JSON.parse(raw);
+      setIsValid(true);
+      onChange(parsed);
+    } catch {
+      setIsValid(false);
+    }
+  };
+
+  const handleFocus = () => { isFocusedRef.current = true; };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    try {
+      const parsed = JSON.parse(text);
+      setIsValid(true);
+      onChange(parsed);
+      setText(JSON.stringify(parsed, null, multiline ? 2 : 0));
+    } catch {
+      setIsValid(false);
+    }
+  };
+
+  const Component = multiline ? Textarea : Input;
+  return <Component {...props} value={text} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur} style={isValid ? {} : { borderColor: '#ef4444' }} />;
+}
+
 function SurveyEditDialog({ open, onOpenChange, template, setTemplate, onSave }) {
   if (!template) return null;
 
@@ -1060,9 +1104,9 @@ function SurveyEditDialog({ open, onOpenChange, template, setTemplate, onSave })
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <Label className="text-xs font-proxima">Scale (JSON array)</Label>
-                        <Input
-                          value={JSON.stringify(q.scale || [])}
-                          onChange={(e) => { try { updateQuestion(i, 'scale', JSON.parse(e.target.value)); } catch {} }}
+                        <JsonInput
+                          value={q.scale}
+                          onChange={(parsed) => updateQuestion(i, 'scale', parsed)}
                           className="font-proxima font-mono text-xs h-8"
                           placeholder="[1,2,3,4,5]"
                         />
@@ -1088,9 +1132,10 @@ function SurveyEditDialog({ open, onOpenChange, template, setTemplate, onSave })
                   {q.type === 'options' && (
                     <div>
                       <Label className="text-xs font-proxima">Options (JSON array)</Label>
-                      <Textarea
-                        value={JSON.stringify(q.options || [], null, 2)}
-                        onChange={(e) => { try { updateQuestion(i, 'options', JSON.parse(e.target.value)); } catch {} }}
+                      <JsonInput
+                        value={q.options}
+                        onChange={(parsed) => updateQuestion(i, 'options', parsed)}
+                        multiline
                         rows={3}
                         className="font-proxima font-mono text-xs"
                         placeholder='[{"value": "yes", "label": "Yes"}]'

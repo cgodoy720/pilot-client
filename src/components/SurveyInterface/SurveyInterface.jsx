@@ -22,6 +22,9 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
   // Get localStorage key for this specific survey (includes preview mode to keep them separate)
   const getStorageKey = () => `survey_progress_${taskId}_${surveyType}${isPreviewMode ? '_preview' : ''}`;
 
+  // Track whether template fetch has completed (success or failure)
+  const [templateLoaded, setTemplateLoaded] = useState(false);
+
   // Fetch survey questions from DB on mount
   useEffect(() => {
     const fetchSurveyTemplate = async () => {
@@ -38,9 +41,14 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
         }
       } catch (err) {
         console.warn('Failed to fetch survey template from DB, using hardcoded fallback');
+      } finally {
+        setTemplateLoaded(true);
       }
     };
-    if (token && surveyType) fetchSurveyTemplate();
+    if (token && surveyType) {
+      setTemplateLoaded(false);
+      fetchSurveyTemplate();
+    }
   }, [token, surveyType]);
 
   // Hardcoded fallback questions (used if DB fetch fails)
@@ -68,8 +76,10 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
 
-  // Load existing feedback and localStorage progress
+  // Load existing feedback and localStorage progress (waits for template to resolve first)
   useEffect(() => {
+    if (!taskId || !token || !templateLoaded) return;
+
     const loadSurveyData = async () => {
       try {
         setIsLoading(true);
@@ -98,7 +108,7 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
               }
             });
             setResponses(existingResponses);
-            
+
             // If survey is already complete, populate responses for read-only view
             if (Object.keys(existingResponses).length > 0) {
               // Don't call onComplete here - just show the survey in read-only mode
@@ -127,10 +137,8 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
       }
     };
 
-    if (taskId && token) {
-      loadSurveyData();
-    }
-  }, [taskId, token, surveyType]);
+    loadSurveyData();
+  }, [taskId, token, surveyType, templateLoaded]);
 
   // Save progress to localStorage
   const saveProgress = (newResponses, questionIndex) => {
@@ -305,24 +313,33 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
     );
   };
 
+  // Normalize option to { value, label } — handles plain strings and objects
+  const normalizeOption = (option) => {
+    if (typeof option === 'string') return { value: option, label: option };
+    return { value: option.value ?? option.label ?? '', label: option.label ?? option.value ?? '' };
+  };
+
   // Render options question
   const renderOptionsQuestion = () => {
     return (
       <div className="survey-interface__question-content">
         <div className="survey-interface__options-container">
-          {currentQuestion.options.map(option => (
-            <button
-              key={option.value}
-              type="button"
-              className={`survey-interface__option-button ${
-                responses[currentQuestion.id] === option.value ? 'survey-interface__option-button--selected' : ''
-              }`}
-              onClick={() => handleResponseChange(option.value)}
-              disabled={isSubmitting || isCompleted}
-            >
-              <span>{option.label}</span>
-            </button>
-          ))}
+          {currentQuestion.options.map((rawOption) => {
+            const option = normalizeOption(rawOption);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={`survey-interface__option-button ${
+                  responses[currentQuestion.id] === option.value ? 'survey-interface__option-button--selected' : ''
+                }`}
+                onClick={() => handleResponseChange(option.value)}
+                disabled={isSubmitting || isCompleted}
+              >
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
