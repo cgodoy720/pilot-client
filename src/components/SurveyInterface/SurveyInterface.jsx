@@ -45,7 +45,10 @@ const SurveyInterface = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onC
         setTemplateLoaded(true);
       }
     };
-    if (token && surveyType) fetchSurveyTemplate();
+    if (token && surveyType) {
+      setTemplateLoaded(false);
+      fetchSurveyTemplate();
+    }
   }, [token, surveyType]);
 
   // Hardcoded fallback questions (used if DB fetch fails)
