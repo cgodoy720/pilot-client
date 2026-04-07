@@ -139,6 +139,15 @@ export const useTaskInsights = (token, startDate, endDate) => {
 // Integration status hooks (Render + Netlify)
 // ──────────────────────────────────────────────────────────────
 
+export const useWeeklyFeedbackLastRun = (token) => {
+  return useQuery({
+    queryKey: ['integrations', 'weekly-feedback-last-run'],
+    queryFn: () => fetchWithAuth(`${BASE}/integrations/weekly-feedback-last-run`, token),
+    enabled: !!token,
+    staleTime: 300_000,
+  });
+};
+
 export const useGcpServicesStatus = (token) => {
   return useQuery({
     queryKey: ['integrations', 'gcp-services'],
