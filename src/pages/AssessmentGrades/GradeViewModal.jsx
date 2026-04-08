@@ -279,6 +279,17 @@ const GradeViewModal = ({
     }
   };
 
+  // Group comprehensive analysis by our assessment types (case-insensitive matching)
+  const analysisByType = comprehensiveAnalysis.reduce((acc, analysis) => {
+    const typeKey = (analysis.assessment_type || '').toLowerCase();
+    const mappedType = assessmentTypeMapping[typeKey] || typeKey;
+    if (!acc[mappedType]) {
+      acc[mappedType] = [];
+    }
+    acc[mappedType].push(analysis);
+    return acc;
+  }, {});
+
   // Group user submissions by assessment type for easier access (case-insensitive)
   const submissionsByType = userSubmissions.reduce((acc, submission) => {
     const type = (submission.assessment_type || 'unknown').toLowerCase();
