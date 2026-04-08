@@ -93,7 +93,7 @@ app.add_middleware(
 )
 
 # CORS middleware
-CORS_ORIGINS = ["http://localhost:3000", "http://localhost:3001"]
+CORS_ORIGINS = ["http://localhost:3000", "http://localhost:3001", "http://localhost:4000"]
 FRONTEND_URL = os.getenv('FRONTEND_URL')
 if FRONTEND_URL:
     CORS_ORIGINS.append(FRONTEND_URL)
@@ -223,12 +223,10 @@ async def background_sync_task():
 get_current_user = get_current_user_dep
 
 
-def get_mcp_client() -> UnifiedMCPClient:
-    """Get MCP client dependency."""
-    client = _services.get("mcp_client")
-    if not client:
-        raise HTTPException(status_code=503, detail="MCP client not initialized")
-    return client
+def get_mcp_client(request: Request = None) -> UnifiedMCPClient:
+    """Get MCP client dependency — delegates to dependencies.py."""
+    from dependencies import get_mcp_client as _get
+    return _get(request)
 
 
 def get_forecasting_engine() -> ForecastingEngine:
