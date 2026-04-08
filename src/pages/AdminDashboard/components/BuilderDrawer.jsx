@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList } from 'lucide-react';
+import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award } from 'lucide-react';
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import useAuthStore from '../../../stores/authStore';
 import BuilderLogEntry from './BuilderLogEntry';
 import BuilderLogModal from './BuilderLogModal';
@@ -306,6 +307,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [rawLoading, setRawLoading] = useState(false);
   const [enrollmentStatus, setEnrollmentStatus] = useState(builder?.enrollment_status || 'in_progress');
   const [savingEnrollment, setSavingEnrollment] = useState(false);
+  const [assessmentScores, setAssessmentScores] = useState(null);
 
   // Weekly Surveys state
   const [surveyResponses, setSurveyResponses] = useState([]);
@@ -524,6 +526,35 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     onLogSaved?.();
   };
 
+  // Fetch assessment scores for radar chart
+  useEffect(() => {
+    if (!builder?.user_id || !token) return;
+    fetch(`${API_URL}/api/admin/assessment-grades/comprehensive-analysis/${builder.user_id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.analysis?.length > 0) {
+          const typeMap = { self: 'Self', technical: 'Technical', business: 'Business', professional: 'Professional' };
+          const scores = {};
+          data.analysis.forEach(a => {
+            const type = (a.assessment_type || '').toLowerCase();
+            const mapped = typeMap[type];
+            if (mapped && a.overall_score != null) {
+              scores[mapped] = Math.round(a.overall_score * 100);
+            }
+          });
+          setAssessmentScores(scores);
+        }
+      })
+      .catch(() => {});
+  }, [builder?.user_id, token]);
+
+  const radarData = assessmentScores ? ['Self', 'Technical', 'Business', 'Professional'].map(cat => ({
+    category: cat, score: assessmentScores[cat] ?? null,
+  })) : null;
+  const hasRadar = radarData?.some(d => d.score != null);
+
   const handleEnrollmentChange = async (newStatus) => {
     if (!builder.enrollment_id || !token) return;
     setSavingEnrollment(true);
@@ -711,6 +742,36 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                   <p className="text-xs text-slate-400 text-center py-4">No standup or retro conversations yet.</p>
                 )}
               </Section>
+
+              {/* Assessments */}
+              {hasRadar && (
+                <Section icon={Award} title="Assessments">
+                  <div className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-6">
+                      <div className="w-[180px] h-[160px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="65%">
+                            <PolarGrid stroke="#E3E3E3" />
+                            <PolarAngleAxis dataKey="category" tick={{ fontSize: 10, fill: '#1E1E1E' }} />
+                            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                            <Radar dataKey="score" stroke="#4242EA" fill="#4242EA" fillOpacity={0.2} strokeWidth={2} dot={{ r: 2, fill: '#4242EA' }} />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="space-y-1.5">
+                        {radarData.map(d => (
+                          <div key={d.category} className="flex items-center gap-2">
+                            <span className={`text-sm font-bold w-8 text-right ${
+                              d.score >= 80 ? 'text-green-600' : d.score >= 60 ? 'text-yellow-600' : d.score != null ? 'text-red-500' : 'text-slate-300'
+                            }`}>{d.score != null ? `${d.score}%` : '—'}</span>
+                            <span className="text-[11px] text-slate-500">{d.category}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Section>
+              )}
 
               {/* Weekly Surveys */}
               <Section icon={ClipboardList} title="Weekly Surveys" count={surveyResponses.length} defaultOpen={false}>

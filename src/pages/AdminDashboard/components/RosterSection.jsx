@@ -468,6 +468,7 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
           </SheetHeader>
           <div className="px-6 py-4">
             <AttendanceManagement
+              compact
               cohortName={selectedCohort?.name || ''}
               initialBuilder={attendanceBuilder ? {
                 id: attendanceBuilder.user_id,

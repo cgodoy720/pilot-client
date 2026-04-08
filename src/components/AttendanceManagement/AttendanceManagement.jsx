@@ -218,7 +218,7 @@ const AttendanceCalendarGrid = React.memo(function AttendanceCalendarGrid({
   );
 });
 
-const AttendanceManagement = ({ cohortName = '', initialBuilder = null }) => {
+const AttendanceManagement = ({ cohortName = '', initialBuilder = null, compact = false }) => {
   const token = useAuthStore((s) => s.token);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -564,22 +564,24 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">Attendance Management</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Search, update, and manage builder attendance records.
-          </p>
+      {!compact && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">Attendance Management</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Search, update, and manage builder attendance records.
+            </p>
+          </div>
+          <Button
+            onClick={() => openCreateDialog()}
+            disabled={!selectedBuilder}
+            className="bg-[#4242EA] hover:bg-[#3636D8] text-white"
+          >
+            <Plus className="h-4 w-4" />
+            New Record
+          </Button>
         </div>
-        <Button
-          onClick={() => openCreateDialog()}
-          disabled={!selectedBuilder}
-          className="bg-[#4242EA] hover:bg-[#3636D8] text-white"
-        >
-          <Plus className="h-4 w-4" />
-          New Record
-        </Button>
-      </div>
+      )}
 
       {successMessage && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
@@ -596,7 +598,8 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null }) => {
       )}
 
       <Card className="border-slate-200">
-        <CardContent className="space-y-4 p-6">
+        <CardContent className={`space-y-4 ${compact ? 'p-3' : 'p-6'}`}>
+          {!compact && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
             <div className="relative lg:col-span-6">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -662,8 +665,9 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null }) => {
               </div>
             </div>
           </div>
+          )}
 
-          {searchResults.length > 0 && (
+          {!compact && searchResults.length > 0 && (
             <div className="rounded-lg border border-slate-200 bg-white">
               {searchResults.map((builder) => (
                 <button
@@ -686,21 +690,23 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null }) => {
       </Card>
 
       <Card className="border-slate-200">
-        <CardContent className="p-6">
+        <CardContent className={compact ? 'p-3' : 'p-6'}>
           {selectedBuilder ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm text-slate-600">
-                  Builder:{' '}
-                  <span className="font-semibold text-slate-900">
-                    {selectedBuilder.firstName} {selectedBuilder.lastName}
-                  </span>{' '}
-                  | Cohort: <span className="font-medium text-slate-900">{selectedBuilder.cohort}</span> | Showing:{' '}
-                  <span className="font-medium text-slate-900">
-                    {formatDateDisplay(formatDate(startDate))} - {formatDateDisplay(formatDate(endDate))}
-                  </span>
-                </p>
-              </div>
+              {!compact && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm text-slate-600">
+                    Builder:{' '}
+                    <span className="font-semibold text-slate-900">
+                      {selectedBuilder.firstName} {selectedBuilder.lastName}
+                    </span>{' '}
+                    | Cohort: <span className="font-medium text-slate-900">{selectedBuilder.cohort}</span> | Showing:{' '}
+                    <span className="font-medium text-slate-900">
+                      {formatDateDisplay(formatDate(startDate))} - {formatDateDisplay(formatDate(endDate))}
+                    </span>
+                  </p>
+                </div>
+              )}
 
               <AttendanceCalendarGrid
                 historyLoading={historyLoading}

@@ -4,7 +4,7 @@ import { Badge } from '../../../components/ui/badge';
 import { ChevronRight } from 'lucide-react';
 import TaskDetailPanel from './TaskDetailPanel';
 import useAuthStore from '../../../stores/authStore';
-import { GradeBar, SortHeader, Pagination, letterGrade } from '../utils/sharedComponents';
+import { SortHeader, Pagination } from '../utils/sharedComponents';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const PAGE_SIZE = 10;
@@ -72,16 +72,13 @@ const TaskAnalysisSection = ({ selectedCohortId, cohorts = [] }) => {
                   <tr className="text-left text-slate-400 text-xs uppercase tracking-wide border-b border-[#E3E3E3]">
                     <SortHeader label="Task" sortKey="task_title" sort={taskSort} onSort={toggleTaskSort} className="pr-3" />
                     <SortHeader label="Date" sortKey="assigned_date" sort={taskSort} onSort={toggleTaskSort} className="px-2" />
-                    <SortHeader label="Sub. Rate" sortKey="submission_rate" sort={taskSort} onSort={toggleTaskSort} className="px-2 text-center" />
-                    <SortHeader label="Avg Score" sortKey="avg_score" sort={taskSort} onSort={toggleTaskSort} className="px-2 text-center" />
-                    <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">Grade Dist.</th>
+                    <SortHeader label="Completion" sortKey="submission_rate" sort={taskSort} onSort={toggleTaskSort} className="px-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EFEFEF]">
                   {sortedTasks.slice(taskPage * PAGE_SIZE, (taskPage + 1) * PAGE_SIZE).map(task => {
                     const date = task.assigned_date?.value || task.assigned_date || '';
-                    const dateStr = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-                    const grade = task.avg_score ? letterGrade(task.avg_score) : '—';
+                    const dateStr = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
                     const isExpanded = expandedTaskId === task.task_id;
                     return (
                       <React.Fragment key={task.task_id}>
@@ -98,29 +95,24 @@ const TaskAnalysisSection = ({ selectedCohortId, cohorts = [] }) => {
                             </div>
                           </td>
                           <td className="py-2 px-2 text-xs text-slate-500 whitespace-nowrap">{dateStr}</td>
-                          <td className="py-2 px-2 text-center">
-                            <div className="flex items-center gap-1.5 justify-center">
-                              <div className="w-12 h-1.5 bg-[#EFEFEF] rounded-full overflow-hidden">
-                                <div className="h-full bg-[#4242EA] rounded-full" style={{ width: `${task.submission_rate}%` }} />
+                          <td className="py-2 px-2">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-[#EFEFEF] rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${
+                                  task.submission_rate >= 80 ? 'bg-green-500' :
+                                  task.submission_rate >= 50 ? 'bg-yellow-400' : 'bg-red-400'
+                                }`} style={{ width: `${task.submission_rate}%` }} />
                               </div>
-                              <span className="text-xs text-slate-500 w-7">{task.submission_rate}%</span>
+                              <span className={`text-xs font-semibold w-8 text-right ${
+                                task.submission_rate >= 80 ? 'text-green-600' :
+                                task.submission_rate >= 50 ? 'text-yellow-600' : 'text-red-500'
+                              }`}>{task.submission_rate}%</span>
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-center">
-                            {task.avg_score ? (
-                              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                                grade.startsWith('A') ? 'bg-green-100 text-green-700' :
-                                grade.startsWith('B') ? 'bg-blue-100 text-blue-700' :
-                                'bg-yellow-100 text-yellow-700'}`}>
-                                {grade}
-                              </span>
-                            ) : <span className="text-xs text-slate-400">—</span>}
-                          </td>
-                          <td className="py-2 px-2 w-32"><GradeBar task={task} /></td>
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan={5} className="p-0">
+                            <td colSpan={3} className="p-0">
                               <TaskDetailPanel task={task} />
                             </td>
                           </tr>
