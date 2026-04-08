@@ -603,7 +603,6 @@ const GradeViewModal = ({
                 </>
               )}
             </div>
-          )}
           </Tabs>
         </div>
       </DialogContent>
