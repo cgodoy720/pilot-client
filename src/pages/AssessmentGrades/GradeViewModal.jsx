@@ -277,6 +277,14 @@ const GradeViewModal = ({
       setEditingStrengths('');
       setEditingGrowthAreas('');
     }
+  };
+
+  // Group user submissions by assessment type for easier access (case-insensitive)
+  const submissionsByType = userSubmissions.reduce((acc, submission) => {
+    const type = (submission.assessment_type || 'unknown').toLowerCase();
+    if (!acc[type]) {
+      acc[type] = [];
+    }
     acc[type].push(submission);
     return acc;
   }, {});
@@ -584,6 +592,7 @@ const GradeViewModal = ({
               )}
             </div>
           )}
+          </Tabs>
         </div>
       </DialogContent>
     </Dialog>
