@@ -142,8 +142,8 @@ const OverviewTab = ({ token, startDate, endDate }) => {
         />
         <KpiCard
           title="Anthropic Direct"
-          value={anthropicTotals ? formatNumber(anthropicTotals.total) + ' tokens' : '—'}
-          subtitle={anthropicTotals ? `In: ${formatNumber(anthropicTotals.input)} · Out: ${formatNumber(anthropicTotals.output)}` : 'Loading...'}
+          value={anthropicTotals ? formatNumber(anthropicTotals.input + anthropicTotals.output) + ' tokens' : '—'}
+          subtitle={anthropicTotals ? `In: ${formatNumber(anthropicTotals.input)} · Out: ${formatNumber(anthropicTotals.output)} · Cache: ${formatNumber(anthropicTotals.cache)}` : 'Loading...'}
           icon={Cpu}
           color="bg-orange-500"
         />

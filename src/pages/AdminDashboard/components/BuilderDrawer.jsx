@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { X, BookOpen, MessageSquare, Video, ChevronDown, ChevronUp, ExternalLink, FileText, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award } from 'lucide-react';
+import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink, FileText, FileSignature, CheckCircle, Clock, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award } from 'lucide-react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import useAuthStore from '../../../stores/authStore';
-import BuilderLogEntry from './BuilderLogEntry';
-import BuilderLogModal from './BuilderLogModal';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -223,80 +221,11 @@ const VideoItem = ({ v }) => {
   );
 };
 
-const SENTIMENT_STYLES = {
-  positive: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', dot: 'bg-green-500' },
-  neutral: { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', dot: 'bg-slate-400' },
-  mixed: { bg: 'bg-yellow-50 border-yellow-200', text: 'text-yellow-700', dot: 'bg-yellow-500' },
-  negative: { bg: 'bg-red-50 border-red-200', text: 'text-red-600', dot: 'bg-red-500' },
-};
-
-const InsightRow = ({ icon: Icon, label, content, className = '' }) => {
-  if (!content) return null;
-  return (
-    <div className={`flex gap-2.5 ${className}`}>
-      <Icon size={13} className="text-[#4242EA] flex-shrink-0 mt-0.5" />
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{label}</p>
-        <p className="text-xs text-slate-700 leading-relaxed">{content}</p>
-      </div>
-    </div>
-  );
-};
-
-const RAW_TYPE_STYLES = {
-  standup: { label: 'Stand-up', bg: 'bg-blue-100 text-blue-700' },
-  retro: { label: 'Retro', bg: 'bg-purple-100 text-purple-700' },
-  reflection: { label: 'Reflection', bg: 'bg-slate-100 text-slate-600' },
-};
-
-const RawConversationItem = ({ conversation }) => {
-  const [expanded, setExpanded] = useState(false);
-  const style = RAW_TYPE_STYLES[conversation.type] || RAW_TYPE_STYLES.reflection;
-  const dateStr = (() => {
-    if (!conversation.day_date) return '—';
-    try {
-      const d = new Date(conversation.day_date);
-      if (isNaN(d.getTime())) return '—';
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } catch { return '—'; }
-  })();
-
-  return (
-    <div className="bg-[#FAFAFA] rounded-md px-3 py-2">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 text-left"
-      >
-        <Badge className={`text-[10px] px-1.5 py-0 ${style.bg}`}>{style.label}</Badge>
-        <span className="text-[10px] font-medium text-slate-600 flex-1 truncate">{conversation.task_title}</span>
-        <span className="text-[10px] text-slate-400 flex-shrink-0">{dateStr}</span>
-        {expanded ? <ChevronUp size={10} className="text-slate-400" /> : <ChevronDown size={10} className="text-slate-400" />}
-      </button>
-      {expanded && (
-        <div className="mt-2 space-y-1.5">
-          {conversation.responses?.length > 0 ? (
-            conversation.responses.map((response, i) => (
-              <div key={i} className="bg-white rounded p-2 border border-[#E3E3E3]">
-                {conversation.questions?.[i] && (
-                  <p className="text-[9px] font-semibold text-[#4242EA] mb-0.5">{conversation.questions[i]}</p>
-                )}
-                <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">{response}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-[10px] text-slate-400">No responses recorded.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose, onLogSaved }) => {
+const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose }) => {
   const token = useAuthStore((s) => s.token);
   const [workProduct, setWorkProduct] = useState(null);
   const [peerFeedback, setPeerFeedback] = useState(null);
+  const [prompts, setPrompts] = useState(null);
   const [videos, setVideos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [builderLogs, setBuilderLogs] = useState([]);
@@ -319,20 +248,31 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   // Weekly Surveys state
   const [surveyResponses, setSurveyResponses] = useState([]);
   const [surveyLoading, setSurveyLoading] = useState(false);
+  const [docusignStatus, setDocusignStatus] = useState(undefined); // undefined = loading, null = not found
 
-  const [dataReady, setDataReady] = useState(false);
+  useEffect(() => {
+    if (!builder?.user_id) return;
+    setDocusignStatus(undefined);
+    fetch(`${API_URL}/api/docusign/status/${builder.user_id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setDocusignStatus(data?.docusign ?? null))
+      .catch(() => setDocusignStatus(null));
+  }, [builder?.user_id, token]);
 
   useEffect(() => {
     if (!builder?.user_id) return;
     setLoading(true);
-    setDataReady(false);
 
     const fetchType = (type) =>
       fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${startDate}&endDate=${endDate}`)
         .then(r => r.ok ? r.json() : null)
         .catch(() => null);
 
+    // Try legacy API for video analyses first, fall back to native PG endpoint
     const fetchVideos = async () => {
+      // Try legacy BQ-based video analyses
       try {
         const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${startDate}&endDate=${endDate}`);
         if (legacyRes.ok) {
@@ -342,6 +282,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
         }
       } catch { /* fall through */ }
 
+      // Fallback: native PG video submissions
       if (cohortId && token) {
         try {
           const res = await fetch(`${API_URL}/api/admin/dashboard/builder-videos?userId=${builder.user_id}&cohortId=${cohortId}`, {
@@ -378,12 +319,13 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     Promise.all([
       fetchType('workProduct'),
       fetchPeerFeedback(),
+      fetchType('prompts'),
       fetchVideos(),
-    ]).then(([wp, pf, vids]) => {
+    ]).then(([wp, pf, pr, vids]) => {
       setWorkProduct(wp);
       setPeerFeedback(pf);
+      setPrompts(pr);
       setVideos(vids);
-      setDataReady(true);
     }).finally(() => setLoading(false));
   }, [builder?.user_id, startDate, endDate, cohortId, token]);
 
@@ -609,6 +551,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
 
   const wpItems = workProduct?.details || workProduct || [];
   const pfItems = peerFeedback?.details || peerFeedback || [];
+  const promptItems = prompts?.details || prompts || [];
   const videoItems = Array.isArray(videos) ? videos : [];
 
   return (
@@ -899,12 +842,37 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                           onSupportStatusChange={handleSupportStatusChange}
                         />
                       ))}
+              </Section>
+
+              {/* Good Job Agreement */}
+              <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 ${
+                docusignStatus?.hasSigned
+                  ? 'bg-indigo-50 border-indigo-200'
+                  : 'bg-[#FAFAFA] border-[#E3E3E3]'
+              }`}>
+                <FileSignature size={16} className={docusignStatus?.hasSigned ? 'text-indigo-500' : 'text-slate-300'} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-[#1E1E1E]">Good Job Agreement</p>
+                  {docusignStatus === undefined ? (
+                    <p className="text-[10px] text-slate-400">Checking…</p>
+                  ) : docusignStatus?.hasSigned ? (
+                    <div className="flex items-center gap-1 text-[10px] text-indigo-600">
+                      <CheckCircle size={10} />
+                      <span>Signed via DocuSign</span>
+                      {docusignStatus.signedAt && (
+                        <span className="flex items-center gap-0.5 ml-1 text-indigo-400">
+                          <Clock size={9} />
+                          {new Date(docusignStatus.signedAt).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400 text-center py-2">No logs yet.</p>
+                    <p className="text-[10px] text-slate-400">
+                      {docusignStatus ? `Status: ${docusignStatus.status}` : 'Not signed yet'}
+                    </p>
                   )}
                 </div>
-              </Section>
+              </div>
 
               {/* Video Submissions */}
               <Section icon={Video} title="Video Submissions" count={videoItems.length} defaultOpen={false}>
@@ -918,7 +886,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
               </Section>
 
               {/* Work Product */}
-              <Section icon={BookOpen} title="Work Product" count={Array.isArray(wpItems) ? wpItems.length : 0} defaultOpen={false}>
+              <Section icon={BookOpen} title="Work Product" count={Array.isArray(wpItems) ? wpItems.length : 0}>
                 {Array.isArray(wpItems) && wpItems.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -965,11 +933,47 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                   <p className="text-xs text-slate-400 text-center py-4">No peer feedback data.</p>
                 )}
               </Section>
+
+              {/* Video Submissions */}
+              <Section icon={Video} title="Video Submissions" count={videoItems.length} defaultOpen={videoItems.length > 0}>
+                {videoItems.length > 0 ? (
+                  <div className="divide-y divide-[#EFEFEF]">
+                    {videoItems.map((v, i) => <VideoItem key={v.video_id || i} v={v} />)}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 text-center py-4">No video submissions.</p>
+                )}
+              </Section>
+
+              {/* Prompts Sent */}
+              <Section icon={Send} title="Prompts Sent" count={Array.isArray(promptItems) ? promptItems.length : 0} defaultOpen={false}>
+                {Array.isArray(promptItems) && promptItems.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-slate-400 text-[10px] uppercase tracking-wide border-b border-[#E3E3E3]">
+                          <th className="py-2 px-3 font-medium">Date</th>
+                          <th className="py-2 px-3 font-medium">Prompts Sent</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#EFEFEF]">
+                        {promptItems.map((item, i) => (
+                          <tr key={i}>
+                            <td className="py-1.5 px-3 text-xs text-slate-500">{resolveDate(item.date)}</td>
+                            <td className="py-1.5 px-3 text-xs font-medium text-[#1E1E1E]">{resolveStr(item.prompts_sent || item.count)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 text-center py-4">No prompt data.</p>
+                )}
+              </Section>
             </>
           )}
         </div>
       </div>
-
     </>
   );
 };

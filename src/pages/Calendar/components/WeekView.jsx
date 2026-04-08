@@ -34,7 +34,6 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
   // Check if day has tasks that REQUIRE completion
   // Tasks require completion if they have:
   // - deliverable_type (video/document/link/structured) - needs submission
-  // - should_analyze = true - needs conversation conclusion
   // - feedback_slot - survey needs submission
   // - task_mode = 'assessment' - assessment needs submission
   const hasRequiredTasks = (dateObj) => {
@@ -42,10 +41,9 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
     return dateObj.tasks.some(t => {
       const hasDeliverable = t.deliverable_type && 
                             ['video', 'document', 'link', 'structured'].includes(t.deliverable_type);
-      const needsAnalysis = t.should_analyze === true;
       const isSurvey = !!t.feedback_slot;
       const isAssessment = t.task_mode === 'assessment';
-      return hasDeliverable || needsAnalysis || isSurvey || isAssessment;
+      return hasDeliverable || isSurvey || isAssessment;
     });
   };
   
@@ -60,14 +58,12 @@ const WeekView = ({ weekNumber, weeklyGoal, days = [], onDayClick, currentDayId,
     const curriculumDay = dateObj.curriculumDay;
     if (!curriculumDay) return false;
     
-    // Get tasks that require completion
     const requiredTasks = dateObj.tasks?.filter(t => {
       const hasDeliverable = t.deliverable_type && 
                             ['video', 'document', 'link', 'structured'].includes(t.deliverable_type);
-      const needsAnalysis = t.should_analyze === true;
       const isSurvey = !!t.feedback_slot;
       const isAssessment = t.task_mode === 'assessment';
-      return hasDeliverable || needsAnalysis || isSurvey || isAssessment;
+      return hasDeliverable || isSurvey || isAssessment;
     }) || [];
     
     // If no required tasks, automatically complete (nothing to do)

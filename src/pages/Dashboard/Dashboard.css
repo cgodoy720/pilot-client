@@ -428,6 +428,10 @@
   gap: 5px;
 }
 
+.dashboard__day-activity--clickable {
+  cursor: pointer;
+}
+
 .dashboard__day-activity-content {
   display: flex;
   flex-direction: column;

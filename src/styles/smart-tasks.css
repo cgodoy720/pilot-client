@@ -22,8 +22,7 @@
 /* We don't need to redefine the base avatar styling, just override it for conversation tasks */
 
 /* Override for conversation tasks to use regular logo.png */
-.learning__chat-container--conversation .learning__message--assistant::before,
-.past-session .learning__chat-container--conversation .learning__message--assistant::before {
+.learning__chat-container--conversation .learning__message--assistant::before {
   background-color: var(--color-primary) !important;
   background-image: url("/logo.png") !important;
   background-size: 12px !important;
@@ -32,8 +31,7 @@
 }
 
 /* Ensure conversation task messages don't break container width */
-.learning__chat-container--conversation .learning__message-content,
-.past-session .learning__chat-container--conversation .learning__message-content {
+.learning__chat-container--conversation .learning__message-content {
   overflow-wrap: break-word !important;
   word-wrap: break-word !important;
   word-break: break-word !important;

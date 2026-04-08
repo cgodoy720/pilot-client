@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import useAuthStore from '../../stores/authStore';
 import Swal from 'sweetalert2';
 import { Button } from '../../components/ui/button';
@@ -10,24 +10,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../../components/ui/collapsible';
 import { ChevronDown, Target } from 'lucide-react';
+import { Input } from '../../components/ui/input';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 // ── Label maps ────────────────────────────────────────────────────────────────
 
 const INTEREST_LABELS = {
-  fintech: 'Fintech',
-  healthtech: 'Healthtech',
-  ai_ml: 'AI / ML',
-  edtech: 'EdTech',
-  ecommerce: 'E-Commerce',
-  cybersecurity: 'Cybersecurity',
-  enterprise_saas: 'Enterprise SaaS',
-  consumer_apps: 'Consumer Apps',
-  real_estate: 'Real Estate',
-  gov_civic_tech: 'Gov / Civic Tech',
+  technology: 'Technology',
+  finance: 'Finance',
+  healthcare: 'Healthcare',
+  education: 'Education',
+  government: 'Government',
+  retail: 'Retail',
   media_entertainment: 'Media & Entertainment',
-  consumer_services: 'Consumer Services',
+  manufacturing: 'Manufacturing',
+  real_estate: 'Real Estate',
+  consulting: 'Consulting',
+  nonprofit: 'Nonprofit',
+  legal: 'Legal',
+  energy: 'Energy',
+  transportation: 'Transportation',
+  hospitality: 'Hospitality',
   other: 'Other',
 };
 
@@ -89,6 +93,7 @@ function interestsToForm(data) {
     targetPeople: data.target_people || [],
     targetCompanyStage: data.target_company_stage || '',
     timeline: data.timeline || '',
+    portfolioUrl: data.portfolio_url || '',
   };
 }
 
@@ -99,12 +104,14 @@ const EMPTY_FORM = {
   targetPeople: [],
   targetCompanyStage: '',
   timeline: '',
+  portfolioUrl: '',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function MyStrategy() {
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
 
   const [interests, setInterests] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +124,14 @@ function MyStrategy() {
   const [reflectionData, setReflectionData] = useState({ whatTried: '', whyChanging: '' });
   const [pendingFormData, setPendingFormData] = useState(null);
   const [isLoggingReflection, setIsLoggingReflection] = useState(false);
+
+  const buildLookbookUrl = useCallback(() => {
+    const rawFirst = (user?.firstName || user?.first_name || '').trim();
+    const rawLast = (user?.lastName || user?.last_name || '').trim();
+    const first = rawFirst.split(/\s+/)[0].toLowerCase();
+    const last = rawLast.replace(/\s+/g, '-').toLowerCase();
+    return first && last ? `https://lookbook.pursuit.org/people/${first}-${last}` : null;
+  }, [user]);
 
   useEffect(() => {
     fetchInterests();
@@ -223,6 +238,7 @@ function MyStrategy() {
           targetPeople: data.targetPeople.length > 0 ? data.targetPeople : null,
           targetCompanyStage: data.targetCompanyStage || null,
           timeline: data.timeline,
+          portfolioUrl: data.portfolioUrl || null,
         }),
       });
 
@@ -346,9 +362,40 @@ function MyStrategy() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#1a1a1a]">My Strategy</p>
                   {interests ? (
-                    <p className="text-sm text-[#666666] mt-0.5 truncate">
-                      {buildGoalStatement(interests)}
-                    </p>
+                    <>
+                      <p className="text-sm text-[#666666] mt-0.5 truncate">
+                        {buildGoalStatement(interests)}
+                      </p>
+                      {(buildLookbookUrl() || interests.portfolio_url) && (
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {buildLookbookUrl() && (
+                            <a
+                              href={buildLookbookUrl()}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs font-semibold text-[#4242ea] hover:underline"
+                            >
+                              🔗 Lookbook
+                            </a>
+                          )}
+                          {buildLookbookUrl() && interests.portfolio_url && (
+                            <span className="text-xs text-[#cccccc]">·</span>
+                          )}
+                          {interests.portfolio_url && (
+                            <a
+                              href={interests.portfolio_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs font-semibold text-[#4242ea] hover:underline"
+                            >
+                              Portfolio ↗
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <p className="text-sm text-[#999999] mt-0.5">
                       Define your job search focus to get started
@@ -459,6 +506,21 @@ function MyStrategy() {
                   placeholder="e.g., React, Node.js, data analysis, product thinking..."
                   rows={2}
                   className="resize-none bg-white border-[#e0e0e0] text-sm"
+                />
+              </div>
+
+              {/* Portfolio Site URL (optional) */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold text-[#1a1a1a]">
+                  Portfolio Site URL{' '}
+                  <span className="text-[#999999] font-normal text-xs ml-1">optional</span>
+                </Label>
+                <Input
+                  type="url"
+                  value={formData.portfolioUrl}
+                  onChange={(e) => handleFieldChange('portfolioUrl', e.target.value)}
+                  placeholder="https://yourportfolio.com"
+                  className="bg-white border-[#e0e0e0] text-sm"
                 />
               </div>
 

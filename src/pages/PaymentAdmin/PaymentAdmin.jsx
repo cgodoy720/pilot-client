@@ -8,7 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Separator } from '../../components/ui/separator';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { CheckCircle, Upload, Users, Search, Eye } from 'lucide-react';
+import { CheckCircle, Upload, Users, Search, Eye, FileSignature, Clock, RefreshCw } from 'lucide-react';
 
 const PaymentAdmin = () => {
   const token = useAuthStore((s) => s.token);
@@ -22,6 +22,11 @@ const PaymentAdmin = () => {
   const [error, setError] = useState('');
   const [documents, setDocuments] = useState({});
 
+  // DocuSign state
+  const [docusignStatuses, setDocusignStatuses] = useState({});
+  const [docusignDetail, setDocusignDetail] = useState(null);
+  const [isSyncingDocusign, setIsSyncingDocusign] = useState(false);
+
   // Preview modal states
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewContent, setPreviewContent] = useState('');
@@ -32,17 +37,20 @@ const PaymentAdmin = () => {
 
   const fileInputRef = useRef(null);
 
-  // Load users on component mount
+  // Load users + DocuSign summary on mount
   useEffect(() => {
     loadUsers();
+    loadDocusignSummary();
   }, []);
 
-  // Load documents when user is selected
+  // Load documents + DocuSign detail when user is selected
   useEffect(() => {
     if (selectedUser) {
       loadUserDocuments(selectedUser.user_id);
+      setDocusignDetail(docusignStatuses[selectedUser.user_id] ?? null);
     } else {
       setDocuments({});
+      setDocusignDetail(null);
     }
   }, [selectedUser]);
 
@@ -73,6 +81,37 @@ const PaymentAdmin = () => {
       setError(error.message || 'Failed to load builders');
     } finally {
       setIsLoadingUsers(false);
+    }
+  };
+
+  const loadDocusignSummary = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/docusign/admin/summary`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const map = {};
+      for (const b of data.builders || []) {
+        map[b.userId] = b.docusign;
+      }
+      setDocusignStatuses(map);
+    } catch { /* non-fatal */ }
+  };
+
+  const syncUserDocusign = async (userId) => {
+    setIsSyncingDocusign(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/docusign/status/${userId}?sync=true`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!response.ok) return;
+      const data = await response.json();
+      setDocusignDetail(data.docusign);
+      setDocusignStatuses(prev => ({ ...prev, [userId]: data.docusign }));
+    } catch { /* non-fatal */ } finally {
+      setIsSyncingDocusign(false);
     }
   };
 
@@ -313,14 +352,24 @@ const PaymentAdmin = () => {
                         onClick={() => setSelectedUser(user)}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                             selectedUser?.user_id === user.user_id ? 'bg-[#4242EA]' : 'bg-gray-300'
                           }`}></div>
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">
-                              {user.first_name} {user.last_name}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 flex items-center gap-2">
+                              <span className="truncate">{user.first_name} {user.last_name}</span>
+                              {docusignStatuses[user.user_id]?.hasSigned ? (
+                                <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">
+                                  <FileSignature className="h-3 w-3" />
+                                  Signed
+                                </span>
+                              ) : (
+                                <span className="flex-shrink-0 text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                                  Unsigned
+                                </span>
+                              )}
                             </div>
-                            <div className="text-sm text-gray-600">{user.email}</div>
+                            <div className="text-sm text-gray-600 truncate">{user.email}</div>
                           </div>
                         </div>
                       </div>
@@ -359,6 +408,50 @@ const PaymentAdmin = () => {
               </div>
             ) : (
               <div className="max-w-2xl mx-auto space-y-6">
+
+                {/* DocuSign Status Card */}
+                <div className={`rounded-xl border p-5 ${docusignDetail?.hasSigned ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <FileSignature className={`h-5 w-5 ${docusignDetail?.hasSigned ? 'text-indigo-600' : 'text-gray-400'}`} />
+                      <span className="font-semibold text-gray-900 text-sm">DocuSign Status</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => syncUserDocusign(selectedUser.user_id)}
+                      disabled={isSyncingDocusign}
+                      className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      <RefreshCw className={`h-3 w-3 mr-1 ${isSyncingDocusign ? 'animate-spin' : ''}`} />
+                      Sync
+                    </Button>
+                  </div>
+                  {docusignDetail?.hasSigned ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-indigo-600" />
+                        <span className="text-sm font-medium text-indigo-800">Agreement signed via DocuSign</span>
+                      </div>
+                      {docusignDetail.signedAt && (
+                        <div className="flex items-center gap-1 text-xs text-indigo-600 ml-6">
+                          <Clock className="h-3 w-3" />
+                          {new Date(docusignDetail.signedAt).toLocaleString()}
+                        </div>
+                      )}
+                      {docusignDetail.subject && (
+                        <p className="text-xs text-indigo-500 ml-6 truncate">{docusignDetail.subject}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      {docusignDetail
+                        ? `Envelope status: ${docusignDetail.status}`
+                        : 'No DocuSign record found. Click Sync to check.'}
+                    </p>
+                  )}
+                </div>
+
                 {documents.goodJobAgreement ? (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-6">
                     <div className="flex items-start gap-4">

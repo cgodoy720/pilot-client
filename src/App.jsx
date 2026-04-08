@@ -6,7 +6,6 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
-import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AdminAttendanceDashboard from './pages/AdminAttendanceDashboard/AdminAttendanceDashboard';
 import ProgramAnalytics from './pages/ProgramAnalytics/ProgramAnalytics';
@@ -43,6 +42,11 @@ import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 import PathfinderNetwork from './pages/PathfinderNetwork';
 import PathfinderJobs from './pages/PathfinderJobs';
+import MockInterviewSetup from './pages/MockInterview/MockInterviewSetup';
+import MockInterviewSession from './pages/MockInterview/MockInterviewSession';
+import MockInterviewFeedback from './pages/MockInterview/MockInterviewFeedback';
+import MockInterviewHistory from './pages/MockInterview/MockInterviewHistory';
+import InterviewRubricAdmin from './pages/MockInterview/InterviewRubricAdmin';
 import StaffNetworkDashboard from './pages/StaffNetworkDashboard';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
@@ -51,6 +55,9 @@ import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashbo
 import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
 import PermissionManagement from './pages/Admin/PermissionManagement';
 import ContentPreview from './pages/ContentPreview';
+
+// Template Management page
+import TemplateManagement from './pages/TemplateManagement';
 
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
@@ -66,6 +73,10 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
+
+// Platform Intake pages
+import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
+import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog';
 
 import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
@@ -191,13 +202,6 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.LEARNING}>
               <Learning />
-            </PermissionRoute>
-          </Layout>
-        } />
-        <Route path="/past-session" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.PAST_SESSION}>
-              <PastSession />
             </PermissionRoute>
           </Layout>
         } />
@@ -349,6 +353,15 @@ function App() {
           </Layout>
         } />
         
+        {/* Interview Rubric Management (Admin) */}
+        <Route path="/admin/interview-rubrics" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_SECTION}>
+              <InterviewRubricAdmin />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Weekly Reports Management (Admin + custom permission) */}
         <Route path="/admin/weekly-reports" element={
           <Layout>
@@ -424,6 +437,10 @@ function App() {
           <Route path="events/:eventId" element={<EventDetailPage />} />
           <Route path="network" element={<PathfinderNetwork />} />
           <Route path="jobs" element={<PathfinderJobs />} />
+          <Route path="mock-interview" element={<MockInterviewSetup />} />
+          <Route path="mock-interview/session/:interviewId" element={<MockInterviewSession />} />
+          <Route path="mock-interview/feedback/:interviewId" element={<MockInterviewFeedback />} />
+          <Route path="mock-interview/history" element={<MockInterviewHistory />} />
         </Route>
         
         {/* Pathfinder admin dashboard - separate route */}
@@ -470,6 +487,15 @@ function App() {
         <Route path="/volunteer-roster" element={<Navigate to="/volunteer-management?tab=calendar" replace />} />
         <Route path="/volunteer-attendance" element={<Navigate to="/volunteer-management?tab=attendance" replace />} />
 
+        {/* Template Management (Staff/Admin) */}
+        <Route path="/template-management" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.TEMPLATE_MANAGEMENT}>
+              <TemplateManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Form Builder routes (Admin/Staff only) */}
         <Route path="/forms" element={
           <Layout>
@@ -514,6 +540,20 @@ function App() {
               <SalesTracker />
             </PermissionRoute>
           </Layout>
+        } />
+
+        {/* Platform Intake — all authenticated users */}
+        <Route path="/platform-intake" element={
+          <ProtectedRoute>
+            <PlatformIntake />
+          </ProtectedRoute>
+        } />
+
+        {/* Platform Intake Backlog — all authenticated users */}
+        <Route path="/platform-intake/backlog" element={
+          <ProtectedRoute>
+            <PlatformIntakeBacklog />
+          </ProtectedRoute>
         } />
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -17,7 +17,7 @@ import StatusPopover from './components/StatusPopover';
 import VolunteerProfileModal from './components/VolunteerProfileModal';
 
 // Cohorts to exclude (duplicate December variations)
-const EXCLUDED_COHORTS = ['December 2025 AI Native', 'December 2025 Workshop'];
+const EXCLUDED_COHORTS = ['December 2025 AI Native', 'Admissions Workshop'];
 
 function VolunteerList({ embedded = false }) {
     const user = useAuthStore((s) => s.user);

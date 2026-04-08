@@ -98,7 +98,7 @@ function ChatTray({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="anthropic/claude-sonnet-4.5">Auto</SelectItem>
+                    <SelectItem value="anthropic/claude-sonnet-4.6">Auto</SelectItem>
                     <SelectItem value="anthropic/claude-3.7-sonnet">Claude 3.7</SelectItem>
                     <SelectItem value="anthropic/claude-3.5-sonnet">Claude 3.5</SelectItem>
                     <SelectItem value="openai/gpt-4o">ChatGPT 4o</SelectItem>

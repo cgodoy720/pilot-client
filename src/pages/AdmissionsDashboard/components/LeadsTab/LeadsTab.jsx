@@ -23,7 +23,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '../../../../components/ui/dropdown-menu';
-import { Upload, Settings, RefreshCw, ChevronDown, Users } from 'lucide-react';
+import { Upload, Settings, RefreshCw, ChevronDown, Users, FileInput } from 'lucide-react';
 import LeadImportModal from './LeadImportModal';
 import EmailListsManager from './EmailListsManager';
 import SourceConfigManager from './SourceConfigManager';
@@ -201,6 +201,10 @@ const LeadsTab = ({ token }) => {
   
   // Selected leads for bulk actions
   const [selectedLeads, setSelectedLeads] = useState([]);
+
+  // Form import state
+  const [formImporting, setFormImporting] = useState(false);
+  const [formImportResult, setFormImportResult] = useState(null);
 
   // Fetch leads
   const fetchLeads = useCallback(async () => {
@@ -454,6 +458,30 @@ const LeadsTab = ({ token }) => {
     fetchStats();
     fetchEmailLists();
     fetchSourceConfig();
+  };
+
+  // Import leads from platform forms
+  const handleImportFromForms = async () => {
+    setFormImporting(true);
+    setFormImportResult(null);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/leads/import-from-forms`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }
+      );
+      const data = await response.json();
+      setFormImportResult(data);
+      fetchLeads();
+      fetchStats();
+    } catch (error) {
+      console.error('Error importing from forms:', error);
+      setFormImportResult({ errors: [{ form: 'Unknown', error: error.message }] });
+    } finally {
+      setFormImporting(false);
+    }
   };
 
   // Bulk add selected leads to an email list
@@ -765,6 +793,7 @@ const LeadsTab = ({ token }) => {
               <TableRow className="bg-gray-50">
                 <TableHead className="w-12"><div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div></TableHead>
                 <TableHead><div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div></TableHead>
+                <TableHead><div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div></TableHead>
                 <TableHead><div className="h-4 w-20 bg-gray-300 rounded animate-pulse"></div></TableHead>
                 <TableHead><div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div></TableHead>
                 <TableHead><div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div></TableHead>
@@ -779,7 +808,8 @@ const LeadsTab = ({ token }) => {
               {[...Array(10)].map((_, index) => (
                 <TableRow key={index} className="animate-pulse">
                   <TableCell><div className="h-4 w-4 bg-gray-200 rounded"></div></TableCell>
-                  <TableCell><div className="h-4 w-32 bg-gray-200 rounded"></div></TableCell>
+                  <TableCell><div className="h-4 w-28 bg-gray-200 rounded"></div></TableCell>
+                  <TableCell><div className="h-4 w-28 bg-gray-200 rounded"></div></TableCell>
                   <TableCell><div className="h-4 w-20 bg-gray-200 rounded"></div></TableCell>
                   <TableCell><div className="h-4 w-24 bg-gray-200 rounded"></div></TableCell>
                   <TableCell><div className="h-4 w-24 bg-gray-200 rounded"></div></TableCell>
@@ -934,15 +964,51 @@ const LeadsTab = ({ token }) => {
             Refresh
           </Button>
           
-          <Button 
-            onClick={() => setImportModalOpen(true)} 
+          <Button
+            onClick={handleImportFromForms}
+            disabled={formImporting}
+            variant="outline"
+            className="font-proxima gap-2"
+          >
+            <FileInput className="h-4 w-4" />
+            {formImporting ? 'Importing…' : 'Import from Forms'}
+          </Button>
+
+          <Button
+            onClick={() => setImportModalOpen(true)}
             className="bg-[#4242ea] hover:bg-[#3333d1] font-proxima gap-2"
           >
             <Upload className="h-4 w-4" />
-            Import Leads
+            Import CSV
           </Button>
         </div>
       </div>
+
+      {/* Form Import Result Banner */}
+      {formImportResult && (
+        <div className={`px-4 py-2 border-b text-sm font-proxima flex items-center justify-between ${formImportResult.errors?.length ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+          <div className="flex gap-4">
+            {formImportResult.partnerReferral && (
+              <span>
+                Partner Referral Form: <strong>{formImportResult.partnerReferral.insertedLeads}</strong> new,{' '}
+                <strong>{formImportResult.partnerReferral.updatedLeads}</strong> updated,{' '}
+                <strong>{formImportResult.partnerReferral.skippedDuplicates}</strong> skipped
+              </span>
+            )}
+            {formImportResult.welcomeToPursuit && (
+              <span>
+                Welcome to Pursuit: <strong>{formImportResult.welcomeToPursuit.insertedLeads}</strong> new,{' '}
+                <strong>{formImportResult.welcomeToPursuit.updatedLeads}</strong> updated,{' '}
+                <strong>{formImportResult.welcomeToPursuit.skippedDuplicates}</strong> skipped
+              </span>
+            )}
+            {formImportResult.errors?.map((e, i) => (
+              <span key={i} className="text-red-600">{e.form}: {e.error}</span>
+            ))}
+          </div>
+          <button onClick={() => setFormImportResult(null)} className="ml-4 opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {/* Selection & Active Filters Display */}
       {(hasActiveFilters || selectedLeads.length > 0) && (
@@ -1028,7 +1094,10 @@ const LeadsTab = ({ token }) => {
                     />
                   </TableHead>
                   <TableHead>
-                    {renderSortableFilterableHeader('source', 'source_type', 'Source', sourceFilterOptions, 'source')}
+                    {renderSortableHeader('lead_source', 'Lead Source')}
+                  </TableHead>
+                  <TableHead>
+                    {renderSortableHeader('referral_source', 'Referral Source')}
                   </TableHead>
                   <TableHead>
                     {renderSortableHeader('first_captured_at', 'Date Created')}
@@ -1061,8 +1130,11 @@ const LeadsTab = ({ token }) => {
                         onCheckedChange={(checked) => handleSelectLead(lead.lead_id, checked)}
                       />
                     </TableCell>
-                    <TableCell className="font-proxima text-gray-600">
-                      {lead.primary_source?.source_name || '-'}
+                    <TableCell className="font-proxima text-gray-600 text-sm">
+                      {lead.lead_source || '-'}
+                    </TableCell>
+                    <TableCell className="font-proxima text-gray-600 text-sm">
+                      {lead.referral_source || '-'}
                     </TableCell>
                     <TableCell className="font-proxima text-gray-600">
                       {formatDate(lead.first_captured_at)}
@@ -1200,13 +1272,41 @@ const LeadsTab = ({ token }) => {
       {/* Footer with Pagination */}
       {sortedLeads.length > 0 && (
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 shrink-0">
-          <Pagination
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            totalItems={pagination.total}
-            pageSize={pagination.limit}
-            onPageChange={handlePageChange}
-          />
+          {pagination.limit >= pagination.total ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600 font-proxima">
+                Showing all {pagination.total} leads
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="font-proxima h-8 px-3 text-xs"
+                onClick={() => setPagination(prev => ({ ...prev, page: 1, limit: 25 }))}
+              >
+                ↑ Collapse to pages
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.total}
+                pageSize={pagination.limit}
+                onPageChange={handlePageChange}
+              />
+              <div className="flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="font-proxima h-7 px-3 text-xs text-gray-500 hover:text-[#4242ea]"
+                  onClick={() => setPagination(prev => ({ ...prev, page: 1, limit: prev.total || 10000 }))}
+                >
+                  ↓ Show all {pagination.total} leads
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

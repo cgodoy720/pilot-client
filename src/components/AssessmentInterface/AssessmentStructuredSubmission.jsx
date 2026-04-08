@@ -439,14 +439,21 @@ function AssessmentStructuredSubmission({ task, schema, currentSubmission, draft
       case 'text':
       case 'url':
         return (
-          <Input
-            type={field.type === 'url' ? 'url' : 'text'}
-            value={value}
-            onChange={(e) => handleChange(field.name, e.target.value)}
-            placeholder={field.placeholder || ''}
-            disabled={isLocked || isSubmitting}
-            className="font-proxima"
-          />
+          <div className="space-y-1">
+            <Input
+              type={field.type === 'url' ? 'url' : 'text'}
+              value={value}
+              onChange={(e) => handleChange(field.name, e.target.value)}
+              placeholder={field.placeholder || ''}
+              disabled={isLocked || isSubmitting}
+              className="font-proxima"
+            />
+            {field.name === 'githubUrl' && value?.trim() && !isValidGithubUrl(value) && (
+              <p className="text-xs text-red-600 font-proxima">
+                Please enter the root URL of your GitHub repository (e.g., https://github.com/username/repository). Avoid links to specific branches or files.
+              </p>
+            )}
+          </div>
         );
       
       default:

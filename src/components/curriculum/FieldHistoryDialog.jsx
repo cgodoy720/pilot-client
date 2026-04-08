@@ -38,7 +38,7 @@ const FieldHistoryDialog = ({
     try {
       setLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/curriculum/history/${entityType}/${entityId}?fieldName=${fieldName}`,
+        `${import.meta.env.VITE_API_URL}/api/curriculum/history/${entityType}/${entityId}?fieldName=${fieldName}&t=${Date.now()}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }

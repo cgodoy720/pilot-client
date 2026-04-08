@@ -3,6 +3,7 @@ import useAuthStore from '../../stores/authStore';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import AttendanceCalendar from './components/AttendanceCalendar';
 import FeedbackInbox from './components/FeedbackInbox';
+import WeeklyFeedbackReport from './components/WeeklyFeedbackReport';
 import { fetchUserAttendance } from '../../utils/attendanceService';
 import { fetchCombinedFeedback } from '../../utils/performanceFeedbackService';
 import { getUserProfilePhoto } from '../../utils/userPhotoService';
@@ -226,14 +227,17 @@ const Performance = () => {
         
         {/* Right Panel - Feedback Inbox (Full Space) */}
         <div className="flex-1 px-10 flex flex-col bg-[#EFEFEF] overflow-visible">
-          <FeedbackInbox
-            userId={user.user_id}
-            month={selectedMonth}
-            year={selectedYear}
-            feedbackData={feedbackData}
-            onTaskClick={handleTaskClick}
-            onIncompleteTaskNavigate={handleIncompleteTaskNavigate}
-          />
+          {user.cohort === 'March 2026 L1'
+            ? <WeeklyFeedbackReport userId={user.user_id} token={token} />
+            : <FeedbackInbox
+                userId={user.user_id}
+                month={selectedMonth}
+                year={selectedYear}
+                feedbackData={feedbackData}
+                onTaskClick={handleTaskClick}
+                onIncompleteTaskNavigate={handleIncompleteTaskNavigate}
+              />
+          }
         </div>
       </div>
       

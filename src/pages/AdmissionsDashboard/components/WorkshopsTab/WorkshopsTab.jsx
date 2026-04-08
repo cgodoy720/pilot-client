@@ -290,7 +290,7 @@ const WorkshopsTab = ({
       capacity: 50,
       is_online: false,
       meeting_link: '',
-      cohort_name: 'December 2025 - Workshop',
+      cohort_name: 'Admissions Workshop',
       workshop_type: 'admissions',
       access_window_days: 0,
       allow_early_access: false
@@ -321,7 +321,7 @@ const WorkshopsTab = ({
       capacity: workshop.capacity || 50,
       is_online: workshop.is_online || false,
       meeting_link: workshop.meeting_link || '',
-      cohort_name: workshop.cohort_name || 'December 2025 - Workshop',
+      cohort_name: workshop.cohort_name || 'Admissions Workshop',
       workshop_type: workshop.workshop_type || 'admissions',
       access_window_days: workshop.access_window_days || 0,
       allow_early_access: workshop.allow_early_access || false
@@ -351,9 +351,21 @@ const WorkshopsTab = ({
       if (response.ok) {
         setWorkshopModalOpen(false);
         fetchWorkshops();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: errorData.message || errorData.error || 'Failed to save workshop'
+        });
       }
     } catch (error) {
       console.error('Error saving workshop:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An unexpected error occurred while saving the workshop'
+      });
     } finally {
       setWorkshopSubmitting(false);
     }
@@ -361,11 +373,13 @@ const WorkshopsTab = ({
 
   // Handle delete
   const handleDelete = async (workshopId) => {
+    // Close the edit modal first so its overlay doesn't block the Swal confirmation
+    setWorkshopModalOpen(false);
+
     const confirmed = await Swal.fire({
       title: 'Delete Workshop?',
       text: 'Are you sure you want to delete this workshop? This action cannot be undone.',
       icon: 'warning',
-      zIndex: 200000,
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#6b7280',
@@ -385,7 +399,6 @@ const WorkshopsTab = ({
       );
 
       if (response.ok) {
-        setWorkshopModalOpen(false);
         fetchWorkshops();
         Swal.fire({
           icon: 'success',
@@ -399,7 +412,7 @@ const WorkshopsTab = ({
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: errorData.error || 'Failed to delete workshop'
+          text: errorData.message || errorData.error || 'Failed to delete workshop'
         });
       }
     } catch (error) {

@@ -385,7 +385,7 @@ function ApplicantDashboard() {
     }
   };
 
-  const loadOnboardingStatus = async () => {
+  const loadPledgeStatus = async () => {
     try {
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
 

@@ -377,7 +377,6 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
           selectedLevel={selectedCohort?.legacyName || ''}
           cohortId={selectedCohortId}
           onClose={() => setSelectedBuilder(null)}
-          onLogSaved={() => setRefreshKey(k => k + 1)}
         />
       )}
 

@@ -21,18 +21,21 @@ const NO_INTEREST = '__none__';
 // ── Interest options ──────────────────────────────────────────────────────────
 
 const INTEREST_OPTIONS = [
-  { value: 'fintech', label: 'Fintech' },
-  { value: 'healthtech', label: 'Healthtech' },
-  { value: 'ai_ml', label: 'AI / ML' },
-  { value: 'edtech', label: 'EdTech' },
-  { value: 'ecommerce', label: 'E-Commerce' },
-  { value: 'cybersecurity', label: 'Cybersecurity' },
-  { value: 'enterprise_saas', label: 'Enterprise SaaS' },
-  { value: 'consumer_apps', label: 'Consumer Apps' },
-  { value: 'real_estate', label: 'Real Estate' },
-  { value: 'gov_civic_tech', label: 'Gov / Civic Tech' },
+  { value: 'technology', label: 'Technology' },
+  { value: 'finance', label: 'Finance' },
+  { value: 'healthcare', label: 'Healthcare' },
+  { value: 'education', label: 'Education' },
+  { value: 'government', label: 'Government' },
+  { value: 'retail', label: 'Retail' },
   { value: 'media_entertainment', label: 'Media & Entertainment' },
-  { value: 'consumer_services', label: 'Consumer Services' },
+  { value: 'manufacturing', label: 'Manufacturing' },
+  { value: 'real_estate', label: 'Real Estate' },
+  { value: 'consulting', label: 'Consulting' },
+  { value: 'nonprofit', label: 'Nonprofit' },
+  { value: 'legal', label: 'Legal' },
+  { value: 'energy', label: 'Energy' },
+  { value: 'transportation', label: 'Transportation' },
+  { value: 'hospitality', label: 'Hospitality' },
   { value: 'other', label: 'Other' },
 ];
 

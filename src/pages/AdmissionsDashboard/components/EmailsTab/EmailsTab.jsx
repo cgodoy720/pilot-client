@@ -16,6 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../components
 import Swal from 'sweetalert2';
 import EmailMappingsTab from './EmailMappingsTab';
 import EmailTemplatesTab from './EmailTemplatesTab';
+import CampaignsTab from './CampaignsTab';
+import AutomationsTab from './AutomationsTab';
+import ApplicantCampaignsTab from './ApplicantCampaignsTab';
 
 const EmailsTab = ({
   emailStats,
@@ -454,6 +457,15 @@ const EmailsTab = ({
               <TabsTrigger value="applicants" className="font-proxima data-[state=active]:bg-white">
                 Applicant Status ({safeApplicantEmailStatus.length})
               </TabsTrigger>
+              <TabsTrigger value="campaigns" className="font-proxima data-[state=active]:bg-white">
+                Lead Campaigns
+              </TabsTrigger>
+              <TabsTrigger value="applicant-campaigns" className="font-proxima data-[state=active]:bg-white">
+                Applicant Campaigns
+              </TabsTrigger>
+              <TabsTrigger value="automations" className="font-proxima data-[state=active]:bg-white">
+                Automations
+              </TabsTrigger>
               <TabsTrigger value="mappings" className="font-proxima data-[state=active]:bg-white">
                 Email Mappings
               </TabsTrigger>
@@ -607,6 +619,21 @@ const EmailsTab = ({
                   No applicant email data
                 </div>
               )}
+            </TabsContent>
+
+            {/* Lead Campaigns Tab */}
+            <TabsContent value="campaigns" className="mt-0">
+              <CampaignsTab token={token} />
+            </TabsContent>
+
+            {/* Applicant Campaigns Tab */}
+            <TabsContent value="applicant-campaigns" className="mt-0">
+              <ApplicantCampaignsTab token={token} />
+            </TabsContent>
+
+            {/* Automations Tab */}
+            <TabsContent value="automations" className="mt-0">
+              <AutomationsTab token={token} />
             </TabsContent>
 
             {/* Email Mappings Tab */}

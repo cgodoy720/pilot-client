@@ -5,6 +5,7 @@ import './PeerFeedbackForm.css';
 
 const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const isActive = user?.active !== false;
   
   const [users, setUsers] = useState([]);
@@ -43,7 +44,7 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
         // Fetch active builders from the same cohort
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users?cohort=${encodeURIComponent(userCohort)}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         });
         
@@ -173,7 +174,7 @@ const PeerFeedbackForm = ({ dayNumber, onComplete, onCancel }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           feedbackEntries,
