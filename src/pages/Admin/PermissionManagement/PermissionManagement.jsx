@@ -942,7 +942,7 @@ function PermissionManagement() {
     if (!perms) {
       return (
         <TableRow>
-          <TableCell colSpan={4} className="bg-slate-50 p-6">
+          <TableCell colSpan={5} className="bg-slate-50 p-6">
             <div className="text-center text-slate-500">Loading permissions...</div>
           </TableCell>
         </TableRow>
@@ -1210,6 +1210,7 @@ function PermissionManagement() {
                   </TableHead>
                   <TableHead className="font-proxima-bold">Email</TableHead>
                   <TableHead>{renderRoleFilterHeader()}</TableHead>
+                  <TableHead className="font-proxima-bold text-xs">Metrics</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1225,7 +1226,7 @@ function PermissionManagement() {
                   ))
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-12 text-slate-500">
+                    <TableCell colSpan={5} className="text-center py-12 text-slate-500">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -1253,6 +1254,28 @@ function PermissionManagement() {
                           <Badge className={`${getRoleBadgeColor(u.role)} font-proxima`}>
                             {u.role}
                           </Badge>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const newVal = !u.exclude_from_metrics;
+                              try {
+                                await fetch(`${import.meta.env.VITE_API_URL}/api/permissions/users/${u.user_id}/exclude-from-metrics`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({ exclude: newVal }),
+                                });
+                                setUsers(prev => prev.map(user => user.user_id === u.user_id ? { ...user, exclude_from_metrics: newVal } : user));
+                              } catch { toast.error('Failed to update'); }
+                            }}
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                              u.exclude_from_metrics ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'
+                            }`}
+                            title={u.exclude_from_metrics ? 'Excluded from metrics — click to include' : 'Click to exclude from metrics'}
+                          >
+                            {u.exclude_from_metrics ? 'Excluded' : 'In Metrics'}
+                          </button>
                         </TableCell>
                       </TableRow>
                       {expandedUserId === u.user_id && renderExpandedPermissions(u.user_id)}

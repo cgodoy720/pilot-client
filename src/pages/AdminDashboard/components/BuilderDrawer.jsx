@@ -302,6 +302,11 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [builderLogs, setBuilderLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
+  const [showInlineLogForm, setShowInlineLogForm] = useState(false);
+  const [inlineLogType, setInlineLogType] = useState('behavioral');
+  const [inlineLogNotes, setInlineLogNotes] = useState('');
+  const [inlineLogNextSteps, setInlineLogNextSteps] = useState('');
+  const [inlineLogSaving, setInlineLogSaving] = useState(false);
   const [insightsSummary, setInsightsSummary] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [showRawConversations, setShowRawConversations] = useState(false);
@@ -561,6 +566,30 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     category: cat, score: assessmentScores[cat] ?? null,
   })) : null;
   const hasRadar = radarData?.some(d => d.score != null);
+
+  const handleInlineLogSave = async () => {
+    if (!inlineLogNotes.trim() || !builder?.user_id) return;
+    setInlineLogSaving(true);
+    try {
+      await fetch(`${API_URL}/api/admin/dashboard/builder-logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          builderId: builder.user_id,
+          cohortId: cohortId,
+          logType: inlineLogType,
+          notes: inlineLogNotes,
+          nextSteps: inlineLogNextSteps || undefined,
+        }),
+      });
+      setInlineLogNotes('');
+      setInlineLogNextSteps('');
+      setShowInlineLogForm(false);
+      fetchLogs();
+      onLogSaved?.();
+    } catch (e) { console.error('Save log failed:', e); }
+    setInlineLogSaving(false);
+  };
 
   const handleEnrollmentChange = async (newStatus) => {
     if (!builder.enrollment_id || !token) return;
@@ -825,13 +854,37 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
               {/* Builder Notes */}
               <Section icon={FileText} title="Builder Notes" count={builderLogs.length} defaultOpen={false}>
                 <div className="px-3 py-3 space-y-2">
-                  <button
-                    onClick={() => setShowLogModal(true)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-[#4242EA] hover:underline"
-                  >
-                    <Plus size={12} />
-                    Add Log
-                  </button>
+                  {showInlineLogForm ? (
+                    <div className="bg-[#FAFAFA] rounded-md p-3 space-y-2 border border-[#E3E3E3]">
+                      <div className="flex items-center gap-2">
+                        {['behavioral', 'conversation', 'interview'].map(t => (
+                          <button key={t} onClick={() => setInlineLogType(t)}
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                              inlineLogType === t ? 'bg-[#4242EA] text-white' : 'bg-white border border-[#E3E3E3] text-slate-500'
+                            }`}>{t}</button>
+                        ))}
+                      </div>
+                      <textarea value={inlineLogNotes} onChange={e => setInlineLogNotes(e.target.value)}
+                        placeholder="Notes..."
+                        className="w-full text-xs border border-[#E3E3E3] rounded px-2 py-1.5 bg-white focus:border-[#4242EA] focus:outline-none resize-none" rows={2} />
+                      <textarea value={inlineLogNextSteps} onChange={e => setInlineLogNextSteps(e.target.value)}
+                        placeholder="Next steps (optional)..."
+                        className="w-full text-xs border border-[#E3E3E3] rounded px-2 py-1.5 bg-white focus:border-[#4242EA] focus:outline-none resize-none" rows={1} />
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => setShowInlineLogForm(false)}
+                          className="text-xs text-slate-500 hover:text-[#1E1E1E] px-2 py-1">Cancel</button>
+                        <button onClick={handleInlineLogSave} disabled={inlineLogSaving || !inlineLogNotes.trim()}
+                          className="text-xs font-medium bg-[#4242EA] text-white px-3 py-1 rounded hover:bg-[#3535c8] disabled:opacity-50">
+                          {inlineLogSaving ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowInlineLogForm(true)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-[#4242EA] hover:underline">
+                      <Plus size={12} /> Add Log
+                    </button>
+                  )}
                   {logsLoading ? (
                     <div className="space-y-2">
                       {[1, 2].map(i => <div key={i} className="h-16 bg-[#EFEFEF] rounded animate-pulse" />)}
@@ -917,13 +970,6 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
         </div>
       </div>
 
-      <BuilderLogModal
-        open={showLogModal}
-        onOpenChange={setShowLogModal}
-        builder={builder}
-        cohortId={cohortId}
-        onSaved={handleLogSaved}
-      />
     </>
   );
 };
