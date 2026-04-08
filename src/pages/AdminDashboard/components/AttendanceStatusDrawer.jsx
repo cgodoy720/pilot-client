@@ -127,31 +127,14 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
         <div className="px-5 py-4 space-y-3">
           {/* Absent: Notify action bar */}
           {isAbsent && filtered.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-semibold text-red-700">Notify {filtered.length} absent builder{filtered.length !== 1 ? 's' : ''}</p>
-              <textarea
-                value={notifyMessage}
-                onChange={e => setNotifyMessage(e.target.value)}
-                placeholder="Custom message (optional — default absence notice will be sent)"
-                className="w-full text-xs border border-red-200 rounded-md px-2.5 py-1.5 bg-white focus:outline-none focus:border-[#4242EA] resize-none"
-                rows={2}
-              />
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 opacity-60">
+              <p className="text-xs font-medium text-slate-500">Notify {filtered.length} absent builder{filtered.length !== 1 ? 's' : ''} <span className="text-[10px] text-slate-400">(coming soon)</span></p>
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleNotify('slack')}
-                  disabled={notifying}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#4242EA] text-white hover:bg-[#3535c8] disabled:opacity-50 transition-colors"
-                >
-                  <Send size={11} />
-                  {notifying ? 'Sending...' : 'Send Slack DM'}
+                <button disabled className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-slate-300 text-white cursor-not-allowed">
+                  <Send size={11} /> Slack DM
                 </button>
-                <button
-                  onClick={() => handleNotify('email')}
-                  disabled={notifying}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-[#E3E3E3] text-slate-600 hover:border-[#4242EA] hover:text-[#4242EA] disabled:opacity-50 transition-colors"
-                >
-                  <Send size={11} />
-                  {notifying ? 'Sending...' : 'Send Email'}
+                <button disabled className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 text-slate-400 cursor-not-allowed">
+                  <Send size={11} /> Email
                 </button>
               </div>
               {notifyResult && (
