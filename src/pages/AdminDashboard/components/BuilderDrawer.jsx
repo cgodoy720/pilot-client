@@ -842,6 +842,11 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                           onSupportStatusChange={handleSupportStatusChange}
                         />
                       ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 text-center py-3">No logs recorded.</p>
+                  )}
+                </div>
               </Section>
 
               {/* Good Job Agreement */}
@@ -931,17 +936,6 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                   </div>
                 ) : (
                   <p className="text-xs text-slate-400 text-center py-4">No peer feedback data.</p>
-                )}
-              </Section>
-
-              {/* Video Submissions */}
-              <Section icon={Video} title="Video Submissions" count={videoItems.length} defaultOpen={videoItems.length > 0}>
-                {videoItems.length > 0 ? (
-                  <div className="divide-y divide-[#EFEFEF]">
-                    {videoItems.map((v, i) => <VideoItem key={v.video_id || i} v={v} />)}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-4">No video submissions.</p>
                 )}
               </Section>
 
