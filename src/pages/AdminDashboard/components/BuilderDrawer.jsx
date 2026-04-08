@@ -60,8 +60,10 @@ const Section = ({ icon: Icon, title, count, children, defaultOpen = false }) =>
 
 const resolveDate = (d) => {
   if (!d) return '—';
-  if (typeof d === 'object' && d.value) return d.value;
-  return String(d);
+  const raw = typeof d === 'object' && d.value ? d.value : String(d);
+  try {
+    return new Date(raw).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch { return raw; }
 };
 
 const resolveStr = (v) => {
@@ -586,7 +588,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       <div className="fixed inset-0 bg-black/20 z-[70]" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-[640px] bg-white shadow-2xl z-[70] flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed inset-y-0 right-0 w-full max-w-[640px] bg-white shadow-2xl z-[70] flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-[#E3E3E3] bg-white flex-shrink-0">
           <div>

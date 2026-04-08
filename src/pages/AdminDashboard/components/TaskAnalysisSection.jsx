@@ -67,7 +67,13 @@ const TaskAnalysisSection = ({ selectedCohortId, cohorts = [] }) => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm table-fixed">
+                <colgroup>
+                  <col className="w-[45%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[21%]" />
+                </colgroup>
                 <thead>
                   <tr className="text-left text-slate-400 text-xs uppercase tracking-wide border-b border-[#E3E3E3]">
                     <SortHeader label="Task" sortKey="task_title" sort={taskSort} onSort={toggleTaskSort} className="pr-3" />
