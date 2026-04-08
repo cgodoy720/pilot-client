@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 
-const CohortDailyBreakdown = ({ 
-  dailyBreakdown, 
-  cohort, 
-  requirement, 
+const CohortDailyBreakdown = ({
+  dailyBreakdown,
+  cohort,
+  requirement,
   onDayClick,
-  loading = false 
+  loading = false,
+  periodFilter = null,
 }) => {
   const formatDateKey = (dateValue) => {
     if (!dateValue) return '';
@@ -109,13 +110,16 @@ const CohortDailyBreakdown = ({
   return (
     <Card className="bg-white border border-slate-200 shadow-sm">
       <CardContent className="p-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900">
-            Daily Attendance - {cohort}
-          </h3>
-          <p className="text-sm text-slate-600 mt-1">
-            Click on any day to see individual builder status
-          </p>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Attendance Calendar
+            </h3>
+            <p className="text-sm text-slate-600 mt-1">
+              Click on any day to see individual builder status
+            </p>
+          </div>
+          {periodFilter && <div>{periodFilter}</div>}
         </div>
 
         <div className="rounded-lg border border-slate-200">
@@ -196,16 +200,9 @@ const CohortDailyBreakdown = ({
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center justify-between text-[11px] text-slate-600">
                         <span>Day #{record.dayNumber}</span>
-                        <div className="flex items-center gap-1 font-semibold">
-                          {isMeetingRequirement ? (
-                            <TrendingUp className="h-3 w-3 text-emerald-500" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3 text-red-500" />
-                          )}
-                          <span className={isMeetingRequirement ? 'text-emerald-600' : 'text-red-600'}>
-                            {record.attendanceRate}%
-                          </span>
-                        </div>
+                        <span className={`font-semibold ${isMeetingRequirement ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {record.attendanceRate}%
+                        </span>
                       </div>
                       {showPastStats && (
                         <div className="grid grid-cols-3 gap-1 text-[11px]">

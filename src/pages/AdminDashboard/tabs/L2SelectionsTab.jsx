@@ -242,6 +242,10 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
   const [selectionFilter, setSelectionFilter] = useState([]);
   const [demoFilter, setDemoFilter] = useState([]);
 
+  // Demographics for "strong" selected builders
+  const [demographics, setDemographics] = useState(null);
+  const [demoLoading, setDemoLoading] = useState(false);
+
   const hasFilters = nameFilter.length > 0 || selectionFilter.length > 0 || demoFilter.length > 0;
 
   const selectedCohort = useMemo(
@@ -250,17 +254,28 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
   );
   const selectedLevel = selectedCohort?.legacyName || '';
 
+  const isL1Cohort = useMemo(
+    () => selectedCohort?.name?.includes('L1') ?? false,
+    [selectedCohort]
+  );
+
   // ── Fetch builders + final demos ──
   const fetchBuilders = () => {
-    if (!selectedLevel) return;
+    const cohortId = selectedCohort?.cohort_id;
+    if (!cohortId) return;
     setLoading(true);
     setPage(0);
 
-    const buildersPromise = fetch(`${LEGACY_API}/builders?startDate=${startDate}&endDate=${endDate}&level=${encodeURIComponent(selectedLevel)}`)
-      .then(r => r.json()).catch(() => []);
+    const buildersPromise = cohortId && token
+      ? fetch(`${API_URL}/api/admin/dashboard/cohort-summary?cohortId=${cohortId}&startDate=${startDate}&endDate=${endDate}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then(r => r.json())
+          .then(d => d.builders || [])
+          .catch(() => [])
+      : Promise.resolve([]);
 
     // Fetch final demo submissions from our native endpoint (uses cohort_id)
-    const cohortId = selectedCohort?.cohort_id;
     const demosPromise = cohortId && token
       ? fetch(`${API_URL}/api/admin/dashboard/final-demos?cohortId=${cohortId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -307,7 +322,7 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
     }).catch(console.error).finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchBuilders(); }, [selectedLevel, selectedCohort?.cohort_id, token]);
+  useEffect(() => { fetchBuilders(); }, [selectedCohort?.cohort_id, token]);
 
   // ── Fetch human reviews when builders load ──
   useEffect(() => {
@@ -393,6 +408,29 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
     }
   };
 
+  // ── Fetch demographics for "strong" builders ──
+  const strongUserIds = useMemo(
+    () => Object.entries(selectionStatuses)
+      .filter(([, status]) => status === 'strong')
+      .map(([uid]) => uid),
+    [selectionStatuses]
+  );
+
+  useEffect(() => {
+    if (!token || strongUserIds.length === 0) {
+      setDemographics(null);
+      return;
+    }
+    setDemoLoading(true);
+    fetch(`${API_URL}/api/admin/dashboard/builder-demographics?userIds=${strongUserIds.join(',')}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (data.success) setDemographics(data.data); })
+      .catch(() => setDemographics(null))
+      .finally(() => setDemoLoading(false));
+  }, [token, strongUserIds.join(',')]);
+
   // ── Open demo modal ──
   const openDemoModal = (builder, rating) => {
     setDemoModalBuilder(builder);
@@ -475,6 +513,18 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
     URL.revokeObjectURL(url);
   };
 
+  if (!isL1Cohort) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+        <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest">Not available</p>
+        <h3 className="text-lg font-semibold text-[#1E1E1E]">L2 selections are for L1 cohorts</h3>
+        <p className="text-sm text-slate-500 max-w-sm">
+          Select an L1 cohort from the dropdown above to manage L2 builder selections.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -514,6 +564,68 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
           </Button>
         </div>
       </div>
+
+      {/* Selected Builders Demographics */}
+      {strongUserIds.length > 0 && (
+        <Card className="bg-white border border-[#E3E3E3]">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-sm font-semibold text-[#1E1E1E]">Selected for L2</span>
+              <Badge className="bg-green-100 text-green-700 text-xs">{strongUserIds.length} builders</Badge>
+              {demoLoading && <span className="text-[10px] text-slate-400">Loading demographics...</span>}
+            </div>
+            {demographics && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Gender split */}
+                <div className="bg-[#FAFAFA] rounded-lg p-3">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Gender</p>
+                  <div className="space-y-1">
+                    {Object.entries(demographics.gender || {}).sort((a, b) => b[1] - a[1]).map(([g, count]) => (
+                      <div key={g} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">{g}</span>
+                        <span className="font-semibold text-[#1E1E1E]">{count} <span className="text-slate-400 font-normal">({Math.round(count / demographics.total * 100)}%)</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* College split */}
+                <div className="bg-[#FAFAFA] rounded-lg p-3">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">College Degree</p>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600">College degree</span>
+                      <span className="font-semibold text-[#1E1E1E]">{demographics.collegeCount} <span className="text-slate-400 font-normal">({Math.round(demographics.collegeCount / demographics.total * 100)}%)</span></span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600">No college degree</span>
+                      <span className="font-semibold text-[#1E1E1E]">{demographics.nonCollegeCount} <span className="text-slate-400 font-normal">({Math.round(demographics.nonCollegeCount / demographics.total * 100)}%)</span></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Higher degrees */}
+                <div className="bg-[#FAFAFA] rounded-lg p-3">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Higher Degrees</p>
+                  <p className="text-2xl font-bold text-[#1E1E1E]">{demographics.higherDegreeCount}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Master's or Doctorate</p>
+                </div>
+
+                {/* Avg income */}
+                <div className="bg-[#FAFAFA] rounded-lg p-3">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Avg Incoming Income</p>
+                  <p className="text-2xl font-bold text-[#1E1E1E]">
+                    {demographics.avgIncome != null ? `$${demographics.avgIncome.toLocaleString()}` : '—'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {demographics.incomeRespondents} of {demographics.total} reported
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Table */}
       <Card className="bg-white border border-[#E3E3E3]">
@@ -563,6 +675,7 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
                       </th>
                       <SortHeader label="Rating" sortKey="demo_rating" sort={sort} onSort={toggleSort} className="px-2 text-center" />
                       <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide text-center">Notes</th>
+                      <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide text-center">Status</th>
                       <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">
                         <span className="inline-flex items-center">
                           Selection
@@ -635,6 +748,17 @@ const L2SelectionsTab = ({ selectedCohortId, cohorts }) => {
                             >
                               <FileText size={13} className="inline" /> {fbCount > 0 ? fbCount : '+'}
                             </button>
+                          </td>
+                          {/* Enrollment Status */}
+                          <td className="py-2 px-2 text-center">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              b.enrollment_status === 'completed' ? 'bg-green-100 text-green-700' :
+                              b.enrollment_status === 'withdrawn' ? 'bg-red-100 text-red-600' :
+                              b.enrollment_status === 'deferred' ? 'bg-amber-100 text-amber-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {(b.enrollment_status || 'in_progress').replace(/_/g, ' ')}
+                            </span>
                           </td>
                           {/* Selection */}
                           <td className="py-2 px-2 text-center">
