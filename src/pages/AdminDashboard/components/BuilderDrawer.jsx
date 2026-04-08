@@ -893,9 +893,11 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                       <div key={i} className="px-3 py-2.5">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-medium text-[#1E1E1E]">{item.reviewer_name || item.reviewerName}</span>
-                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${sentimentColor(item.sentiment_category || item.sentiment)}`}>
-                            {item.sentiment_category || item.sentiment}
-                          </span>
+                          {(item.sentiment_category || item.sentiment) && (
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${sentimentColor(item.sentiment_category || item.sentiment)}`}>
+                              {item.sentiment_category || item.sentiment}
+                            </span>
+                          )}
                           <span className="text-[10px] text-slate-400 ml-auto">
                             {resolveDate(item.date || item.created_at)}
                           </span>

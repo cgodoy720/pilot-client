@@ -655,7 +655,7 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null, compact 
             <Button variant="outline" size="icon" onClick={handleNextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
-          </div>}
+          </div>
 
           {!compact && searchResults.length > 0 && (
             <div className="rounded-lg border border-slate-200 bg-white">

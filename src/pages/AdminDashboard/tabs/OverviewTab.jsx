@@ -84,18 +84,6 @@ const OverviewTab = ({ selectedCohortId, cohorts, programSlug }) => {
         requirement={80}
         onDayClick={handleDayClick}
         loading={false}
-        periodFilter={
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[150px] bg-white border-[#E3E3E3] text-xs h-7">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {PERIOD_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {/* Task Analysis */}
