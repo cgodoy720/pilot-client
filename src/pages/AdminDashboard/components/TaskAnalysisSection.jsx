@@ -96,21 +96,15 @@ const TaskAnalysisSection = ({ selectedCohortId, cohorts = [] }) => {
                             </div>
                           </td>
                           <td className="py-2 px-2 text-xs text-slate-500 whitespace-nowrap">{dateStr}</td>
-                          <td className="py-2 px-2">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-2 bg-[#EFEFEF] rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full ${
-                                  task.submission_rate >= 80 ? 'bg-green-500' :
-                                  task.submission_rate >= 50 ? 'bg-yellow-400' : 'bg-red-400'
-                                }`} style={{ width: `${task.submission_rate}%` }} />
+                          <td className="py-2 px-2 w-32">
+                            <div className="flex items-center gap-1">
+                              <div className="flex h-3 flex-1 rounded-sm overflow-hidden bg-[#EFEFEF]">
+                                <div className="bg-green-500 h-full" style={{ width: `${task.submission_rate}%` }} />
                               </div>
-                              <span className={`text-xs font-semibold w-8 text-right ${
-                                task.submission_rate >= 80 ? 'text-green-600' :
-                                task.submission_rate >= 50 ? 'text-yellow-600' : 'text-red-500'
-                              }`}>{task.submission_rate}%</span>
+                              <span className="text-[10px] text-slate-400 w-7 text-right">{task.submission_rate}%</span>
                             </div>
                           </td>
-                          <td className="py-2 px-2 w-28"><GradeBar task={task} /></td>
+                          <td className="py-2 px-2 w-32"><GradeBar task={task} /></td>
                         </tr>
                         {isExpanded && (
                           <tr>
