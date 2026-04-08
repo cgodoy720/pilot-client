@@ -62,7 +62,9 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
   const [referralChannels, setReferralChannels] = useState([]);
   const [referralSources, setReferralSources] = useState([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
-  const [filters, setFilters] = useState({ gender: '', nycha: '', channel: '', source: '' });
+  const [l1Cohorts, setL1Cohorts] = useState([]);
+  const [originalCohortIds, setOriginalCohortIds] = useState([]);
+  const [filters, setFilters] = useState({ gender: '', nycha: '', channel: '', source: '', education: '' });
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ---- Centering (scale reference) ----
@@ -97,6 +99,10 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
     if (!token) return;
     fetch(`${API_URL}/api/permissions/cohorts?type=builder`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.success) setCohorts(d.data || d.cohorts || []); }).catch(() => {});
+    fetch(`${API_URL}/api/admin/dashboard/program-cohorts?programSlug=${programSlug}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => {
+        if (d.success) setL1Cohorts((d.cohorts || []).filter(c => c.level === 'L1'));
+      }).catch(() => {});
     fetch(`${API_URL}/api/admin/dashboard/referral-filters`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => {
         if (d.success) { setReferralChannels(d.channels || []); setReferralSources(d.sources || []); }
@@ -110,7 +116,9 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
     const params = new URLSearchParams();
     params.set('programSlug', programSlug);
     if (selectedCohortId) params.set('cohortId', selectedCohortId);
+    if (originalCohortIds.length > 0) params.set('originalCohortIds', originalCohortIds.join(','));
     if (filters.gender) params.set('gender', filters.gender);
+    if (filters.education) params.set('education', filters.education);
     if (filters.nycha !== '') params.set('nycha', filters.nycha);
     if (filters.channel) params.set('channel', filters.channel);
     if (filters.source) params.set('source', filters.source);
@@ -127,7 +135,7 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
       })
       .catch(() => setError('Network error'))
       .finally(() => setLoading(false));
-  }, [token, selectedCohortId, filters, programSlug]);
+  }, [token, selectedCohortId, originalCohortIds, filters, programSlug]);
 
   useEffect(() => { fetchFunnel(); }, [fetchFunnel]);
 
@@ -256,7 +264,9 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
 
   const centeredLabel = stages[centeredIdx]?.label || stages[0]?.label || 'Leads';
 
-  const activeFilterCount = [filters.gender, filters.nycha, filters.channel, filters.source].filter(Boolean).length;
+  const hasStartingCohort = originalCohortIds.length > 0;
+  const PRE_ADMISSION_STAGES = new Set(['leads', 'applicants', 'submitted', 'admitted']);
+  const activeFilterCount = [filters.gender, filters.nycha, filters.channel, filters.source, filters.education, hasStartingCohort ? 'yes' : ''].filter(Boolean).length;
 
   // ---- Sort toggle ----
   const handleSortClick = (key) => {
@@ -341,7 +351,34 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
             </Button>
             {filtersOpen && <>
               <div className="fixed inset-0 z-10" onMouseDown={(e) => { if (!e.target.closest('[data-radix-popper-content-wrapper]')) setFiltersOpen(false); }} />
-              <div className="absolute right-0 top-9 z-20 bg-white border border-[#E3E3E3] rounded-lg shadow-lg p-4 w-64 space-y-3">
+              <div className="absolute right-0 top-9 z-20 bg-white border border-[#E3E3E3] rounded-lg shadow-lg p-4 w-72 space-y-3 max-h-[70vh] overflow-y-auto">
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-1.5">Starting Cohort</p>
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                    {l1Cohorts.map(c => {
+                      const checked = originalCohortIds.includes(c.cohort_id);
+                      return (
+                        <label key={c.cohort_id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-[#FAFAFA] cursor-pointer">
+                          <input type="checkbox" checked={checked}
+                            onChange={() => setOriginalCohortIds(prev => checked ? prev.filter(id => id !== c.cohort_id) : [...prev, c.cohort_id])}
+                            className="w-3 h-3 rounded border-slate-300 text-[#4242EA] focus:ring-[#4242EA]" />
+                          <span className="text-xs text-[#1E1E1E]">{c.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-1">Education</p>
+                  <Select value={filters.education || '__none'} onValueChange={v => setFilters(f => ({ ...f, education: v === '__none' ? '' : v }))}>
+                    <SelectTrigger className="h-8 text-xs border-[#E3E3E3]"><SelectValue placeholder="Any" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none" className="text-xs">Any</SelectItem>
+                      <SelectItem value="college" className="text-xs">College degree</SelectItem>
+                      <SelectItem value="non-college" className="text-xs">No college degree</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-1">Gender</p>
                   <Select value={filters.gender || '__none'} onValueChange={v => setFilters(f => ({ ...f, gender: v === '__none' ? '' : v }))}>
@@ -388,7 +425,7 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
                 </div>
                 {activeFilterCount > 0 && (
                   <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-slate-500"
-                    onClick={() => setFilters({ gender: '', nycha: '', channel: '', source: '' })}>Clear filters</Button>
+                    onClick={() => { setFilters({ gender: '', nycha: '', channel: '', source: '', education: '' }); setOriginalCohortIds([]); }}>Clear filters</Button>
                 )}
               </div>
             </>}
@@ -457,13 +494,15 @@ const ProgramMetricsTab = ({ programSlug = 'ai-native-builder' }) => {
                   const pctOfCentered = getPctOfCentered(stage);
                   const isCentered = stage.id === (centeredStageId || stages[0]?.id);
                   const isDrillOpen = selectedStage?.id === stage.id;
+                  const isDisabled = hasStartingCohort && PRE_ADMISSION_STAGES.has(stage.id);
 
                   return (
-                    <div key={stage.id}>
+                    <div key={stage.id} className={isDisabled ? 'opacity-30 pointer-events-none' : ''}>
                       <button
                         className={`w-full flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors cursor-pointer
                           ${isDrillOpen ? 'ring-1 ring-[#4242EA] bg-[#4242EA]/5' : 'hover:bg-[#EFEFEF]/60'}`}
                         onClick={() => handleBarClick(stage)}
+                        disabled={isDisabled}
                       >
                         {/* Stage label */}
                         <div className="w-32 flex-shrink-0 text-right flex items-center justify-end gap-1">

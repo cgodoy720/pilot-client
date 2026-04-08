@@ -4,10 +4,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../../component
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
 import {
   ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CalendarCheck, ShieldCheck,
-  FileText, CheckCircle, MessageSquarePlus,
+  FileText, CheckCircle, MessageSquarePlus, Plus,
 } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 import { cachedAdminApi } from '../../../services/cachedAdminApi';
+import BuilderLogModal from './BuilderLogModal';
 import { ENROLLMENT_BADGE, ENROLLMENT_LABELS } from '../utils/sharedComponents';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -28,6 +29,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName }) => {
   const [nextStepLogs, setNextStepLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [expandedLog, setExpandedLog] = useState(null);
+  const [showLogModal, setShowLogModal] = useState(false);
   const [logStatusSaving, setLogStatusSaving] = useState(null);
   const [logNoteInput, setLogNoteInput] = useState('');
 
@@ -265,7 +267,16 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName }) => {
             <span className="text-sm font-semibold text-[#1E1E1E]">To-Do</span>
             {todoCount > 0 && <Badge className="bg-red-100 text-red-600 text-[10px]">{todoCount}</Badge>}
           </div>
-          {open ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowLogModal(true); }}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-[#4242EA] hover:bg-[#EFEFEF] transition-colors"
+              title="Add builder log"
+            >
+              <Plus size={11} /> Log
+            </button>
+            {open ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+          </div>
         </CollapsibleTrigger>
 
         <CollapsibleContent>
@@ -501,6 +512,14 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName }) => {
           </div>
         </SheetContent>
       </Sheet>
+
+      <BuilderLogModal
+        open={showLogModal}
+        onOpenChange={setShowLogModal}
+        builder={null}
+        cohortId={selectedCohortId}
+        onSaved={() => { setShowLogModal(false); }}
+      />
     </>
   );
 };

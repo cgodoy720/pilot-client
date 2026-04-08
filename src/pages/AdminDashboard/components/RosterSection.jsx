@@ -295,27 +295,17 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
                         <td className="py-2 px-2 text-center">
                           {savingEnrollmentId === b.user_id ? (
                             <span className="text-[10px] text-slate-400">Saving...</span>
-                          ) : editingEnrollmentId === b.user_id ? (
+                          ) : (
                             <select
-                              autoFocus
-                              defaultValue={b.enrollment_status || 'in_progress'}
+                              value={b.enrollment_status || 'in_progress'}
                               onChange={(e) => handleQuickEnrollmentSave(b, e.target.value)}
-                              onBlur={() => setEditingEnrollmentId(null)}
-                              className="text-[10px] border border-[#4242EA] rounded px-1.5 py-0.5 bg-white text-[#1E1E1E] cursor-pointer focus:outline-none"
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none appearance-none ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
                             >
                               <option value="in_progress">In Progress</option>
                               <option value="completed">Completed</option>
                               <option value="withdrawn">Withdrawn</option>
                               <option value="deferred">Deferred</option>
                             </select>
-                          ) : (
-                            <button
-                              onClick={() => setEditingEnrollmentId(b.user_id)}
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
-                              title="Click to edit"
-                            >
-                              {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
-                            </button>
                           )}
                         </td>
                         <td className="py-2 px-2">

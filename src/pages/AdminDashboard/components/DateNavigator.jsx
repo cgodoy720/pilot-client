@@ -5,7 +5,7 @@ import { Calendar } from '../../../components/ui/calendar';
 
 const DateNavigator = ({ selectedDate, onDateChange }) => {
   const dateObj = new Date(selectedDate + 'T12:00:00');
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   const isToday = selectedDate === todayStr;
 
   const shift = (days) => {

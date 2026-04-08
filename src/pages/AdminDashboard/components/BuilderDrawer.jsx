@@ -35,7 +35,7 @@ const sentimentColor = (s) => {
   return 'bg-slate-100 text-slate-600';
 };
 
-const Section = ({ icon: Icon, title, count, children, defaultOpen = true }) => {
+const Section = ({ icon: Icon, title, count, children, defaultOpen = false }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-[#E3E3E3] rounded-lg bg-white overflow-hidden">
@@ -572,7 +572,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
           ) : (
             <>
               {/* Conversation Insights (AI Summary) — top of drawer */}
-              <Section icon={Sparkles} title="Conversation Insights" defaultOpen={true}>
+              <Section icon={Sparkles} title="Conversation Insights">
                 {insightsLoading ? (
                   <div className="px-4 py-4 space-y-3">
                     <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -669,7 +669,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
               </Section>
 
               {/* Weekly Surveys */}
-              <Section icon={ClipboardList} title="Weekly Surveys" count={surveyResponses.length} defaultOpen={surveyResponses.length > 0}>
+              <Section icon={ClipboardList} title="Weekly Surveys" count={surveyResponses.length} defaultOpen={false}>
                 <div className="px-3 py-3 space-y-2">
                   {surveyLoading ? (
                     <div className="space-y-2">
@@ -711,7 +711,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
               </Section>
 
               {/* Builder Notes */}
-              <Section icon={FileText} title="Builder Notes" count={builderLogs.length} defaultOpen={builderLogs.length > 0}>
+              <Section icon={FileText} title="Builder Notes" count={builderLogs.length} defaultOpen={false}>
                 <div className="px-3 py-3 space-y-2">
                   <button
                     onClick={() => setShowLogModal(true)}
@@ -742,7 +742,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
               </Section>
 
               {/* Video Submissions */}
-              <Section icon={Video} title="Video Submissions" count={videoItems.length} defaultOpen={videoItems.length > 0}>
+              <Section icon={Video} title="Video Submissions" count={videoItems.length} defaultOpen={false}>
                 {videoItems.length > 0 ? (
                   <div className="divide-y divide-[#EFEFEF]">
                     {videoItems.map((v, i) => <VideoItem key={v.video_id || i} v={v} />)}

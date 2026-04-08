@@ -1,37 +1,37 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useAuthStore from '../../../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ResponsiveContainer, Tooltip,
+} from 'recharts';
 import { Users, CheckCircle, TrendingUp } from 'lucide-react';
 import AssessmentGrades from '../../AssessmentGrades/AssessmentGrades';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const ASSESSMENT_COLORS = {
-  'Multiple Choice': '#4242EA',
-  'Project': '#10B981',
-  'Problem-Solution': '#F59E0B',
+// Map BQ assessment types to display names
+const TYPE_LABELS = {
+  'knowledge_assessment': 'Self Assessment',
+  'project': 'Technical',
+  'problem_solution': 'Business',
+  'video': 'Professional',
 };
 
-// Shorten long assessment names for chart display
-const shortName = (name) => {
-  if (!name) return 'Unknown';
-  if (name.includes('Multiple Choice')) return 'Multiple Choice';
-  if (name.includes('Project')) return 'Project';
-  if (name.includes('Problem-Solution') || name.includes('Problem')) return 'Problem-Solution';
-  return name.length > 20 ? name.substring(0, 18) + '...' : name;
+const TYPE_ORDER = ['Self Assessment', 'Technical', 'Business', 'Professional'];
+
+const PERIOD_COLORS = {
+  'Week 2': '#4242EA',
+  'Week 8': '#10B981',
 };
 
-const CustomTooltip = ({ active, payload, label }) => {
+const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
-  // Find builders count from the first payload item's original data
-  const builders = payload[0]?.payload?.builders;
+  const data = payload[0]?.payload;
+  if (!data) return null;
   return (
     <div className="bg-white border border-[#E3E3E3] rounded-lg shadow-md p-3 text-xs">
-      <p className="font-semibold text-[#1E1E1E] mb-1">{label}</p>
-      {builders != null && (
-        <p className="text-slate-500 mb-1">{builders} builders</p>
-      )}
+      <p className="font-semibold text-[#1E1E1E] mb-1">{data.category}</p>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2 mt-0.5">
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
@@ -83,55 +83,56 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
       ? Math.round((graded.reduce((a, r) => a + (r.average_score ?? 0), 0) / graded.length) * 100)
       : null;
 
-    // Collect all distinct assessment names and build per-period data
-    const assessmentNames = new Set();
+    // Build per-category, per-period scores for radar chart
     const byPeriod = {};
+    const categoryScores = {};
 
     rows.forEach(r => {
       const period = r.assessment_period ?? 'Unknown';
-      if (!byPeriod[period]) byPeriod[period] = { builderIds: new Set(), overallScores: [], assessmentScores: {} };
+      if (!byPeriod[period]) byPeriod[period] = { builderIds: new Set(), overallScores: [] };
       byPeriod[period].builderIds.add(r.user_id);
       byPeriod[period].overallScores.push(r.average_score ?? 0);
 
-      // Parse per-assessment scores
       try {
         const included = typeof r.included_assessments === 'string' ? JSON.parse(r.included_assessments) : r.included_assessments;
         if (Array.isArray(included)) {
           included.forEach(a => {
-            const name = shortName(a.assessment_name);
-            assessmentNames.add(name);
-            if (!byPeriod[period].assessmentScores[name]) byPeriod[period].assessmentScores[name] = [];
-            byPeriod[period].assessmentScores[name].push(a.overall_score ?? 0);
+            const label = TYPE_LABELS[a.assessment_type] || a.assessment_name;
+            const key = `${period}::${label}`;
+            if (!categoryScores[key]) categoryScores[key] = { period, category: label, scores: [] };
+            categoryScores[key].scores.push(a.overall_score ?? 0);
           });
         }
       } catch {}
     });
 
-    const sortedNames = [...assessmentNames].sort();
+    // Build radar data: one entry per category, with a value per period
+    const periods = Object.keys(byPeriod).sort((a, b) => {
+      const wa = parseInt(a.replace(/\D/g, '')) || 0;
+      const wb = parseInt(b.replace(/\D/g, '')) || 0;
+      return wa - wb;
+    });
 
-    const chartData = Object.entries(byPeriod)
-      .map(([name, data]) => {
-        const entry = {
-          name,
-          builders: data.builderIds.size,
-          avg: Math.round((data.overallScores.reduce((a, b) => a + b, 0) / data.overallScores.length) * 100),
-        };
-        // Add per-assessment averages
-        sortedNames.forEach(aName => {
-          const scores = data.assessmentScores[aName] || [];
-          entry[aName] = scores.length > 0
-            ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100)
-            : null;
-        });
-        return entry;
-      })
-      .sort((a, b) => {
-        const wa = parseInt(a.name.replace(/\D/g, '')) || 0;
-        const wb = parseInt(b.name.replace(/\D/g, '')) || 0;
-        return wa - wb;
+    const radarData = TYPE_ORDER.map(category => {
+      const entry = { category };
+      periods.forEach(period => {
+        const key = `${period}::${category}`;
+        const data = categoryScores[key];
+        entry[period] = data
+          ? Math.round((data.scores.reduce((a, b) => a + b, 0) / data.scores.length) * 100)
+          : null;
       });
+      return entry;
+    });
 
-    return { uniqueBuilders, total: rows.length, graded: graded.length, avgScore, chartData, assessmentNames: sortedNames };
+    // Period summary for the text below
+    const periodSummary = periods.map(p => ({
+      name: p,
+      builders: byPeriod[p].builderIds.size,
+      avg: Math.round((byPeriod[p].overallScores.reduce((a, b) => a + b, 0) / byPeriod[p].overallScores.length) * 100),
+    }));
+
+    return { uniqueBuilders, total: rows.length, graded: graded.length, avgScore, radarData, periods, periodSummary };
   }, [grades, selectedCohortName]);
 
   if (!selectedCohortName) {
@@ -151,83 +152,85 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
         </div>
       ) : summary ? (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="bg-white border border-[#E3E3E3]">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium">Builders Submitted</p>
-                    <p className="text-3xl font-bold mt-1 text-[#1E1E1E]">{summary.uniqueBuilders}</p>
-                    <p className="text-xs text-slate-400 mt-1">{summary.total} total submissions</p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[#EFEFEF]"><Users size={20} className="text-[#4242EA]" /></div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white border border-[#E3E3E3]">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium">Graded</p>
-                    <p className="text-3xl font-bold mt-1 text-green-600">{summary.graded}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {summary.total > 0 ? Math.round((summary.graded / summary.total) * 100) : 0}% complete
-                    </p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-green-50"><CheckCircle size={20} className="text-green-500" /></div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white border border-[#E3E3E3] col-span-2 lg:col-span-1">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium">Avg Score</p>
-                    <p className={`text-3xl font-bold mt-1 ${
+          {/* Summary cards + radar chart side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left: KPI cards */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="bg-white border border-[#E3E3E3]">
+                  <CardContent className="p-4">
+                    <p className="text-[10px] text-slate-500 font-medium uppercase">Builders</p>
+                    <p className="text-2xl font-bold text-[#1E1E1E] mt-1">{summary.uniqueBuilders}</p>
+                    <p className="text-[10px] text-slate-400">{summary.total} submissions</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white border border-[#E3E3E3]">
+                  <CardContent className="p-4">
+                    <p className="text-[10px] text-slate-500 font-medium uppercase">Graded</p>
+                    <p className="text-2xl font-bold text-green-600 mt-1">{summary.graded}</p>
+                    <p className="text-[10px] text-slate-400">{summary.total > 0 ? Math.round((summary.graded / summary.total) * 100) : 0}% complete</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white border border-[#E3E3E3]">
+                  <CardContent className="p-4">
+                    <p className="text-[10px] text-slate-500 font-medium uppercase">Avg Score</p>
+                    <p className={`text-2xl font-bold mt-1 ${
                       summary.avgScore >= 80 ? 'text-green-600' :
                       summary.avgScore >= 60 ? 'text-yellow-600' : 'text-red-500'
-                    }`}>
-                      {summary.avgScore !== null ? `${summary.avgScore}%` : '—'}
-                    </p>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[#EFEFEF]"><TrendingUp size={20} className="text-[#4242EA]" /></div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {summary.chartData.length > 0 && (
-            <Card className="bg-white border border-[#E3E3E3]">
-              <CardHeader className="pb-2 border-b border-[#E3E3E3]">
-                <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Scores by Assessment Period</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-3">
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={summary.chartData} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E3E3E3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} domain={[0, 100]} unit="%" />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '10px', paddingTop: '4px' }} />
-                    {summary.assessmentNames.map(aName => (
-                      <Bar
-                        key={aName}
-                        dataKey={aName}
-                        name={aName}
-                        fill={ASSESSMENT_COLORS[aName] || '#94a3b8'}
-                        radius={[3, 3, 0, 0]}
-                      />
+                    }`}>{summary.avgScore !== null ? `${summary.avgScore}%` : '—'}</p>
+                  </CardContent>
+                </Card>
+              </div>
+              {/* Period breakdown */}
+              <Card className="bg-white border border-[#E3E3E3]">
+                <CardContent className="p-4">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">By Period</p>
+                  <div className="space-y-2">
+                    {summary.periodSummary.map(p => (
+                      <div key={p.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: PERIOD_COLORS[p.name] || '#94a3b8' }} />
+                          <span className="text-xs font-medium text-[#1E1E1E]">{p.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="text-slate-500">{p.builders} builders</span>
+                          <span className={`font-semibold ${p.avg >= 80 ? 'text-green-600' : p.avg >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>{p.avg}%</span>
+                        </div>
+                      </div>
                     ))}
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="flex gap-4 mt-2 text-[11px] text-slate-500">
-                  {summary.chartData.map(d => (
-                    <span key={d.name}>{d.name}: <strong>{d.builders}</strong> builders, avg <strong>{d.avg}%</strong></span>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right: Radar chart */}
+            {summary.radarData.length > 0 && (
+              <Card className="bg-white border border-[#E3E3E3]">
+                <CardContent className="p-4">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Score by Category</p>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <RadarChart data={summary.radarData} cx="50%" cy="50%" outerRadius="75%">
+                      <PolarGrid stroke="#E3E3E3" />
+                      <PolarAngleAxis dataKey="category" tick={{ fontSize: 11, fill: '#1E1E1E' }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      {summary.periods.map((period, i) => (
+                        <Radar
+                          key={period}
+                          name={period}
+                          dataKey={period}
+                          stroke={PERIOD_COLORS[period] || ['#4242EA', '#10B981', '#F59E0B', '#EF4444'][i % 4]}
+                          fill={PERIOD_COLORS[period] || ['#4242EA', '#10B981', '#F59E0B', '#EF4444'][i % 4]}
+                          fillOpacity={0.15}
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </>
       ) : null}
 

@@ -5,8 +5,10 @@ import AttendanceSection from '../components/AttendanceSection';
 import FacilitatorTodos from '../components/FacilitatorTodos';
 import CurriculumScheduleView from '../components/CurriculumScheduleView';
 
+const getTodayET = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
 const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getTodayET);
   const [dayInfo, setDayInfo] = useState(null);
 
   const selectedCohort = useMemo(
@@ -14,7 +16,7 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
     [cohorts, selectedCohortId]
   );
   const cohortName = selectedCohort?.name || '';
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayET();
   const isToday = selectedDate === todayStr;
   const dateObj = new Date(selectedDate + 'T12:00:00');
   const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }).toUpperCase();

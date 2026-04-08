@@ -181,7 +181,7 @@ const CurriculumScheduleView = ({ selectedDate, cohortName, selectedCohortId, on
 
   // Auto-refresh progress every 30s if viewing today
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     if (selectedDate !== today || !token || !selectedCohortId) return;
     const interval = setInterval(() => {
       fetch(`${API_URL}/api/admin/dashboard/day-task-progress?cohortId=${selectedCohortId}&date=${selectedDate}`, {
@@ -195,7 +195,7 @@ const CurriculumScheduleView = ({ selectedDate, cohortName, selectedCohortId, on
   }, [token, selectedCohortId, selectedDate]);
 
   const dateObj = new Date(selectedDate + 'T12:00:00');
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   const isToday = selectedDate === today;
   const now = new Date();
   const currentMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : null;

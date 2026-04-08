@@ -85,9 +85,14 @@ const AdminDashboard = () => {
     [cohorts, selectedCohortId]
   );
 
+  // L2 tab: show for L1 cohorts in week 7+ OR completed cohorts (is_active=false)
   const visibleTabs = useMemo(
     () => TABS.filter(tab => {
-      if (tab.id === 'l2') return selectedCohort?.level === 'L1';
+      if (tab.id === 'l2') {
+        if (selectedCohort?.level !== 'L1') return false;
+        if (selectedCohort?.is_active === false) return true; // cohort finished — always show
+        return (parseInt(selectedCohort?.current_week) || 0) >= 7;
+      }
       return true;
     }),
     [selectedCohort]
