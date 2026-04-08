@@ -4,7 +4,7 @@ import { Badge } from '../../../../components/ui/badge';
 import {
   Loader2, Server, Database, BarChart3, Bot, RefreshCw,
   CloudCog, Globe, ChevronDown, ChevronUp, X, CheckCircle, EyeOff,
-  Cog, Video, MessageSquare, FileSearch, ArrowUpDown, DatabaseZap,
+  Cog, Video, MessageSquare, FileSearch, ClipboardCheck,
 } from 'lucide-react';
 import { useMcpServerStatus, useMcpPgStatus, useMcpBqStatus } from '../hooks/useMcpStatus';
 import {
@@ -427,16 +427,14 @@ const IntegrationsStatusTab = ({ token, startDate, endDate }) => {
                 'loom-transcript-analyzer': Video,
                 'feedback-sentiment-analysis': MessageSquare,
                 'application-analyzer': FileSearch,
-                'attendance-bq-sync': ArrowUpDown,
-                'supabase-bq-sync': DatabaseZap,
+                'weekly-feedback-reports': ClipboardCheck,
               };
               const GCP_COLORS = {
                 'task-analysis': 'bg-blue-500',
                 'loom-transcript-analyzer': 'bg-pink-500',
                 'feedback-sentiment-analysis': 'bg-cyan-500',
                 'application-analyzer': 'bg-amber-500',
-                'attendance-bq-sync': 'bg-slate-500',
-                'supabase-bq-sync': 'bg-purple-500',
+                'weekly-feedback-reports': 'bg-indigo-600',
               };
               const IconComp = GCP_ICONS[svc.id] || Cog;
               const iconBg = GCP_COLORS[svc.id] || 'bg-slate-500';
@@ -471,6 +469,7 @@ const IntegrationsStatusTab = ({ token, startDate, endDate }) => {
                 />
               );
             })}
+
           </div>
         </div>
       )}

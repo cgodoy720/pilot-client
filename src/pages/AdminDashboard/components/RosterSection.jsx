@@ -1,88 +1,32 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import {
-  ChevronUp, ChevronDown, FileText, Plus, CalendarDays, Search, ShieldCheck,
-} from 'lucide-react';
-import BuilderDrawer from '../components/BuilderDrawer';
-import BuilderLogModal from '../components/BuilderLogModal';
-import useAuthStore from '../../../stores/authStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../../components/ui/sheet';
+import {
+  ChevronUp, ChevronDown, FileText, CalendarDays, Search, ShieldCheck,
+} from 'lucide-react';
+import BuilderDrawer from './BuilderDrawer';
+import BuilderLogModal from './BuilderLogModal';
 import AttendanceManagement from '../../../components/AttendanceManagement/AttendanceManagement';
+import useAuthStore from '../../../stores/authStore';
+import {
+  GradeBar, SortHeader, ENROLLMENT_BADGE, ENROLLMENT_LABELS,
+} from '../utils/sharedComponents';
 
 const API_URL = import.meta.env.VITE_API_URL;
+const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const BATCH = 20;
-
-const GRADE_COLORS = {
-  'A+': '#15803d', A: '#16a34a', 'A-': '#22c55e',
-  'B+': '#4242EA', B: '#6366f1', 'B-': '#818cf8',
-  'C+': '#f59e0b', C: '#d97706',
-};
-
-const ENROLLMENT_BADGE = {
-  in_progress: 'bg-blue-100 text-blue-700',
-  completed: 'bg-green-100 text-green-700',
-  withdrawn: 'bg-red-100 text-red-600',
-  deferred: 'bg-amber-100 text-amber-700',
-};
-const ENROLLMENT_LABELS = {
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  withdrawn: 'Withdrawn',
-  deferred: 'Deferred',
-};
-
-const GradeBar = ({ task }) => {
-  const grades = [
-    { key: 'A+', count: task.grade_aplus_count },
-    { key: 'A', count: task.grade_a_count },
-    { key: 'A-', count: task.grade_aminus_count },
-    { key: 'B+', count: task.grade_bplus_count },
-    { key: 'B', count: task.grade_b_count },
-    { key: 'B-', count: task.grade_bminus_count },
-    { key: 'C+', count: task.grade_cplus_count },
-    { key: 'C', count: task.grade_c_count },
-  ];
-  const total = grades.reduce((s, g) => s + g.count, 0);
-  if (total === 0) return <span className="text-xs text-slate-400">—</span>;
-  return (
-    <div className="flex items-center gap-1">
-      <div className="flex h-3 flex-1 rounded-sm overflow-hidden">
-        {grades.filter(g => g.count > 0).map(g => (
-          <div
-            key={g.key}
-            style={{ width: `${(g.count / total) * 100}%`, background: GRADE_COLORS[g.key] || '#94a3b8' }}
-            title={`${g.key}: ${g.count} (${Math.round((g.count / total) * 100)}%)`}
-          />
-        ))}
-      </div>
-      <span className="text-[10px] text-slate-400 w-6 text-right">{total}</span>
-    </div>
-  );
-};
-
-const SortHeader = ({ label, sortKey, sort, onSort, className = '' }) => (
-  <th
-    className={`pb-2 font-medium cursor-pointer hover:text-[#4242EA] transition-colors select-none ${className}`}
-    onClick={() => onSort(sortKey)}
-  >
-    <span className="inline-flex items-center gap-0.5">
-      {label}
-      {sort.key === sortKey ? (
-        sort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
-      ) : (
-        <span className="text-slate-300 text-[10px]">⇅</span>
-      )}
-    </span>
-  </th>
-);
 
 const verifyKey = (cohortId) => `enrollment_verified_${cohortId}`;
 
-const BuildersTab = ({ selectedCohortId, cohorts }) => {
+const RosterSection = ({ selectedCohortId, cohorts }) => {
   const token = useAuthStore((s) => s.token);
-  const [startDate] = useState('2025-03-01');
-  const [endDate] = useState(new Date().toISOString().split('T')[0]);
+  const endDate = new Date().toISOString().split('T')[0];
+  // Use cohort start_date if available, otherwise fall back to a generous default
+  const cohortObj = cohorts.find(c => c.cohort_id === selectedCohortId);
+  const startDate = cohortObj?.start_date
+    ? new Date(cohortObj.start_date).toISOString().split('T')[0]
+    : '2024-01-01';
   const [loading, setLoading] = useState(true);
   const [builders, setBuilders] = useState([]);
   const [builderSort, setBuilderSort] = useState({ key: 'attendance_percentage', dir: 'desc' });
@@ -97,14 +41,15 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
   const sentinelRef = useRef(null);
   const [verifyDrawerOpen, setVerifyDrawerOpen] = useState(false);
 
-  // Enrollment verification (localStorage-backed)
+  // NPS data per builder
+  const [npsResponses, setNpsResponses] = useState([]);
+
   const [lastVerified, setLastVerified] = useState(() => {
     if (typeof window === 'undefined') return null;
     const v = localStorage.getItem(verifyKey(selectedCohortId));
     return v ? new Date(v) : null;
   });
 
-  // Reset verification state when cohort changes
   useEffect(() => {
     const v = localStorage.getItem(verifyKey(selectedCohortId));
     setLastVerified(v ? new Date(v) : null);
@@ -127,17 +72,44 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
     [cohorts, selectedCohortId]
   );
 
+  // Fetch builders
   useEffect(() => {
     if (!selectedCohortId || !token) return;
     setLoading(true);
     setVisibleCount(BATCH);
-    const url = `${API_URL}/api/admin/dashboard/cohort-summary?cohortId=${selectedCohortId}&startDate=${startDate}&endDate=${endDate}`;
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/api/admin/dashboard/cohort-summary?cohortId=${selectedCohortId}&startDate=${startDate}&endDate=${endDate}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then(r => r.json())
       .then(data => setBuilders(data.success ? (data.builders || []) : []))
       .catch(() => setBuilders([]))
       .finally(() => setLoading(false));
   }, [selectedCohortId, startDate, endDate, token, refreshKey]);
+
+  // Fetch NPS responses for emoji column
+  useEffect(() => {
+    if (!selectedCohort?.name) return;
+    const today = new Date().toISOString().split('T')[0];
+    const sixMonths = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    fetch(`${LEGACY_API}/surveys/responses?startDate=${sixMonths}&endDate=${today}`)
+      .then(r => r.json())
+      .then(data => setNpsResponses(Array.isArray(data) ? data.filter(r => r.cohort === selectedCohort.name) : []))
+      .catch(() => setNpsResponses([]));
+  }, [selectedCohort?.name]);
+
+  // Build NPS map: builder name → latest score
+  const npsMap = useMemo(() => {
+    const map = {};
+    npsResponses
+      .sort((a, b) => new Date(b.task_date?.value || b.task_date || 0) - new Date(a.task_date?.value || a.task_date || 0))
+      .forEach(r => {
+        const name = r.user_name;
+        if (name && !map[name] && r.referral_likelihood != null) {
+          map[name] = r.referral_likelihood;
+        }
+      });
+    return map;
+  }, [npsResponses]);
 
   // Infinite scroll
   useEffect(() => {
@@ -150,16 +122,22 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
     return () => obs.disconnect();
   }, [loading]);
 
-  // Reset visible count on search change
   useEffect(() => { setVisibleCount(BATCH); }, [searchQuery]);
 
   const sortedBuilders = useMemo(() => {
     return [...builders].sort((a, b) => {
-      const av = a[builderSort.key] ?? 0, bv = b[builderSort.key] ?? 0;
+      let av, bv;
+      if (builderSort.key === 'nps') {
+        av = npsMap[a.name] ?? -999;
+        bv = npsMap[b.name] ?? -999;
+      } else {
+        av = a[builderSort.key] ?? 0;
+        bv = b[builderSort.key] ?? 0;
+      }
       if (typeof av === 'string') return builderSort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       return builderSort.dir === 'asc' ? (av - bv) : (bv - av);
     });
-  }, [builders, builderSort]);
+  }, [builders, builderSort, npsMap]);
 
   const filteredBuilders = useMemo(() => {
     if (!searchQuery.trim()) return sortedBuilders;
@@ -197,6 +175,16 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
     }
   };
 
+  // NPS indicator: green circle ≥9 (promoter), yellow 7-8 (passive), red ≤6 (detractor)
+  const getNpsIndicator = (builderName) => {
+    const score = npsMap[builderName];
+    if (score == null) return null;
+    const color = score >= 9 ? 'bg-green-500' : score >= 7 ? 'bg-yellow-400' : 'bg-red-500';
+    return (
+      <span title={`NPS: ${score}`} className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Enrollment verification banner */}
@@ -227,7 +215,7 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
       <Card className="bg-white border border-[#E3E3E3]">
         <CardHeader className="pb-3 border-b border-[#E3E3E3]">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <CardTitle className="text-base font-semibold text-[#1E1E1E]">Builder Performance</CardTitle>
+            <CardTitle className="text-base font-semibold text-[#1E1E1E]">Builder Roster</CardTitle>
             <div className="flex items-center gap-2">
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -251,12 +239,13 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
           ) : builders.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">No builder data.</p>
           ) : (
-            <>
+            <div className="max-h-[600px] overflow-y-auto">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 bg-white z-10">
                     <tr className="text-left text-slate-400 text-xs uppercase tracking-wide border-b border-[#E3E3E3]">
                       <SortHeader label="Builder" sortKey="name" sort={builderSort} onSort={toggleSort} className="pr-3" />
+                      <SortHeader label="NPS" sortKey="nps" sort={builderSort} onSort={toggleSort} className="px-1 text-center w-8" />
                       <SortHeader label="Attendance" sortKey="attendance_percentage" sort={builderSort} onSort={toggleSort} className="px-2 text-center" />
                       <SortHeader label="Tasks" sortKey="tasks_completed_percentage" sort={builderSort} onSort={toggleSort} className="px-2 text-center" />
                       <SortHeader label="Feedback" sortKey="total_peer_feedback_count" sort={builderSort} onSort={toggleSort} className="px-2 text-center" />
@@ -278,6 +267,7 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
                           </button>
                           {b.email && <p className="text-[10px] text-slate-400">{b.email}</p>}
                         </td>
+                        <td className="py-2 px-1 text-center">{getNpsIndicator(b.name)}</td>
                         <td className="py-2 px-2 text-center">
                           <span className={`text-xs font-semibold ${
                             b.attendance_percentage >= 80 ? 'text-green-600' :
@@ -305,27 +295,17 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
                         <td className="py-2 px-2 text-center">
                           {savingEnrollmentId === b.user_id ? (
                             <span className="text-[10px] text-slate-400">Saving...</span>
-                          ) : editingEnrollmentId === b.user_id ? (
+                          ) : (
                             <select
-                              autoFocus
-                              defaultValue={b.enrollment_status || 'in_progress'}
+                              value={b.enrollment_status || 'in_progress'}
                               onChange={(e) => handleQuickEnrollmentSave(b, e.target.value)}
-                              onBlur={() => setEditingEnrollmentId(null)}
-                              className="text-[10px] border border-[#4242EA] rounded px-1.5 py-0.5 bg-white text-[#1E1E1E] cursor-pointer focus:outline-none"
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none appearance-none ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
                             >
                               <option value="in_progress">In Progress</option>
                               <option value="completed">Completed</option>
                               <option value="withdrawn">Withdrawn</option>
                               <option value="deferred">Deferred</option>
                             </select>
-                          ) : (
-                            <button
-                              onClick={() => setEditingEnrollmentId(b.user_id)}
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
-                              title="Click to edit"
-                            >
-                              {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
-                            </button>
                           )}
                         </td>
                         <td className="py-2 px-2">
@@ -352,7 +332,6 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
                 </table>
               </div>
 
-              {/* Infinite scroll sentinel */}
               {visibleCount < filteredBuilders.length && (
                 <div ref={sentinelRef} className="flex justify-center py-4">
                   <div className="text-xs text-slate-400">
@@ -364,7 +343,7 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
               {filteredBuilders.length === 0 && searchQuery && (
                 <p className="text-sm text-slate-400 text-center py-6">No builders match "{searchQuery}"</p>
               )}
-            </>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -377,6 +356,7 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
           selectedLevel={selectedCohort?.legacyName || ''}
           cohortId={selectedCohortId}
           onClose={() => setSelectedBuilder(null)}
+          onLogSaved={() => setRefreshKey(k => k + 1)}
         />
       )}
 
@@ -488,6 +468,7 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
           </SheetHeader>
           <div className="px-6 py-4">
             <AttendanceManagement
+              compact
               cohortName={selectedCohort?.name || ''}
               initialBuilder={attendanceBuilder ? {
                 id: attendanceBuilder.user_id,
@@ -504,4 +485,4 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
   );
 };
 
-export default BuildersTab;
+export default RosterSection;

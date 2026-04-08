@@ -58,12 +58,9 @@ const Layout = ({ children, isLoading = false }) => {
     || canViewPermissionManagement || canViewWeeklyReports || canViewPlatformAnalytics;
   // Program dropdown -- staff/admin roles
   const programDropdownItems = isStaffOrAdminRole ? [
-    canViewAssessmentGrades && { to: '/admin/assessment-grades', label: 'Assessments' },
-    canViewAdminAttendance && { to: '/admin-attendance-dashboard', label: 'Attendance' },
-    canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Stats' },
-    // canViewContent && { to: '/content', label: 'Curriculum' }, // hidden — use Content Mgmt instead
+    canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Hub' },
+    canViewAdminDashboard && { to: '/program-analytics', label: 'Program Analytics' },
     canViewContentPreview && { to: '/content-preview', label: 'Content Mgmt' },
-    canViewExternalCohorts && { to: '/external-cohorts', label: 'External Cohorts' },
   ].filter(Boolean) : [];
 
   // Employment dropdown -- staff/admin roles
@@ -83,6 +80,7 @@ const Layout = ({ children, isLoading = false }) => {
   // Admin dropdown -- admin role, or staff with any admin page permission
   const adminDropdownItems = (isAdminRole || (isStaffOrAdminRole && hasAnyAdminPagePermission)) ? [
     canViewAdminPrompts && { to: '/admin-prompts', label: 'AI Prompts' },
+    canViewExternalCohorts && { to: '/external-cohorts', label: 'External Cohorts' },
     canViewOrganizationManagement && { to: '/admin/organization-management', label: 'Organizations' },
     canViewPermissionManagement && { to: '/admin/permissions', label: 'Permissions' },
     canViewPlatformAnalytics && { to: '/admin/platform-analytics', label: 'Platform Analytics' },

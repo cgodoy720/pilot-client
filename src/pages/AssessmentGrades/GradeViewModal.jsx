@@ -8,6 +8,10 @@ import {
 } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ResponsiveContainer, Tooltip,
+} from 'recharts';
 import SubmissionContent from './components/SubmissionContent';
 
 const assessmentTypeMapping = {
@@ -273,47 +277,107 @@ const GradeViewModal = ({
       setEditingStrengths('');
       setEditingGrowthAreas('');
     }
-  };
+    acc[type].push(submission);
+    return acc;
+  }, {});
+  
+  // Debug logging
+  console.log('📊 analysisByType keys:', Object.keys(analysisByType));
+  console.log('📊 submissionsByType keys:', Object.keys(submissionsByType));
+  
+  // Filter assessment types to only show tabs that have submissions or analysis data
+  const assessmentTypesWithData = allAssessmentTypes.filter(type => {
+    const hasSubmission = submissionsByType[type] && submissionsByType[type].length > 0;
+    const hasAnalysis = analysisByType[type] && analysisByType[type].length > 0;
+    return hasSubmission || hasAnalysis;
+  });
+  
+  // Create tabs: Overview + individual assessment types that have data
+  const availableTabs = ['overview', ...assessmentTypesWithData];
+  
+  // Get the current tab's analysis data
+  const currentAnalysis = analysisByType[tabValue] || [];
+  
+  // Render analysis feedback for individual assessment tabs
+  const renderAnalysisFeedback = (analysis) => {
+    if (!analysis) return <p className="text-sm text-muted-foreground">No feedback available.</p>;
 
-  const renderTypeAnalysis = (analysis) => {
-    if (!analysis) return null;
+    const score = analysis.overall_score != null ? Math.round(analysis.overall_score * 100) : null;
+    let insights = [];
+    try {
+      const tsd = JSON.parse(analysis.type_specific_data || '{}');
+      if (tsd.key_insights) insights = tsd.key_insights;
+    } catch {}
+
     return (
-      <div className="space-y-4 pt-3">
-        <div className="bg-card border border-border rounded-lg p-4 text-center">
-          <span className="text-xl font-bold text-primary">
-            Score: {(analysis.overall_score * 100).toFixed(1)}%
-          </span>
-        </div>
-        {analysis.feedback && (
-          <div className="bg-card border border-border rounded-lg p-4">
-            <h5 className="font-semibold mb-2">Detailed Feedback</h5>
-            <div className="bg-muted/50 p-3 rounded border text-sm whitespace-pre-wrap">{analysis.feedback}</div>
+      <div className="space-y-4">
+        {/* Score badge */}
+        {score != null && (
+          <div className="flex items-center gap-3">
+            <span className={`text-3xl font-bold ${
+              score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-red-500'
+            }`}>{score}%</span>
+            <span className="text-sm text-muted-foreground">overall score</span>
           </div>
         )}
-        {(() => {
-          try {
-            const tsd = JSON.parse(analysis.type_specific_data || '{}');
-            if (tsd.key_insights?.length) {
-              return (
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <h5 className="font-semibold mb-2">Key Insights</h5>
-                  <ul className="space-y-1 text-sm">
-                    {tsd.key_insights.map((ins, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>{ins}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            }
-          } catch { /* ignore */ }
-          return null;
-        })()}
+
+        {/* Feedback */}
+        {analysis.feedback && (
+          <div>
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Feedback</h4>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{analysis.feedback}</p>
+          </div>
+        )}
+
+        {/* Key insights */}
+        {insights.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Key Insights</h4>
+            <ul className="space-y-1.5">
+              {insights.map((insight, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <span className="text-primary mt-0.5 flex-shrink-0">•</span>
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Strengths + growth side by side */}
+        {(analysis.strengths_summary || analysis.growth_areas_summary) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            {analysis.strengths_summary && (
+              <div>
+                <h4 className="text-sm font-semibold text-green-600 uppercase tracking-wide mb-1">Strengths</h4>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{analysis.strengths_summary}</p>
+              </div>
+            )}
+            {analysis.growth_areas_summary && (
+              <div>
+                <h4 className="text-sm font-semibold text-amber-600 uppercase tracking-wide mb-1">Growth Areas</h4>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{analysis.growth_areas_summary}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
+
+  // Build radar chart data from per-type analysis scores
+  const radarData = useMemo(() => {
+    const typeLabels = { self: 'Self Assessment', technical: 'Technical', business: 'Business', professional: 'Professional' };
+    return ['self', 'technical', 'business', 'professional'].map(type => {
+      const analyses = analysisByType[type] || [];
+      const score = analyses.length > 0 && analyses[0].overall_score != null
+        ? Math.round(analyses[0].overall_score * 100)
+        : null;
+      return { category: typeLabels[type], score };
+    });
+  }, [analysisByType]);
+
+  const hasRadarData = radarData.some(d => d.score != null);
 
   if (!isOpen || !grade) return null;
 
@@ -333,215 +397,191 @@ const GradeViewModal = ({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <div className="text-lg font-medium mb-2">Loading assessment history...</div>
-                <div className="text-sm">Fetching all periods and levels</div>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="flex items-center justify-center h-full text-destructive">
-              <div className="text-center">
-                <div className="text-lg font-medium mb-2">Error</div>
-                <div className="text-sm">{error}</div>
-              </div>
-            </div>
-          ) : rounds.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold mb-2">No Assessment Data</h3>
-                <p>This user has no assessment submissions yet.</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Assessment History — {rounds.length} period{rounds.length !== 1 ? 's' : ''} (newest first)
-              </h3>
-
-              {rounds.map((round) => {
-                const isPeriodOpen = expandedPeriods.has(round.key);
-                const isEditing = editingKey === round.key;
-
-                // Get submissions grouped by canonical type for this round
-                const subsByType = {};
-                round.submissions.forEach(sub => {
-                  const canonical = assessmentTypeMapping[(sub.assessment_type || '').toLowerCase()] || sub.assessment_type;
-                  if (!subsByType[canonical]) subsByType[canonical] = [];
-                  subsByType[canonical].push(sub);
-                });
-                const typesWithData = ALL_TYPES.filter(t => subsByType[t]?.length > 0);
-
-                return (
-                  <div key={round.key} className="border border-border rounded-lg overflow-hidden" data-testid="period-section">
-                    {/* Period header */}
-                    <button
-                      className="w-full flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
-                      onClick={() => togglePeriod(round.key)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{isPeriodOpen ? '▼' : '▶'}</span>
-                        <div>
-                          <span className="font-semibold text-base">
-                            {round.assessment_period}
-                            {round.level ? ` — ${round.level.toUpperCase()}` : ''}
-                          </span>
-                          {round.avgScore != null && (
-                            <span className="ml-3 text-sm text-muted-foreground">
-                              avg {(round.avgScore * 100).toFixed(0)}%
-                            </span>
-                          )}
+        <div className="flex-1 overflow-hidden min-h-0">
+          <Tabs value={tabValue} onValueChange={setTabValue} className="h-full flex flex-col">
+            <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/50 p-0 h-auto flex-shrink-0 overflow-x-auto">
+              {availableTabs.map((type) => (
+                <TabsTrigger 
+                  key={type} 
+                  value={type}
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+                >
+                  {type === 'overview' ? 'Overview' : type.charAt(0).toUpperCase() + type.slice(1)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {loading ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <div className="text-lg font-medium mb-2">Loading assessment data...</div>
+                    <div className="text-sm">Please wait while we fetch the student's information</div>
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="flex items-center justify-center h-full text-destructive">
+                  <div className="text-center">
+                    <div className="text-lg font-medium mb-2">Error</div>
+                    <div className="text-sm">{error}</div>
+                  </div>
+                </div>
+              ) : userSubmissions.length === 0 && comprehensiveAnalysis.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold mb-2">No Assessment Data Available</h3>
+                    <p className="mb-1">This user has no assessment submissions or analysis data yet.</p>
+                    <p>Assessment data will appear here once the user completes assessments and they are analyzed.</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <TabsContent value="overview" className="mt-0 p-6 h-full overflow-y-auto">
+                    {/* Radar chart + scores */}
+                    {hasRadarData && (
+                      <div className="bg-card border border-border rounded-lg p-5 mb-6">
+                        <div className="flex items-center justify-center gap-8">
+                          <div className="w-[300px] h-[240px] flex-shrink-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="60%">
+                                <PolarGrid stroke="#E3E3E3" />
+                                <PolarAngleAxis dataKey="category" tick={{ fontSize: 12, fill: '#1E1E1E' }} />
+                                <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                                <Radar dataKey="score" stroke="#4242EA" fill="#4242EA" fillOpacity={0.2} strokeWidth={2} dot={{ r: 3, fill: '#4242EA' }} />
+                              </RadarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="space-y-2">
+                            {radarData.map(d => (
+                              <div key={d.category} className="flex items-center gap-3">
+                                <span className={`text-xl font-bold w-12 text-right ${
+                                  d.score >= 80 ? 'text-green-600' : d.score >= 60 ? 'text-yellow-600' : d.score != null ? 'text-red-500' : 'text-slate-300'
+                                }`}>{d.score != null ? `${d.score}%` : '—'}</span>
+                                <span className="text-sm text-muted-foreground">{d.category}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                      <span className="text-xs text-muted-foreground">{typesWithData.length} assessment{typesWithData.length !== 1 ? 's' : ''}</span>
-                    </button>
+                    )}
 
-                    {isPeriodOpen && (
-                      <div className="p-4 space-y-4 border-t border-border">
-                        {/* Overall Feedback block */}
-                        {(round.holisticRecord || !isEditing) && (
-                          <div className="bg-card border border-border rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold">Overall Feedback</h4>
-                              {!isEditing && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => startEditing(round)}
-                                  disabled={!!editingKey}
-                                >
-                                  ✏️ Edit
-                                </Button>
-                              )}
+                    <div className="space-y-6">
+                      {/* Overall Feedback Section — full width */}
+                      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-semibold">Overall Feedback</h3>
+                          {!isEditingOverview && (
+                            <Button 
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onStartEditing(grade)}
+                              title="Edit feedback"
+                            >
+                              ✏️ Edit
+                            </Button>
+                          )}
+                        </div>
+
+                        {isEditingOverview ? (
+                          <div className="space-y-4">
+                            <div className="space-y-3">
+                              <h4 className="font-semibold">Strengths Summary</h4>
+                              <Textarea
+                                value={editingStrengths}
+                                onChange={(e) => setEditingStrengths(e.target.value)}
+                                className="min-h-[100px] resize-none"
+                                placeholder="Enter strengths summary..."
+                              />
                             </div>
 
-                            {isEditing ? (
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <h5 className="font-medium text-sm">Strengths Summary</h5>
-                                  <Textarea
-                                    value={editingStrengths}
-                                    onChange={(e) => setEditingStrengths(e.target.value)}
-                                    className="min-h-[80px] resize-none"
-                                    placeholder="Enter strengths summary..."
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <h5 className="font-medium text-sm">Growth Areas Summary</h5>
-                                  <Textarea
-                                    value={editingGrowthAreas}
-                                    onChange={(e) => setEditingGrowthAreas(e.target.value)}
-                                    className="min-h-[80px] resize-none"
-                                    placeholder="Enter growth areas summary..."
-                                  />
-                                </div>
-                                <div className="flex gap-2 justify-end">
-                                  <Button variant="outline" onClick={cancelEditing} disabled={saving}>Cancel</Button>
-                                  <Button
-                                    className="bg-green-600 hover:bg-green-700"
-                                    onClick={() => saveEditing(round)}
-                                    disabled={saving}
-                                  >
-                                    {saving ? 'Saving...' : '💾 Save'}
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : round.holisticRecord ? (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <h5 className="text-sm font-medium text-green-600 mb-1">Strengths</h5>
-                                  <div className="bg-muted/50 p-3 rounded border text-sm whitespace-pre-wrap">
-                                    {round.holisticRecord.strengths_summary || 'No strengths summary'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <h5 className="text-sm font-medium text-amber-600 mb-1">Growth Areas</h5>
-                                  <div className="bg-muted/50 p-3 rounded border text-sm whitespace-pre-wrap">
-                                    {round.holisticRecord.growth_areas_summary || 'No growth areas summary'}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No holistic feedback generated for this period yet.</p>
-                            )}
+                            <div className="space-y-3">
+                              <h4 className="font-semibold">Growth Areas Summary</h4>
+                              <Textarea
+                                value={editingGrowthAreas}
+                                onChange={(e) => setEditingGrowthAreas(e.target.value)}
+                                className="min-h-[100px] resize-none"
+                                placeholder="Enter growth areas summary..."
+                              />
+                            </div>
+
+                            <div className="flex gap-4 justify-end pt-4 border-t border-border">
+                              <Button 
+                                variant="outline"
+                                onClick={onCancelEditing}
+                                disabled={savingOverview}
+                              >
+                                ❌ Cancel
+                              </Button>
+                              <Button 
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => onSaveOverview(grade.user_id)}
+                                disabled={savingOverview}
+                              >
+                                {savingOverview ? 'Saving...' : '💾 Save'}
+                              </Button>
+                            </div>
                           </div>
-                        )}
-
-                        {/* Type rows */}
-                        {typesWithData.length > 0 && (
-                          <div className="space-y-2">
-                            {typesWithData.map((type) => {
-                              const typeSubs = subsByType[type] || [];
-                              const latestSub = typeSubs[0];
-                              const typeAnalysis = latestSub?.analysis || null;
-                              const typeRowKey = `${round.key}|${type}`;
-                              const isTypeOpen = expandedTypes.has(typeRowKey);
-                              const scoreDisplay = typeAnalysis?.overall_score != null
-                                ? `${(typeAnalysis.overall_score * 100).toFixed(0)}%`
-                                : null;
-
-                              return (
-                                <div key={type} className="border border-border rounded-lg overflow-hidden">
-                                  <button
-                                    className="w-full flex items-center justify-between p-3 bg-background hover:bg-muted/30 transition-colors text-left"
-                                    onClick={() => toggleType(typeRowKey)}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm">{isTypeOpen ? '▼' : '▶'}</span>
-                                      <span className="font-medium capitalize">{type}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      {scoreDisplay && (
-                                        <span className="text-sm font-semibold text-primary">{scoreDisplay}</span>
-                                      )}
-                                      <span className="text-xs text-muted-foreground">
-                                        {typeSubs.length} submission{typeSubs.length !== 1 ? 's' : ''}
-                                      </span>
-                                    </div>
-                                  </button>
-
-                                  {isTypeOpen && (
-                                    <div className="border-t border-border p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                      {/* Submission content */}
-                                      <div>
-                                        <h5 className="font-semibold mb-3">Student Submission</h5>
-                                        <SubmissionContent
-                                          currentTabType={type}
-                                          userSubmissions={typeSubs}
-                                          assessmentTypeMapping={assessmentTypeMapping}
-                                          previewMode={previewMode}
-                                          setPreviewMode={setPreviewMode}
-                                          showCode={showCode}
-                                          setShowCode={setShowCode}
-                                          websitePreview={websitePreview}
-                                          setWebsitePreview={setWebsitePreview}
-                                          createWebsitePreview={createWebsitePreview}
-                                        />
-                                      </div>
-
-                                      {/* AI Analysis */}
-                                      <div>
-                                        <h5 className="font-semibold mb-3">AI Analysis & Feedback</h5>
-                                        {typeAnalysis ? (
-                                          renderTypeAnalysis(typeAnalysis)
-                                        ) : (
-                                          <p className="text-sm text-muted-foreground">No AI analysis available for this assessment.</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                        ) : (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div>
+                              <h4 className="text-sm font-semibold mb-2 text-green-600 uppercase tracking-wide">Strengths</h4>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                {grade.strengths_summary || 'No strengths summary available'}
+                              </p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold mb-2 text-amber-600 uppercase tracking-wide">Growth Areas</h4>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                {grade.growth_areas_summary || 'No growth areas summary available'}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  </TabsContent>
+
+                  {/* Individual Assessment Tabs */}
+                  {assessmentTypesWithData.map((assessmentType) => {
+                    const tabAnalysis = analysisByType[assessmentType] || [];
+                    const tabScore = tabAnalysis[0]?.overall_score != null
+                      ? Math.round(tabAnalysis[0].overall_score * 100) : null;
+
+                    return (
+                      <TabsContent key={assessmentType} value={assessmentType} className="mt-0 p-6 h-full overflow-y-auto">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                          {/* Left: Submission */}
+                          <div className="bg-card border border-border rounded-lg p-5">
+                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Submission</h3>
+                            <SubmissionContent
+                              currentTabType={assessmentType}
+                              userSubmissions={userSubmissions}
+                              assessmentTypeMapping={assessmentTypeMapping}
+                              previewMode={previewMode}
+                              setPreviewMode={setPreviewMode}
+                              showCode={showCode}
+                              setShowCode={setShowCode}
+                              websitePreview={websitePreview}
+                              setWebsitePreview={setWebsitePreview}
+                              createWebsitePreview={createWebsitePreview}
+                            />
+                          </div>
+
+                          {/* Right: AI Feedback */}
+                          <div className="bg-card border border-border rounded-lg p-5">
+                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">AI Feedback</h3>
+                            {tabAnalysis.length > 0 ? (
+                              renderAnalysisFeedback(tabAnalysis[0])
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No AI feedback available for this assessment yet.</p>
+                            )}
+                          </div>
+                        </div>
+                      </TabsContent>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>
