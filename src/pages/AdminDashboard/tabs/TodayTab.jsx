@@ -4,12 +4,14 @@ import DateNavigator from '../components/DateNavigator';
 import AttendanceSection from '../components/AttendanceSection';
 import FacilitatorTodos from '../components/FacilitatorTodos';
 import CurriculumScheduleView from '../components/CurriculumScheduleView';
+import BuilderDrawer from '../components/BuilderDrawer';
 
 const getTodayET = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
 const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
   const [selectedDate, setSelectedDate] = useState(getTodayET);
   const [dayInfo, setDayInfo] = useState(null);
+  const [selectedBuilder, setSelectedBuilder] = useState(null);
 
   const selectedCohort = useMemo(
     () => cohorts.find(c => c.cohort_id === selectedCohortId),
@@ -24,7 +26,7 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
   const handleDateChange = (date) => {
     setSelectedDate(date);
     sessionStorage.setItem('pursuit_today_date', date);
-    setDayInfo(null); // Reset until new data loads
+    setDayInfo(null);
   };
 
   if (!cohortName) {
@@ -35,7 +37,6 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
     <div className="space-y-6">
       <DateNavigator selectedDate={selectedDate} onDateChange={handleDateChange} />
 
-      {/* Day header — compact, single row */}
       {dayInfo && (
         <div className="bg-[#4242EA] text-white rounded-lg px-4 py-3">
           <div className="flex items-center gap-2">
@@ -58,6 +59,7 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
         selectedDate={selectedDate}
         selectedCohortId={selectedCohortId}
         cohortName={cohortName}
+        onBuilderClick={(builder) => setSelectedBuilder(builder)}
       />
       <CurriculumScheduleView
         selectedDate={selectedDate}
@@ -66,6 +68,17 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
         onDayLoaded={setDayInfo}
         hideHeader
       />
+
+      {selectedBuilder && (
+        <BuilderDrawer
+          builder={selectedBuilder}
+          startDate={selectedCohort?.start_date ? new Date(selectedCohort.start_date).toISOString().split('T')[0] : '2024-01-01'}
+          endDate={getTodayET()}
+          selectedLevel={selectedCohort?.legacyName || ''}
+          cohortId={selectedCohortId}
+          onClose={() => setSelectedBuilder(null)}
+        />
+      )}
     </div>
   );
 };

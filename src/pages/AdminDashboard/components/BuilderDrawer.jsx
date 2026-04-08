@@ -304,6 +304,8 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [showRawConversations, setShowRawConversations] = useState(false);
   const [rawConversations, setRawConversations] = useState([]);
   const [rawLoading, setRawLoading] = useState(false);
+  const [enrollmentStatus, setEnrollmentStatus] = useState(builder?.enrollment_status || 'in_progress');
+  const [savingEnrollment, setSavingEnrollment] = useState(false);
 
   // Weekly Surveys state
   const [surveyResponses, setSurveyResponses] = useState([]);
@@ -357,9 +359,16 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       return [];
     };
 
+    const fetchPeerFeedback = () =>
+      cohortId && token
+        ? fetch(`${API_URL}/api/admin/dashboard/builder-peer-feedback?userId=${builder.user_id}&cohortId=${cohortId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(r => r.ok ? r.json() : null).then(d => d?.success ? d.data : null).catch(() => null)
+        : fetchType('peer_feedback');
+
     Promise.all([
       fetchType('workProduct'),
-      fetchType('peer_feedback'),
+      fetchPeerFeedback(),
       fetchVideos(),
     ]).then(([wp, pf, vids]) => {
       setWorkProduct(wp);
@@ -515,6 +524,20 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     onLogSaved?.();
   };
 
+  const handleEnrollmentChange = async (newStatus) => {
+    if (!builder.enrollment_id || !token) return;
+    setSavingEnrollment(true);
+    try {
+      await fetch(`${API_URL}/api/admin/dashboard/builder-enrollment/${builder.enrollment_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setEnrollmentStatus(newStatus);
+    } catch (e) { console.error('Enrollment update failed:', e); }
+    setSavingEnrollment(false);
+  };
+
   if (!builder) return null;
 
   const wpItems = workProduct?.details || workProduct || [];
@@ -531,7 +554,28 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-[#E3E3E3] bg-white flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-[#1E1E1E]">{builder.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#1E1E1E]">{builder.name}</h2>
+              {savingEnrollment ? (
+                <span className="text-[10px] text-slate-400">Saving...</span>
+              ) : (
+                <select
+                  value={enrollmentStatus}
+                  onChange={e => handleEnrollmentChange(e.target.value)}
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none appearance-none ${
+                    enrollmentStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                    enrollmentStatus === 'withdrawn' ? 'bg-red-100 text-red-600' :
+                    enrollmentStatus === 'deferred' ? 'bg-amber-100 text-amber-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}
+                >
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="withdrawn">Withdrawn</option>
+                  <option value="deferred">Deferred</option>
+                </select>
+              )}
+            </div>
             <p className="text-xs text-slate-400 mt-0.5">{builder.email ?? builder.level}</p>
             <div className="flex gap-3 mt-2">
               <div className="text-center">

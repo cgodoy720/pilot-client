@@ -5,6 +5,7 @@ import {
   ChevronRight, AlertTriangle, ArrowRight, Plus, MessageSquarePlus, Search,
 } from 'lucide-react';
 import BuilderLogModal from '../components/BuilderLogModal';
+import BuilderDrawer from '../components/BuilderDrawer';
 import useAuthStore from '../../../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -21,6 +22,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
   const [showLogModal, setShowLogModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [builderFilter, setBuilderFilter] = useState('');
+  const [selectedBuilder, setSelectedBuilder] = useState(null);
 
   const fetchLogs = async () => {
     if (!selectedCohortId || !token) return;
@@ -171,6 +173,80 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
             </p>
           ) : (
             <div className="space-y-4">
+              {/* Next Steps (shown first) */}
+              {filteredNextSteps.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ArrowRight size={12} className="text-[#4242EA]" />
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Next Steps</span>
+                    <Badge className="bg-blue-50 text-blue-600 text-[10px]">{filteredNextSteps.length}</Badge>
+                  </div>
+                  <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
+                    {filteredNextSteps.map(log => {
+                      const itemKey = `nextstep-${log.log_id}`;
+                      const isExpanded = expandedItemId === itemKey;
+                      const nextStepStatusColors = {
+                        open: 'text-blue-600 bg-blue-50',
+                        in_progress: 'text-yellow-600 bg-yellow-50',
+                        closed: 'text-slate-500 bg-slate-50',
+                      };
+                      const updatedAt = log.updated_at ? new Date(log.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                      return (
+                        <div key={log.log_id}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
+                            className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors"
+                          >
+                            <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ChevronRight size={12} className="text-slate-400" />
+                            </span>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedBuilder({ user_id: log.builder_id, name: log.builder_name }); }}
+                              className="text-xs font-medium text-[#4242EA] hover:underline flex-shrink-0">{log.builder_name}</button>
+                            <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 ${
+                              log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700'
+                              : log.log_type === 'interview' ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-blue-100 text-blue-700'
+                            }`}>{log.log_type}</Badge>
+                            <span className="text-[10px] text-slate-500 flex-1 min-w-0 truncate">{log.next_steps}</span>
+                            <select
+                              value={log.status}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => { e.stopPropagation(); handleNextStepStatusChange(log.log_id, e.target.value); }}
+                              className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold cursor-pointer focus:outline-none flex-shrink-0 ${nextStepStatusColors[log.status] || 'text-slate-500 bg-slate-50'}`}
+                            >
+                              {['open', 'in_progress', 'closed'].map(s => (
+                                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                              ))}
+                            </select>
+                            <span className="text-[10px] text-slate-400 flex-shrink-0">{updatedAt}</span>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-8 pb-3 space-y-2 bg-[#FAFAFA]">
+                              <div>
+                                <p className="text-[10px] font-semibold text-[#4242EA] uppercase mb-0.5">Next Steps</p>
+                                <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.next_steps}</p>
+                              </div>
+                              {log.notes && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes</p>
+                                  <p className="text-xs text-slate-600 line-clamp-3">{log.notes}</p>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                <span>·</span>
+                                <span>by {log.created_by_name}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Support Tickets */}
               {filteredTickets.length > 0 && (
                 <div>
@@ -194,7 +270,8 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                             <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
                               <ChevronRight size={12} className="text-slate-400" />
                             </span>
-                            <span className="text-xs font-medium text-[#1E1E1E] flex-1 min-w-0 truncate">{ticket.builder_name}</span>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedBuilder({ user_id: ticket.builder_id, name: ticket.builder_name }); }}
+                              className="text-xs font-medium text-[#4242EA] hover:underline flex-shrink-0">{ticket.builder_name}</button>
                             <Badge className="bg-[#EFEFEF] text-slate-600 text-[10px] flex-shrink-0">
                               {categoryLabels[ticket.support_category] || ticket.support_category}
                             </Badge>
@@ -253,84 +330,6 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                 </div>
               )}
 
-              {/* Next Steps */}
-              {filteredNextSteps.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <ArrowRight size={12} className="text-[#4242EA]" />
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Next Steps</span>
-                    <Badge className="bg-blue-50 text-blue-600 text-[10px]">{filteredNextSteps.length}</Badge>
-                  </div>
-                  <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
-                    {filteredNextSteps.map(log => {
-                      const itemKey = `nextstep-${log.log_id}`;
-                      const isExpanded = expandedItemId === itemKey;
-                      const nextStepStatusColors = {
-                        open: 'text-blue-600 bg-blue-50',
-                        in_progress: 'text-yellow-600 bg-yellow-50',
-                        closed: 'text-slate-500 bg-slate-50',
-                      };
-                      const updatedAt = log.updated_at ? new Date(log.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-                      return (
-                        <div key={log.log_id}>
-                          <button
-                            type="button"
-                            onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
-                            className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors"
-                          >
-                            <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                              <ChevronRight size={12} className="text-slate-400" />
-                            </span>
-                            <span className="text-xs font-medium text-[#1E1E1E] flex-1 min-w-0 truncate">{log.builder_name}</span>
-                            <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 ${
-                              log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700'
-                              : log.log_type === 'interview' ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {log.log_type}
-                            </Badge>
-                            <select
-                              value={log.status}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => { e.stopPropagation(); handleNextStepStatusChange(log.log_id, e.target.value); }}
-                              className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold cursor-pointer focus:outline-none flex-shrink-0 ${nextStepStatusColors[log.status] || 'text-slate-500 bg-slate-50'}`}
-                            >
-                              {['open', 'in_progress', 'closed'].map(s => (
-                                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                              ))}
-                            </select>
-                            <span className="text-[10px] text-slate-400 ml-auto flex-shrink-0">{updatedAt}</span>
-                          </button>
-                          {isExpanded && (
-                            <div className="px-8 pb-3 space-y-2 bg-[#FAFAFA]">
-                              <div>
-                                <p className="text-[10px] font-semibold text-[#4242EA] uppercase mb-0.5">Next Steps</p>
-                                <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.next_steps}</p>
-                              </div>
-                              <div>
-                                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes</p>
-                                <p className="text-xs text-slate-600 line-clamp-3">{log.notes}</p>
-                              </div>
-                              {log.tags && log.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {log.tags.map((tag, i) => (
-                                    <Badge key={i} className="bg-slate-100 text-slate-600 text-[10px]">{tag}</Badge>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                <span>·</span>
-                                <span>by {log.created_by_name}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </CardContent>
@@ -343,6 +342,18 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
           builder={null}
           cohortId={selectedCohortId}
           onSaved={() => { setRefreshKey(k => k + 1); }}
+        />
+      )}
+
+      {selectedBuilder && (
+        <BuilderDrawer
+          builder={selectedBuilder}
+          startDate="2024-01-01"
+          endDate={new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })}
+          selectedLevel=""
+          cohortId={selectedCohortId}
+          onClose={() => setSelectedBuilder(null)}
+          onLogSaved={() => setRefreshKey(k => k + 1)}
         />
       )}
     </div>

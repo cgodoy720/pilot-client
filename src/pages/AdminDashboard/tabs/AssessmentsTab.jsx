@@ -50,6 +50,7 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
     [cohorts, selectedCohortId]
   );
   const [grades, setGrades] = useState(null);
+  const [completion, setCompletion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
@@ -57,20 +58,24 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
     if (!token) return;
     setLoading(true);
     setFetchError(null);
-    fetch(`${API_URL}/api/admin/assessment-grades`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`Server error (${r.status})`);
-        return r.json();
+    Promise.all([
+      fetch(`${API_URL}/api/admin/assessment-grades`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => { if (!r.ok) throw new Error(`Server error (${r.status})`); return r.json(); }),
+      selectedCohortId ? fetch(`${API_URL}/api/admin/dashboard/assessment-completion?cohortId=${selectedCohortId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.json()).catch(() => null) : Promise.resolve(null),
+    ])
+      .then(([gradesData, completionData]) => {
+        setGrades(gradesData);
+        if (completionData?.success) setCompletion(completionData);
       })
-      .then(json => setGrades(json))
       .catch(err => {
         console.error('Assessment grades fetch error:', err);
         setFetchError(err.message);
       })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, selectedCohortId]);
 
   const summary = useMemo(() => {
     if (!grades || !selectedCohortName) return null;
@@ -152,55 +157,38 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
         </div>
       ) : summary ? (
         <>
-          {/* Summary cards + radar chart side by side */}
+          {/* Completion rates + radar chart side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Left: KPI cards */}
+            {/* Left: Completion rates per period */}
             <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                <Card className="bg-white border border-[#E3E3E3]">
+              {completion?.data && Object.entries(completion.data).map(([period, data]) => (
+                <Card key={period} className="bg-white border border-[#E3E3E3]">
                   <CardContent className="p-4">
-                    <p className="text-[10px] text-slate-500 font-medium uppercase">Builders</p>
-                    <p className="text-2xl font-bold text-[#1E1E1E] mt-1">{summary.uniqueBuilders}</p>
-                    <p className="text-[10px] text-slate-400">{summary.total} submissions</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-white border border-[#E3E3E3]">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] text-slate-500 font-medium uppercase">Graded</p>
-                    <p className="text-2xl font-bold text-green-600 mt-1">{summary.graded}</p>
-                    <p className="text-[10px] text-slate-400">{summary.total > 0 ? Math.round((summary.graded / summary.total) * 100) : 0}% complete</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-white border border-[#E3E3E3]">
-                  <CardContent className="p-4">
-                    <p className="text-[10px] text-slate-500 font-medium uppercase">Avg Score</p>
-                    <p className={`text-2xl font-bold mt-1 ${
-                      summary.avgScore >= 80 ? 'text-green-600' :
-                      summary.avgScore >= 60 ? 'text-yellow-600' : 'text-red-500'
-                    }`}>{summary.avgScore !== null ? `${summary.avgScore}%` : '—'}</p>
-                  </CardContent>
-                </Card>
-              </div>
-              {/* Period breakdown */}
-              <Card className="bg-white border border-[#E3E3E3]">
-                <CardContent className="p-4">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">By Period</p>
-                  <div className="space-y-2">
-                    {summary.periodSummary.map(p => (
-                      <div key={p.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: PERIOD_COLORS[p.name] || '#94a3b8' }} />
-                          <span className="text-xs font-medium text-[#1E1E1E]">{p.name}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="text-slate-500">{p.builders} builders</span>
-                          <span className={`font-semibold ${p.avg >= 80 ? 'text-green-600' : p.avg >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>{p.avg}%</span>
-                        </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: PERIOD_COLORS[period] || '#94a3b8' }} />
+                        <span className="text-sm font-semibold text-[#1E1E1E]">{period}</span>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <span className={`text-2xl font-bold ${data.pct >= 80 ? 'text-green-600' : data.pct >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>
+                        {data.pct}%
+                      </span>
+                    </div>
+                    <div className="flex h-2 rounded-full overflow-hidden bg-[#EFEFEF] mb-2">
+                      <div className="bg-green-500 h-full" style={{ width: `${data.pct}%` }} />
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      <span className="font-medium text-[#1E1E1E]">{data.completedAll}</span> of {data.total} builders submitted all 4 assessments
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+              {(!completion?.data || Object.keys(completion.data).length === 0) && (
+                <Card className="bg-white border border-[#E3E3E3]">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-slate-400">No assessment submission data yet.</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Right: Radar chart */}

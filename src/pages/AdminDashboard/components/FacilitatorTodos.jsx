@@ -23,7 +23,7 @@ const STATUS_COLORS = {
   pending: 'bg-slate-100 text-slate-500',
 };
 
-const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName }) => {
+const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilderClick }) => {
   const token = useAuthStore((s) => s.token);
   const [open, setOpen] = useState(() => localStorage.getItem('pursuit_todos_open') !== 'false');
   const [nextStepLogs, setNextStepLogs] = useState([]);
@@ -334,23 +334,13 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName }) => {
                         <button type="button" onClick={() => setExpandedLog(isExp ? null : log.log_id)}
                           className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#EFEFEF]/50">
                           <ChevronRight size={11} className={`text-slate-400 transition-transform ${isExp ? 'rotate-90' : ''}`} />
-                          {savingEnrollment === log.builder_id ? (
-                            <span className="text-[10px] text-slate-400">Saving...</span>
-                          ) : editingEnrollment === log.builder_id ? (
-                            <select autoFocus defaultValue="in_progress"
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => { e.stopPropagation(); handleLogEnrollmentSave(log.builder_id, e.target.value); }}
-                              onBlur={() => setEditingEnrollment(null)}
-                              className="text-[10px] border border-[#4242EA] rounded px-1.5 py-0.5 bg-white cursor-pointer focus:outline-none">
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                              <option value="withdrawn">Withdrawn</option>
-                              <option value="deferred">Deferred</option>
-                            </select>
-                          ) : (
-                            <button onClick={(e) => { e.stopPropagation(); setEditingEnrollment(log.builder_id); }}
-                              className="text-xs font-medium text-[#4242EA] hover:underline">{log.builder_name}</button>
-                          )}
+                          <button onClick={(e) => {
+                              e.stopPropagation();
+                              if (onBuilderClick) {
+                                onBuilderClick({ user_id: log.builder_id, name: log.builder_name, email: log.builder_email });
+                              }
+                            }}
+                            className="text-xs font-medium text-[#4242EA] hover:underline">{log.builder_name}</button>
                           <Badge className={`text-[10px] px-1.5 py-0 ${
                             log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700' :
                             log.log_type === 'interview' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
