@@ -630,31 +630,19 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null, compact 
             </div>
           )}
 
-          {/* Month navigation — always visible */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+          {/* Month navigation — matches overview calendar style */}
+          <div className="flex items-center gap-2 bg-slate-50 rounded-lg border border-slate-200 p-2">
+            <button type="button" onClick={handlePrevMonth}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-100">
               <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="flex-1 justify-center font-medium">
-                  {currentMonthDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={currentMonthDate}
-                  onSelect={(d) => {
-                    if (d) setCurrentMonthDate(d);
-                    setStartDateOpen(false);
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-            <Button variant="outline" size="icon" onClick={handleNextMonth}>
+            </button>
+            <p className="flex-1 text-center text-sm font-semibold text-slate-900">
+              {currentMonthDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+            </p>
+            <button type="button" onClick={handleNextMonth}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-100">
               <ChevronRight className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
 
           {!compact && searchResults.length > 0 && (

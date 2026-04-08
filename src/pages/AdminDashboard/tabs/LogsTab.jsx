@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import {
-  ChevronRight, AlertTriangle, ArrowRight, Plus, MessageSquarePlus, Search,
+  ChevronRight, AlertTriangle, ArrowRight, Plus, MessageSquarePlus, Search, FileText,
 } from 'lucide-react';
 import BuilderLogModal from '../components/BuilderLogModal';
 import BuilderDrawer from '../components/BuilderDrawer';
@@ -14,6 +14,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
   const token = useAuthStore((s) => s.token);
   const [supportTickets, setSupportTickets] = useState([]);
   const [nextStepLogs, setNextStepLogs] = useState([]);
+  const [allLogs, setAllLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [supportFilter, setSupportFilter] = useState('active');
   const [expandedItemId, setExpandedItemId] = useState(null);
@@ -35,6 +36,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
       if (data.success) {
         setSupportTickets(data.data.tickets || []);
         setNextStepLogs(data.data.nextStepLogs || []);
+        setAllLogs(data.data.allLogs || []);
       }
     } catch (err) {
       console.error('Logs fetch failed:', err);
@@ -60,7 +62,12 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
     return list;
   }, [nextStepLogs, supportFilter, builderFilter]);
 
-  const totalLogs = filteredTickets.length + filteredNextSteps.length;
+  const filteredAllLogs = useMemo(() => {
+    if (!builderFilter) return allLogs;
+    return allLogs.filter(l => l.builder_name?.toLowerCase().includes(builderFilter.toLowerCase()));
+  }, [allLogs, builderFilter]);
+
+  const totalLogs = filteredTickets.length + filteredNextSteps.length + filteredAllLogs.length;
 
   const handleTicketStatusChange = async (supportId, newStatus) => {
     try {
@@ -331,6 +338,51 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                 </div>
               )}
 
+              {/* Other Logs */}
+              {filteredAllLogs.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <FileText size={12} className="text-slate-400" />
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Other Logs</span>
+                    <Badge className="bg-slate-50 text-slate-500 text-[10px]">{filteredAllLogs.length}</Badge>
+                  </div>
+                  <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
+                    {filteredAllLogs.map(log => {
+                      const itemKey = `log-${log.log_id}`;
+                      const isExpanded = expandedItemId === itemKey;
+                      const updatedAt = log.updated_at ? new Date(log.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                      return (
+                        <div key={log.log_id}>
+                          <button type="button" onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
+                            className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors">
+                            <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ChevronRight size={12} className="text-slate-400" />
+                            </span>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedBuilder({ user_id: log.builder_id, name: log.builder_name }); }}
+                              className="text-xs font-medium text-[#4242EA] hover:underline flex-shrink-0">{log.builder_name}</button>
+                            <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 ${
+                              log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700'
+                              : log.log_type === 'interview' ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-blue-100 text-blue-700'
+                            }`}>{log.log_type}</Badge>
+                            <span className="text-[10px] text-slate-500 flex-1 min-w-0 truncate">{log.notes}</span>
+                            <span className="text-[10px] text-slate-400 flex-shrink-0">{updatedAt}</span>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-8 pb-3 space-y-2 bg-[#FAFAFA]">
+                              {log.notes && <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.notes}</p>}
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                <span>by {log.created_by_name}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
