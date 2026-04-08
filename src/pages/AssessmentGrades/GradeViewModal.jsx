@@ -30,6 +30,7 @@ const assessmentTypeMapping = {
 };
 
 const ALL_TYPES = ['technical', 'business', 'professional', 'self'];
+const allAssessmentTypes = ALL_TYPES;
 
 // Smart website preview generator
 const createWebsitePreview = (files) => {
