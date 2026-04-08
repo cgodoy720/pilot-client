@@ -535,7 +535,12 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.analysis?.length > 0) {
-          const typeMap = { self: 'Self', technical: 'Technical', business: 'Business', professional: 'Professional' };
+          const typeMap = {
+            self: 'Self', knowledge_assessment: 'Self',
+            technical: 'Technical', project: 'Technical',
+            business: 'Business', problem_solution: 'Business',
+            professional: 'Professional', video: 'Professional',
+          };
           const scores = {};
           data.analysis.forEach(a => {
             const type = (a.assessment_type || '').toLowerCase();

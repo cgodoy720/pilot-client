@@ -275,6 +275,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                             <Badge className="bg-[#EFEFEF] text-slate-600 text-[10px] flex-shrink-0">
                               {categoryLabels[ticket.support_category] || ticket.support_category}
                             </Badge>
+                            <span className="text-[10px] text-slate-500 flex-1 min-w-0 truncate">{ticket.log_notes}</span>
                             <select
                               value={ticket.current_status}
                               onClick={(e) => e.stopPropagation()}

@@ -4,7 +4,7 @@ import { Badge } from '../../../components/ui/badge';
 import { ChevronRight } from 'lucide-react';
 import TaskDetailPanel from './TaskDetailPanel';
 import useAuthStore from '../../../stores/authStore';
-import { SortHeader, Pagination } from '../utils/sharedComponents';
+import { GradeBar, SortHeader, Pagination, letterGrade } from '../utils/sharedComponents';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const PAGE_SIZE = 10;
@@ -73,6 +73,7 @@ const TaskAnalysisSection = ({ selectedCohortId, cohorts = [] }) => {
                     <SortHeader label="Task" sortKey="task_title" sort={taskSort} onSort={toggleTaskSort} className="pr-3" />
                     <SortHeader label="Date" sortKey="assigned_date" sort={taskSort} onSort={toggleTaskSort} className="px-2" />
                     <SortHeader label="Completion" sortKey="submission_rate" sort={taskSort} onSort={toggleTaskSort} className="px-2" />
+                    <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">Grade Dist.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EFEFEF]">
@@ -109,10 +110,11 @@ const TaskAnalysisSection = ({ selectedCohortId, cohorts = [] }) => {
                               }`}>{task.submission_rate}%</span>
                             </div>
                           </td>
+                          <td className="py-2 px-2 w-28"><GradeBar task={task} /></td>
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan={3} className="p-0">
+                            <td colSpan={4} className="p-0">
                               <TaskDetailPanel task={task} />
                             </td>
                           </tr>

@@ -600,72 +600,62 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null, compact 
       <Card className="border-slate-200">
         <CardContent className={`space-y-4 ${compact ? 'p-3' : 'p-6'}`}>
           {!compact && (
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-            <div className="relative lg:col-span-6">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search builder by name or email..."
-                className="pl-10"
-              />
-              {searching && (
-                <RefreshCw className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[#4242EA]" />
-              )}
-            </div>
-
-            <div className="lg:col-span-2">
-              <Select value={cohortFilter} onValueChange={setCohortFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Cohort" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cohortOptions.map((cohort) => (
-                    <SelectItem key={cohort} value={cohort}>
-                      {cohort === 'all' ? 'All Cohorts' : cohort}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="lg:col-span-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handlePrevMonth}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="flex-1 justify-center font-medium">
-                      {currentMonthDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={currentMonthDate}
-                      onSelect={(d) => {
-                        if (d) setCurrentMonthDate(d);
-                        setStartDateOpen(false);
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleNextMonth}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-8">
+              <div className="relative lg:col-span-5">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search builder by name or email..."
+                  className="pl-10"
+                />
+                {searching && (
+                  <RefreshCw className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[#4242EA]" />
+                )}
+              </div>
+              <div className="lg:col-span-3">
+                <Select value={cohortFilter} onValueChange={setCohortFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohortOptions.map((cohort) => (
+                      <SelectItem key={cohort} value={cohort}>
+                        {cohort === 'all' ? 'All Cohorts' : cohort}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </div>
           )}
+
+          {/* Month navigation — always visible */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex-1 justify-center font-medium">
+                  {currentMonthDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={currentMonthDate}
+                  onSelect={(d) => {
+                    if (d) setCurrentMonthDate(d);
+                    setStartDateOpen(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="icon" onClick={handleNextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>}
 
           {!compact && searchResults.length > 0 && (
             <div className="rounded-lg border border-slate-200 bg-white">

@@ -169,7 +169,7 @@ const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col z-[80]">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-[#E3E3E3]">
           <SheetTitle className="text-lg font-bold text-[#1E1E1E]">
             {effectiveBuilder
