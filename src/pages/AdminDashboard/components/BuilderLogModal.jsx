@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../../components/ui/sheet';
 import { Button } from '../../../components/ui/button';
 import { Label } from '../../../components/ui/label';
 import { Textarea } from '../../../components/ui/textarea';
@@ -17,7 +18,7 @@ const SUPPORT_CATEGORIES = [
   { value: 'time_off_personal', label: 'Time Off / Personal' },
 ];
 
-const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => {
+const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved, mode = 'sheet' }) => {
   const token = useAuthStore((s) => s.token);
 
   const [logType, setLogType] = useState('behavioral');
@@ -167,16 +168,25 @@ const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => 
     setSaving(false);
   };
 
+  const title = effectiveBuilder
+    ? 'Log Entry — ' + (effectiveBuilder.name || (effectiveBuilder.first_name + ' ' + effectiveBuilder.last_name))
+    : 'New Facilitator Log';
+
+  const Wrapper = mode === 'dialog' ? Dialog : Sheet;
+  const Content = mode === 'dialog' ? DialogContent : SheetContent;
+  const Header = mode === 'dialog' ? DialogHeader : SheetHeader;
+  const Title = mode === 'dialog' ? DialogTitle : SheetTitle;
+  const contentClass = mode === 'dialog'
+    ? 'max-w-lg max-h-[90vh] overflow-y-auto p-0'
+    : 'w-full sm:max-w-lg p-0 flex flex-col z-[70]';
+  const contentProps = mode === 'dialog' ? {} : { side: 'right' };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-[#E3E3E3]">
-          <DialogTitle className="text-lg font-bold text-[#1E1E1E]">
-            {effectiveBuilder
-              ? 'Log Entry — ' + (effectiveBuilder.name || (effectiveBuilder.first_name + ' ' + effectiveBuilder.last_name))
-              : 'New Facilitator Log'}
-          </DialogTitle>
-        </DialogHeader>
+    <Wrapper open={open} onOpenChange={onOpenChange}>
+      <Content className={contentClass} {...contentProps}>
+        <Header className="px-6 pt-6 pb-4 border-b border-[#E3E3E3]">
+          <Title className="text-lg font-bold text-[#1E1E1E]">{title}</Title>
+        </Header>
 
         <div className="space-y-5 px-6 py-5 overflow-y-auto flex-1">
           {/* Primary builder search (when no builder prop) */}
@@ -433,8 +443,8 @@ const BuilderLogModal = ({ open, onOpenChange, builder, cohortId, onSaved }) => 
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </Content>
+    </Wrapper>
   );
 };
 
