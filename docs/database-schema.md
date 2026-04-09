@@ -1223,6 +1223,31 @@ All Salesforce ID columns use `TEXT`, not a fixed-length type. SF IDs are 15 or 
 - Retroactively add cross-schema FKs if they were skipped during initial init.sql run
 - Add rate limiting enforcement at the database level for Pebble usage
 
+### Planned: Identity Consolidation (PR #100)
+
+> Spec: `tasks/spec-identity-consolidation.md` | Status: Draft, pending review
+
+| Change | Table | What happens |
+|--------|-------|--------------|
+| New table | `bedrock.sf_contact_map` | Bridges SF Contacts to `public.contacts`. Mirrors `sf_account_company_map` pattern: 7 columns, 3 indexes, conditional FK. |
+| New table | `bedrock.user_config` | Thin bedrock-specific config (just `profile_id`). Replaces `app_user` as the bedrock identity store. PK = `org_user_id` (FK to `public.org_users`). |
+| ALTER | `public.org_users` | Add `sf_user_id TEXT UNIQUE`, `is_active BOOLEAN DEFAULT true`. Requires superuser — `bedrock_user` cannot ALTER `public.*`. |
+| Retire | `bedrock.app_user` | Dropped after code migrates to `org_users JOIN user_config`. Steps 5-7 of rollout. |
+
+**Net impact:** 33 tables → 34 tables (+2 new, -1 retired = +1 net).
+
+**Schema doc sections to update when implemented:**
+- §1 domain summary (line 37-46) — update Domain B description, add Domain H: Contact Bridge
+- §1 ASCII diagram (line 13-33) — replace `app_user` with `user_config`, add `sf_contact_map`
+- §4 Domain B (line 358-380) — replace `app_user` entry with `user_config`
+- §4 add Domain H — `sf_contact_map` entry (after Domain G, line 969)
+- §5 ER diagram (line 977-999) — `permission_profile ||--o{ user_config`, add `sf_contact_map`
+- §5 integration threads (line 1003-1010) — change `sf_user_id` from `app_user` to `org_users`, add `sf_contact_id` thread
+- §7 auto-provisioning (line 1100) — update from `app_user` to `user_config`
+- §7 conditional FKs (line 1068) — update `app_user.org_user_id` to `user_config.org_user_id`
+- §10 table list (line 1230-1266) — update count, swap `app_user` for `user_config`, add `sf_contact_map`
+- §10 index list (line 1268-1314) — update count, swap `app_user` index for `user_config` (none needed — PK serves as index), add 3 `sf_contact_map` indexes
+
 ---
 
 ## 10. Quick Reference Appendix
