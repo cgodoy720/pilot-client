@@ -14,7 +14,7 @@
 |---|---|---|
 | **#94** Sprint A | 4-profile RBAC (Admin/RM/Executive/PM), nav gating, unlock requests, opportunity locking | `routes/permissions.py`, `db/init.sql` (seed profiles), `PermissionsContext.tsx`, `Layout.tsx` menu gating |
 | **#95** M19 | Project ownership model — `owner_email`, `created_by`, `project_contributor` table | `routes/projects.py`, `db/init.sql` |
-| **#96** Atlas | Database schema atlas — 31→33 table map, ER diagrams, collision analysis | `docs/database-schema-atlas.md` |
+| **#96** Atlas | Database schema atlas — superseded by consolidated `docs/database-schema.md` (33 tables) | `docs/database-schema.md` |
 | **#97** Senior dev review | Claims 1-4 + 5C + source governance. Env validator, dev bypass strip, org_users link, sf_account_company_map, prospect SF writeback, source_governance module | 27 files across `financial_forecasting/`, `pebble/`, `docs/`, `scripts/` |
 | Wall of Progress | Per-RM goal tracking on Overview page, `OwnerGoalWidget`, `PipelineFunnel` ownerId filter, `owner_goal` table | `Overview.tsx`, `OwnerGoalWidget.tsx`, `PipelineFunnel.tsx`, `opportunities_extra.py`, `config/goals.ts` |
 
@@ -211,29 +211,9 @@ These are independent of the prospect import migration and can run in parallel.
 
 The schema atlas and rundown are now stale. Verified gaps:
 
-### 4.1 Atlas update needed
+### 4.1 Schema doc consolidation (DONE)
 
-**File:** `docs/database-schema-atlas.md`
-
-| Gap | What to fix |
-|---|---|
-| Table count | Line ~1217: Change "31 Tables" → "33 Tables" |
-| Missing table: `sf_account_company_map` | Add to §4 (CRM Bridge) or §10 (Cross-Domain). 9 columns, FK to `public.companies`, confidence levels. |
-| Missing table: `owner_goal` | Add to a new §Goals section or append to §7 (Payments & Invoices). 9 columns, fiscal_year, updated_at trigger. |
-| Missing columns on `app_user` | `org_user_id UUID` (FK to `public.org_users`) — Phase B-1 |
-| Missing columns on `prospect_sf_contact` | `source`, `enrichment_source`, `sf_contact_id`, `sf_pushed_at` — Phase 5C + source governance |
-| Missing columns on `prospect_sf_account` | Same 4 columns |
-| Quick reference table | Appendix rows need updating to 33 entries with correct column counts |
-
-### 4.2 Rundown update needed
-
-**File:** `docs/database-schema-rundown.md`
-
-| Gap | What to fix |
-|---|---|
-| New tables | Document `sf_account_company_map` and `owner_goal` schemas |
-| New columns | Document `app_user.org_user_id`, `prospect_sf_*.source`, `prospect_sf_*.enrichment_source`, `prospect_sf_*.sf_contact_id`, `prospect_sf_*.sf_pushed_at` |
-| Cross-schema FKs section | Add the two new FKs (app_user → org_users, sf_account_company_map → companies) |
+Both `database-schema-rundown.md` and `database-schema-atlas.md` have been replaced by a single consolidated `docs/database-schema.md` covering all 33 tables, 43 indexes, cross-domain ER diagram, data flow, security hardening checklist, and quick reference appendix.
 
 ### 4.3 PLAN-INDEX update
 
@@ -392,7 +372,7 @@ From `docs/architecture-decisions.md` (verified):
 | `financial_forecasting/db/init.sql` | Schema DDL (33 tables, 14 ALTER blocks) |
 | `financial_forecasting/db/migrations/2026-04-08-backfill-app-user-org-link.sql` | Phase B-3 backfill |
 | `docs/contact-source-governance.md` | Cross-system source contract + platform team ask |
-| `docs/database-schema-atlas.md` | Schema atlas (needs update — 31→33 tables) |
+| `docs/database-schema.md` | Consolidated schema reference (33 tables, replaced atlas + rundown) |
 | `docs/PLAN-INDEX.md` | Milestone index (needs update) |
 | `tasks/lessons.md` | Patterns to avoid |
 | `scripts/install-git-hooks.sh` | Pre-commit hook installer |

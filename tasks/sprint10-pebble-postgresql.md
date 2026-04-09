@@ -13,7 +13,7 @@ Pebble uses synchronous SQLite (`pebble/pebble.db`) for all storage. This must m
 
 ### 1. Create 12 Pebble tables in bedrock schema
 
-10 migrated from SQLite + 2 new (conflict_log, scratchpad). See `docs/database-schema-rundown.md` section 3 for full DDL. All use `bedrock.pebble_*` naming.
+10 migrated from SQLite + 2 new (conflict_log, scratchpad). See `docs/database-schema.md` Domain D for full DDL. All use `bedrock.pebble_*` naming.
 
 Fresh start -- no data migration from SQLite.
 

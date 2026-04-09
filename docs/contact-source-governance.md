@@ -162,8 +162,8 @@ The Bedrock fundraising CRM is introducing structured provenance tracking for co
 
 - Code: `financial_forecasting/source_governance.py`
 - Schema: `financial_forecasting/db/init.sql` (search for `prospect_sf_contact_source_chk`)
-- Architecture context: `docs/database-schema-atlas.md` §11 (Namespace Collision Analysis)
-- Bedrock role permissions: `docs/database-schema-rundown.md` §1
+- Architecture context: `docs/database-schema.md` §6 (Cross-Domain Integration)
+- Bedrock role permissions: `docs/database-schema.md` §2 (Connection & Infrastructure)
 
 ## 6. Future enrichment story
 
@@ -180,4 +180,4 @@ A more aggressive approach would be to "downgrade" any Pebble-enriched contact t
 
 The senior dev review flagged that `data_sync.py` doesn't link SF Accounts (Bedrock's funder records) to `public.companies` (the platform's employer records). Their proposed fix was to write `salesforce_account_id` directly onto `public.companies`, but Bedrock has read-only permission on `public.*` and cannot do that.
 
-The atlas (`docs/database-schema-atlas.md:1201`) pre-named the right fix: a `bedrock.org_identity_map` mapping table. This doc ships that table as `bedrock.sf_account_company_map` with the matcher service in `services/sf_company_matcher.py` and the admin review endpoints in `routes/admin_company_match.py`. The senior dev's underlying concern is addressed; the table just lives on the Bedrock side because that's the only place Bedrock can write.
+The schema doc (now `docs/database-schema.md`, Domain F) pre-named the right fix: a `bedrock.org_identity_map` mapping table. This doc ships that table as `bedrock.sf_account_company_map` with the matcher service in `services/sf_company_matcher.py` and the admin review endpoints in `routes/admin_company_match.py`. The senior dev's underlying concern is addressed; the table just lives on the Bedrock side because that's the only place Bedrock can write.
