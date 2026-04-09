@@ -133,8 +133,7 @@ This project will integrate into the Pursuit AI-native learning platform. Keep t
 - **Ask Pebble spec:** `product/crm-prds/ask-pebble-spec.md` — tiered query router, chat interface, CRM bridge
 - **Phase specs:** `product/fundraising-team/phases/`
 - **Technical reference:** `product/reference/` (Sage, Salesforce, Slack setup)
-- **Database schema (PostgreSQL):** `docs/database-schema-rundown.md` — all tables, fields, permissions, segundo-db connection model, sprint roadmap
-- **Database schema atlas:** `docs/database-schema-atlas.md` — complete 31-table map with ER diagrams, cross-domain integration, namespace collision analysis, Pebble pipeline state
+- **Database schema (PostgreSQL):** `docs/database-schema.md` — 33-table reference with exec overview, SF/Bedrock/segundo architecture, domain-by-domain columns, cross-domain ER diagram, data flow, security hardening checklist
 - **Architecture decisions:** `docs/architecture-decisions.md`
 - **Historical PRD:** `PRD.md` (Nov 2025, partially superseded by crm-architecture/)
 - **Archived product specs:** `product/archive/ARCHIVE-INDEX.md`
