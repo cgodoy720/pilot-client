@@ -23,7 +23,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '../../../../components/ui/dropdown-menu';
-import { Upload, Settings, RefreshCw, ChevronDown, Users, FileInput } from 'lucide-react';
+import { Upload, Settings, RefreshCw, ChevronDown, Users, FileInput, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import LeadImportModal from './LeadImportModal';
 import EmailListsManager from './EmailListsManager';
 import SourceConfigManager from './SourceConfigManager';
@@ -205,6 +206,9 @@ const LeadsTab = ({ token }) => {
   // Form import state
   const [formImporting, setFormImporting] = useState(false);
   const [formImportResult, setFormImportResult] = useState(null);
+
+  // Export state
+  const [exporting, setExporting] = useState(false);
 
   // Fetch leads
   const fetchLeads = useCallback(async () => {
@@ -481,6 +485,47 @@ const LeadsTab = ({ token }) => {
       setFormImportResult({ errors: [{ form: 'Unknown', error: error.message }] });
     } finally {
       setFormImporting(false);
+    }
+  };
+
+  // Export leads to CSV
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      const params = new URLSearchParams();
+
+      if (selectedLeads.length > 0) {
+        params.append('lead_ids', selectedLeads.join(','));
+      } else {
+        if (filters.status.length > 0) params.append('status', filters.status.join(','));
+        if (filters.source_type) params.append('source_type', filters.source_type);
+        if (filters.list_id) params.append('list_id', filters.list_id);
+        if (filters.attended_event) params.append('attended_event', filters.attended_event);
+        if (filters.search) params.append('search', filters.search);
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/leads/export?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) throw new Error('Failed to export leads');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `admissions-leads-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('Failed to export leads:', error);
+      toast.error('Failed to export leads');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -972,6 +1017,20 @@ const LeadsTab = ({ token }) => {
           >
             <FileInput className="h-4 w-4" />
             {formImporting ? 'Importing…' : 'Import from Forms'}
+          </Button>
+
+          <Button
+            onClick={handleExportCSV}
+            disabled={exporting || (leads.length === 0 && selectedLeads.length === 0)}
+            variant="outline"
+            className="font-proxima gap-2"
+          >
+            <Download className="h-4 w-4" />
+            {exporting
+              ? 'Exporting...'
+              : selectedLeads.length > 0
+                ? `Export Selected (${selectedLeads.length})`
+                : 'Export CSV'}
           </Button>
 
           <Button
