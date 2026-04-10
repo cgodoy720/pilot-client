@@ -121,7 +121,7 @@ afterEach(() => {
 
 **Builder**: `/dashboard`, `/ai-chat`, `/learning`, `/calendar`, `/assessment`, `/performance`, `/pathfinder/*`, `/account`, `/payment`, `/volunteering`
 
-**Staff/Admin**: `/admin-dashboard`, `/admin-attendance-dashboard`, `/admissions-dashboard`, `/content/*`, `/facilitator-view`, `/volunteer-management`, `/forms`, `/sputnik`, `/workshop-admin-dashboard`
+**Staff/Admin**: `/admin-dashboard`, `/admin-attendance-dashboard`, `/admissions-dashboard`, `/content/*`, `/facilitator-view`, `/volunteer-management`, `/forms`, `/sputnik`, `/workshop-admin-dashboard`, `/platform-intake`
 
 **Admin-only**: `/admin-prompts`, `/admin/organization-management`, `/admin/permissions`, `/admin/weekly-reports`, `/admin/platform-analytics`
 
@@ -133,7 +133,18 @@ Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
 1. **REST**: `fetch()` / `axios` with auth headers → JSON response
 2. **SSE Streaming**: `streamMessageToGPT()`, `streamLearningMessage()` — real-time AI text chunks with `AbortSignal` support
 
-**Service modules**: `utils/api.js` (generic + streaming), `services/adminApi.js` (27KB, admin ops), `services/volunteerApi.js`, `services/formService.js`, `utils/statsApi.js`, `utils/analyticsApi.js`, `utils/attendanceService.js`
+**Service modules**: `utils/api.js` (generic + streaming), `services/adminApi.js` (27KB, admin ops), `services/volunteerApi.js`, `services/formService.js`, `services/platformIntakeService.js`, `utils/statsApi.js`, `utils/analyticsApi.js`, `utils/attendanceService.js`
+
+## Platform Intake
+
+`src/pages/PlatformIntake/PlatformIntake.jsx` — form for reporting bugs and requesting features. Submissions go to `POST /api/platform-intake` on test-pilot-server, which also forwards them to pursuit-factory (`POST /api/intake`) to create tickets in the Kanban system.
+
+- **Reporter name**: editable text input, pre-filled from auth store user name
+- **Reporter email**: read-only, pulled from authenticated user
+- **Type toggle**: bug (requires screenshot/video upload) or feature
+- **Platform components**: 19 options (Dashboard, AI Chat, Calendar, etc.)
+- **Prioritization**: urgent/high/medium/low with required justification
+- **Backlog view**: `PlatformIntakeBacklog.jsx` — admin/staff can see all submissions
 
 ## Design System
 
