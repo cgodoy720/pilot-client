@@ -1301,6 +1301,8 @@ function AssessmentEmailTemplatesTab({ token }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [originalSlug, setOriginalSlug] = useState(null);
+  const [slugConfirmOpen, setSlugConfirmOpen] = useState(false);
 
   const fetchTemplates = async () => {
     try {
@@ -1334,23 +1336,36 @@ function AssessmentEmailTemplatesTab({ token }) {
 
   const handleEdit = (template) => {
     setEditingTemplate({ ...template });
+    setOriginalSlug(template.slug);
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = async () => {
+  const doSaveEdit = async () => {
     try {
       const { template_id, created_at, updated_at, ...data } = editingTemplate;
-      await axios.put(
+      const res = await axios.put(
         `${API_URL}/api/admin/templates/assessment-emails/${template_id}`,
         data,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (res.data.success === false) {
+        toast.error(res.data.error || 'Failed to update email template');
+        return;
+      }
       toast.success('Email template updated');
       setEditDialogOpen(false);
       fetchTemplates();
     } catch (error) {
-      toast.error('Failed to update email template');
+      toast.error(error.response?.data?.error || 'Failed to update email template');
     }
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingTemplate.slug !== originalSlug) {
+      setSlugConfirmOpen(true);
+      return;
+    }
+    await doSaveEdit();
   };
 
   const handleCreate = async (form) => {
@@ -1431,6 +1446,30 @@ function AssessmentEmailTemplatesTab({ token }) {
         onOpenChange={setCreateDialogOpen}
         onCreate={handleCreate}
       />
+
+      {/* Slug Change Confirmation */}
+      <AlertDialog open={slugConfirmOpen} onOpenChange={setSlugConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-proxima">Change template slug?</AlertDialogTitle>
+            <AlertDialogDescription className="font-proxima">
+              Renaming the slug from <span className="font-mono font-semibold">{originalSlug}</span> to{' '}
+              <span className="font-mono font-semibold">{editingTemplate?.slug}</span> will break any
+              backend code, cron jobs, or API calls that reference the old slug. Make sure all
+              references are updated before proceeding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-proxima">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#4242EA] hover:bg-[#3535cc] font-proxima"
+              onClick={() => { setSlugConfirmOpen(false); doSaveEdit(); }}
+            >
+              Change Slug & Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -24,6 +24,7 @@ import {
   DropdownMenuSubContent,
 } from '../../../../components/ui/dropdown-menu';
 import { Upload, Settings, RefreshCw, ChevronDown, Users, FileInput, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import LeadImportModal from './LeadImportModal';
 import EmailListsManager from './EmailListsManager';
 import SourceConfigManager from './SourceConfigManager';
@@ -518,10 +519,11 @@ const LeadsTab = ({ token }) => {
       a.download = `admissions-leads-${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error('Failed to export leads:', error);
+      toast.error('Failed to export leads');
     } finally {
       setExporting(false);
     }
