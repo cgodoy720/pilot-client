@@ -1343,15 +1343,11 @@ function AssessmentEmailTemplatesTab({ token }) {
   const doSaveEdit = async () => {
     try {
       const { template_id, created_at, updated_at, ...data } = editingTemplate;
-      const res = await axios.put(
+      await axios.put(
         `${API_URL}/api/admin/templates/assessment-emails/${template_id}`,
         data,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.data.success === false) {
-        toast.error(res.data.error || 'Failed to update email template');
-        return;
-      }
       toast.success('Email template updated');
       setEditDialogOpen(false);
       fetchTemplates();
