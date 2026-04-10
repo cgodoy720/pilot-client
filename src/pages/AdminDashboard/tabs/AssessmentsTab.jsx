@@ -10,15 +10,16 @@ import AssessmentGrades from '../../AssessmentGrades/AssessmentGrades';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Map BQ assessment types to display names
+// Map BQ assessment types to display names (covers L1 + L3 + fallback)
 const TYPE_LABELS = {
   'knowledge_assessment': 'Self Assessment',
   'project': 'Technical',
   'problem_solution': 'Business',
   'video': 'Professional',
+  'l3_technical_open_source': 'Technical',
+  'l3_business_contribution_brief': 'Business',
+  'l3_professional_ceo_plasticlabs': 'Professional',
 };
-
-const TYPE_ORDER = ['Self Assessment', 'Technical', 'Business', 'Professional'];
 
 const PERIOD_COLORS = {
   'Week 2': '#4242EA',
@@ -112,14 +113,26 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
       } catch {}
     });
 
-    // Build radar data: one entry per category, with a value per period
     const periods = Object.keys(byPeriod).sort((a, b) => {
       const wa = parseInt(a.replace(/\D/g, '')) || 0;
       const wb = parseInt(b.replace(/\D/g, '')) || 0;
       return wa - wb;
     });
 
-    const radarData = TYPE_ORDER.map(category => {
+    // Discover categories from actual data instead of a hard-coded list
+    const allCategories = new Set();
+    Object.values(categoryScores).forEach(cs => allCategories.add(cs.category));
+    const preferredOrder = ['Self Assessment', 'Technical', 'Business', 'Professional'];
+    const categories = [...allCategories].sort((a, b) => {
+      const ia = preferredOrder.indexOf(a);
+      const ib = preferredOrder.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    const radarData = categories.map(category => {
       const entry = { category };
       periods.forEach(period => {
         const key = `${period}::${category}`;
@@ -178,7 +191,7 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
                       <div className="bg-green-500 h-full" style={{ width: `${data.pct}%` }} />
                     </div>
                     <p className="text-xs text-slate-500">
-                      <span className="font-medium text-[#1E1E1E]">{data.completedAll}</span> of {data.total} builders submitted all 4 assessments
+                      <span className="font-medium text-[#1E1E1E]">{data.completedAll}</span> of {data.total} builders submitted all assessments
                     </p>
                   </CardContent>
                 </Card>

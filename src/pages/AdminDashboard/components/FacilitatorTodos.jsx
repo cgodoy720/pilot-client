@@ -299,13 +299,16 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
             {todoCount > 0 && <Badge className="bg-red-100 text-red-600 text-[10px]">{todoCount}</Badge>}
           </div>
           <div className="flex items-center gap-1.5">
-            <button
+            <span
+              role="button"
+              tabIndex={0}
               onClick={(e) => { e.stopPropagation(); setShowLogModal(true); }}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-[#4242EA] hover:bg-[#EFEFEF] transition-colors"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setShowLogModal(true); } }}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-[#4242EA] hover:bg-[#EFEFEF] transition-colors cursor-pointer"
               title="Add builder log"
             >
               <Plus size={11} /> Log
-            </button>
+            </span>
             {open ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
           </div>
         </CollapsibleTrigger>
@@ -365,13 +368,14 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
                         <button type="button" onClick={() => setExpandedLog(isExp ? null : log.log_id)}
                           className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#EFEFEF]/50">
                           <ChevronRight size={11} className={`text-slate-400 transition-transform ${isExp ? 'rotate-90' : ''}`} />
-                          <button onClick={(e) => {
+                          <span role="button" tabIndex={0} onClick={(e) => {
                               e.stopPropagation();
                               if (onBuilderClick) {
                                 onBuilderClick({ user_id: log.builder_id, name: log.builder_name, email: log.builder_email });
                               }
                             }}
-                            className="text-xs font-medium text-[#4242EA] hover:underline">{log.builder_name}</button>
+                            onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && onBuilderClick) { e.stopPropagation(); onBuilderClick({ user_id: log.builder_id, name: log.builder_name, email: log.builder_email }); } }}
+                            className="text-xs font-medium text-[#4242EA] hover:underline cursor-pointer">{log.builder_name}</span>
                           <Badge className={`text-[10px] px-1.5 py-0 ${
                             log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700' :
                             log.log_type === 'interview' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
