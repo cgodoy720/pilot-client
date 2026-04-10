@@ -11,14 +11,27 @@ import {
   TableRow,
 } from '../ui/table';
 
+import useAuthStore from '../../stores/authStore';
+
+const API_URL = import.meta.env.VITE_API_URL;
+const STATUS_OPTIONS = ['present', 'late', 'absent', 'excused'];
+const EXCUSE_REASONS = ['Sick', 'Personal', 'Program Event', 'Technical Issue', 'Other'];
+
 const DayBuilderStatusModal = ({ 
   isOpen, 
   onClose, 
   dayData, 
-  loading = false 
+  loading = false,
+  onRefresh,
 }) => {
-  const [sortBy, setSortBy] = useState('name'); // 'name' or 'status'
-  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+  const token = useAuthStore((s) => s.token);
+  const [sortBy, setSortBy] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [savingId, setSavingId] = useState(null);
+  const [excusePending, setExcusePending] = useState(null);
+  const [excuseReason, setExcuseReason] = useState('');
+  const [excuseNote, setExcuseNote] = useState('');
+  const [excuseError, setExcuseError] = useState('');
 
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -81,15 +94,49 @@ const DayBuilderStatusModal = ({
   };
 
   const getStatusOrder = (status) => {
-    const statusOrder = {
-      present: 1,
-      late: 2,
-      excused: 3,
-      pending: 4,
-      absent: 5
-    };
+    const statusOrder = { present: 1, late: 2, excused: 3, pending: 4, absent: 5 };
     return statusOrder[status] || 5;
   };
+
+  const handleStatusChange = async (builder, newStatus) => {
+    if (newStatus === 'excused') {
+      setExcusePending({ userId: builder.userId, attendanceId: builder.attendanceId });
+      setExcuseReason(''); setExcuseNote(''); setExcuseError('');
+      return;
+    }
+    setSavingId(builder.userId);
+    try {
+      if (builder.attendanceId) {
+        await fetch(`${API_URL}/api/admin/attendance/manage/record/${builder.attendanceId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ status: newStatus }),
+        });
+      } else {
+        await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ userId: builder.userId, attendanceDate: dayData?.date, status: newStatus }),
+        });
+      }
+      onRefresh?.();
+    } catch (e) { console.error('Attendance update failed:', e); }
+    setSavingId(null);
+  };
+
+  const handleExcuseSubmit = async () => {
+    if (!excuseReason) { setExcuseError('Excuse type is required'); return; }
+    const { userId } = excusePending;
+    setSavingId(userId); setExcuseError('');
+    try {
+      await fetch(`${API_URL}/api/admin/excuses/mark-excused`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, absenceDate: dayData?.date, excuseReason, excuseDetails: excuseNote || '', staffNotes: '' }),
+      });
+      setExcusePending(null); onRefresh?.();
+    } catch (e) { console.error('Excuse failed:', e); setExcuseError(e.message || 'Failed to save'); }
+    setSavingId(null);
+  };
+
+  const handleExcuseCancel = () => { setExcusePending(null); setExcuseReason(''); setExcuseNote(''); setExcuseError(''); };
 
   // Memoized sorted builders
   const sortedBuilders = useMemo(() => {
@@ -245,30 +292,68 @@ const DayBuilderStatusModal = ({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedBuilders.map((builder, index) => (
-                      <TableRow 
-                        key={`${builder.userId}-${index}`}
-                        className="border-b border-slate-200"
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-slate-400" />
-                            <span className="font-medium text-slate-900">
-                              {builder.firstName} {builder.lastName}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <Mail className="h-3 w-3 text-slate-400" />
-                            <span className="text-sm">{builder.email}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {getStatusBadge(builder.status)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {sortedBuilders.map((builder, index) => {
+                      const isExcPending = excusePending?.userId === builder.userId;
+                      const statusColors = {
+                        present: 'bg-emerald-100 text-emerald-700',
+                        late: 'bg-amber-100 text-amber-700',
+                        absent: 'bg-red-100 text-red-700',
+                        excused: 'bg-blue-100 text-blue-700',
+                        pending: 'bg-slate-100 text-slate-700',
+                      };
+                      return (
+                        <React.Fragment key={`${builder.userId}-${index}`}>
+                          <TableRow className={`border-b border-slate-200 ${isExcPending ? 'bg-blue-50/50' : ''}`}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-slate-400" />
+                                <span className="font-medium text-slate-900">
+                                  {builder.firstName} {builder.lastName}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 text-slate-600">
+                                <Mail className="h-3 w-3 text-slate-400" />
+                                <span className="text-sm">{builder.email}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {savingId === builder.userId ? (
+                                <span className="text-xs text-slate-400">Saving...</span>
+                              ) : (
+                                <select
+                                  value={isExcPending ? 'excused' : builder.status}
+                                  onChange={e => handleStatusChange(builder, e.target.value)}
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none ${statusColors[isExcPending ? 'excused' : builder.status] || statusColors.pending}`}
+                                >
+                                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                                </select>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          {isExcPending && (
+                            <TableRow className="bg-blue-50/50 border-b border-slate-200">
+                              <TableCell colSpan={3}>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <label className="text-[10px] font-medium text-slate-500">Type *</label>
+                                  <select value={excuseReason} onChange={e => { setExcuseReason(e.target.value); setExcuseError(''); }}
+                                    className={`text-xs px-2 py-1 border rounded bg-white focus:outline-none focus:border-[#4242EA] ${excuseError && !excuseReason ? 'border-red-300' : 'border-[#E3E3E3]'}`}>
+                                    <option value="">Select reason...</option>
+                                    {EXCUSE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                  </select>
+                                  <input type="text" value={excuseNote} onChange={e => setExcuseNote(e.target.value)} placeholder="Optional note..."
+                                    className="text-xs px-2 py-1 border border-[#E3E3E3] rounded bg-white focus:outline-none focus:border-[#4242EA] flex-1 min-w-[120px]" />
+                                  <button onClick={handleExcuseCancel} className="text-xs px-2.5 py-1 rounded border border-[#E3E3E3] text-slate-500 hover:bg-slate-50">Cancel</button>
+                                  <button onClick={handleExcuseSubmit} className="text-xs px-2.5 py-1 rounded bg-[#4242EA] text-white hover:bg-[#3535c8]">Save</button>
+                                  {excuseError && <span className="text-[10px] text-red-500">{excuseError}</span>}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
