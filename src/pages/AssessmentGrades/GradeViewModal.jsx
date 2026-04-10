@@ -13,6 +13,9 @@ import {
   ResponsiveContainer, Tooltip,
 } from 'recharts';
 import SubmissionContent from './components/SubmissionContent';
+import {
+  Tabs, TabsContent, TabsList, TabsTrigger,
+} from '../../components/ui/tabs';
 
 const assessmentTypeMapping = {
   'business': 'business',
@@ -101,6 +104,8 @@ const GradeViewModal = ({
   const [editingGrowthAreas, setEditingGrowthAreas] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [tabValue, setTabValue] = useState('overview');
+
   // SubmissionContent preview state (shared)
   const [previewMode, setPreviewMode] = useState('desktop');
   const [showCode, setShowCode] = useState(true);
@@ -147,10 +152,10 @@ const GradeViewModal = ({
     };
 
     fetchAll();
-    // Reset UI state on open
     setExpandedPeriods(new Set());
     setExpandedTypes(new Set());
     setEditingKey(null);
+    setTabValue('overview');
   }, [grade?.user_id, authToken, isOpen]);
 
   // Build rounds from submissions + analysis
@@ -279,32 +284,29 @@ const GradeViewModal = ({
     }
   };
 
-  // Group user submissions by assessment type for easier access (case-insensitive)
   const submissionsByType = userSubmissions.reduce((acc, submission) => {
     const type = (submission.assessment_type || 'unknown').toLowerCase();
-    if (!acc[type]) {
-      acc[type] = [];
-    }
-    acc[type].push(submission);
+    const mapped = assessmentTypeMapping[type] || type;
+    if (!acc[mapped]) acc[mapped] = [];
+    acc[mapped].push(submission);
     return acc;
   }, {});
-  
-  // Debug logging
-  console.log('📊 analysisByType keys:', Object.keys(analysisByType));
-  console.log('📊 submissionsByType keys:', Object.keys(submissionsByType));
-  
-  // Filter assessment types to only show tabs that have submissions or analysis data
-  const assessmentTypesWithData = allAssessmentTypes.filter(type => {
+
+  const analysisByType = useMemo(() => comprehensiveAnalysis.reduce((acc, a) => {
+    const rawType = (a.assessment_type || 'unknown').toLowerCase();
+    const mapped = assessmentTypeMapping[rawType] || rawType;
+    if (!acc[mapped]) acc[mapped] = [];
+    acc[mapped].push(a);
+    return acc;
+  }, {}), [comprehensiveAnalysis]);
+
+  const assessmentTypesWithData = ALL_TYPES.filter(type => {
     const hasSubmission = submissionsByType[type] && submissionsByType[type].length > 0;
     const hasAnalysis = analysisByType[type] && analysisByType[type].length > 0;
     return hasSubmission || hasAnalysis;
   });
-  
-  // Create tabs: Overview + individual assessment types that have data
+
   const availableTabs = ['overview', ...assessmentTypesWithData];
-  
-  // Get the current tab's analysis data
-  const currentAnalysis = analysisByType[tabValue] || [];
   
   // Render analysis feedback for individual assessment tabs
   const renderAnalysisFeedback = (analysis) => {
@@ -474,78 +476,87 @@ const GradeViewModal = ({
                     )}
 
                     <div className="space-y-6">
-                      {/* Overall Feedback Section — full width */}
-                      <div className="bg-card border border-border rounded-lg p-5 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-base font-semibold">Overall Feedback</h3>
-                          {!isEditingOverview && (
-                            <Button 
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onStartEditing(grade)}
-                              title="Edit feedback"
-                            >
-                              ✏️ Edit
-                            </Button>
-                          )}
+                      {rounds.map(round => {
+                        const isExpanded = expandedPeriods.has(round.key);
+                        const isEditing = editingKey === round.key;
+                        return (
+                          <div key={round.key} className="bg-card border border-border rounded-lg overflow-hidden">
+                            <button onClick={() => togglePeriod(round.key)}
+                              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left">
+                              <div>
+                                <span className="text-sm font-semibold">{round.assessment_period}</span>
+                                <span className="text-xs text-muted-foreground ml-2">{round.level}</span>
+                              </div>
+                              {round.avgScore != null && (
+                                <span className={`text-sm font-bold ${round.avgScore >= 0.8 ? 'text-green-600' : round.avgScore >= 0.6 ? 'text-yellow-600' : 'text-red-500'}`}>
+                                  {Math.round(round.avgScore * 100)}%
+                                </span>
+                              )}
+                            </button>
+                            {isExpanded && (
+                              <div className="p-4 pt-0 border-t border-border space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-semibold">Overall Feedback</h4>
+                                  {!isEditing && (
+                                    <Button variant="outline" size="sm" onClick={() => startEditing(round)}>Edit</Button>
+                                  )}
+                                </div>
+                                {isEditing ? (
+                                  <div className="space-y-3">
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1">Strengths</h5>
+                                      <Textarea value={editingStrengths} onChange={e => setEditingStrengths(e.target.value)}
+                                        className="min-h-[80px] resize-none" placeholder="Enter strengths..." />
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1">Growth Areas</h5>
+                                      <Textarea value={editingGrowthAreas} onChange={e => setEditingGrowthAreas(e.target.value)}
+                                        className="min-h-[80px] resize-none" placeholder="Enter growth areas..." />
+                                    </div>
+                                    <div className="flex gap-2 justify-end">
+                                      <Button variant="outline" size="sm" onClick={cancelEditing} disabled={saving}>Cancel</Button>
+                                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => saveEditing(round)} disabled={saving}>
+                                        {saving ? 'Saving...' : 'Save'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1 text-green-600 uppercase tracking-wide">Strengths</h5>
+                                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                        {round.holisticRecord?.strengths_summary || grade.strengths_summary || 'No strengths summary available'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1 text-amber-600 uppercase tracking-wide">Growth Areas</h5>
+                                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                        {round.holisticRecord?.growth_areas_summary || grade.growth_areas_summary || 'No growth areas summary available'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {rounds.length === 0 && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-green-600 uppercase tracking-wide">Strengths</h4>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {grade.strengths_summary || 'No strengths summary available'}
+                            </p>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-amber-600 uppercase tracking-wide">Growth Areas</h4>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {grade.growth_areas_summary || 'No growth areas summary available'}
+                            </p>
+                          </div>
                         </div>
-
-                        {isEditingOverview ? (
-                          <div className="space-y-4">
-                            <div className="space-y-3">
-                              <h4 className="font-semibold">Strengths Summary</h4>
-                              <Textarea
-                                value={editingStrengths}
-                                onChange={(e) => setEditingStrengths(e.target.value)}
-                                className="min-h-[100px] resize-none"
-                                placeholder="Enter strengths summary..."
-                              />
-                            </div>
-
-                            <div className="space-y-3">
-                              <h4 className="font-semibold">Growth Areas Summary</h4>
-                              <Textarea
-                                value={editingGrowthAreas}
-                                onChange={(e) => setEditingGrowthAreas(e.target.value)}
-                                className="min-h-[100px] resize-none"
-                                placeholder="Enter growth areas summary..."
-                              />
-                            </div>
-
-                            <div className="flex gap-4 justify-end pt-4 border-t border-border">
-                              <Button 
-                                variant="outline"
-                                onClick={onCancelEditing}
-                                disabled={savingOverview}
-                              >
-                                ❌ Cancel
-                              </Button>
-                              <Button 
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => onSaveOverview(grade.user_id)}
-                                disabled={savingOverview}
-                              >
-                                {savingOverview ? 'Saving...' : '💾 Save'}
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="text-sm font-semibold mb-2 text-green-600 uppercase tracking-wide">Strengths</h4>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                {grade.strengths_summary || 'No strengths summary available'}
-                              </p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold mb-2 text-amber-600 uppercase tracking-wide">Growth Areas</h4>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                {grade.growth_areas_summary || 'No growth areas summary available'}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </TabsContent>
 
@@ -591,7 +602,6 @@ const GradeViewModal = ({
                 </>
               )}
             </div>
-          )}
           </Tabs>
         </div>
       </DialogContent>

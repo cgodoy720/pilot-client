@@ -58,8 +58,9 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
     if (!token) return;
     setLoading(true);
     setFetchError(null);
+    const cohortParam = selectedCohortName ? `?cohort=${encodeURIComponent(selectedCohortName)}` : '';
     Promise.all([
-      fetch(`${API_URL}/api/admin/assessment-grades`, {
+      fetch(`${API_URL}/api/admin/assessment-grades${cohortParam}`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then(r => { if (!r.ok) throw new Error(`Server error (${r.status})`); return r.json(); }),
       selectedCohortId ? fetch(`${API_URL}/api/admin/dashboard/assessment-completion?cohortId=${selectedCohortId}`, {
@@ -75,7 +76,7 @@ const AssessmentsTab = ({ selectedCohortId, cohorts = [] }) => {
         setFetchError(err.message);
       })
       .finally(() => setLoading(false));
-  }, [token, selectedCohortId]);
+  }, [token, selectedCohortId, selectedCohortName]);
 
   const summary = useMemo(() => {
     if (!grades || !selectedCohortName) return null;
