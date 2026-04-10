@@ -311,6 +311,7 @@ All are "Phase 3" or Sage-dependent — none are current-sprint blockers.
 | **P0** | Send platform team ask (§1.1) | 0 (ticket) | None |
 | **P1** | Fix 34 pre-existing test failures (§5.1) | 1 session | None |
 | **P1** | Claim 5A: prospect_import → PostgreSQL (§2) | 2 sessions | None |
+| **P1** | Identity consolidation: schema + data migration (Steps 1-4, spec PR #100) | 0.5 session | B-3 backfill complete (§0.3) |
 | **P2** | M13: Activities Timeline Session 1 (§3.1) | 1 session | M10 ✅ |
 
 ### Sprint after
@@ -319,6 +320,7 @@ All are "Phase 3" or Sage-dependent — none are current-sprint blockers.
 |---|---|---|---|
 | **P1** | Claim 5B: Pre-flight contact dedup review screen | 1 session | 5A complete |
 | **P1** | M13: Activities Timeline Session 2 | 1 session | M13 Session 1 |
+| **P1** | Identity consolidation: code PR (Step 5) — migrate auth, permissions, projects, activities from app_user to org_users + user_config | 1-2 sessions | Identity Steps 1-4 complete |
 | **P2** | M15: Chrome Extension Session 1 | 1 session | M10 ✅ |
 | **P2** | Add CI/CD pipeline (§5.2) | 0.5 session | None |
 
@@ -330,6 +332,7 @@ All are "Phase 3" or Sage-dependent — none are current-sprint blockers.
 | **P1** | M16: Activities Integration + QA | 1 session | M13 + M15 complete |
 | **P2** | M20: Task Request System Session 1 | 1 session | Sprint A ✅ |
 | **P2** | M20: Task Request System Session 2 | 1 session | M20 Session 1 |
+| **P2** | Identity consolidation: transition + cleanup (Steps 6-7) — parallel login, verify parity, drop app_user | 0.5 session | Step 5 verified |
 
 ### Longer-term (align with roadmap)
 
@@ -377,3 +380,4 @@ From `docs/architecture-decisions.md` (verified):
 | `tasks/lessons.md` | Patterns to avoid |
 | `scripts/install-git-hooks.sh` | Pre-commit hook installer |
 | `pebble/.env.example` | Pebble API key template |
+| `tasks/spec-identity-consolidation.md` | Spec: contact bridge + staff identity consolidation (PR #100) |
