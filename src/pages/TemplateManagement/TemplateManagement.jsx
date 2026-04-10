@@ -1555,14 +1555,12 @@ function EmailTemplateFormWithPreview({ template, setTemplate, isEdit, token }) 
             />
           </div>
           <div>
-            <Label className="font-proxima">Slug (unique key) {isEdit ? '(read-only)' : '*'}</Label>
+            <Label className="font-proxima">Slug (unique key) *</Label>
             <Input
               value={template.slug || ''}
-              onChange={(e) => !isEdit && setTemplate({ ...template, slug: e.target.value })}
-              placeholder="e.g. week_2"
+              onChange={(e) => setTemplate({ ...template, slug: e.target.value })}
+              placeholder="e.g. l3_week_10"
               className="font-proxima font-mono"
-              readOnly={isEdit}
-              disabled={isEdit}
             />
           </div>
         </div>
