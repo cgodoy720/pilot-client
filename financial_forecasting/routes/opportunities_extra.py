@@ -91,6 +91,8 @@ async def get_ownership_history(
     resolves them to names via a secondary User query so the frontend always
     has human-readable values.
     """
+    if "salesforce" not in (client.connected_services or []):
+        return []
     cache_key = f"ownership_history:{days}"
     cached = cache.get(cache_key)
     if cached is not None:

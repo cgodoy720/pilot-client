@@ -281,6 +281,51 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_app_user_org_user_id
     ON bedrock.app_user(org_user_id) WHERE org_user_id IS NOT NULL;
 
+-- ── Staff identity consolidation: org_users + user_config ──
+-- public.org_users is the canonical staff identity table.
+-- bedrock.user_config holds app-specific permission profile.
+-- bedrock.app_user is kept during transition; will be dropped after verification.
+
+-- Add org-wide fields to public.org_users (conditional — skips on local dev)
+DO $$ BEGIN
+    ALTER TABLE public.org_users ADD COLUMN IF NOT EXISTS sf_user_id TEXT UNIQUE;
+EXCEPTION
+    WHEN insufficient_privilege THEN
+        RAISE NOTICE 'Skipped ALTER on public.org_users (run manually as superuser)';
+    WHEN undefined_table THEN
+        RAISE NOTICE 'Skipped ALTER on public.org_users (table does not exist)';
+    WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE public.org_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+EXCEPTION
+    WHEN insufficient_privilege THEN
+        RAISE NOTICE 'Skipped ALTER on public.org_users (run manually as superuser)';
+    WHEN undefined_table THEN
+        RAISE NOTICE 'Skipped ALTER on public.org_users (table does not exist)';
+    WHEN duplicate_column THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS bedrock.user_config (
+    org_user_id     UUID PRIMARY KEY,
+    profile_id      UUID REFERENCES bedrock.permission_profile(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now()
+);
+
+DO $$ BEGIN
+    ALTER TABLE bedrock.user_config
+        ADD CONSTRAINT user_config_org_user_fkey
+        FOREIGN KEY (org_user_id) REFERENCES public.org_users(id) ON DELETE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+    WHEN insufficient_privilege THEN
+        RAISE NOTICE 'Skipped FK to public.org_users for user_config (restricted role)';
+    WHEN undefined_table THEN
+        RAISE NOTICE 'Skipped FK to public.org_users for user_config (table does not exist)';
+END $$;
+
 CREATE TABLE IF NOT EXISTS bedrock.opportunity_lock (
     sf_opportunity_id TEXT PRIMARY KEY,
     locked_by         TEXT NOT NULL,
@@ -1113,5 +1158,11 @@ CREATE INDEX IF NOT EXISTS idx_owner_goal_fiscal_year ON bedrock.owner_goal(fisc
 DO $$ BEGIN
     DROP TRIGGER IF EXISTS trg_owner_goal_updated_at ON bedrock.owner_goal;
     CREATE TRIGGER trg_owner_goal_updated_at BEFORE UPDATE ON bedrock.owner_goal
+        FOR EACH ROW EXECUTE FUNCTION bedrock.set_updated_at();
+END $$;
+
+DO $$ BEGIN
+    DROP TRIGGER IF EXISTS trg_user_config_updated_at ON bedrock.user_config;
+    CREATE TRIGGER trg_user_config_updated_at BEFORE UPDATE ON bedrock.user_config
         FOR EACH ROW EXECUTE FUNCTION bedrock.set_updated_at();
 END $$;

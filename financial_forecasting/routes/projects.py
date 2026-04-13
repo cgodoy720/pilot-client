@@ -210,13 +210,14 @@ async def list_deleted_projects(user=Depends(check_permission("edit_projects")),
 async def list_project_users(user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
     """List active users eligible for project contributor picker (have edit_projects or admin)."""
     rows = await conn.fetch(
-        "SELECT au.email, au.name "
-        "FROM bedrock.app_user au "
-        "JOIN bedrock.permission_profile pp ON pp.id = au.profile_id "
-        "WHERE au.is_active = true "
+        "SELECT ou.email, ou.display_name AS name "
+        "FROM public.org_users ou "
+        "JOIN bedrock.user_config uc ON uc.org_user_id = ou.id "
+        "JOIN bedrock.permission_profile pp ON pp.id = uc.profile_id "
+        "WHERE COALESCE(ou.is_active, true) = true "
         "AND (pp.permissions @> '{\"edit_projects\": true}'::jsonb "
         "     OR pp.permissions @> '{\"manage_users_roles\": true}'::jsonb) "
-        "ORDER BY au.name, au.email"
+        "ORDER BY ou.display_name, ou.email"
     )
     return {"success": True, "data": [dict(r) for r in rows]}
 

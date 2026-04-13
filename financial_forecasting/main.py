@@ -308,6 +308,8 @@ async def get_opportunities(
 ):
     """Get Salesforce opportunities with optional server-side filtering."""
     try:
+        if "salesforce" not in (client.connected_services or []):
+            return []
         # Server-side cache — key encodes all filter params
         stage_val = stage.value if stage else None
         stages_key = ",".join(sorted(stages)) if stages else None
@@ -467,6 +469,8 @@ async def get_accounts(
 ):
     """Get Salesforce accounts."""
     try:
+        if "salesforce" not in (client.connected_services or []):
+            return []
         cache_key = f"accounts:{limit}"
         cached = cache.get(cache_key)
         if cached is not None:
@@ -547,6 +551,8 @@ async def get_contacts(
 ):
     """Get Salesforce contacts, optionally filtered by account."""
     try:
+        if "salesforce" not in (client.connected_services or []):
+            return []
         cache_key = f"contacts:{account_id}:{limit}"
         cached = cache.get(cache_key)
         if cached is not None:
@@ -839,6 +845,8 @@ async def get_my_tasks(
 ):
     """Get current user's Salesforce Tasks in a date range."""
     try:
+        if "salesforce" not in (client.connected_services or []):
+            return []
         cache_key = f"my-tasks:{start}:{end}:{limit}"
         cached = cache.get(cache_key)
         if cached is not None:
