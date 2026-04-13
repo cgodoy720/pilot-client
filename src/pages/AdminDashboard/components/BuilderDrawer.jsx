@@ -4,6 +4,7 @@ import { Badge } from '../../../components/ui/badge';
 import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink, FileText, FileSignature, CheckCircle, Clock, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award } from 'lucide-react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import useAuthStore from '../../../stores/authStore';
+import BuilderLogEntry from './BuilderLogEntry';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -23,6 +24,14 @@ const letterGrade = (score) => {
   if (score >= 70) return 'B-';
   if (score >= 67) return 'C+';
   return 'C';
+};
+
+const SENTIMENT_STYLES = {
+  'very positive': { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+  positive: { bg: 'bg-green-50', text: 'text-green-600', dot: 'bg-green-400' },
+  neutral: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  negative: { bg: 'bg-red-100', text: 'text-red-600', dot: 'bg-red-500' },
+  'very negative': { bg: 'bg-red-200', text: 'text-red-700', dot: 'bg-red-600' },
 };
 
 const sentimentColor = (s) => {
@@ -87,15 +96,20 @@ function parseWorkProductItem(item) {
     } catch { /* ignore */ }
   }
 
-  const dateStr = resolveDate(item.date || item.curriculum_date);
-  const formattedDate = dateStr !== '—'
-    ? (() => { try { return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return dateStr; } })()
-    : '—';
+  const rawDate = item.date || item.curriculum_date;
+  const rawStr = rawDate ? (typeof rawDate === 'object' && rawDate.value ? rawDate.value : String(rawDate)) : '';
+  let formattedDate = '—';
+  if (rawStr) {
+    try {
+      const d = new Date(rawStr.length <= 10 ? rawStr + 'T12:00:00' : rawStr);
+      formattedDate = isNaN(d) ? rawStr : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch { formattedDate = rawStr; }
+  }
 
   return {
     taskTitle: resolveStr(item.taskTitle || item.task_title),
     date: formattedDate,
-    rawDate: dateStr,
+    rawDate: rawStr,
     grade,
     score,
     feedback,
@@ -215,6 +229,51 @@ const VideoItem = ({ v }) => {
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const InsightRow = ({ icon: Icon, label, content }) => {
+  if (!content) return null;
+  return (
+    <div className="flex gap-2">
+      <Icon size={14} className="text-[#4242EA] mt-0.5 shrink-0" />
+      <div>
+        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-0.5">{label}</p>
+        <p className="text-xs text-[#1E1E1E] leading-relaxed">{content}</p>
+      </div>
+    </div>
+  );
+};
+
+const RawConversationItem = ({ conversation }) => {
+  const [expanded, setExpanded] = useState(false);
+  const c = conversation;
+  const dateStr = c.task_date || c.created_at || '';
+  const formattedDate = dateStr ? (() => { try { return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return '—'; } })() : '—';
+
+  return (
+    <div className="bg-[#FAFAFA] rounded-md px-3 py-2">
+      <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[#1E1E1E]">{c.task_title || 'Conversation'}</span>
+          <span className="text-[10px] text-slate-400">{formattedDate}</span>
+        </div>
+        {expanded ? <ChevronUp size={10} className="text-slate-400" /> : <ChevronDown size={10} className="text-slate-400" />}
+      </div>
+      {expanded && (
+        <div className="mt-2 space-y-1.5 text-xs text-slate-600 leading-relaxed">
+          {(c.messages || []).map((m, i) => (
+            <div key={i} className={`px-2 py-1 rounded ${m.role === 'user' ? 'bg-white border border-[#E3E3E3]' : 'bg-[#EFEFEF]'}`}>
+              <span className="text-[10px] font-semibold text-slate-400">{m.role === 'user' ? 'Builder' : 'AI'}: </span>
+              {(m.content || '').slice(0, 500)}
+            </div>
+          ))}
+          {(!c.messages || c.messages.length === 0) && c.summary && (
+            <p>{c.summary}</p>
+          )}
         </div>
       )}
     </div>
@@ -399,10 +458,10 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   };
 
   useEffect(() => {
-    if (dataReady && builder?.user_id && cohortId && token) {
+    if (!loading && builder?.user_id && cohortId && token) {
       fetchInsights();
     }
-  }, [dataReady, builder?.user_id, cohortId, token]);
+  }, [loading, builder?.user_id, cohortId, token]);
 
   const loadRawConversations = () => {
     if (rawConversations.length > 0 || !builder?.user_id || !cohortId || !token) {
