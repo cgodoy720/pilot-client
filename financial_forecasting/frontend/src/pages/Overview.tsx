@@ -521,7 +521,7 @@ const Dashboard: React.FC = () => {
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>Wins</Typography>
                 </Box>
               </TableCell>
-              <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 700, color: 'success.main' }}>{formatDollarMillions(metrics.totalWins)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2" color="text.disabled">—</Typography></TableCell>
               <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>{formatDollarMillions(metrics.fy.wins)}</Typography></TableCell>
               {metrics.qMetrics.map((q) => (
                 <TableCell key={q.label} align="right"><Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>{formatDollarMillions(q.wins)}</Typography></TableCell>

@@ -58,7 +58,7 @@ gcloud run deploy $BACKEND_SERVICE \
     --cpu 1 \
     --timeout 300 \
     --max-instances 10 \
-    --min-instances 0
+    --min-instances 1
 
 # Get backend URL
 BACKEND_URL=$(gcloud run services describe $BACKEND_SERVICE --region $GCP_REGION --format 'value(status.url)')
