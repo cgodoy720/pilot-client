@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, lazy, Suspense } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDollarMillions } from '../utils/formatters';
 import {
@@ -20,15 +20,18 @@ import {
   Paper,
   CircularProgress,
   Tooltip as MuiTooltip,
+  Collapse,
+  IconButton,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
-  Schedule as ScheduleIcon,
   AttachMoney as MoneyIcon,
   ShowChart as ChartIcon,
   InfoOutlined as InfoIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
 import { apiService } from '../services/api';
@@ -36,14 +39,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../contexts/PermissionsContext';
 import { addQuarters, startOfQuarter, endOfQuarter, format, isWithinInterval, differenceInDays, parseISO } from 'date-fns';
 import PipelineFunnel from '../components/PipelineFunnel';
-import OwnerGoalWidget from '../components/OwnerGoalWidget';
-import OwnerSelector, { loadStoredOwnerSelection, OwnerOption } from '../components/OwnerSelector';
-import { DEFAULT_GOAL } from '../config/goals';
+import { OwnerOption } from '../components/OwnerSelector';
 import { useOwnerGoals } from '../hooks/useOwnerGoals';
 import { OPEN_STAGES } from '../types/salesforce';
 import ConnectPrompt from '../components/ConnectPrompt';
 
-const DashboardBelowFoldCharts = lazy(() => import('../components/DashboardBelowFoldCharts'));
 
 interface Opportunity {
   Id: string;
@@ -66,10 +66,6 @@ interface Opportunity {
   npe01__Payments_Made__c?: number;
 }
 
-const STORAGE_KEY = 'overview-dashboard';
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
-
 const CLOSED_WON_STAGES = ['Closed Won', 'Closed / Completed', 'Collecting / In Effect', 'Collecting', 'In Collection', 'In Effect'];
 const CLOSED_LOST_STAGES = ['Closed Lost', 'Withdrawn', 'Did not Fulfill', 'Closed / Did not Fulfill'];
 
@@ -77,22 +73,13 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { sfUserId } = usePermissions();
-  const [showBelowFold, setShowBelowFold] = useState(false);
-
   // Wall of Progress fiscal year — Pursuit's FY = calendar year
   const currentFiscalYear = useMemo(() => new Date().getFullYear(), []);
   const { goals: ownerGoals } = useOwnerGoals(currentFiscalYear);
 
-  // Owner multi-select state — initialized lazily once we know the user's sfUserId
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
-  // Track whether we've done first-load initialization (so user clears don't get re-seeded)
   const [hasInitializedSelection, setHasInitializedSelection] = useState(false);
-
-  // Defer below-fold content so Hero/Quarterly/Funnel paint first
-  useEffect(() => {
-    const t = setTimeout(() => setShowBelowFold(true), 50);
-    return () => clearTimeout(t);
-  }, []);
+  const [expandedOwnerId, setExpandedOwnerId] = useState<string | null>(null);
 
   // Fetch opportunities
   const { data: opportunitiesData, isLoading } = useQuery(
@@ -100,18 +87,6 @@ const Dashboard: React.FC = () => {
     async () => {
       const response = await apiService.getOpportunities();
       return response.data;
-    }
-  );
-
-  // Fetch cash flow summary from Sage Intacct + Salesforce
-  const { data: cashFlowData, isLoading: cashFlowLoading } = useQuery(
-    'cashflow-summary',
-    async () => {
-      const response = await apiService.getCashFlowSummary();
-      return response.data;
-    },
-    {
-      retry: 2,
     }
   );
 
@@ -138,25 +113,10 @@ const Dashboard: React.FC = () => {
     );
   }, [opportunities]);
 
-  // Map sf_user_id → display name for widget rendering
-  const ownerNameMap = useMemo(
-    () => Object.fromEntries(availableOpenOwners.map((o) => [o.id, o.name])),
-    [availableOpenOwners],
-  );
-
-  // First-load initialization of selectedOwnerIds:
-  //   1. localStorage (filtered to currently-available IDs)
-  //   2. current user's sfUserId (if they have open opps)
-  //   3. empty
+  // Initialize selected owner for pipeline funnel
   useEffect(() => {
-    if (hasInitializedSelection) return;
-    if (availableOpenOwners.length === 0) return; // wait for opps to load
-
-    const availableIds = new Set(availableOpenOwners.map((o) => o.id));
-    const stored = loadStoredOwnerSelection(STORAGE_KEY, availableIds);
-    if (stored && stored.length > 0) {
-      setSelectedOwnerIds(stored);
-    } else if (sfUserId && availableIds.has(sfUserId)) {
+    if (hasInitializedSelection || availableOpenOwners.length === 0) return;
+    if (sfUserId && availableOpenOwners.some((o) => o.id === sfUserId)) {
       setSelectedOwnerIds([sfUserId]);
     }
     setHasInitializedSelection(true);
@@ -168,20 +128,6 @@ const Dashboard: React.FC = () => {
     const set = new Set(selectedOwnerIds);
     return opportunities.filter((o) => set.has(o.OwnerId));
   }, [opportunities, selectedOwnerIds]);
-
-  // Extract cash flow summary - API returns {summary, monthly_breakdown, sage_warning} directly
-  // Always provide default values so cards show even when Sage is unavailable
-  const cashFlowSummary = cashFlowData?.summary || {
-    current_cash: 0,
-    accounts_receivable: 0,
-    accounts_payable: 0,
-    net_cash_position: 0,
-    avg_monthly_expenses: 0,
-    runway_months: 999,
-    forecasted_revenue_6mo: 0
-  };
-  const monthlyBreakdown = cashFlowData?.monthly_breakdown || [];
-
 
   // Calculate metrics
   const metrics = useMemo(() => {
@@ -196,8 +142,8 @@ const Dashboard: React.FC = () => {
       return OPEN_STAGES.includes(opp.StageName as any);
     });
 
-    // Total pipeline
-    const totalPipeline = openOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0);
+    // Total pipeline (open only — wins added after allWonOpps is computed)
+    const openPipeline = openOpps.reduce((sum: number, opp: Opportunity) => sum + (opp.Amount || 0), 0);
     
     // Weighted pipeline
     const weightedPipeline = openOpps.reduce(
@@ -208,13 +154,21 @@ const Dashboard: React.FC = () => {
     const weightedValue = (opp: Opportunity) => ((opp.Amount || 0) * (opp.Probability || 0)) / 100;
     const isRenewal = (opp: Opportunity) => opp.Type === 'Renewal';
 
-    const upside = weightedPipeline;
+    // Won opps (Collecting / Closed Won / Closed Completed) — count at full value (100%)
+    const allWonOpps = opportunities.filter((opp: Opportunity) =>
+      CLOSED_WON_STAGES.some(stage => opp.StageName?.includes(stage))
+    );
+    const totalWins = allWonOpps.reduce((s, o) => s + (o.Amount || 0), 0);
+    const totalPipeline = openPipeline + totalWins;
+
+    // Upside/Base/Downside = wins (at 100%) + open pipeline (probability-weighted)
+    const upside = totalWins + weightedPipeline;
 
     const baseCaseOpps = openOpps.filter((opp: Opportunity) => isRenewal(opp) || (opp.Probability || 0) >= 50);
-    const baseCase = baseCaseOpps.reduce((sum: number, opp: Opportunity) => sum + weightedValue(opp), 0);
+    const baseCase = totalWins + baseCaseOpps.reduce((sum: number, opp: Opportunity) => sum + weightedValue(opp), 0);
 
     const downsideOpps = openOpps.filter((opp: Opportunity) => isRenewal(opp) || (opp.Probability || 0) >= 70);
-    const downside = downsideOpps.reduce((sum: number, opp: Opportunity) => sum + weightedValue(opp), 0);
+    const downside = totalWins + downsideOpps.reduce((sum: number, opp: Opportunity) => sum + weightedValue(opp), 0);
 
     // Current quarter opportunities
     const currentQuarterOpps = openOpps.filter((opp: Opportunity) => {
@@ -385,6 +339,27 @@ const Dashboard: React.FC = () => {
       };
     }
 
+    // FY-scoped metrics (wins + open pipeline)
+    const fyStart = new Date(now.getFullYear(), 0, 1);
+    const fyEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    const inFY = (opp: Opportunity) => opp.CloseDate && parseISO(opp.CloseDate) >= fyStart && parseISO(opp.CloseDate) <= fyEnd;
+    const fyOpenOpps = openOpps.filter(inFY);
+    const fyWonOpps = allWonOpps.filter(inFY);
+    const fyWins = fyWonOpps.reduce((s, o) => s + (o.Amount || 0), 0);
+    const fyPipeline = fyOpenOpps.reduce((s, o) => s + (o.Amount || 0), 0) + fyWins;
+    const fyUpside = fyWins + fyOpenOpps.reduce((s, o) => s + weightedValue(o), 0);
+    const fyBaseCase = fyWins + fyOpenOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 50).reduce((s, o) => s + weightedValue(o), 0);
+    const fyDownside = fyWins + fyOpenOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 70).reduce((s, o) => s + weightedValue(o), 0);
+
+    // Quarter-scoped metrics (wins + open pipeline)
+    const inQuarter = (opp: Opportunity) => opp.CloseDate && isWithinInterval(parseISO(opp.CloseDate), { start: currentQuarterStart, end: currentQuarterEnd });
+    const qWonOpps = allWonOpps.filter(inQuarter);
+    const qWins = qWonOpps.reduce((s, o) => s + (o.Amount || 0), 0);
+    const qPipeline = currentQuarterOpps.reduce((s, o) => s + (o.Amount || 0), 0) + qWins;
+    const qUpside = qWins + currentQuarterOpps.reduce((s, o) => s + weightedValue(o), 0);
+    const qBaseCase = qWins + currentQuarterOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 50).reduce((s, o) => s + weightedValue(o), 0);
+    const qDownside = qWins + currentQuarterOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 70).reduce((s, o) => s + weightedValue(o), 0);
+
     return {
       totalPipeline,
       weightedPipeline,
@@ -410,10 +385,57 @@ const Dashboard: React.FC = () => {
       lostCount: closedOpps.length - wonOpps.length,
       stageBreakdown,
       quarters,
+      // Scoped metrics for pipeline summary table
+      fy: { pipeline: fyPipeline, upside: fyUpside, baseCase: fyBaseCase, downside: fyDownside },
+      quarter: { pipeline: qPipeline, upside: qUpside, baseCase: qBaseCase, downside: qDownside },
     };
   }, [opportunities]);
 
-  // Using formatDollarMillions from utils instead
+  // Per-owner progress for targets table
+  const GOAL_STAGES = useMemo(() => ['Collecting / In Effect', 'Closed / Completed'], []);
+  const ownerProgress = useMemo(() => {
+    if (!ownerGoals || !opportunities.length) return [];
+    const now = new Date();
+    const fyStart = new Date(now.getFullYear(), 0, 1);
+    const fyEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+    return Object.entries(ownerGoals).map(([sfId, goal]) => {
+      const target = goal.goal_amount;
+
+      // Wins: closed/collecting in FY, owned by this user
+      const wonOpps = opportunities.filter((o) =>
+        o.OwnerId === sfId &&
+        GOAL_STAGES.includes(o.StageName) &&
+        o.CloseDate && new Date(o.CloseDate) >= fyStart && new Date(o.CloseDate) <= fyEnd
+      );
+      const wins = wonOpps.reduce((s, o) => s + (o.Amount || 0), 0);
+
+      // Open pipeline for this user
+      const openOpps = opportunities.filter((o) =>
+        o.OwnerId === sfId && OPEN_STAGES.includes(o.StageName as any)
+      );
+      const pipeline = openOpps.reduce((s, o) => s + (o.Amount || 0), 0);
+      const weighted = openOpps.reduce((s, o) => s + ((o.Amount || 0) * (o.Probability || 0)) / 100, 0);
+
+      // Projection: wins so far annualized
+      const elapsed = Math.max(1, (now.getTime() - fyStart.getTime()) / (fyEnd.getTime() - fyStart.getTime()) * 12);
+      const projected = (wins / elapsed) * 12;
+
+      const remaining = Math.max(0, target - wins);
+      const pct = target > 0 ? Math.min(1, wins / target) : 0;
+
+      // How far through the FY are we (0..1)
+      const yearPct = Math.max(0, Math.min(1, (now.getTime() - fyStart.getTime()) / (fyEnd.getTime() - fyStart.getTime())));
+      // On track = wins % >= year % (or close to it)
+      const onTrack = pct >= yearPct ? 'ahead' : pct >= yearPct * 0.75 ? 'close' : 'behind';
+
+      const ownerName = availableOpenOwners.find((o) => o.id === sfId)?.name
+        || opportunities.find((o) => o.OwnerId === sfId)?.Owner?.Name
+        || sfId;
+
+      return { sfId, ownerName, target, wins, remaining, projected, pct, yearPct, onTrack, pipeline, weighted, wonOpps, openOpps };
+    }).sort((a, b) => b.pct - a.pct);
+  }, [ownerGoals, opportunities, GOAL_STAGES, availableOpenOwners]);
 
   const formatPercent = (value: number) => {
     return `${value.toFixed(1)}%`;
@@ -441,38 +463,6 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  // Helper function for runway color
-  const getRunwayColor = (months: number) => {
-    if (months > 12) return 'success';
-    if (months > 6) return 'warning';
-    return 'error';
-  };
-
-  // Prepare funnel data (in order of sales process)
-  const funnelData = OPEN_STAGES.map((stage) => {
-    const data = metrics.stageBreakdown[stage] || { count: 0, total: 0, weighted: 0 };
-    return {
-      name: stage,
-      value: data.weighted,
-      count: data.count,
-      total: data.total,
-      fill: COLORS[OPEN_STAGES.indexOf(stage) % COLORS.length],
-    };
-  }).filter(item => item.count > 0); // Only show stages with opportunities
-
-  // Cash flow chart data - includes both open and won opportunities
-  const quarterChartData = Object.entries(metrics.quarters).map(([quarter, data]) => ({
-    quarter,
-    open: data.open,
-    won: data.won,
-    total: data.total,
-  }));
-
-  const winLossData = [
-    { name: 'Won', value: metrics.wonCount, color: '#00C49F' },
-    { name: 'Lost', value: metrics.lostCount, color: '#FF8042' },
-  ];
-
   return (
     <Box>
       {/* Header */}
@@ -485,229 +475,278 @@ const Dashboard: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* Revenue Section */}
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Revenue Pipeline</Typography>
+      {/* Pipeline Summary Table */}
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Pipeline</Typography>
       <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-        Based on opportunity close dates and probability weighting
+        Wins + open pipeline ({metrics.totalDeals} active opps) &middot; Probability-weighted scenarios
       </Typography>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <MoneyIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="caption" color="textSecondary">
-                  Total Pipeline
-                </Typography>
-              </Box>
-              <Typography variant="h4" color="primary">
-                {formatDollarMillions(metrics.totalPipeline)}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                {metrics.totalDeals} active opportunities
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: '3px solid', borderColor: 'success.main' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <TrendingUpIcon color="success" sx={{ mr: 1, fontSize: 20 }} />
-                <Typography variant="caption" color="textSecondary">
-                  Upside
-                </Typography>
-                <MuiTooltip title="All open opportunities weighted by probability: Amount × (Probability / 100)" arrow>
-                  <InfoIcon sx={{ fontSize: 14, ml: 0.5, color: 'text.disabled', cursor: 'help' }} />
-                </MuiTooltip>
-              </Box>
-              <Typography variant="h4" color="success.main">
-                {formatDollarMillions(metrics.upside)}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                {metrics.totalDeals} opps, probability-weighted
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: '3px solid', borderColor: 'primary.main' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <ChartIcon color="primary" sx={{ mr: 1, fontSize: 20 }} />
-                <Typography variant="caption" color="textSecondary">
-                  Base Case
-                </Typography>
-                <MuiTooltip title="Includes opportunities where Type = Renewal OR Probability ≥ 50%. Weighted by probability." arrow>
-                  <InfoIcon sx={{ fontSize: 14, ml: 0.5, color: 'text.disabled', cursor: 'help' }} />
-                </MuiTooltip>
-              </Box>
-              <Typography variant="h4" color="primary">
-                {formatDollarMillions(metrics.baseCase)}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                {metrics.baseCaseCount} opps (renewals + 50%+)
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: '3px solid', borderColor: 'warning.main' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <WarningIcon color="warning" sx={{ mr: 1, fontSize: 20 }} />
-                <Typography variant="caption" color="textSecondary">
-                  Downside
-                </Typography>
-                <MuiTooltip title="Includes opportunities where Type = Renewal OR Probability ≥ 70%. Weighted by probability." arrow>
-                  <InfoIcon sx={{ fontSize: 14, ml: 0.5, color: 'text.disabled', cursor: 'help' }} />
-                </MuiTooltip>
-              </Box>
-              <Typography variant="h4" color="warning.main">
-                {formatDollarMillions(metrics.downside)}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                {metrics.downsideCount} opps (renewals + 70%+)
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Current Quarter Focus */}
-      <Card sx={{ mb: 2, maxWidth: 960 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-            <ScheduleIcon sx={{ mr: 1 }} />
-            Current Quarter ({format(startOfQuarter(new Date()), 'QQQ yyyy')})
-          </Typography>
-
-          <Grid container spacing={2} sx={{ mt: 0 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Expected to Close
-                </Typography>
-                <Typography variant="h5" color="primary">
-                  {formatDollarMillions(metrics.currentQuarterValue)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {metrics.currentQuarterCount} opportunities
-                </Typography>
-              </Box>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Weighted Value
-                </Typography>
-                <Typography variant="h5" color="success.main">
-                  {formatDollarMillions(metrics.currentQuarterWeighted)}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Probability-adjusted
-                </Typography>
-              </Box>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  High-value stagnant
-                </Typography>
-                <Typography variant="h5" color={metrics.highValueStagnantCount > 0 ? 'warning.main' : 'text.primary'}>
-                  {metrics.highValueStagnantCount}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Deals over $250k, no activity in 30+ days
-                </Typography>
-                {metrics.highValueStagnantCount > 0 && (
-                  <Button
-                    size="small"
-                    color="warning"
-                    onClick={() => navigate('/pipeline', { state: { filterStale: true } })}
-                    sx={{ mt: 1 }}
-                  >
-                    View Details
-                  </Button>
-                )}
-              </Box>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Deals at Risk
-                </Typography>
-                <Typography variant="h5" color={metrics.atRiskCount > 0 ? 'warning.main' : 'text.primary'}>
-                  {metrics.atRiskCount}
-                </Typography>
-                {metrics.atRiskHighValueCount > 0 && (
-                  <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
-                    {metrics.atRiskHighValueCount} over $250k
-                  </Typography>
-                )}
-                {metrics.atRiskCount > 0 && (
-                  <Button
-                    size="small"
-                    color="warning"
-                    onClick={() => navigate('/pipeline', { state: { filterAtRisk: true } })}
-                    sx={{ mt: 1 }}
-                  >
-                    View Details
-                  </Button>
-                )}
-              </Box>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: 'grey.50' }}>
+              <TableCell sx={{ fontWeight: 600, width: '28%' }}>Metric</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600 }}>Overall</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600 }}>FY{currentFiscalYear.toString().slice(-2)}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600 }}>{format(startOfQuarter(new Date()), 'QQQ yyyy')}</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <TableRow>
+              <TableCell>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <MoneyIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>Total Pipeline</Typography>
+                </Box>
+              </TableCell>
+              <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>{formatDollarMillions(metrics.totalPipeline)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.fy.pipeline)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.quarter.pipeline)}</Typography></TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Upside</Typography>
+                  <MuiTooltip title="Wins (100%) + all open opps weighted by probability" arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
+                </Box>
+              </TableCell>
+              <TableCell align="right"><Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.upside)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.fy.upside)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.quarter.upside)}</Typography></TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <ChartIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Base Case</Typography>
+                  <MuiTooltip title="Wins (100%) + open renewals or 50%+ probability, weighted" arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
+                </Box>
+              </TableCell>
+              <TableCell align="right"><Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.baseCase)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.fy.baseCase)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.quarter.baseCase)}</Typography></TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <WarningIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Downside</Typography>
+                  <MuiTooltip title="Wins (100%) + open renewals or 70%+ probability, weighted" arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
+                </Box>
+              </TableCell>
+              <TableCell align="right"><Typography variant="body2" color="warning.main" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.downside)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.fy.downside)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.quarter.downside)}</Typography></TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TableContainer>
 
 
-      {/* ── Wall of Progress: owner selection + per-owner goal widgets ── */}
+      {/* ── Individual Progress — targets table with expandable detail ── */}
       <Box sx={{ mb: 2, mt: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
           Individual Progress
         </Typography>
         <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-          Pick one or more Opportunity Owners to see their goal progress and pipeline flow
+          FY{currentFiscalYear.toString().slice(-2)} revenue targets &middot; Click a row to see pipeline detail
         </Typography>
-        <OwnerSelector
-          availableOwners={availableOpenOwners}
-          value={selectedOwnerIds}
-          onChange={setSelectedOwnerIds}
-          storageKey={STORAGE_KEY}
-        />
       </Box>
 
-      {selectedOwnerIds.length === 0 && (
+      {ownerProgress.length === 0 ? (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Select one or more Opportunity Owners above to see goal progress and a filtered pipeline.
-          The funnel below currently shows the full team.
+          No revenue targets set for FY{currentFiscalYear}. Add targets in Settings &rarr; Targets.
         </Alert>
-      )}
+      ) : (
+        <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: 'grey.50' }}>
+                <TableCell sx={{ width: 32 }} />
+                <TableCell sx={{ fontWeight: 600 }}>Owner</TableCell>
+                <TableCell sx={{ fontWeight: 600, width: '40%' }}>Progress</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>Wins</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>Remaining</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>Projected</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>Target</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {ownerProgress.map((row) => {
+                const isExpanded = expandedOwnerId === row.sfId;
+                const statusColor = row.onTrack === 'ahead' ? 'success' : row.onTrack === 'close' ? 'warning' : 'error';
+                return (
+                  <React.Fragment key={row.sfId}>
+                    <TableRow
+                      hover
+                      sx={{ cursor: 'pointer', '& > td': { borderBottom: isExpanded ? 'none' : undefined } }}
+                      onClick={() => setExpandedOwnerId(isExpanded ? null : row.sfId)}
+                    >
+                      <TableCell sx={{ px: 0.5 }}>
+                        <IconButton size="small">
+                          {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                        </IconButton>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.ownerName}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ position: 'relative' }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={Math.min(100, row.pct * 100)}
+                            color={statusColor as any}
+                            sx={{ height: 18, borderRadius: 1, bgcolor: 'grey.100' }}
+                          />
+                          {/* Year-progress marker */}
+                          <MuiTooltip title={`Today: ${(row.yearPct * 100).toFixed(0)}% through FY`} arrow placement="top">
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                left: `${row.yearPct * 100}%`,
+                                top: -2,
+                                bottom: -2,
+                                width: 2,
+                                bgcolor: 'text.primary',
+                                opacity: 0.7,
+                                zIndex: 1,
+                                '&::after': {
+                                  content: '""',
+                                  position: 'absolute',
+                                  top: -3,
+                                  left: -3,
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  bgcolor: 'text.primary',
+                                  opacity: 0.7,
+                                },
+                              }}
+                            />
+                          </MuiTooltip>
+                          {/* Percentage label */}
+                          <Typography
+                            variant="caption"
+                            sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontWeight: 700, fontSize: '0.65rem', color: row.pct > 0.35 ? 'white' : 'text.primary', zIndex: 2 }}
+                          >
+                            {(row.pct * 100).toFixed(0)}%
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                          {formatDollarMillions(row.wins)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" color={row.remaining > 0 ? 'text.primary' : 'success.main'}>
+                          {row.remaining > 0 ? formatDollarMillions(row.remaining) : 'Met'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" sx={{ color: row.projected >= row.target ? 'success.main' : 'warning.main' }}>
+                          {formatDollarMillions(row.projected)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{formatDollarMillions(row.target)}</Typography>
+                      </TableCell>
+                    </TableRow>
 
-      {selectedOwnerIds.map((ownerSfId) => {
-        const ownerName = ownerNameMap[ownerSfId] || ownerSfId;
-        const goalRow = ownerGoals[ownerSfId];
-        const goalAmount = goalRow?.goal_amount ?? DEFAULT_GOAL;
-        return (
-          <OwnerGoalWidget
-            key={ownerSfId}
-            sfUserId={ownerSfId}
-            ownerName={ownerName}
-            goalAmount={goalAmount}
-            hasBackendGoal={Boolean(goalRow)}
-            fiscalYear={currentFiscalYear}
-            allOpportunities={opportunities}
-          />
-        );
-      })}
+                    {/* Expanded detail */}
+                    <TableRow>
+                      <TableCell colSpan={7} sx={{ py: 0, borderBottom: isExpanded ? undefined : 'none' }}>
+                        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                          <Box sx={{ py: 2, px: 2 }}>
+                            <Grid container spacing={3}>
+                              {/* Wins */}
+                              <Grid item xs={12} md={6}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'success.main' }}>
+                                  Wins ({row.wonOpps.length}) &mdash; {formatDollarMillions(row.wins)}
+                                </Typography>
+                                {row.wonOpps.length === 0 ? (
+                                  <Typography variant="body2" color="text.secondary">No closed deals yet this FY.</Typography>
+                                ) : (
+                                  <Table size="small">
+                                    <TableBody>
+                                      {row.wonOpps.slice(0, 10).map((opp: Opportunity) => (
+                                        <TableRow key={opp.Id}>
+                                          <TableCell sx={{ py: 0.5, pl: 0 }}>
+                                            <Typography variant="body2" noWrap sx={{ maxWidth: 250 }}>{opp.Name}</Typography>
+                                          </TableCell>
+                                          <TableCell align="right" sx={{ py: 0.5 }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDollarMillions(opp.Amount)}</Typography>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                      {row.wonOpps.length > 10 && (
+                                        <TableRow><TableCell colSpan={2} sx={{ py: 0.5 }}>
+                                          <Typography variant="caption" color="text.secondary">+{row.wonOpps.length - 10} more</Typography>
+                                        </TableCell></TableRow>
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                )}
+                              </Grid>
+
+                              {/* Pipeline needed to close */}
+                              <Grid item xs={12} md={6}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'primary.main' }}>
+                                  Open Pipeline ({row.openOpps.length}) &mdash; {formatDollarMillions(row.pipeline)}
+                                  <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                    Weighted: {formatDollarMillions(row.weighted)}
+                                  </Typography>
+                                </Typography>
+                                {row.remaining <= 0 ? (
+                                  <Chip label="Target met" color="success" size="small" />
+                                ) : (
+                                  <>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                      Needs {formatDollarMillions(row.remaining)} more to hit target
+                                    </Typography>
+                                    {row.openOpps.length === 0 ? (
+                                      <Typography variant="body2" color="warning.main">No open pipeline. Needs new opportunities.</Typography>
+                                    ) : (
+                                      <Table size="small">
+                                        <TableBody>
+                                          {row.openOpps
+                                            .sort((a: Opportunity, b: Opportunity) => ((b.Amount || 0) * (b.Probability || 0)) - ((a.Amount || 0) * (a.Probability || 0)))
+                                            .slice(0, 10)
+                                            .map((opp: Opportunity) => (
+                                              <TableRow key={opp.Id}>
+                                                <TableCell sx={{ py: 0.5, pl: 0 }}>
+                                                  <Typography variant="body2" noWrap sx={{ maxWidth: 220 }}>{opp.Name}</Typography>
+                                                  <Typography variant="caption" color="text.secondary">{opp.StageName} &middot; {opp.Probability}%</Typography>
+                                                </TableCell>
+                                                <TableCell align="right" sx={{ py: 0.5 }}>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDollarMillions(opp.Amount)}</Typography>
+                                                </TableCell>
+                                              </TableRow>
+                                            ))}
+                                          {row.openOpps.length > 10 && (
+                                            <TableRow><TableCell colSpan={2} sx={{ py: 0.5 }}>
+                                              <Typography variant="caption" color="text.secondary">+{row.openOpps.length - 10} more</Typography>
+                                            </TableCell></TableRow>
+                                          )}
+                                        </TableBody>
+                                      </Table>
+                                    )}
+                                  </>
+                                )}
+                              </Grid>
+                            </Grid>
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* Pipeline Health Funnel — driven by the multi-select selection */}
       <PipelineFunnel
@@ -717,23 +756,7 @@ const Dashboard: React.FC = () => {
 
 
       {/* Below-fold: Cash Flow + charts (lazy-loaded for faster initial paint) */}
-      {showBelowFold && (
-        <Suspense
-          fallback={
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
-              <CircularProgress size={30} />
-            </Box>
-          }
-        >
-          <DashboardBelowFoldCharts
-            cashFlowData={cashFlowData}
-            cashFlowSummary={cashFlowSummary}
-            monthlyBreakdown={monthlyBreakdown}
-            quarterChartData={quarterChartData}
-            cashFlowLoading={cashFlowLoading}
-          />
-        </Suspense>
-      )}
+      {/* Below-fold financial charts hidden — not ready yet */}
     </Box>
   );
 };
