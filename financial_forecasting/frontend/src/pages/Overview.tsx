@@ -351,14 +351,30 @@ const Dashboard: React.FC = () => {
     const fyBaseCase = fyWins + fyOpenOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 50).reduce((s, o) => s + weightedValue(o), 0);
     const fyDownside = fyWins + fyOpenOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 70).reduce((s, o) => s + weightedValue(o), 0);
 
-    // Quarter-scoped metrics (wins + open pipeline)
-    const inQuarter = (opp: Opportunity) => opp.CloseDate && isWithinInterval(parseISO(opp.CloseDate), { start: currentQuarterStart, end: currentQuarterEnd });
-    const qWonOpps = allWonOpps.filter(inQuarter);
-    const qWins = qWonOpps.reduce((s, o) => s + (o.Amount || 0), 0);
-    const qPipeline = currentQuarterOpps.reduce((s, o) => s + (o.Amount || 0), 0) + qWins;
-    const qUpside = qWins + currentQuarterOpps.reduce((s, o) => s + weightedValue(o), 0);
-    const qBaseCase = qWins + currentQuarterOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 50).reduce((s, o) => s + weightedValue(o), 0);
-    const qDownside = qWins + currentQuarterOpps.filter((o) => isRenewal(o) || (o.Probability || 0) >= 70).reduce((s, o) => s + weightedValue(o), 0);
+    // Per-quarter metrics (Q1–Q4). Past quarters: wins only. Current/future: wins + weighted pipeline.
+    const year = now.getFullYear();
+    const qMetrics = [1, 2, 3, 4].map((q) => {
+      const qStart = new Date(year, (q - 1) * 3, 1);
+      const qEnd = endOfQuarter(qStart);
+      const isPast = qEnd < now;
+      const inQ = (opp: Opportunity) => opp.CloseDate && isWithinInterval(parseISO(opp.CloseDate), { start: qStart, end: qEnd });
+      const qWon = allWonOpps.filter(inQ);
+      const qOpen = openOpps.filter(inQ);
+      const wins = qWon.reduce((s, o) => s + (o.Amount || 0), 0);
+      if (isPast) {
+        // Past quarter: wins only
+        return { label: `Q${q}`, pipeline: wins, upside: wins, baseCase: wins, downside: wins, isPast };
+      }
+      const openTotal = qOpen.reduce((s, o) => s + (o.Amount || 0), 0);
+      return {
+        label: `Q${q}`,
+        pipeline: wins + openTotal,
+        upside: wins + qOpen.reduce((s, o) => s + weightedValue(o), 0),
+        baseCase: wins + qOpen.filter((o) => isRenewal(o) || (o.Probability || 0) >= 50).reduce((s, o) => s + weightedValue(o), 0),
+        downside: wins + qOpen.filter((o) => isRenewal(o) || (o.Probability || 0) >= 70).reduce((s, o) => s + weightedValue(o), 0),
+        isPast,
+      };
+    });
 
     return {
       totalPipeline,
@@ -387,7 +403,7 @@ const Dashboard: React.FC = () => {
       quarters,
       // Scoped metrics for pipeline summary table
       fy: { pipeline: fyPipeline, upside: fyUpside, baseCase: fyBaseCase, downside: fyDownside },
-      quarter: { pipeline: qPipeline, upside: qUpside, baseCase: qBaseCase, downside: qDownside },
+      qMetrics,
     };
   }, [opportunities]);
 
@@ -485,10 +501,14 @@ const Dashboard: React.FC = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'grey.50' }}>
-              <TableCell sx={{ fontWeight: 600, width: '28%' }}>Metric</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Metric</TableCell>
               <TableCell align="right" sx={{ fontWeight: 600 }}>Overall</TableCell>
               <TableCell align="right" sx={{ fontWeight: 600 }}>FY{currentFiscalYear.toString().slice(-2)}</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 600 }}>{format(startOfQuarter(new Date()), 'QQQ yyyy')}</TableCell>
+              {metrics.qMetrics.map((q) => (
+                <TableCell key={q.label} align="right" sx={{ fontWeight: 600, color: q.isPast ? 'text.secondary' : 'text.primary' }}>
+                  {q.label}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -496,48 +516,56 @@ const Dashboard: React.FC = () => {
               <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <MoneyIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>Total Pipeline</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>Total</Typography>
                 </Box>
               </TableCell>
               <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>{formatDollarMillions(metrics.totalPipeline)}</Typography></TableCell>
               <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.fy.pipeline)}</Typography></TableCell>
-              <TableCell align="right"><Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.quarter.pipeline)}</Typography></TableCell>
+              {metrics.qMetrics.map((q) => (
+                <TableCell key={q.label} align="right"><Typography variant="body2" sx={{ fontWeight: 600, color: q.isPast ? 'text.secondary' : 'text.primary' }}>{formatDollarMillions(q.pipeline)}</Typography></TableCell>
+              ))}
             </TableRow>
             <TableRow>
               <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>Upside</Typography>
-                  <MuiTooltip title="Wins (100%) + all open opps weighted by probability" arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
+                  <MuiTooltip title="Wins (100%) + all open opps weighted by probability. Past quarters show wins only." arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
                 </Box>
               </TableCell>
-              <TableCell align="right"><Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.upside)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2" color="text.disabled">—</Typography></TableCell>
               <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.fy.upside)}</Typography></TableCell>
-              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.quarter.upside)}</Typography></TableCell>
+              {metrics.qMetrics.map((q) => (
+                <TableCell key={q.label} align="right"><Typography variant="body2" sx={{ color: q.isPast ? 'text.secondary' : 'text.primary' }}>{formatDollarMillions(q.upside)}</Typography></TableCell>
+              ))}
             </TableRow>
             <TableRow>
               <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <ChartIcon sx={{ fontSize: 16, color: 'primary.main' }} />
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>Base Case</Typography>
-                  <MuiTooltip title="Wins (100%) + open renewals or 50%+ probability, weighted" arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
+                  <MuiTooltip title="Wins (100%) + open renewals or 50%+ probability, weighted. Past quarters show wins only." arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
                 </Box>
               </TableCell>
-              <TableCell align="right"><Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.baseCase)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2" color="text.disabled">—</Typography></TableCell>
               <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.fy.baseCase)}</Typography></TableCell>
-              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.quarter.baseCase)}</Typography></TableCell>
+              {metrics.qMetrics.map((q) => (
+                <TableCell key={q.label} align="right"><Typography variant="body2" sx={{ color: q.isPast ? 'text.secondary' : 'text.primary' }}>{formatDollarMillions(q.baseCase)}</Typography></TableCell>
+              ))}
             </TableRow>
             <TableRow>
               <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <WarningIcon sx={{ fontSize: 16, color: 'warning.main' }} />
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>Downside</Typography>
-                  <MuiTooltip title="Wins (100%) + open renewals or 70%+ probability, weighted" arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
+                  <MuiTooltip title="Wins (100%) + open renewals or 70%+ probability, weighted. Past quarters show wins only." arrow><InfoIcon sx={{ fontSize: 12, color: 'text.disabled', cursor: 'help' }} /></MuiTooltip>
                 </Box>
               </TableCell>
-              <TableCell align="right"><Typography variant="body2" color="warning.main" sx={{ fontWeight: 600 }}>{formatDollarMillions(metrics.downside)}</Typography></TableCell>
+              <TableCell align="right"><Typography variant="body2" color="text.disabled">—</Typography></TableCell>
               <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.fy.downside)}</Typography></TableCell>
-              <TableCell align="right"><Typography variant="body2">{formatDollarMillions(metrics.quarter.downside)}</Typography></TableCell>
+              {metrics.qMetrics.map((q) => (
+                <TableCell key={q.label} align="right"><Typography variant="body2" sx={{ color: q.isPast ? 'text.secondary' : 'text.primary' }}>{formatDollarMillions(q.downside)}</Typography></TableCell>
+              ))}
             </TableRow>
           </TableBody>
         </Table>
