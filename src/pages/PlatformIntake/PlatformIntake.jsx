@@ -198,9 +198,9 @@ export default function PlatformIntake() {
               <input
                 name="reporter"
                 value={form.reporter}
-                readOnly
+                onChange={handleChange}
                 required
-                className={`${inputClass} bg-gray-50 cursor-not-allowed`}
+                className={inputClass}
                 placeholder="Your full name"
               />
             </div>

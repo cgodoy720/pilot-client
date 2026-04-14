@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import {
@@ -17,132 +18,184 @@ import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from '../../components/ui/tabs';
 
-const assessmentTypeMapping = {
-  'business': 'business',
-  'technical': 'technical',
-  'professional': 'professional',
-  'self': 'self',
-  'l2_technical_improvement': 'technical',
-  'l2_professional_ceo': 'professional',
-  'l2_business_justification': 'business',
-  'quiz': 'self',
-  'knowledge_assessment': 'self',
-  'project': 'technical',
-  'problem_solution': 'business',
-  'video': 'professional'
-};
-
-const ALL_TYPES = ['technical', 'business', 'professional', 'self'];
-
-// Smart website preview generator
-const createWebsitePreview = (files) => {
-  if (!files || files.length === 0) {
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>No Files</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>No files found</h2><p>No HTML, CSS, or JS files were submitted.</p></div></body></html>';
-  }
-  const htmlFiles = files.filter(f => f?.name?.toLowerCase().endsWith('.html'));
-  const cssFiles = files.filter(f => f?.name?.toLowerCase().endsWith('.css'));
-  const jsFiles = files.filter(f => f?.name?.toLowerCase().endsWith('.js'));
-  let htmlContent = '';
-  if (htmlFiles.length > 0) {
-    htmlContent = htmlFiles[0].content || '';
-    if (cssFiles.length > 0) {
-      const combinedCSS = cssFiles.map(f => f.content || '').filter(c => c.trim()).join('\n\n');
-      if (combinedCSS.trim()) {
-        const formattedCSS = `/* Injected External CSS Files */\n${combinedCSS}`;
-        if (htmlContent.includes('</head>')) {
-          htmlContent = htmlContent.replace('</head>', `  <style type="text/css">\n${formattedCSS}\n  </style>\n</head>`);
-        } else {
-          htmlContent = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <style type="text/css">\n${formattedCSS}\n  </style>\n</head>\n<body>\n${htmlContent}\n</body>\n</html>`;
-        }
-      }
-    }
-    if (jsFiles.length > 0) {
-      const combinedJS = jsFiles.map(f => f.content || '').filter(c => c.trim()).join('\n\n');
-      if (combinedJS.trim()) {
-        const formattedJS = `/* Injected External JS Files */\n${combinedJS}`;
-        if (htmlContent.includes('</body>')) {
-          htmlContent = htmlContent.replace('</body>', `  <script type="text/javascript">\n${formattedJS}\n  </script>\n</body>`);
-        } else {
-          htmlContent += `\n  <script type="text/javascript">\n${formattedJS}\n  </script>\n</body>`;
-        }
-      }
-    }
-  } else if (cssFiles.length > 0 || jsFiles.length > 0) {
-    const combinedCSS = cssFiles.map(f => f.content || '').join('\n');
-    const combinedJS = jsFiles.map(f => f.content || '').join('\n');
-    htmlContent = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  ${combinedCSS ? `<style>\n${combinedCSS}\n</style>` : ''}\n</head>\n<body>\n  <div style="padding: 20px; font-family: Arial, sans-serif;">\n    <h2>Preview Generated</h2>\n    <p>No HTML file was submitted, but CSS/JS files were found and included.</p>\n  </div>\n  ${combinedJS ? `<script>\n${combinedJS}\n</script>` : ''}\n</body>\n</html>`;
-  } else {
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>No Web Files</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>No web files found</h2><p>No HTML, CSS, or JS files were submitted for preview.</p></div></body></html>';
-  }
-  if (!htmlContent.includes('<!DOCTYPE html>')) {
-    htmlContent = htmlContent.includes('<html') ? `<!DOCTYPE html>\n${htmlContent}` : `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>Student Submission</title>\n</head>\n<body>\n${htmlContent}\n</body>\n</html>`;
-  }
-  return htmlContent;
-};
-
-const GradeViewModal = ({
+const GradeViewModal = ({ 
   isOpen,
-  grade,
+  grade, 
   onClose,
-  onSaveOverview, // (userId, assessmentPeriod, level, strengths, growthAreas) => Promise<boolean>
+  isEditingOverview,
+  editingStrengths,
+  editingGrowthAreas,
+  savingOverview,
+  onStartEditing,
+  onCancelEditing,
+  onSaveOverview,
+  setEditingStrengths,
+  setEditingGrowthAreas
 }) => {
   const authToken = useAuthStore((s) => s.token);
+  const [tabValue, setTabValue] = useState("overview");
   const [userSubmissions, setUserSubmissions] = useState([]);
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState([]);
-  const [holisticHistory, setHolisticHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Accordion: which period keys are expanded
   const [expandedPeriods, setExpandedPeriods] = useState(new Set());
-  // Which type rows are expanded: key = `${period}|${level}|${type}`
   const [expandedTypes, setExpandedTypes] = useState(new Set());
 
-  // Edit state (one period edited at a time)
-  const [editingKey, setEditingKey] = useState(null); // `${period}|${level}`
+  const [editingKey, setEditingKey] = useState(null);
   const [editingStrengths, setEditingStrengths] = useState('');
   const [editingGrowthAreas, setEditingGrowthAreas] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [tabValue, setTabValue] = useState('overview');
 
-  // SubmissionContent preview state (shared)
+  // Website preview states
   const [previewMode, setPreviewMode] = useState('desktop');
   const [showCode, setShowCode] = useState(true);
   const [websitePreview, setWebsitePreview] = useState('');
+  
+  // Assessment types mapping - now direct from task submissions
+  const assessmentTypeMapping = {
+    'business': 'business',
+    'technical': 'technical', 
+    'professional': 'professional',
+    'self': 'self',
+    // L2 assessment type mappings
+    'l2_technical_improvement': 'technical',
+    'l2_professional_ceo': 'professional',
+    'l2_business_justification': 'business',
+    // Legacy mappings for backward compatibility
+    'quiz': 'self',
+    'knowledge_assessment': 'self',
+    'project': 'technical', 
+    'problem_solution': 'business',
+    'video': 'professional'
+  };
+  
+  // Base assessment types - will be filtered to only show tabs with actual data
+  const allAssessmentTypes = ['technical', 'business', 'professional', 'self'];
 
+  // Smart website preview generator (simplified version)
+  const createWebsitePreview = (files) => {
+    if (!files || files.length === 0) {
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>No Files</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>No files found</h2><p>No HTML, CSS, or JS files were submitted.</p></div></body></html>';
+    }
+
+    const htmlFiles = files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.html'));
+    const cssFiles = files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.css'));
+    const jsFiles = files.filter(f => f && f.name && f.name.toLowerCase().endsWith('.js'));
+
+    let htmlContent = '';
+
+    if (htmlFiles.length > 0) {
+      htmlContent = htmlFiles[0].content || '';
+      
+      // Inject CSS
+      if (cssFiles.length > 0) {
+        const combinedCSS = cssFiles.map(f => f.content || '').filter(content => content.trim()).join('\n\n');
+        if (combinedCSS.trim()) {
+          const formattedCSS = `/* Injected External CSS Files */\n${combinedCSS}`;
+          if (htmlContent.includes('</head>')) {
+            htmlContent = htmlContent.replace('</head>', `  <style type="text/css">\n${formattedCSS}\n  </style>\n</head>`);
+          } else {
+            htmlContent = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <style type="text/css">\n${formattedCSS}\n  </style>\n</head>\n<body>\n${htmlContent}\n</body>\n</html>`;
+          }
+        }
+      }
+
+      // Inject JS
+      if (jsFiles.length > 0) {
+        const combinedJS = jsFiles.map(f => f.content || '').filter(content => content.trim()).join('\n\n');
+        if (combinedJS.trim()) {
+          const formattedJS = `/* Injected External JS Files */\n${combinedJS}`;
+          if (htmlContent.includes('</body>')) {
+            htmlContent = htmlContent.replace('</body>', `  <script type="text/javascript">\n${formattedJS}\n  </script>\n</body>`);
+          } else {
+            htmlContent += `\n  <script type="text/javascript">\n${formattedJS}\n  </script>\n</body>`;
+          }
+        }
+      }
+    } else if (cssFiles.length > 0 || jsFiles.length > 0) {
+      const combinedCSS = cssFiles.map(f => f.content || '').join('\n');
+      const combinedJS = jsFiles.map(f => f.content || '').join('\n');
+      
+      htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Submission Preview</title>
+  ${combinedCSS ? `<style>\n${combinedCSS}\n</style>` : ''}
+</head>
+<body>
+  <div style="padding: 20px; font-family: Arial, sans-serif;">
+    <h2>Preview Generated</h2>
+    <p>No HTML file was submitted, but CSS/JS files were found and included.</p>
+  </div>
+  ${combinedJS ? `<script>\n${combinedJS}\n</script>` : ''}
+</body>
+</html>`;
+    } else {
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>No Web Files</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>No web files found</h2><p>No HTML, CSS, or JS files were submitted for preview.</p></div></body></html>';
+    }
+
+    // Ensure we have a complete HTML document
+    if (!htmlContent.includes('<!DOCTYPE html>')) {
+      if (!htmlContent.includes('<html')) {
+        htmlContent = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>Student Submission</title>\n</head>\n<body>\n${htmlContent}\n</body>\n</html>`;
+      } else {
+        htmlContent = `<!DOCTYPE html>\n${htmlContent}`;
+      }
+    }
+    
+    return htmlContent;
+  };
+  
   useEffect(() => {
     if (!isOpen || !grade) return;
-
-    const fetchAll = async () => {
+    
+    console.log('🔍 Grade object:', grade);
+    console.log('🔍 Grade assessment_period:', grade.assessment_period);
+    
+    const fetchUserData = async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        const headers = {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        };
-        const base = `${import.meta.env.VITE_API_URL}/api/admin/assessment-grades`;
-
-        const [subsRes, analysisRes, historyRes] = await Promise.all([
-          fetch(`${base}/user-submissions/${grade.user_id}`, { headers }),
-          fetch(`${base}/comprehensive-analysis/${grade.user_id}`, { headers }),
-          fetch(`${base}/user-history/${grade.user_id}`, { headers }),
-        ]);
-
-        if (subsRes.ok) {
-          const data = await subsRes.json();
-          setUserSubmissions(data.submissions || []);
+        
+        const submissionsParams = new URLSearchParams({
+          assessmentPeriod: grade.assessment_period || 'Week 8',
+          level: grade.level || ''
+        });
+        const submissionsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/user-submissions/${grade.user_id}?${submissionsParams}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (submissionsResponse.ok) {
+          const submissionsData = await submissionsResponse.json();
+          console.log('🔍 User Submissions API Response:', submissionsData);
+          setUserSubmissions(submissionsData.submissions || []);
         }
-        if (analysisRes.ok) {
-          const data = await analysisRes.json();
-          setComprehensiveAnalysis(data.analysis || []);
+        
+        const analysisParams = new URLSearchParams({
+          assessmentPeriod: grade.assessment_period || 'Week 8',
+          level: grade.level || ''
+        });
+        const analysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/comprehensive-analysis/${grade.user_id}?${analysisParams}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (analysisResponse.ok) {
+          const analysisData = await analysisResponse.json();
+          console.log('🔍 Comprehensive Analysis API Response:', analysisData);
+          console.log('🔍 Analysis Array:', analysisData.analysis);
+          setComprehensiveAnalysis(analysisData.analysis || []);
         }
-        if (historyRes.ok) {
-          const data = await historyRes.json();
-          setHolisticHistory(data.history || []);
-        }
+        
       } catch (err) {
         console.error('Error fetching user data:', err);
         setError('Failed to fetch user data');
@@ -150,6 +203,9 @@ const GradeViewModal = ({
         setLoading(false);
       }
     };
+    
+    fetchUserData();
+  }, [grade?.user_id, grade?.assessment_period, grade?.level, authToken, isOpen]);
 
     fetchAll();
     setExpandedPeriods(new Set());
@@ -158,7 +214,6 @@ const GradeViewModal = ({
     setTabValue('overview');
   }, [grade?.user_id, authToken, isOpen]);
 
-  // Build rounds from submissions + analysis
   const rounds = useMemo(() => {
     const analysisById = {};
     comprehensiveAnalysis.forEach(a => {
@@ -183,16 +238,13 @@ const GradeViewModal = ({
     });
 
     const sorted = Object.values(roundMap).sort((a, b) => {
-      // Primary: level descending (L2 before L1)
       const levelCmp = (b.level || '').localeCompare(a.level || '');
       if (levelCmp !== 0) return levelCmp;
-      // Secondary: week number descending within same level
       return b.trigger_day_number - a.trigger_day_number;
     });
 
     return sorted.map(round => {
       const key = `${round.assessment_period}|${round.level}`;
-      // Deduplicate holistic history: pick the most recent record for this period+level
       const holisticRecord = holisticHistory.find(
         h => h.assessment_period === round.assessment_period && h.level === round.level
       ) || null;
@@ -206,81 +258,45 @@ const GradeViewModal = ({
     });
   }, [userSubmissions, comprehensiveAnalysis, holisticHistory]);
 
-  // Auto-expand most recent period when rounds load
   useEffect(() => {
     if (rounds.length > 0 && expandedPeriods.size === 0) {
       setExpandedPeriods(new Set([rounds[0].key]));
     }
   }, [rounds.length]);
 
-  // Generate website preview for any round's technical submission
+  // Generate website preview when technical submission data is available
   useEffect(() => {
     if (!userSubmissions || userSubmissions.length === 0) return;
-    const tech = userSubmissions.find(sub => sub.assessment_type === 'technical');
-    if (tech?.submission_data?.files) {
+    
+    const technicalSubmission = userSubmissions.find(sub => sub.assessment_type === 'technical');
+    if (technicalSubmission && technicalSubmission.submission_data && technicalSubmission.submission_data.files) {
       try {
-        setWebsitePreview(createWebsitePreview(tech.submission_data.files));
-      } catch {
-        setWebsitePreview('<!DOCTYPE html><html><body><p>Preview error</p></body></html>');
+        const preview = createWebsitePreview(technicalSubmission.submission_data.files);
+        setWebsitePreview(preview);
+      } catch (error) {
+        console.error('Error generating website preview:', error);
+        setWebsitePreview('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Preview Error</title></head><body><div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;"><h2>Preview Error</h2><p>Unable to generate website preview due to invalid file data.</p></div></body></html>');
       }
     }
   }, [userSubmissions]);
+  
+  // Group comprehensive analysis by our assessment types (case-insensitive matching)
+  const analysisByType = comprehensiveAnalysis.reduce((acc, analysis) => {
+    const typeKey = (analysis.assessment_type || '').toLowerCase();
+    const mappedType = assessmentTypeMapping[typeKey] || typeKey;
+    console.log('🔍 Analysis mapping:', { original: analysis.assessment_type, typeKey, mappedType });
+    if (!acc[mappedType]) {
+      acc[mappedType] = [];
+    }
+    acc[mappedType].push(analysis);
+    return acc;
+  }, {});
 
-  const togglePeriod = (key) => {
-    setExpandedPeriods(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
-
-  const toggleType = (key) => {
-    setExpandedTypes(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
-
-  const startEditing = (round) => {
-    setEditingKey(round.key);
-    setEditingStrengths(round.holisticRecord?.strengths_summary || '');
-    setEditingGrowthAreas(round.holisticRecord?.growth_areas_summary || '');
-  };
-
-  const cancelEditing = () => {
-    setEditingKey(null);
-    setEditingStrengths('');
-    setEditingGrowthAreas('');
-  };
-
-  const saveEditing = async (round) => {
-    setSaving(true);
-    const ok = await onSaveOverview(
-      grade.user_id,
-      round.assessment_period,
-      round.level,
-      editingStrengths,
-      editingGrowthAreas
-    );
-    setSaving(false);
-    if (ok) {
-      // Optimistically update local holisticHistory
-      setHolisticHistory(prev => {
-        const idx = prev.findIndex(
-          h => h.assessment_period === round.assessment_period && h.level === round.level
-        );
-        const updated = { assessment_period: round.assessment_period, level: round.level, strengths_summary: editingStrengths, growth_areas_summary: editingGrowthAreas };
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = { ...next[idx], ...updated };
-          return next;
-        }
-        return [updated, ...prev];
-      });
-      setEditingKey(null);
-      setEditingStrengths('');
-      setEditingGrowthAreas('');
+  // Group user submissions by assessment type for easier access (case-insensitive)
+  const submissionsByType = userSubmissions.reduce((acc, submission) => {
+    const type = (submission.assessment_type || 'unknown').toLowerCase();
+    if (!acc[type]) {
+      acc[type] = [];
     }
   };
 
@@ -395,18 +411,22 @@ const GradeViewModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] max-h-[90vh] p-0 gap-0 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] sm:max-w-[90vw] sm:w-[90vw]">
         <DialogHeader className="p-4 sm:p-6 border-b border-border bg-muted/50 flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
-            <DialogTitle className="text-lg sm:text-xl font-bold">
-              {grade.user_first_name} {grade.user_last_name}
-            </DialogTitle>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-              <span><strong>Email:</strong> {grade.user_email}</span>
-              <span className="hidden sm:inline text-muted-foreground">•</span>
-              <span><strong>Cohort:</strong> {grade.cohort}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
+              <DialogTitle className="text-lg sm:text-xl font-bold">
+                {grade.user_first_name} {grade.user_last_name}
+              </DialogTitle>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                <span><strong>Email:</strong> {grade.user_email}</span>
+                <span className="hidden sm:inline text-muted-foreground">•</span>
+                <span><strong>Cohort:</strong> {grade.cohort}</span>
+                <span className="hidden sm:inline text-muted-foreground">•</span>
+                <span><strong>Analysis:</strong> {new Date(grade.created_at?.value || grade.created_at).toLocaleDateString()}</span>
+              </div>
             </div>
           </div>
         </DialogHeader>
-
+        
         <div className="flex-1 overflow-hidden min-h-0">
           <Tabs value={tabValue} onValueChange={setTabValue} className="h-full flex flex-col">
             <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/50 p-0 h-auto flex-shrink-0 overflow-x-auto">
