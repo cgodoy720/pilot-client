@@ -4,6 +4,7 @@ import { Badge } from '../../../components/ui/badge';
 import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink, FileText, FileSignature, CheckCircle, Clock, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award } from 'lucide-react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import useAuthStore from '../../../stores/authStore';
+import BuilderLogEntry from './BuilderLogEntry';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -32,6 +33,16 @@ const sentimentColor = (s) => {
   if (l.includes('positive')) return 'bg-green-50 text-green-600';
   if (l.includes('negative')) return 'bg-red-100 text-red-600';
   return 'bg-slate-100 text-slate-600';
+};
+
+const SENTIMENT_STYLES = {
+  'Very Positive': { bg: 'bg-green-100', text: 'text-green-700 border-green-200', dot: 'bg-green-500' },
+  'Positive':      { bg: 'bg-green-50',  text: 'text-green-600 border-green-200', dot: 'bg-green-400' },
+  'Neutral':       { bg: 'bg-slate-100', text: 'text-slate-600 border-slate-200', dot: 'bg-slate-400' },
+  'Negative':      { bg: 'bg-red-50',    text: 'text-red-600 border-red-200',     dot: 'bg-red-400' },
+  'Very Negative': { bg: 'bg-red-100',   text: 'text-red-700 border-red-200',     dot: 'bg-red-500' },
+  'Mixed':         { bg: 'bg-amber-50',  text: 'text-amber-600 border-amber-200', dot: 'bg-amber-400' },
+  neutral:         { bg: 'bg-slate-100', text: 'text-slate-600 border-slate-200', dot: 'bg-slate-400' },
 };
 
 const Section = ({ icon: Icon, title, count, children, defaultOpen = false }) => {
@@ -221,7 +232,50 @@ const VideoItem = ({ v }) => {
   );
 };
 
-const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose }) => {
+const InsightRow = ({ icon: Icon, label, content }) => {
+  if (!content) return null;
+  return (
+    <div className="flex gap-2">
+      <Icon size={13} className="text-[#4242EA] mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-0.5">{label}</p>
+        <p className="text-xs text-[#1E1E1E] leading-relaxed">{content}</p>
+      </div>
+    </div>
+  );
+};
+
+const RawConversationItem = ({ conversation: c }) => {
+  const [expanded, setExpanded] = useState(false);
+  const dateStr = c.task_date || c.created_at || '';
+  const formattedDate = dateStr
+    ? (() => { try { return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return '—'; } })()
+    : '—';
+
+  return (
+    <div className="bg-[#FAFAFA] rounded-md px-3 py-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] text-slate-400 flex-shrink-0">{formattedDate}</span>
+          <span className="text-xs font-medium text-[#1E1E1E] truncate">{c.task_title || 'Conversation'}</span>
+        </div>
+        {expanded ? <ChevronUp size={10} className="text-slate-400 flex-shrink-0" /> : <ChevronDown size={10} className="text-slate-400 flex-shrink-0" />}
+      </button>
+      {expanded && (
+        <div className="mt-2 pt-2 border-t border-[#E3E3E3]">
+          {c.summary && <p className="text-[11px] text-slate-600 leading-relaxed mb-1">{c.summary}</p>}
+          {c.raw_text && <p className="text-[10px] text-slate-400 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">{c.raw_text}</p>}
+          {!c.summary && !c.raw_text && <p className="text-[10px] text-slate-400">No content available.</p>}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose, onLogSaved }) => {
   const token = useAuthStore((s) => s.token);
   const [workProduct, setWorkProduct] = useState(null);
   const [peerFeedback, setPeerFeedback] = useState(null);
@@ -399,10 +453,10 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   };
 
   useEffect(() => {
-    if (dataReady && builder?.user_id && cohortId && token) {
+    if (!loading && builder?.user_id && cohortId && token) {
       fetchInsights();
     }
-  }, [dataReady, builder?.user_id, cohortId, token]);
+  }, [loading, builder?.user_id, cohortId, token]);
 
   const loadRawConversations = () => {
     if (rawConversations.length > 0 || !builder?.user_id || !cohortId || !token) {
@@ -840,6 +894,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                           log={log}
                           onStatusChange={handleLogStatusChange}
                           onSupportStatusChange={handleSupportStatusChange}
+                          onLogUpdated={fetchLogs}
                         />
                       ))}
                     </div>

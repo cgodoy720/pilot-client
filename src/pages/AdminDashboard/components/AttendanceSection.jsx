@@ -5,21 +5,23 @@ import { cachedAdminApi } from '../../../services/cachedAdminApi';
 import useAuthStore from '../../../stores/authStore';
 import AttendanceStatusDrawer from './AttendanceStatusDrawer';
 
-const AttendanceSection = ({ selectedDate, cohortName, selectedCohortId }) => {
+const AttendanceSection = ({ selectedDate, cohortName, selectedCohortId, externalRefreshKey = 0 }) => {
   const token = useAuthStore((s) => s.token);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [drawerStatus, setDrawerStatus] = useState(null); // 'present' | 'late' | 'absent' | null
+  const [drawerStatus, setDrawerStatus] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const combinedRefreshKey = refreshKey + externalRefreshKey;
 
   useEffect(() => {
     if (!token || !cohortName || !selectedDate) return;
     setLoading(true);
-    cachedAdminApi.getCachedDayBuilderStatus(cohortName, selectedDate, token, { forceRefresh: refreshKey > 0 })
+    cachedAdminApi.getCachedDayBuilderStatus(cohortName, selectedDate, token, { forceRefresh: combinedRefreshKey > 0 })
       .then(res => setData(res.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [token, cohortName, selectedDate, refreshKey]);
+  }, [token, cohortName, selectedDate, combinedRefreshKey]);
 
   const builders = data?.builders || [];
   const present = builders.filter(b => b.status === 'present').length;

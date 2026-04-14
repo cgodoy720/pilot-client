@@ -25,7 +25,7 @@ const STATUS_COLORS = {
 
 const EXCUSE_REASONS = ['Sick', 'Personal', 'Program Event', 'Technical Issue', 'Other'];
 
-const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilderClick }) => {
+const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilderClick, onAttendanceChange }) => {
   const token = useAuthStore((s) => s.token);
   const [open, setOpen] = useState(() => localStorage.getItem('pursuit_todos_open') !== 'false');
   const [nextStepLogs, setNextStepLogs] = useState([]);
@@ -58,7 +58,8 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
 
   // Curriculum days for the cohort (to know which days need attendance verification)
   const [curriculumDates, setCurriculumDates] = useState(new Set());
-  // Force re-render trigger for localStorage-based state
+  // Backend-persisted verified dates: { "2026-04-07": { verifiedBy, verifiedAt }, ... }
+  const [verifiedDates, setVerifiedDates] = useState({});
   const [tick, setTick] = useState(0);
 
   const handleOpenChange = (isOpen) => {
@@ -86,6 +87,17 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
       .catch(() => {});
   }, [token, cohortName]);
 
+  // Fetch backend-verified attendance dates
+  useEffect(() => {
+    if (!selectedCohortId || !token) return;
+    fetch(`${API_URL}/api/admin/dashboard/attendance-verification?cohortId=${selectedCohortId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (data.success) setVerifiedDates(data.verified || {}); })
+      .catch(() => {});
+  }, [selectedCohortId, token, tick]);
+
   // Fetch open logs
   useEffect(() => {
     if (!selectedCohortId || !token) return;
@@ -105,16 +117,15 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
     const days = [];
     const start = new Date(ATTENDANCE_VERIFY_START + 'T12:00:00');
     const selected = new Date(selectedDate + 'T12:00:00');
-    const todayStr = new Date().toISOString().split('T')[0];
-    // Check if it's past noon ET for today's verification
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const pastNoonET = nowET.getHours() >= 12;
 
     const cursor = new Date(start);
     while (cursor <= selected) {
-      const ds = cursor.toISOString().split('T')[0];
-      if (curriculumDates.has(ds) && !localStorage.getItem(`attendance_verified_${selectedCohortId}_${ds}`)) {
-        // For today: only show after 2h into class (noon ET)
+      const ds = cursor.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const isVerified = verifiedDates[ds] || localStorage.getItem(`attendance_verified_${selectedCohortId}_${ds}`);
+      if (curriculumDates.has(ds) && !isVerified) {
         if (ds === todayStr && !pastNoonET) {
           // Skip — too early in the day
         } else {
@@ -124,7 +135,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
       cursor.setDate(cursor.getDate() + 1);
     }
     return days;
-  }, [selectedCohortId, selectedDate, tick, curriculumDates]);
+  }, [selectedCohortId, selectedDate, tick, curriculumDates, verifiedDates]);
 
   // Enrollment verification needed
   const enrollmentNeedsVerification = useMemo(() => {
@@ -167,8 +178,10 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
           body: JSON.stringify({ userId: builder.userId, attendanceDate: attendanceDrawer, status: newStatus }),
         });
       }
+      cachedAdminApi.invalidateAllAttendanceCaches();
       const res = await cachedAdminApi.getCachedDayBuilderStatus(cohortName, attendanceDrawer, token, { forceRefresh: true });
       setAttendanceBuilders(res.data?.builders || []);
+      if (onAttendanceChange) onAttendanceChange();
     } catch (e) { console.error('Attendance update failed:', e); }
     setAttendanceSaving(null);
   };
@@ -184,18 +197,33 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
         body: JSON.stringify({ userId, absenceDate: attendanceDrawer, excuseReason, excuseDetails: excuseNote || '', staffNotes: '' }),
       });
       setExcusePending(null);
+      cachedAdminApi.invalidateAllAttendanceCaches();
       const res = await cachedAdminApi.getCachedDayBuilderStatus(cohortName, attendanceDrawer, token, { forceRefresh: true });
       setAttendanceBuilders(res.data?.builders || []);
+      if (onAttendanceChange) onAttendanceChange();
     } catch (e) { console.error('Excuse failed:', e); setExcuseError(e.message || 'Failed to save'); }
     setAttendanceSaving(null);
   };
 
   const handleExcuseCancel = () => { setExcusePending(null); setExcuseReason(''); setExcuseNote(''); setExcuseError(''); };
 
-  const confirmAttendanceVerify = () => {
-    localStorage.setItem(`attendance_verified_${selectedCohortId}_${attendanceDrawer}`, new Date().toISOString());
+  const confirmAttendanceVerify = async () => {
+    const date = attendanceDrawer;
+    // Optimistic: localStorage fallback + close drawer immediately
+    localStorage.setItem(`attendance_verified_${selectedCohortId}_${date}`, new Date().toISOString());
     setAttendanceDrawer(null);
     setTick(t => t + 1);
+    // Persist to backend
+    try {
+      await fetch(`${API_URL}/api/admin/dashboard/attendance-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cohortId: selectedCohortId, date }),
+      });
+    } catch (e) { console.error('Failed to persist verification:', e); }
+    // Notify parent to refresh attendance section
+    cachedAdminApi.invalidateAllAttendanceCaches();
+    if (onAttendanceChange) onAttendanceChange();
   };
 
   // ── Enrollment verification drawer ──
