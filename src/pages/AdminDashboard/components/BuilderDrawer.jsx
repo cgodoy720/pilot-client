@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink, FileText, FileSignature, CheckCircle, Clock, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award } from 'lucide-react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import useAuthStore from '../../../stores/authStore';
+import BuilderLogEntry from './BuilderLogEntry';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -32,6 +34,16 @@ const sentimentColor = (s) => {
   if (l.includes('positive')) return 'bg-green-50 text-green-600';
   if (l.includes('negative')) return 'bg-red-100 text-red-600';
   return 'bg-slate-100 text-slate-600';
+};
+
+const SENTIMENT_STYLES = {
+  'Very Positive': { bg: 'bg-green-100', text: 'text-green-700 border-green-200', dot: 'bg-green-500' },
+  'Positive':      { bg: 'bg-green-50',  text: 'text-green-600 border-green-200', dot: 'bg-green-400' },
+  'Neutral':       { bg: 'bg-slate-100', text: 'text-slate-600 border-slate-200', dot: 'bg-slate-400' },
+  'Negative':      { bg: 'bg-red-50',    text: 'text-red-600 border-red-200',     dot: 'bg-red-400' },
+  'Very Negative': { bg: 'bg-red-100',   text: 'text-red-700 border-red-200',     dot: 'bg-red-500' },
+  'Mixed':         { bg: 'bg-amber-50',  text: 'text-amber-600 border-amber-200', dot: 'bg-amber-400' },
+  neutral:         { bg: 'bg-slate-100', text: 'text-slate-600 border-slate-200', dot: 'bg-slate-400' },
 };
 
 const Section = ({ icon: Icon, title, count, children, defaultOpen = false }) => {
@@ -143,8 +155,8 @@ const TaskRow = ({ item }) => {
 const VideoItem = ({ v }) => {
   const [expanded, setExpanded] = useState(false);
   const scoreColor = (s) => s >= 4 ? 'text-green-600' : s >= 3 ? 'text-yellow-600' : 'text-red-500';
-  const dateStr = resolveDate(v.submission_date);
-  const formattedDate = dateStr !== '—' ? (() => { try { return new Date(dateStr + (dateStr.length <= 10 ? 'T12:00:00' : '')).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return dateStr; } })() : '—';
+  const rawDate = typeof v.submission_date === 'object' && v.submission_date?.value ? v.submission_date.value : v.submission_date;
+  const formattedDate = rawDate ? (() => { try { const d = new Date(String(rawDate).length <= 10 ? rawDate + 'T12:00:00' : rawDate); return isNaN(d) ? '—' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return '—'; } })() : '—';
   const hasScores = v.average_score != null;
   const hasRationale = v.technical_rationale || v.business_rationale || v.professional_rationale;
 
@@ -159,7 +171,7 @@ const VideoItem = ({ v }) => {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium text-[#1E1E1E]">{resolveStr(v.task_title)}</p>
-          <p className="text-[10px] text-slate-400">{formattedDate}</p>
+          <p className="text-[10px] text-slate-400">{formattedDate}{v.cohort_name ? ` · ${v.cohort_name}` : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           {hasScores && (
@@ -221,7 +233,50 @@ const VideoItem = ({ v }) => {
   );
 };
 
-const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose }) => {
+const InsightRow = ({ icon: Icon, label, content }) => {
+  if (!content) return null;
+  return (
+    <div className="flex gap-2">
+      <Icon size={13} className="text-[#4242EA] mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-0.5">{label}</p>
+        <p className="text-xs text-[#1E1E1E] leading-relaxed">{content}</p>
+      </div>
+    </div>
+  );
+};
+
+const RawConversationItem = ({ conversation: c }) => {
+  const [expanded, setExpanded] = useState(false);
+  const dateStr = c.task_date || c.created_at || '';
+  const formattedDate = dateStr
+    ? (() => { try { return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return '—'; } })()
+    : '—';
+
+  return (
+    <div className="bg-[#FAFAFA] rounded-md px-3 py-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] text-slate-400 flex-shrink-0">{formattedDate}</span>
+          <span className="text-xs font-medium text-[#1E1E1E] truncate">{c.task_title || 'Conversation'}</span>
+        </div>
+        {expanded ? <ChevronUp size={10} className="text-slate-400 flex-shrink-0" /> : <ChevronDown size={10} className="text-slate-400 flex-shrink-0" />}
+      </button>
+      {expanded && (
+        <div className="mt-2 pt-2 border-t border-[#E3E3E3]">
+          {c.summary && <p className="text-[11px] text-slate-600 leading-relaxed mb-1">{c.summary}</p>}
+          {c.raw_text && <p className="text-[10px] text-slate-400 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">{c.raw_text}</p>}
+          {!c.summary && !c.raw_text && <p className="text-[10px] text-slate-400">No content available.</p>}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose, onLogSaved }) => {
   const token = useAuthStore((s) => s.token);
   const [workProduct, setWorkProduct] = useState(null);
   const [peerFeedback, setPeerFeedback] = useState(null);
@@ -235,6 +290,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [inlineLogType, setInlineLogType] = useState('behavioral');
   const [inlineLogNotes, setInlineLogNotes] = useState('');
   const [inlineLogNextSteps, setInlineLogNextSteps] = useState('');
+  const [inlineLogDate, setInlineLogDate] = useState('');
   const [inlineLogSaving, setInlineLogSaving] = useState(false);
   const [insightsSummary, setInsightsSummary] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -265,16 +321,18 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     if (!builder?.user_id) return;
     setLoading(true);
 
+    // TKT-22: fetch all-time data, not just current cohort date range
+    const allTimeStart = '2020-01-01';
+    const allTimeEnd = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
     const fetchType = (type) =>
-      fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${startDate}&endDate=${endDate}`)
+      fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${allTimeStart}&endDate=${allTimeEnd}`)
         .then(r => r.ok ? r.json() : null)
         .catch(() => null);
 
-    // Try legacy API for video analyses first, fall back to native PG endpoint
     const fetchVideos = async () => {
-      // Try legacy BQ-based video analyses
       try {
-        const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${startDate}&endDate=${endDate}`);
+        const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${allTimeStart}&endDate=${allTimeEnd}`);
         if (legacyRes.ok) {
           const all = await legacyRes.json();
           const userVids = Array.isArray(all) ? all.filter(v => String(v.user_id) === String(builder.user_id)) : [];
@@ -282,7 +340,6 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
         }
       } catch { /* fall through */ }
 
-      // Fallback: native PG video submissions
       if (cohortId && token) {
         try {
           const res = await fetch(`${API_URL}/api/admin/dashboard/builder-videos?userId=${builder.user_id}&cohortId=${cohortId}`, {
@@ -295,6 +352,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
               task_title: v.task_title,
               loom_url: v.loom_url,
               submission_date: v.day_date || v.submission_date,
+              cohort_name: v.cohort_name,
               average_score: v.average_score ?? null,
               technical_score: v.technical_score ?? null,
               business_score: v.business_score ?? null,
@@ -327,7 +385,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       setPrompts(pr);
       setVideos(vids);
     }).finally(() => setLoading(false));
-  }, [builder?.user_id, startDate, endDate, cohortId, token]);
+  }, [builder?.user_id, cohortId, token]);
 
   const fetchInsights = (refresh = false) => {
     if (!builder?.user_id || !cohortId || !token) return;
@@ -399,10 +457,10 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   };
 
   useEffect(() => {
-    if (dataReady && builder?.user_id && cohortId && token) {
+    if (!loading && builder?.user_id && cohortId && token) {
       fetchInsights();
     }
-  }, [dataReady, builder?.user_id, cohortId, token]);
+  }, [loading, builder?.user_id, cohortId, token]);
 
   const loadRawConversations = () => {
     if (rawConversations.length > 0 || !builder?.user_id || !cohortId || !token) {
@@ -441,9 +499,8 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   useEffect(() => {
     if (!builder?.name) return;
     setSurveyLoading(true);
-    const today = new Date().toISOString().split('T')[0];
-    const sixMonths = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    fetch(`${LEGACY_API}/surveys/responses?startDate=${sixMonths}&endDate=${today}`)
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    fetch(`${LEGACY_API}/surveys/responses?startDate=2020-01-01&endDate=${today}`)
       .then(r => r.json())
       .then(data => {
         const all = Array.isArray(data) ? data : [];
@@ -522,10 +579,12 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
           logType: inlineLogType,
           notes: inlineLogNotes,
           nextSteps: inlineLogNextSteps || undefined,
+          interaction_date: inlineLogDate || undefined,
         }),
       });
       setInlineLogNotes('');
       setInlineLogNextSteps('');
+      setInlineLogDate('');
       setShowInlineLogForm(false);
       fetchLogs();
       onLogSaved?.();
@@ -554,13 +613,13 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const promptItems = prompts?.details || prompts || [];
   const videoItems = Array.isArray(videos) ? videos : [];
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/20 z-[70]" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/20 z-[9998]" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-[640px] bg-white shadow-2xl z-[70] flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed top-0 bottom-0 right-0 w-full max-w-[640px] bg-white shadow-2xl z-[9999] flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-[#E3E3E3] bg-white flex-shrink-0">
           <div>
@@ -813,6 +872,15 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                       <textarea value={inlineLogNextSteps} onChange={e => setInlineLogNextSteps(e.target.value)}
                         placeholder="Next steps (optional)..."
                         className="w-full text-xs border border-[#E3E3E3] rounded px-2 py-1.5 bg-white focus:border-[#4242EA] focus:outline-none resize-none" rows={1} />
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-slate-500 flex-shrink-0">Date:</label>
+                        <input type="date" value={inlineLogDate}
+                          onChange={e => setInlineLogDate(e.target.value)}
+                          max={new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })}
+                          className="text-xs border border-[#E3E3E3] rounded px-2 py-1 bg-white focus:border-[#4242EA] focus:outline-none"
+                        />
+                        <span className="text-[10px] text-slate-400">{inlineLogDate ? '' : 'Defaults to today'}</span>
+                      </div>
                       <div className="flex gap-2 justify-end">
                         <button onClick={() => setShowInlineLogForm(false)}
                           className="text-xs text-slate-500 hover:text-[#1E1E1E] px-2 py-1">Cancel</button>
@@ -840,6 +908,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                           log={log}
                           onStatusChange={handleLogStatusChange}
                           onSupportStatusChange={handleSupportStatusChange}
+                          onLogUpdated={fetchLogs}
                         />
                       ))}
                     </div>
@@ -968,7 +1037,8 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 
