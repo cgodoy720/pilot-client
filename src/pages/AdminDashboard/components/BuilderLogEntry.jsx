@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Badge } from '../../../components/ui/badge';
-import { ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, Users, MessageSquarePlus } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, ShieldAlert, Users, MessageSquarePlus, Pencil, Check, X } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -45,7 +45,7 @@ const SUPPORT_STATUS_COLORS = {
   closed: 'bg-slate-100 text-slate-600',
 };
 
-const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange }) => {
+const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange, onLogUpdated }) => {
   const token = useAuthStore((s) => s.token);
   const [expanded, setExpanded] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -57,17 +57,24 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange }) => {
   const [showAddUpdate, setShowAddUpdate] = useState(false);
   const [updateNote, setUpdateNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editNotes, setEditNotes] = useState(log.notes || '');
+  const [editNextSteps, setEditNextSteps] = useState(log.next_steps || '');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const tags = Array.isArray(log.tags) ? log.tags : [];
   const involvedBuilders = Array.isArray(log.involved_builders) ? log.involved_builders : [];
   const support = log.support_ticket;
 
-  const dateStr = log.created_at
-    ? new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const displayDate = log.interaction_date || log.created_at;
+  const dateStr = displayDate
+    ? new Date(displayDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
   const timeStr = log.created_at
     ? new Date(log.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     : '';
+  const isBackdated = log.interaction_date && log.created_at
+    && new Date(log.interaction_date).toDateString() !== new Date(log.created_at).toDateString();
 
   const handleStatusChange = async (newStatus) => {
     setUpdatingStatus(true);
@@ -126,6 +133,29 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange }) => {
     setSavingNote(false);
   };
 
+  const handleSaveEdit = async () => {
+    if (!editNotes.trim()) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/builder-logs/${log.log_id}/notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ notes: editNotes.trim(), next_steps: editNextSteps.trim() || null }),
+      });
+      if (res.ok) {
+        setEditing(false);
+        onLogUpdated?.();
+      }
+    } catch { /* ignore */ }
+    setSavingEdit(false);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditNotes(log.notes || '');
+    setEditNextSteps(log.next_steps || '');
+  };
+
   const fetchSupportHistory = async (force = false) => {
     if ((!force && supportHistory) || !support) return;
     setLoadingHistory(true);
@@ -181,6 +211,7 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange }) => {
           <p className="text-xs text-slate-600 mt-1 line-clamp-2">{log.notes}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] text-slate-400">{dateStr} {timeStr}</span>
+            {isBackdated && <span className="text-[10px] text-amber-500 italic">backdated</span>}
             <span className="text-[10px] text-slate-400">by {log.created_by_name}</span>
             {involvedBuilders.length > 0 && (
               <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
@@ -212,8 +243,45 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange }) => {
         <div className="border-t border-[#E3E3E3] px-3 py-3 space-y-3 bg-[#FAFAFA]">
           {/* Full notes */}
           <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Notes</p>
-            <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.notes}</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase">Notes</p>
+              {!editing && (
+                <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-1 text-[10px] text-[#4242EA] hover:text-[#3535c8] font-medium">
+                  <Pencil size={10} /> Edit
+                </button>
+              )}
+            </div>
+            {editing ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={4}
+                  className="w-full px-2 py-1.5 text-xs border border-[#E3E3E3] rounded bg-white focus:border-[#4242EA] focus:outline-none resize-y"
+                  autoFocus
+                />
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Next Steps</p>
+                  <textarea
+                    value={editNextSteps}
+                    onChange={(e) => setEditNextSteps(e.target.value)}
+                    rows={2}
+                    placeholder="Next steps..."
+                    className="w-full px-2 py-1.5 text-xs border border-[#E3E3E3] rounded bg-white focus:border-[#4242EA] focus:outline-none resize-y"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={handleSaveEdit} disabled={savingEdit || !editNotes.trim()} className="flex items-center gap-1 px-2.5 py-1 text-xs bg-[#4242EA] text-white rounded hover:bg-[#3535c8] disabled:opacity-50">
+                    <Check size={11} /> {savingEdit ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" onClick={cancelEdit} className="flex items-center gap-1 px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700">
+                    <X size={11} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.notes}</p>
+            )}
           </div>
 
           {log.bond_blocks && (
@@ -223,7 +291,7 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange }) => {
             </div>
           )}
 
-          {log.next_steps && (
+          {!editing && log.next_steps && (
             <div>
               <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Next Steps</p>
               <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.next_steps}</p>

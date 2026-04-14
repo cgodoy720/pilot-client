@@ -73,6 +73,7 @@ const Layout = ({ children, isLoading = false }) => {
   // Staff dropdown (remaining items) -- staff/admin roles
   const staffDropdownItems = isStaffOrAdminRole ? [
     canViewFormBuilder && { to: '/forms', label: 'Form Builder' },
+    { to: '/platform-intake', label: 'Platform Intake' },
     canViewTemplateManagement && { to: '/template-management', label: 'Templates' },
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
   ].filter(Boolean) : [];
