@@ -14,9 +14,6 @@ import {
   ResponsiveContainer, Tooltip,
 } from 'recharts';
 import SubmissionContent from './components/SubmissionContent';
-import {
-  Tabs, TabsContent, TabsList, TabsTrigger,
-} from '../../components/ui/tabs';
 
 const GradeViewModal = ({ 
   isOpen,
@@ -36,6 +33,7 @@ const GradeViewModal = ({
   const [tabValue, setTabValue] = useState("overview");
   const [userSubmissions, setUserSubmissions] = useState([]);
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState([]);
+  const [holisticHistory, setHolisticHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -43,11 +41,7 @@ const GradeViewModal = ({
   const [expandedTypes, setExpandedTypes] = useState(new Set());
 
   const [editingKey, setEditingKey] = useState(null);
-  const [editingStrengths, setEditingStrengths] = useState('');
-  const [editingGrowthAreas, setEditingGrowthAreas] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const [tabValue, setTabValue] = useState('overview');
 
   // Website preview states
   const [previewMode, setPreviewMode] = useState('desktop');
@@ -204,15 +198,12 @@ const GradeViewModal = ({
       }
     };
     
-    fetchUserData();
-  }, [grade?.user_id, grade?.assessment_period, grade?.level, authToken, isOpen]);
-
-    fetchAll();
     setExpandedPeriods(new Set());
     setExpandedTypes(new Set());
     setEditingKey(null);
     setTabValue('overview');
-  }, [grade?.user_id, authToken, isOpen]);
+    fetchUserData();
+  }, [grade?.user_id, grade?.assessment_period, grade?.level, authToken, isOpen]);
 
   const rounds = useMemo(() => {
     const analysisById = {};
@@ -281,32 +272,13 @@ const GradeViewModal = ({
   }, [userSubmissions]);
   
   // Group comprehensive analysis by our assessment types (case-insensitive matching)
-  const analysisByType = comprehensiveAnalysis.reduce((acc, analysis) => {
-    const typeKey = (analysis.assessment_type || '').toLowerCase();
-    const mappedType = assessmentTypeMapping[typeKey] || typeKey;
-    console.log('🔍 Analysis mapping:', { original: analysis.assessment_type, typeKey, mappedType });
-    if (!acc[mappedType]) {
-      acc[mappedType] = [];
-    }
-    acc[mappedType].push(analysis);
-    return acc;
-  }, {});
-
-  // Group user submissions by assessment type for easier access (case-insensitive)
-  const submissionsByType = userSubmissions.reduce((acc, submission) => {
-    const type = (submission.assessment_type || 'unknown').toLowerCase();
-    if (!acc[type]) {
-      acc[type] = [];
-    }
-  };
-
-  const submissionsByType = userSubmissions.reduce((acc, submission) => {
+  const submissionsByType = useMemo(() => userSubmissions.reduce((acc, submission) => {
     const type = (submission.assessment_type || 'unknown').toLowerCase();
     const mapped = assessmentTypeMapping[type] || type;
     if (!acc[mapped]) acc[mapped] = [];
     acc[mapped].push(submission);
     return acc;
-  }, {});
+  }, {}), [userSubmissions]);
 
   const analysisByType = useMemo(() => comprehensiveAnalysis.reduce((acc, a) => {
     const rawType = (a.assessment_type || 'unknown').toLowerCase();
@@ -316,7 +288,7 @@ const GradeViewModal = ({
     return acc;
   }, {}), [comprehensiveAnalysis]);
 
-  const assessmentTypesWithData = ALL_TYPES.filter(type => {
+  const assessmentTypesWithData = allAssessmentTypes.filter(type => {
     const hasSubmission = submissionsByType[type] && submissionsByType[type].length > 0;
     const hasAnalysis = analysisByType[type] && analysisByType[type].length > 0;
     return hasSubmission || hasAnalysis;
@@ -404,6 +376,31 @@ const GradeViewModal = ({
   }, [analysisByType]);
 
   const hasRadarData = radarData.some(d => d.score != null);
+
+  const togglePeriod = (key) => {
+    setExpandedPeriods(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const startEditing = (round) => {
+    setEditingKey(round.key);
+    setEditingStrengths(round.holisticRecord?.strengths_summary || grade.strengths_summary || '');
+    setEditingGrowthAreas(round.holisticRecord?.growth_areas_summary || grade.growth_areas_summary || '');
+  };
+
+  const cancelEditing = () => setEditingKey(null);
+
+  const saveEditing = async (round) => {
+    setSaving(true);
+    try {
+      await onSaveOverview?.();
+    } catch { /* ignore */ }
+    setSaving(false);
+    setEditingKey(null);
+  };
 
   if (!isOpen || !grade) return null;
 

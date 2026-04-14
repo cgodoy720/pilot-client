@@ -84,12 +84,11 @@ const resolveStr = (v) => {
 };
 
 /** Parse the analysis JSON from legacy API and extract grade + feedback */
-function parseWorkProductItem(item) {
+function parseWorkProductItem(item, submissionContent) {
   let grade = resolveStr(item.grade || item.letterGrade);
   let feedback = resolveStr(item.feedback);
   let score = null;
 
-  // Parse analysis JSON if present (legacy API returns raw JSON string)
   if (item.analysis && !grade) {
     try {
       const a = typeof item.analysis === 'string' ? JSON.parse(item.analysis) : item.analysis;
@@ -99,24 +98,46 @@ function parseWorkProductItem(item) {
     } catch { /* ignore */ }
   }
 
-  const dateStr = resolveDate(item.date || item.curriculum_date);
-  const formattedDate = dateStr !== '—'
-    ? (() => { try { return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return dateStr; } })()
-    : '—';
+  const rawVal = item.date || item.curriculum_date;
+  const rawStr = !rawVal ? null : (typeof rawVal === 'object' && rawVal.value ? rawVal.value : String(rawVal));
+  let formattedDate = '—';
+  if (rawStr) {
+    try {
+      const d = new Date(rawStr.length === 10 ? rawStr + 'T12:00:00' : rawStr);
+      if (!isNaN(d.getTime())) {
+        formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+    } catch { /* keep dash */ }
+  }
+
+  let submissionUrl = null;
+  if (submissionContent) {
+    try {
+      const parsed = JSON.parse(submissionContent);
+      if (parsed.type === 'image' && parsed.gcsPath) {
+        submissionUrl = null;
+      }
+    } catch {
+      if (typeof submissionContent === 'string' && /^https?:\/\//.test(submissionContent.trim())) {
+        submissionUrl = submissionContent.trim();
+      }
+    }
+  }
 
   return {
     taskTitle: resolveStr(item.taskTitle || item.task_title),
     date: formattedDate,
-    rawDate: dateStr,
+    rawDate: rawStr || '—',
     grade,
     score,
     feedback,
+    submissionUrl,
   };
 }
 
-const TaskRow = ({ item }) => {
+const TaskRow = ({ item, submissionContent }) => {
   const [expanded, setExpanded] = useState(false);
-  const parsed = parseWorkProductItem(item);
+  const parsed = parseWorkProductItem(item, submissionContent);
   const gradeClass = parsed.grade ? (GRADE_COLORS[parsed.grade] || 'bg-slate-100 text-slate-600') : '';
 
   return (
@@ -126,7 +147,21 @@ const TaskRow = ({ item }) => {
         onClick={() => setExpanded(!expanded)}
       >
         <td className="py-2 px-3 text-xs font-medium text-[#1E1E1E] max-w-[200px]">
-          <span className="line-clamp-1">{parsed.taskTitle}</span>
+          <div className="flex items-center gap-1">
+            <span className="line-clamp-1">{parsed.taskTitle}</span>
+            {parsed.submissionUrl && (
+              <a
+                href={parsed.submissionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex-shrink-0 text-[#4242EA] hover:text-[#3232CC]"
+                title={parsed.submissionUrl}
+              >
+                <ExternalLink size={12} />
+              </a>
+            )}
+          </div>
         </td>
         <td className="py-2 px-3 text-xs text-slate-500 whitespace-nowrap">{parsed.date}</td>
         {parsed.grade ? (
@@ -141,10 +176,21 @@ const TaskRow = ({ item }) => {
           <span className="line-clamp-1">{parsed.feedback ? parsed.feedback.substring(0, 80) + '...' : '—'}</span>
         </td>
       </tr>
-      {expanded && parsed.feedback && (
+      {expanded && (
         <tr>
           <td colSpan={4} className="bg-[#FAFAFA] px-4 py-3 border-b border-[#E3E3E3]">
-            <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{parsed.feedback}</p>
+            {parsed.feedback && <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{parsed.feedback}</p>}
+            {parsed.submissionUrl && (
+              <a
+                href={parsed.submissionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-xs text-[#4242EA] hover:underline"
+              >
+                <ExternalLink size={11} />
+                {parsed.submissionUrl.length > 60 ? parsed.submissionUrl.substring(0, 60) + '...' : parsed.submissionUrl}
+              </a>
+            )}
           </td>
         </tr>
       )}
@@ -279,6 +325,7 @@ const RawConversationItem = ({ conversation: c }) => {
 const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, onClose, onLogSaved }) => {
   const token = useAuthStore((s) => s.token);
   const [workProduct, setWorkProduct] = useState(null);
+  const [submissions, setSubmissions] = useState({});
   const [peerFeedback, setPeerFeedback] = useState(null);
   const [prompts, setPrompts] = useState(null);
   const [videos, setVideos] = useState(null);
@@ -374,16 +421,32 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
           }).then(r => r.ok ? r.json() : null).then(d => d?.success ? d.data : null).catch(() => null)
         : fetchType('peer_feedback');
 
+    const fetchSubmissions = () =>
+      token
+        ? fetch(`${API_URL}/api/admin/dashboard/builder-submissions?userId=${builder.user_id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(r => r.ok ? r.json() : null).then(d => {
+            if (d?.success && Array.isArray(d.data)) {
+              const map = {};
+              d.data.forEach(s => { map[s.task_id] = s.content; });
+              return map;
+            }
+            return {};
+          }).catch(() => ({}))
+        : Promise.resolve({});
+
     Promise.all([
       fetchType('workProduct'),
       fetchPeerFeedback(),
       fetchType('prompts'),
       fetchVideos(),
-    ]).then(([wp, pf, pr, vids]) => {
+      fetchSubmissions(),
+    ]).then(([wp, pf, pr, vids, subs]) => {
       setWorkProduct(wp);
       setPeerFeedback(pf);
       setPrompts(pr);
       setVideos(vids);
+      setSubmissions(subs || {});
     }).finally(() => setLoading(false));
   }, [builder?.user_id, cohortId, token]);
 
@@ -973,7 +1036,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                         </tr>
                       </thead>
                       <tbody>
-                        {wpItems.map((item, i) => <TaskRow key={i} item={item} />)}
+                        {wpItems.map((item, i) => <TaskRow key={i} item={item} submissionContent={submissions[item.task_id]} />)}
                       </tbody>
                     </table>
                   </div>
