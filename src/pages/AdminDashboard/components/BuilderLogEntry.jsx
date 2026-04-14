@@ -66,12 +66,15 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange, onLogUpda
   const involvedBuilders = Array.isArray(log.involved_builders) ? log.involved_builders : [];
   const support = log.support_ticket;
 
-  const dateStr = log.created_at
-    ? new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const displayDate = log.interaction_date || log.created_at;
+  const dateStr = displayDate
+    ? new Date(displayDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
   const timeStr = log.created_at
     ? new Date(log.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     : '';
+  const isBackdated = log.interaction_date && log.created_at
+    && new Date(log.interaction_date).toDateString() !== new Date(log.created_at).toDateString();
 
   const handleStatusChange = async (newStatus) => {
     setUpdatingStatus(true);
@@ -208,6 +211,7 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange, onLogUpda
           <p className="text-xs text-slate-600 mt-1 line-clamp-2">{log.notes}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] text-slate-400">{dateStr} {timeStr}</span>
+            {isBackdated && <span className="text-[10px] text-amber-500 italic">backdated</span>}
             <span className="text-[10px] text-slate-400">by {log.created_by_name}</span>
             {involvedBuilders.length > 0 && (
               <span className="text-[10px] text-slate-400 flex items-center gap-0.5">

@@ -56,8 +56,9 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [enrollmentSavingId, setEnrollmentSavingId] = useState(null);
 
-  // Curriculum days for the cohort (to know which days need attendance verification)
+  // Instructional curriculum days only (excludes weekends/holidays)
   const [curriculumDates, setCurriculumDates] = useState(new Set());
+  const NON_INSTRUCTIONAL_TYPES = ['Weekend', 'Holiday'];
   // Backend-persisted verified dates: { "2026-04-07": { verifiedBy, verifiedAt }, ... }
   const [verifiedDates, setVerifiedDates] = useState({});
   const [tick, setTick] = useState(0);
@@ -79,7 +80,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
         (data.weeks || data || []).forEach(w => {
           (w.days || []).forEach(d => {
             const dateStr = d.day_date?.split?.('T')?.[0] || d.day_date;
-            if (dateStr) dates.add(dateStr);
+            if (dateStr && !NON_INSTRUCTIONAL_TYPES.includes(d.day_type)) dates.add(dateStr);
           });
         });
         setCurriculumDates(dates);

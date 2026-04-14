@@ -23,6 +23,7 @@ const AttendanceSection = ({ selectedDate, cohortName, selectedCohortId, externa
       .finally(() => setLoading(false));
   }, [token, cohortName, selectedDate, combinedRefreshKey]);
 
+  const isNoClass = data?.noClass === true;
   const builders = data?.builders || [];
   const present = builders.filter(b => b.status === 'present').length;
   const late = builders.filter(b => b.status === 'late').length;
@@ -47,6 +48,12 @@ const AttendanceSection = ({ selectedDate, cohortName, selectedCohortId, externa
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-[#EFEFEF] rounded-lg animate-pulse" />)}
+        </div>
+      ) : isNoClass ? (
+        <div className="bg-slate-50 rounded-lg border border-slate-200 p-6 text-center">
+          <div className="text-2xl mb-2">📅</div>
+          <p className="text-sm font-medium text-slate-600">No Class — {data?.dayType || 'Non-instructional Day'}</p>
+          <p className="text-xs text-slate-400 mt-1">Attendance is not tracked for this day</p>
         </div>
       ) : builders.length === 0 ? (
         <div className="bg-[#FAFAFA] rounded-lg border border-[#E3E3E3] p-6 text-center">

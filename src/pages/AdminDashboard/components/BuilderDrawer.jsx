@@ -289,6 +289,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [inlineLogType, setInlineLogType] = useState('behavioral');
   const [inlineLogNotes, setInlineLogNotes] = useState('');
   const [inlineLogNextSteps, setInlineLogNextSteps] = useState('');
+  const [inlineLogDate, setInlineLogDate] = useState('');
   const [inlineLogSaving, setInlineLogSaving] = useState(false);
   const [insightsSummary, setInsightsSummary] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -319,16 +320,18 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     if (!builder?.user_id) return;
     setLoading(true);
 
+    // TKT-22: fetch all-time data, not just current cohort date range
+    const allTimeStart = '2020-01-01';
+    const allTimeEnd = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
     const fetchType = (type) =>
-      fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${startDate}&endDate=${endDate}`)
+      fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${allTimeStart}&endDate=${allTimeEnd}`)
         .then(r => r.ok ? r.json() : null)
         .catch(() => null);
 
-    // Try legacy API for video analyses first, fall back to native PG endpoint
     const fetchVideos = async () => {
-      // Try legacy BQ-based video analyses
       try {
-        const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${startDate}&endDate=${endDate}`);
+        const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${allTimeStart}&endDate=${allTimeEnd}`);
         if (legacyRes.ok) {
           const all = await legacyRes.json();
           const userVids = Array.isArray(all) ? all.filter(v => String(v.user_id) === String(builder.user_id)) : [];
@@ -336,7 +339,6 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
         }
       } catch { /* fall through */ }
 
-      // Fallback: native PG video submissions
       if (cohortId && token) {
         try {
           const res = await fetch(`${API_URL}/api/admin/dashboard/builder-videos?userId=${builder.user_id}&cohortId=${cohortId}`, {
@@ -381,7 +383,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       setPrompts(pr);
       setVideos(vids);
     }).finally(() => setLoading(false));
-  }, [builder?.user_id, startDate, endDate, cohortId, token]);
+  }, [builder?.user_id, cohortId, token]);
 
   const fetchInsights = (refresh = false) => {
     if (!builder?.user_id || !cohortId || !token) return;
@@ -495,9 +497,8 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   useEffect(() => {
     if (!builder?.name) return;
     setSurveyLoading(true);
-    const today = new Date().toISOString().split('T')[0];
-    const sixMonths = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    fetch(`${LEGACY_API}/surveys/responses?startDate=${sixMonths}&endDate=${today}`)
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    fetch(`${LEGACY_API}/surveys/responses?startDate=2020-01-01&endDate=${today}`)
       .then(r => r.json())
       .then(data => {
         const all = Array.isArray(data) ? data : [];
@@ -576,10 +577,12 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
           logType: inlineLogType,
           notes: inlineLogNotes,
           nextSteps: inlineLogNextSteps || undefined,
+          interaction_date: inlineLogDate || undefined,
         }),
       });
       setInlineLogNotes('');
       setInlineLogNextSteps('');
+      setInlineLogDate('');
       setShowInlineLogForm(false);
       fetchLogs();
       onLogSaved?.();
@@ -867,6 +870,15 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                       <textarea value={inlineLogNextSteps} onChange={e => setInlineLogNextSteps(e.target.value)}
                         placeholder="Next steps (optional)..."
                         className="w-full text-xs border border-[#E3E3E3] rounded px-2 py-1.5 bg-white focus:border-[#4242EA] focus:outline-none resize-none" rows={1} />
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-slate-500 flex-shrink-0">Date:</label>
+                        <input type="date" value={inlineLogDate}
+                          onChange={e => setInlineLogDate(e.target.value)}
+                          max={new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })}
+                          className="text-xs border border-[#E3E3E3] rounded px-2 py-1 bg-white focus:border-[#4242EA] focus:outline-none"
+                        />
+                        <span className="text-[10px] text-slate-400">{inlineLogDate ? '' : 'Defaults to today'}</span>
+                      </div>
                       <div className="flex gap-2 justify-end">
                         <button onClick={() => setShowInlineLogForm(false)}
                           className="text-xs text-slate-500 hover:text-[#1E1E1E] px-2 py-1">Cancel</button>
