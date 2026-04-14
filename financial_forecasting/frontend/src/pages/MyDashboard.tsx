@@ -21,6 +21,7 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  ListSubheader,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -218,7 +219,7 @@ function CalendarInboxSplit({
   setSelectedTaskId: (id: string | null) => void;
   setEditOnOpen: (edit: boolean) => void;
   setOrphanTask: (task: any) => void;
-  sfUsers: Array<{ Id: string; Name: string }>;
+  sfUsers: Array<{ Id: string; Name: string; IsActive: boolean }>;
 }) {
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'pursuit-calendar-inbox-split',
@@ -647,23 +648,26 @@ const MyDashboard: React.FC = () => {
     return raw as any[];
   }, [oppsData]);
 
-  // Build user list for filter dropdown — merge SF users + opp owners
+  // Build user list for filter dropdown — merge SF users + opp owners, track IsActive
   const sfUsers = useMemo(() => {
-    const userMap = new Map<string, string>();
+    const userMap = new Map<string, { Id: string; Name: string; IsActive: boolean }>();
     // From users API
     const rawUsers = Array.isArray(usersData) ? usersData : [];
     for (const u of rawUsers) {
-      if (u.Id && u.Name) userMap.set(u.Id, u.Name);
+      if (u.Id && u.Name) userMap.set(u.Id, { Id: u.Id, Name: u.Name, IsActive: u.IsActive !== false });
     }
-    // From opportunity owners (catches inactive/historical users)
+    // From opportunity owners (catches inactive/historical users not in user list)
     for (const opp of allOpportunities) {
       if (opp.OwnerId && !userMap.has(opp.OwnerId)) {
-        userMap.set(opp.OwnerId, opp.Owner?.Name || opp.OwnerId);
+        userMap.set(opp.OwnerId, { Id: opp.OwnerId, Name: opp.Owner?.Name || opp.OwnerId, IsActive: false });
       }
     }
-    return Array.from(userMap.entries())
-      .map(([Id, Name]) => ({ Id, Name }))
-      .sort((a, b) => a.Name.localeCompare(b.Name));
+    return Array.from(userMap.values())
+      .sort((a, b) => {
+        const aActive = a.IsActive ? 0 : 1;
+        const bActive = b.IsActive ? 0 : 1;
+        return aActive !== bActive ? aActive - bActive : a.Name.localeCompare(b.Name);
+      });
   }, [usersData, allOpportunities]);
 
   // Precompute open opp counts per user for dropdown labels
@@ -1247,14 +1251,20 @@ const MyDashboard: React.FC = () => {
                     >
                       <MenuItem value="all">All Users ({allOpenOpps.length})</MenuItem>
                       {sfUserId && <MenuItem value="me">My Opportunities ({openCountByUser.get(sfUserId) || 0})</MenuItem>}
-                      {sfUsers.map((u: any) => {
-                        const cnt = openCountByUser.get(u.Id) || 0;
-                        return (
-                          <MenuItem key={u.Id} value={u.Id}>
-                            {u.Name} ({cnt})
-                          </MenuItem>
-                        );
-                      })}
+                      <ListSubheader sx={{ fontSize: '0.7rem', lineHeight: '24px', color: 'text.secondary', bgcolor: 'grey.50' }}>Active</ListSubheader>
+                      {sfUsers.filter((u) => u.IsActive && (openCountByUser.get(u.Id) || 0) > 0).map((u) => (
+                        <MenuItem key={u.Id} value={u.Id}>
+                          {u.Name} ({openCountByUser.get(u.Id)})
+                        </MenuItem>
+                      ))}
+                      {sfUsers.some((u) => !u.IsActive && (openCountByUser.get(u.Id) || 0) > 0) && (
+                        <ListSubheader sx={{ fontSize: '0.7rem', lineHeight: '24px', color: 'text.secondary', bgcolor: 'grey.50' }}>Inactive</ListSubheader>
+                      )}
+                      {sfUsers.filter((u) => !u.IsActive && (openCountByUser.get(u.Id) || 0) > 0).map((u) => (
+                        <MenuItem key={u.Id} value={u.Id} sx={{ color: 'text.secondary' }}>
+                          {u.Name} ({openCountByUser.get(u.Id)})
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                   <DateRangeSelector

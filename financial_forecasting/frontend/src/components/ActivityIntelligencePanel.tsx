@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Drawer,
   Box,
@@ -405,11 +405,36 @@ const SOURCE_CONFIG: Record<string, { label: string; icon: React.ReactElement; c
 const SOURCE_ORDER = ['slack', 'fireflies', 'gmail', 'calendar', 'drive'];
 
 // Main Panel (Drawer-based)
+const PANEL_MIN_WIDTH = 480;
+const PANEL_MAX_WIDTH = 900;
+
 const ActivityIntelligencePanel: React.FC<ActivityIntelligencePanelProps> = ({
   open, onClose, opportunity, accountName,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [width, setWidth] = useState(680);
+  const resizeRef = useRef({ active: false, startX: 0, startWidth: 0 });
+
+  useEffect(() => {
+    const onMouseMove = (e: globalThis.MouseEvent) => {
+      if (!resizeRef.current.active) return;
+      const dx = e.clientX - resizeRef.current.startX;
+      setWidth(Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, resizeRef.current.startWidth + dx)));
+    };
+    const onMouseUp = () => { resizeRef.current.active = false; };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeRef.current = { active: true, startX: e.clientX, startWidth: width };
+  }, [width]);
   const queryClient = useQueryClient();
 
   const oppName = opportunity?.Name || '';
@@ -470,9 +495,36 @@ const ActivityIntelligencePanel: React.FC<ActivityIntelligencePanelProps> = ({
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 560 }, p: 0 },
+        sx: { width: { xs: '100%', sm: width }, p: 0 },
       }}
     >
+      {/* Resize handle on left edge (sm+ only) */}
+      <Box
+        onMouseDown={handleResizeStart}
+        sx={{
+          display: { xs: 'none', sm: 'block' },
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 8,
+          cursor: 'col-resize',
+          zIndex: 20,
+          '&:hover::after': {
+            content: '""',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 4,
+            height: 48,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+            opacity: 0.4,
+          },
+        }}
+      />
+
       {/* Header */}
       <Box sx={{
         p: 2.5,

@@ -72,12 +72,22 @@ export function OwnerEditCell(props: GridRenderEditCellParams) {
 
   const selectedUser = options.find((user) => user.Id === value);
 
+  const sortedOptions = React.useMemo(() =>
+    [...options].sort((a, b) => {
+      const aActive = a.IsActive !== false ? 0 : 1;
+      const bActive = b.IsActive !== false ? 0 : 1;
+      return aActive !== bActive ? aActive - bActive : (a.Name || '').localeCompare(b.Name || '');
+    }),
+    [options],
+  );
+
   return (
     <Tooltip title="Changing the owner may affect who can edit this opportunity" placement="top">
       <Autocomplete
         value={selectedUser || null}
         onChange={handleChange}
-        options={options}
+        options={sortedOptions}
+        groupBy={(option) => option.IsActive === false ? 'Inactive' : 'Active'}
         getOptionLabel={(option) => option.Name || ''}
         isOptionEqualToValue={(option, val) => option.Id === val?.Id}
         autoFocus={hasFocus}

@@ -800,11 +800,11 @@ async def update_payment(
 
 @app.get("/api/salesforce/users")
 async def get_users(
-    limit: int = Query(100, le=1000),
+    limit: int = Query(1000, le=5000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user = Depends(require_auth)
 ):
-    """Get Salesforce users."""
+    """Get Salesforce users (active + inactive, grouped by IsActive)."""
     try:
         cache_key = f"users:{limit}"
         cached = cache.get(cache_key)
@@ -816,8 +816,7 @@ async def get_users(
         query = f"""
         SELECT Id, Name, Email, IsActive
         FROM User
-        WHERE IsActive = true
-        ORDER BY Name ASC
+        ORDER BY IsActive DESC, Name ASC
         LIMIT {limit}
         """
 

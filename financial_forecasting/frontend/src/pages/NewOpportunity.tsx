@@ -44,6 +44,7 @@ interface Account {
 interface User {
   Id: string;
   Name: string;
+  IsActive?: boolean;
 }
 
 interface Contact {
@@ -680,7 +681,12 @@ const NewOpportunity: React.FC = () => {
 
                 <Grid item xs={12}>
                   <Autocomplete
-                    options={users || []}
+                    options={[...(users || [])].sort((a: User, b: User) => {
+                      const aActive = a.IsActive !== false ? 0 : 1;
+                      const bActive = b.IsActive !== false ? 0 : 1;
+                      return aActive !== bActive ? aActive - bActive : (a.Name || '').localeCompare(b.Name || '');
+                    })}
+                    groupBy={(option: User) => option.IsActive === false ? 'Inactive' : 'Active'}
                     getOptionLabel={(option: User) => option.Name || ''}
                     loading={usersLoading}
                     value={selectedOwner || null}
@@ -691,7 +697,7 @@ const NewOpportunity: React.FC = () => {
                     filterOptions={(options, state) => {
                       const inputValue = state.inputValue.toLowerCase();
                       if (!inputValue) return options;
-                      
+
                       return options.filter((option) =>
                         option.Name?.toLowerCase().includes(inputValue)
                       );

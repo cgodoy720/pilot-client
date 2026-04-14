@@ -67,23 +67,15 @@ const ALL_MENU_ITEMS = [
   { text: 'Dashboard', icon: <HomeIcon />, path: '/dashboard' },
   { text: 'Priorities', icon: <TrendingUpIcon />, path: '/priorities' },
   { text: 'Pipeline', icon: <TableChartIcon />, path: '/pipeline' },
-  { text: 'Auto Review', icon: <ReviewIcon />, path: '/automation-review' },
-  { text: 'Research', icon: <ResearchIcon />, path: '/research' },
-  { text: 'Pebble', icon: <SearchIcon />, path: '/pebble' },
-  { text: 'Cashflow', icon: <AttachMoneyIcon />, path: '/cashflow' },
   { text: 'Projects', icon: <ProjectsIcon />, path: '/projects' },
-  { text: 'Data Tools', icon: <ToolsIcon />, path: '/data-tools' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
-const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/pebble', '/projects', '/settings']);
+const MVP_PATHS = new Set(['/priorities', '/dashboard', '/pipeline', '/projects', '/settings']);
 
 // Map nav paths to required permissions (undefined = no permission needed)
-// Values can be a string (single permission) or a function (custom logic)
 const NAV_PERMISSIONS: Record<string, string | ((can: (k: string) => boolean) => boolean) | undefined> = {
-  '/pebble': (can) => can('use_pebble_chat') || can('use_pebble_research'),
   '/projects': 'view_projects',
-  '/cashflow': 'view_cashflow_forecasts',
   '/settings': undefined, // visible to all, tabs gated inside
 };
 

@@ -11,7 +11,6 @@ import {
   InputAdornment,
 } from '@mui/material';
 import { useOwnerGoals } from '../hooks/useOwnerGoals';
-import { DEFAULT_GOAL } from '../config/goals';
 
 interface EditOwnerGoalDialogProps {
   open: boolean;
@@ -83,11 +82,11 @@ const EditOwnerGoalDialog: React.FC<EditOwnerGoalDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Edit Goal — {ownerName}</DialogTitle>
+      <DialogTitle>Edit Target — {ownerName}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            FY{fiscalYear} annual revenue target
+            FY{fiscalYear} revenue target
           </Typography>
           <TextField
             label="Goal amount"
@@ -99,7 +98,7 @@ const EditOwnerGoalDialog: React.FC<EditOwnerGoalDialogProps> = ({
             fullWidth
             autoFocus
             error={Boolean(error)}
-            helperText={error || `Default if unset: $${DEFAULT_GOAL.toLocaleString()}`}
+            helperText={error}
             InputProps={{
               startAdornment: <InputAdornment position="start">$</InputAdornment>,
             }}

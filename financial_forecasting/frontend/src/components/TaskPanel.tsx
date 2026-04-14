@@ -133,8 +133,8 @@ const isOverdue = (dateStr: string | null, status: string) => {
 
 const TASK_PANEL_PREFS_KEY = 'pursuit-task-panel-prefs';
 const DEFAULT_WIDTH = 680;
-const MIN_WIDTH = 400;
-const MAX_WIDTH = 1200;
+const MIN_WIDTH = 480;
+const MAX_WIDTH = 900;
 
 function loadTaskPanelWidth(): number {
   try {
@@ -560,7 +560,6 @@ const TaskPanel: React.FC<TaskPanelProps> = ({ open, onClose, opportunity, users
         sx: {
           width: { xs: '100%', sm: width },
           p: 0,
-          position: 'relative',
         },
       }}
     >

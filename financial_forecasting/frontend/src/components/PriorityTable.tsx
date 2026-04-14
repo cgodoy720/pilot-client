@@ -54,7 +54,7 @@ import {
   countOverdueTasks,
 } from '../utils/priorityScoring';
 import { apiService } from '../services/api';
-import { getStageHexColor, stageIndex } from '../types/salesforce';
+import { getStageHexColor, stageIndex, OPPORTUNITY_STAGES } from '../types/salesforce';
 import toast from 'react-hot-toast';
 
 export type { PriorityOpp };
@@ -374,6 +374,148 @@ const AddTaskRow: React.FC<AddTaskRowProps> = ({ oppId, users, onCreated }) => {
   );
 };
 
+// ── Opp-level inline edit cell ──
+
+interface OppEditableCellProps {
+  value: string | number | null;
+  oppId: string;
+  field: string;
+  type?: 'text' | 'date' | 'currency' | 'stage';
+  onSave: (oppId: string, field: string, value: string | number | null) => void;
+  renderDisplay?: (value: string | number | null) => React.ReactNode;
+}
+
+const OppEditableCell: React.FC<OppEditableCellProps> = ({ value, oppId, field, type = 'text', onSave, renderDisplay }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>(value != null ? String(value) : '');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(value != null ? String(value) : ''); }, [value]);
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.focus();
+  }, [editing]);
+
+  const commit = useCallback(() => {
+    setEditing(false);
+    const original = value != null ? String(value) : '';
+    if (draft !== original) {
+      if (type === 'currency') {
+        const parsed = parseFloat(draft.replace(/[,$]/g, ''));
+        onSave(oppId, field, isNaN(parsed) ? null : parsed);
+      } else {
+        onSave(oppId, field, draft || null);
+      }
+    }
+  }, [draft, value, oppId, field, onSave, type]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') commit();
+    if (e.key === 'Escape') { setDraft(value != null ? String(value) : ''); setEditing(false); }
+  }, [commit, value]);
+
+  // Stage field uses select
+  if (type === 'stage') {
+    return (
+      <Select
+        size="small"
+        value={value || ''}
+        onChange={(e) => onSave(oppId, field, e.target.value)}
+        variant="standard"
+        disableUnderline
+        sx={{
+          fontSize: '0.7rem',
+          '& .MuiSelect-select': {
+            py: 0,
+            px: 0.5,
+            bgcolor: getStageHexColor(String(value || '')),
+            color: '#fff',
+            fontWeight: 600,
+            borderRadius: 1,
+          },
+        }}
+      >
+        {OPPORTUNITY_STAGES.filter(s => s !== '--None--').map((s) => (
+          <MenuItem key={s} value={s} sx={{ fontSize: '0.75rem' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: getStageHexColor(s) }} />
+              {s}
+            </Box>
+          </MenuItem>
+        ))}
+      </Select>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <Box
+        onClick={() => setEditing(true)}
+        sx={{
+          cursor: 'pointer',
+          borderRadius: 0.5,
+          px: 0.5,
+          '&:hover': { bgcolor: 'action.hover' },
+          minHeight: 20,
+        }}
+      >
+        {renderDisplay ? renderDisplay(value) : (
+          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+            {value != null ? String(value) : '-'}
+          </Typography>
+        )}
+      </Box>
+    );
+  }
+
+  if (type === 'date') {
+    return (
+      <TextField
+        inputRef={inputRef}
+        size="small"
+        type="date"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={handleKeyDown}
+        variant="standard"
+        InputProps={{ disableUnderline: false, sx: { fontSize: '0.8rem' } }}
+        InputLabelProps={{ shrink: true }}
+        sx={{ minWidth: 120 }}
+      />
+    );
+  }
+
+  if (type === 'currency') {
+    return (
+      <TextField
+        inputRef={inputRef}
+        size="small"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={handleKeyDown}
+        variant="standard"
+        InputProps={{ disableUnderline: false, sx: { fontSize: '0.8rem' } }}
+        sx={{ minWidth: 80 }}
+      />
+    );
+  }
+
+  return (
+    <TextField
+      inputRef={inputRef}
+      size="small"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={handleKeyDown}
+      variant="standard"
+      InputProps={{ disableUnderline: false, sx: { fontSize: '0.8rem' } }}
+      sx={{ minWidth: 80 }}
+    />
+  );
+};
+
 // ── Main Component ──
 
 const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask, users, onOpenTaskDrawer, showWeighted = false, maxRows, onFilteredChange, toolbarSlot, onOppClick }) => {
@@ -666,6 +808,16 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
     setLocalTaskOverrides((prev) => ({ ...prev, [opp.Id]: [...allTasks, task] }));
   }, [localTaskOverrides]);
 
+  // Inline opp-level edit — calls SF update API
+  const handleInlineOppSave = useCallback(async (oppId: string, field: string, value: string | number | null) => {
+    try {
+      await apiService.updateOpportunity(oppId, { [field]: value });
+      toast.success('Opportunity updated');
+    } catch (err: any) {
+      toast.error(`Failed to update: ${err.message}`);
+    }
+  }, []);
+
   return (
     <Box>
       {/* All controls in one row — wraps on narrow screens */}
@@ -771,11 +923,11 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
       ) : (
       /* Table */
       <TableContainer sx={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
-        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
+        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed', minWidth: 1000 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: 36, px: 1 }}>#</TableCell>
-              <TableCell sx={{ ...(oppNameWidth !== null ? { width: oppNameWidth } : { width: 220 }) }}>
+              <TableCell sx={{ width: '3%', px: 1 }}>#</TableCell>
+              <TableCell sx={{ width: oppNameWidth !== null ? oppNameWidth : '20%' }}>
                 <TableSortLabel
                   active={oppSort.field === 'name'}
                   direction={oppSort.field === 'name' ? oppSort.dir : 'asc'}
@@ -796,7 +948,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   }}
                 />
               </TableCell>
-              <TableCell sx={{ width: 130 }}>
+              <TableCell sx={{ width: '14%' }}>
                 <TableSortLabel
                   active={oppSort.field === 'stage'}
                   direction={oppSort.field === 'stage' ? oppSort.dir : 'asc'}
@@ -805,7 +957,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Stage
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="right" sx={{ width: 100 }}>
+              <TableCell align="right" sx={{ width: '8%' }}>
                 <TableSortLabel
                   active={oppSort.field === 'amount'}
                   direction={oppSort.field === 'amount' ? oppSort.dir : 'asc'}
@@ -814,7 +966,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Amount
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ width: 90 }}>
+              <TableCell sx={{ width: '7%' }}>
                 <TableSortLabel
                   active={oppSort.field === 'close'}
                   direction={oppSort.field === 'close' ? oppSort.dir : 'asc'}
@@ -823,7 +975,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Close
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="right" sx={{ width: 60 }}>
+              <TableCell align="right" sx={{ width: '5%' }}>
                 <TableSortLabel
                   active={oppSort.field === 'prob'}
                   direction={oppSort.field === 'prob' ? oppSort.dir : 'asc'}
@@ -832,8 +984,8 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Prob
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Alerts</TableCell>
-              <TableCell align="center" sx={{ width: 60 }}>
+              <TableCell sx={{ width: '30%' }}>Alerts</TableCell>
+              <TableCell align="center" sx={{ width: '5%' }}>
                 <TableSortLabel
                   active={oppSort.field === 'tasks'}
                   direction={oppSort.field === 'tasks' ? oppSort.dir : 'asc'}
@@ -842,7 +994,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Tasks
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="center" sx={{ width: 80 }}>Actions</TableCell>
+              <TableCell align="center" sx={{ width: '8%' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -899,36 +1051,50 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                       </Typography>
                     </TableCell>
 
-                    {/* Stage */}
+                    {/* Stage — editable */}
                     <TableCell>
-                      <Chip
-                        label={opp.StageName}
-                        size="small"
-                        sx={{
-                          height: 20,
-                          fontSize: '0.7rem',
-                          bgcolor: getStageHexColor(opp.StageName),
-                          color: '#fff',
-                          fontWeight: 600,
-                        }}
+                      <OppEditableCell
+                        value={opp.StageName}
+                        oppId={opp.Id}
+                        field="StageName"
+                        type="stage"
+                        onSave={handleInlineOppSave}
                       />
                     </TableCell>
 
-                    {/* Amount */}
+                    {/* Amount — editable */}
                     <TableCell align="right">
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {opp.Amount ? formatDollarMillions(opp.Amount) : '-'}
-                      </Typography>
+                      <OppEditableCell
+                        value={opp.Amount}
+                        oppId={opp.Id}
+                        field="Amount"
+                        type="currency"
+                        onSave={handleInlineOppSave}
+                        renderDisplay={(v) => (
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {v ? formatDollarMillions(v as number) : '-'}
+                          </Typography>
+                        )}
+                      />
                     </TableCell>
 
-                    {/* Close date */}
+                    {/* Close date — editable */}
                     <TableCell>
-                      <Typography
-                        variant="body2"
-                        sx={{ color: isOverdue ? '#e65100' : 'text.primary', fontWeight: isOverdue ? 600 : 400 }}
-                      >
-                        {opp.CloseDate ? format(parseISO(opp.CloseDate), 'MMM d') : '-'}
-                      </Typography>
+                      <OppEditableCell
+                        value={opp.CloseDate || ''}
+                        oppId={opp.Id}
+                        field="CloseDate"
+                        type="date"
+                        onSave={handleInlineOppSave}
+                        renderDisplay={(v) => (
+                          <Typography
+                            variant="body2"
+                            sx={{ color: isOverdue ? '#e65100' : 'text.primary', fontWeight: isOverdue ? 600 : 400 }}
+                          >
+                            {v ? format(parseISO(String(v)), 'MMM d') : '-'}
+                          </Typography>
+                        )}
+                      />
                     </TableCell>
 
                     {/* Probability */}

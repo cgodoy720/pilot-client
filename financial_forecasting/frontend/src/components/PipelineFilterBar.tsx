@@ -44,7 +44,7 @@ export const DEFAULT_FILTERS: PipelineFilters = {
 interface PipelineFilterBarProps {
   filters: PipelineFilters;
   onChange: (filters: PipelineFilters) => void;
-  ownerOptions: Array<{ id: string; name: string }>;
+  ownerOptions: Array<{ id: string; name: string; isActive?: boolean }>;
   stageOptions?: string[];
   revenueStreamOptions?: string[];
   initialExpanded?: boolean;
@@ -145,7 +145,12 @@ const PipelineFilterBar: React.FC<PipelineFilterBarProps> = ({
           <Autocomplete
             multiple
             size="small"
-            options={ownerOptions}
+            options={[...ownerOptions].sort((a, b) => {
+              const aActive = a.isActive !== false ? 0 : 1;
+              const bActive = b.isActive !== false ? 0 : 1;
+              return aActive !== bActive ? aActive - bActive : a.name.localeCompare(b.name);
+            })}
+            groupBy={(opt) => opt.isActive === false ? 'Inactive' : 'Active'}
             getOptionLabel={(opt) => opt.name}
             value={ownerOptions.filter((o) => filters.owners.includes(o.id))}
             onChange={(_, vals) => update({ owners: vals.map((v) => v.id) })}

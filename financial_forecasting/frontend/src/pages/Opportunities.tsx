@@ -403,7 +403,7 @@ const Opportunities: React.FC = () => {
           // Sync legacy flags for data hook
           setAijiOnly(f.aijiOnly);
         }}
-        ownerOptions={users.map((u: any) => ({ id: u.Id, name: u.Name }))}
+        ownerOptions={users.map((u: any) => ({ id: u.Id, name: u.Name, isActive: u.IsActive !== false }))}
         revenueStreamOptions={(() => {
           const streams = new Set<string>();
           opportunities.forEach((o) => { if (o.RecordType?.Name) streams.add(o.RecordType.Name); });

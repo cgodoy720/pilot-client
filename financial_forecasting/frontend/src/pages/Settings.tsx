@@ -30,6 +30,7 @@ import {
   DialogActions,
   Checkbox,
   FormControlLabel,
+  Autocomplete,
 } from '@mui/material';
 import {
   Cloud as CloudIcon,
@@ -55,6 +56,8 @@ import { apiService } from '../services/api';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
+import { useOwnerGoals } from '../hooks/useOwnerGoals';
+import EditOwnerGoalDialog from '../components/EditOwnerGoalDialog';
 
 // Permission keys grouped by category for the checkbox grid
 const PERMISSION_GROUPS = [
@@ -112,6 +115,7 @@ const PERMISSION_GROUPS = [
       { key: 'trigger_data_sync', label: 'Trigger Data Sync' },
       { key: 'manage_users_roles', label: 'Manage Users & Roles (Admin)' },
       { key: 'edit_permission_profiles', label: 'Edit Permission Profiles' },
+      { key: 'manage_targets', label: 'Manage Revenue Targets (Exec)' },
     ],
   },
 ];
@@ -186,10 +190,11 @@ const Settings: React.FC = () => {
   const { can: canDo } = usePermissions();
   const isAdmin = canDo('manage_users_roles');
   const canEditProfiles = canDo('edit_permission_profiles') || isAdmin;
+  const canManageTargets = isAdmin || canDo('manage_targets');
   const queryClient = useQueryClient();
   const [settingsTab, setSettingsTab] = useState(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'users' || tab === 'profiles' || tab === 'connections') return tab;
+    if (tab === 'users' || tab === 'profiles' || tab === 'connections' || tab === 'goals' || tab === 'targets') return tab;
     return 'connections';
   });
 
@@ -226,6 +231,22 @@ const Settings: React.FC = () => {
       onError: (err: any) => { toast.error(err.response?.data?.detail || 'Failed to delete'); },
     }
   );
+
+  // Targets tab state
+  const currentFiscalYear = new Date().getFullYear();
+  const [targetsFiscalYear, setTargetsFiscalYear] = useState(currentFiscalYear);
+  const { goals: ownerGoals, isLoading: goalsLoading, upsertGoal, deleteGoal } = useOwnerGoals(targetsFiscalYear);
+  const { data: sfUsersData } = useQuery('sf-users', async () => {
+    const res = await apiService.getUsers({ limit: 1000 });
+    return res.data?.data || res.data?.users || res.data || [];
+  }, { enabled: canManageTargets && settingsTab === 'targets' });
+  const sfUsers: any[] = sfUsersData || [];
+  const [addingTarget, setAddingTarget] = useState(false);
+  const [newTargetOwner, setNewTargetOwner] = useState<any>(null);
+  const [newTargetAmount, setNewTargetAmount] = useState('');
+  const [newTargetNotes, setNewTargetNotes] = useState('');
+  const [newTargetSaving, setNewTargetSaving] = useState(false);
+  const [editGoalUser, setEditGoalUser] = useState<{ sfUserId: string; name: string } | null>(null);
 
   // Profile edit dialog state
   const [editProfile, setEditProfile] = useState<any>(null);
@@ -302,6 +323,7 @@ const Settings: React.FC = () => {
         <Tab label="Connections" value="connections" />
         {isAdmin && <Tab label="Users" value="users" />}
         {canEditProfiles && <Tab label="Permission Profiles" value="profiles" />}
+        {canManageTargets && <Tab label="Targets" value="targets" />}
       </Tabs>
 
       {/* ── Connections Tab ── */}
@@ -697,6 +719,197 @@ const Settings: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+    )}
+
+    {/* ── Targets Tab (Admin only) ── */}
+    {settingsTab === 'targets' && canManageTargets && (
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Revenue Targets</Typography>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <Select
+                  value={targetsFiscalYear}
+                  onChange={(e) => setTargetsFiscalYear(Number(e.target.value))}
+                >
+                  <MenuItem value={currentFiscalYear - 1}>FY{currentFiscalYear - 1}</MenuItem>
+                  <MenuItem value={currentFiscalYear}>FY{currentFiscalYear}</MenuItem>
+                  <MenuItem value={currentFiscalYear + 1}>FY{currentFiscalYear + 1}</MenuItem>
+                </Select>
+              </FormControl>
+              {!addingTarget && (
+                <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={() => setAddingTarget(true)}>
+                  Add Target
+                </Button>
+              )}
+            </Box>
+          </Box>
+
+          {goalsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Owner</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Target Amount</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Period</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Notes</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {/* Inline add row */}
+                {addingTarget && (
+                  <TableRow sx={{ bgcolor: 'action.hover' }}>
+                    <TableCell>
+                      <Autocomplete
+                        size="small"
+                        options={sfUsers.filter((u: any) => u.IsActive !== false && !ownerGoals[u.Id])}
+                        getOptionLabel={(option: any) => option.Name || ''}
+                        value={newTargetOwner}
+                        onChange={(_e, val) => setNewTargetOwner(val)}
+                        renderInput={(params) => <TextField {...params} placeholder="Select owner..." variant="standard" />}
+                        sx={{ minWidth: 160 }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <TextField
+                        size="small"
+                        variant="standard"
+                        placeholder="Amount"
+                        value={newTargetAmount}
+                        onChange={(e) => setNewTargetAmount(e.target.value)}
+                        InputProps={{ startAdornment: <Typography variant="body2" sx={{ mr: 0.5, color: 'text.secondary' }}>$</Typography> }}
+                        sx={{ width: 120 }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') { setAddingTarget(false); setNewTargetOwner(null); setNewTargetAmount(''); setNewTargetNotes(''); }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={`FY${targetsFiscalYear}`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        size="small"
+                        variant="standard"
+                        placeholder="Notes (optional)"
+                        value={newTargetNotes}
+                        onChange={(e) => setNewTargetNotes(e.target.value)}
+                        sx={{ width: '100%' }}
+                      />
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={newTargetSaving}
+                        sx={{ mr: 0.5, minWidth: 0, px: 1.5, textTransform: 'none', fontSize: '0.75rem' }}
+                        onClick={async () => {
+                          if (!newTargetOwner) { toast.error('Select an owner'); return; }
+                          const amount = parseFloat(newTargetAmount.replace(/[,$]/g, ''));
+                          if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount'); return; }
+                          setNewTargetSaving(true);
+                          try {
+                            await upsertGoal(newTargetOwner.Id, amount, newTargetNotes.trim() || undefined);
+                            setAddingTarget(false);
+                            setNewTargetOwner(null);
+                            setNewTargetAmount('');
+                            setNewTargetNotes('');
+                          } catch { /* toast handled by hook */ }
+                          finally { setNewTargetSaving(false); }
+                        }}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="small"
+                        sx={{ minWidth: 0, px: 1, textTransform: 'none', fontSize: '0.75rem' }}
+                        onClick={() => { setAddingTarget(false); setNewTargetOwner(null); setNewTargetAmount(''); setNewTargetNotes(''); }}
+                      >
+                        Cancel
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {/* Existing targets */}
+                {Object.entries(ownerGoals).length === 0 && !addingTarget && (
+                  <TableRow>
+                    <TableCell colSpan={5} sx={{ textAlign: 'center', py: 3 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        No revenue targets set for FY{targetsFiscalYear}.
+                      </Typography>
+                      <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => setAddingTarget(true)}>
+                        Add Target
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {Object.entries(ownerGoals)
+                  .sort(([, a], [, b]) => (b.goal_amount || 0) - (a.goal_amount || 0))
+                  .map(([sfId, goal]) => {
+                    const ownerName = sfUsers.find((u: any) => u.Id === sfId)?.Name || sfId;
+                    return (
+                      <TableRow key={sfId}>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{ownerName}</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            ${goal.goal_amount.toLocaleString()}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={`FY${goal.fiscal_year}`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.75rem' }} />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                            {goal.notes || '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => setEditGoalUser({ sfUserId: sfId, name: ownerName })}
+                            title="Edit target"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => { if (window.confirm(`Remove target for ${ownerName}?`)) deleteGoal(sfId); }}
+                            title="Remove target"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    )}
+
+    {/* Edit Target Dialog */}
+    {editGoalUser && (
+      <EditOwnerGoalDialog
+        open
+        onClose={() => setEditGoalUser(null)}
+        sfUserId={editGoalUser.sfUserId}
+        ownerName={editGoalUser.name}
+        fiscalYear={targetsFiscalYear}
+        currentAmount={ownerGoals[editGoalUser.sfUserId]?.goal_amount ?? 0}
+        hasBackendGoal={!!ownerGoals[editGoalUser.sfUserId]}
+      />
     )}
 
     {/* ── Profile Edit Dialog ── */}

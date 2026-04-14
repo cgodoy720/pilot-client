@@ -13,6 +13,7 @@ import {
   Divider,
   Popover,
   Button,
+  ListSubheader,
 } from '@mui/material';
 import {
   Flag as FlagIcon,
@@ -53,7 +54,7 @@ interface TaskInboxProps {
   compact?: boolean;
   maxHeight?: number;
   currentUserId?: string | null;
-  users?: Array<{ Id: string; Name: string }>;
+  users?: Array<{ Id: string; Name: string; IsActive?: boolean }>;
   onTaskClick?: (task: InboxTask) => void;
   onToggleUrgent?: (taskId: string, urgent: boolean) => void;
   onEditTask?: (task: InboxTask) => void;
@@ -418,9 +419,11 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
             >
               <MenuItem value="">All Users</MenuItem>
               {currentUserId && <MenuItem value={currentUserId}>My Tasks</MenuItem>}
-              {users.filter((u) => u.Id !== currentUserId).map((u) => (
-                <MenuItem key={u.Id} value={u.Id}>{u.Name}</MenuItem>
-              ))}
+              {users
+                .filter((u) => u.Id !== currentUserId && tasks.some((t) => t.OwnerId === u.Id))
+                .map((u) => (
+                  <MenuItem key={u.Id} value={u.Id}>{u.Name}</MenuItem>
+                ))}
             </Select>
           </FormControl>
           <FormControl size="small" ref={dateAnchorRef} sx={{ minWidth: 90, '& .MuiInputBase-root': { height: 32, fontSize: '0.75rem' }, '& .MuiInputLabel-root': { fontSize: '0.75rem' } }}>
