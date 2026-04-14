@@ -173,6 +173,12 @@ export const apiService = {
   getAccounts: (params?: { limit?: number }) =>
     api.get('/api/salesforce/accounts', { params }),
 
+  searchAccounts: (q: string, limit?: number) =>
+    api.get('/api/salesforce/accounts/search', { params: { q, limit: limit || 25 } }),
+
+  searchContacts: (q: string, limit?: number) =>
+    api.get('/api/salesforce/contacts/search', { params: { q, limit: limit || 25 } }),
+
   updateAccount: (accountId: string, updates: Record<string, string | number | boolean | null>) =>
     api.put(`/api/salesforce/accounts/${accountId}`, {
       updates,

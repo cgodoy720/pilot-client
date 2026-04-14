@@ -771,11 +771,11 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
       ) : (
       /* Table */
       <TableContainer sx={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 36, px: 1 }}>#</TableCell>
-              <TableCell sx={{ ...(oppNameWidth !== null ? { width: oppNameWidth } : {}) }}>
+              <TableCell sx={{ ...(oppNameWidth !== null ? { width: oppNameWidth } : { width: 220 }) }}>
                 <TableSortLabel
                   active={oppSort.field === 'name'}
                   direction={oppSort.field === 'name' ? oppSort.dir : 'asc'}
@@ -796,7 +796,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   }}
                 />
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ width: 130 }}>
                 <TableSortLabel
                   active={oppSort.field === 'stage'}
                   direction={oppSort.field === 'stage' ? oppSort.dir : 'asc'}
@@ -805,7 +805,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Stage
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="right">
+              <TableCell align="right" sx={{ width: 100 }}>
                 <TableSortLabel
                   active={oppSort.field === 'amount'}
                   direction={oppSort.field === 'amount' ? oppSort.dir : 'asc'}
@@ -814,7 +814,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Amount
                 </TableSortLabel>
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ width: 90 }}>
                 <TableSortLabel
                   active={oppSort.field === 'close'}
                   direction={oppSort.field === 'close' ? oppSort.dir : 'asc'}
@@ -823,7 +823,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                   Close
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="right">
+              <TableCell align="right" sx={{ width: 60 }}>
                 <TableSortLabel
                   active={oppSort.field === 'prob'}
                   direction={oppSort.field === 'prob' ? oppSort.dir : 'asc'}
@@ -833,7 +833,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
                 </TableSortLabel>
               </TableCell>
               <TableCell>Alerts</TableCell>
-              <TableCell align="center">
+              <TableCell align="center" sx={{ width: 60 }}>
                 <TableSortLabel
                   active={oppSort.field === 'tasks'}
                   direction={oppSort.field === 'tasks' ? oppSort.dir : 'asc'}

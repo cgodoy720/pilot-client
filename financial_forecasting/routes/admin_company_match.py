@@ -52,9 +52,10 @@ async def scan_company_matches(
         {"total": 499, "matched": 87, "unmatched": 412, "errors": 0,
          "by_confidence": {"exact_name": 64, "normalized_name": 18, "domain": 5}}
     """
-    salesforce = getattr(client, "salesforce", None)
-    if salesforce is None:
-        raise HTTPException(503, "Salesforce client not available")
+    try:
+        salesforce = client.salesforce
+    except RuntimeError:
+        raise HTTPException(503, "Salesforce not connected — connect via Settings first")
 
     summary = await match_all_accounts(salesforce, conn, limit=limit, dry_run=dry_run)
     return {"success": True, "data": summary}
@@ -83,9 +84,10 @@ async def list_unmatched_accounts(
     Used by the admin review queue. Each entry is a candidate for either
     manual mapping or "no platform equivalent exists" confirmation.
     """
-    salesforce = getattr(client, "salesforce", None)
-    if salesforce is None:
-        raise HTTPException(503, "Salesforce client not available")
+    try:
+        salesforce = client.salesforce
+    except RuntimeError:
+        raise HTTPException(503, "Salesforce not connected — connect via Settings first")
 
     unmatched = await get_unmatched_accounts(salesforce, conn, limit=limit)
     return {"success": True, "data": unmatched}

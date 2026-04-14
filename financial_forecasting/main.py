@@ -463,7 +463,7 @@ async def update_opportunity(
 
 @app.get("/api/salesforce/accounts")
 async def get_accounts(
-    limit: int = Query(100, le=1000),
+    limit: int = Query(2000, le=5000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user = Depends(require_auth)
 ):
@@ -545,7 +545,7 @@ async def create_account(
 @app.get("/api/salesforce/contacts")
 async def get_contacts(
     account_id: Optional[str] = None,
-    limit: int = Query(100, le=1000),
+    limit: int = Query(2000, le=5000),
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user = Depends(require_auth)
 ):

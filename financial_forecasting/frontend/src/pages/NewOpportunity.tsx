@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -142,14 +142,42 @@ const NewOpportunity: React.FC = () => {
     Phone: '',
   });
 
-  // Fetch accounts
+  // Account search — debounced server-side search for the account picker
+  const [accountSearchQuery, setAccountSearchQuery] = useState('');
+  const [accountSearchResults, setAccountSearchResults] = useState<any[]>([]);
+  const [accountSearchLoading, setAccountSearchLoading] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Seed list: fetch initial accounts for when picker first opens
   const { data: accountsData, isLoading: accountsLoading } = useQuery(
     'accounts',
     async () => {
-      const response = await apiService.getAccounts();
+      const response = await apiService.getAccounts({ limit: 200 });
       return response.data;
     }
   );
+
+  // Debounced account search
+  useEffect(() => {
+    if (accountSearchQuery.length < 2) {
+      setAccountSearchResults([]);
+      return;
+    }
+    setAccountSearchLoading(true);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await apiService.searchAccounts(accountSearchQuery, 25);
+        const data = res.data;
+        setAccountSearchResults(Array.isArray(data) ? data : data?.searchRecords || data?.data || []);
+      } catch {
+        setAccountSearchResults([]);
+      } finally {
+        setAccountSearchLoading(false);
+      }
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [accountSearchQuery]);
 
   // Fetch users
   const { data: usersData, isLoading: usersLoading } = useQuery(
@@ -465,33 +493,26 @@ const NewOpportunity: React.FC = () => {
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                     <Autocomplete
                       sx={{ flex: 1 }}
-                      options={accounts || []}
+                      options={accountSearchResults.length > 0 ? accountSearchResults : (accounts || []).slice(0, 100)}
                       getOptionLabel={(option: Account) => option.Name || ''}
-                      loading={accountsLoading}
+                      loading={accountsLoading || accountSearchLoading}
                       value={selectedAccount || null}
                       onChange={(_, newValue) => {
                         handleFieldChange('accountId', newValue?.Id || '');
-                        // Clear contact when account changes
                         handleFieldChange('contactId', '');
                       }}
-                      isOptionEqualToValue={(option, value) => option.Id === value.Id}
-                      filterOptions={(options, state) => {
-                        const inputValue = state.inputValue.toLowerCase();
-                        if (!inputValue) return options.slice(0, 100); // Show first 100 when empty
-                        
-                        return options
-                          .filter((option) =>
-                            option.Name?.toLowerCase().includes(inputValue)
-                          )
-                          .slice(0, 50); // Limit to 50 results
+                      onInputChange={(_, val, reason) => {
+                        if (reason === 'input') setAccountSearchQuery(val);
                       }}
+                      isOptionEqualToValue={(option, value) => option.Id === value.Id}
+                      filterOptions={(x) => x}
                       renderInput={(params) => (
                         <TextField
                           {...params}
                           label="Funder (Account)"
-                          placeholder="Type to search funders..."
+                          placeholder="Type to search all funders..."
                           error={!!errors.accountId}
-                          helperText={errors.accountId || 'Start typing to search - e.g., "Ford", "Gates"'}
+                          helperText={errors.accountId || 'Search across all accounts — type at least 2 characters'}
                           required
                         />
                       )}
