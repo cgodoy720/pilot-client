@@ -163,13 +163,14 @@ const CohortDailyBreakdown = ({
             {calendarDays.map((dayCell) => {
               const record = dayCell.record;
               const hasData = !!record;
-              const isMeetingRequirement = hasData ? record.attendanceRate >= requirement : false;
+              const isHoliday = hasData && record.isHoliday;
+              const isMeetingRequirement = hasData && !isHoliday ? record.attendanceRate >= requirement : false;
               const presentCount = hasData ? record.present + (record.late || 0) : 0;
-              const clickable = hasData && dayCell.isCurrentMonth;
-              const hideBadge = dayCell.isToday || dayCell.isFuture;
+              const clickable = hasData && dayCell.isCurrentMonth && !isHoliday;
+              const hideBadge = dayCell.isToday || dayCell.isFuture || isHoliday;
               const showNoStats = dayCell.isFuture;
-              const showTodayStats = dayCell.isToday;
-              const showPastStats = !dayCell.isToday && !dayCell.isFuture;
+              const showTodayStats = dayCell.isToday && !isHoliday;
+              const showPastStats = !dayCell.isToday && !dayCell.isFuture && !isHoliday;
 
               return (
                 <button
@@ -178,12 +179,19 @@ const CohortDailyBreakdown = ({
                   disabled={!clickable}
                   onClick={() => clickable && onDayClick(record)}
                   className={`min-h-[130px] border-b border-r border-slate-200 p-2 text-left transition-colors ${
-                    dayCell.isCurrentMonth ? 'bg-white' : 'bg-slate-100 text-slate-400'
+                    isHoliday
+                      ? 'bg-slate-50 text-slate-400'
+                      : dayCell.isCurrentMonth ? 'bg-white' : 'bg-slate-100 text-slate-400'
                   } ${clickable ? 'hover:bg-slate-50' : 'cursor-default'} ${dayCell.isToday ? 'ring-2 ring-inset ring-[#4242EA]' : ''}`}
                 >
                   <div className="flex items-start justify-between">
                     <span className="text-xs font-semibold">{dayCell.date.getDate()}</span>
-                    {hasData && !hideBadge && (
+                    {isHoliday && (
+                      <Badge className="text-[10px] bg-slate-100 text-slate-500 border-slate-200">
+                        Holiday
+                      </Badge>
+                    )}
+                    {hasData && !isHoliday && !hideBadge && (
                       <Badge
                         className={`text-[10px] ${
                           isMeetingRequirement
@@ -196,7 +204,13 @@ const CohortDailyBreakdown = ({
                     )}
                   </div>
 
-                  {hasData && !showNoStats && (
+                  {isHoliday && (
+                    <div className="mt-3 text-center">
+                      <p className="text-xs text-slate-400 italic">No Class</p>
+                    </div>
+                  )}
+
+                  {hasData && !isHoliday && !showNoStats && (
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center justify-between text-[11px] text-slate-600">
                         <span>Day #{record.dayNumber}</span>
@@ -237,7 +251,11 @@ const CohortDailyBreakdown = ({
 
         <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
           <div className="flex items-center gap-4">
-            <span>Total Days: <strong>{dailyBreakdown.length}</strong></span>
+            <span>Total Class Days: <strong>{dailyBreakdown.filter(d => !d.isHoliday).length}</strong></span>
+            {dailyBreakdown.some(d => d.isHoliday) && (
+              <><span className="text-slate-400">|</span>
+              <span>Holidays: <strong>{dailyBreakdown.filter(d => d.isHoliday).length}</strong></span></>
+            )}
             <span className="text-slate-400">|</span>
             <span>
               Target: <strong className="text-slate-900">{requirement}%</strong>
@@ -245,7 +263,7 @@ const CohortDailyBreakdown = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500">
-              Days meeting target: {dailyBreakdown.filter(d => d.attendanceRate >= requirement).length} / {dailyBreakdown.length}
+              Days meeting target: {dailyBreakdown.filter(d => !d.isHoliday && d.attendanceRate >= requirement).length} / {dailyBreakdown.filter(d => !d.isHoliday).length}
             </span>
           </div>
         </div>

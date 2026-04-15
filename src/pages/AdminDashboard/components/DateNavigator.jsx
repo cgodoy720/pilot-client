@@ -3,15 +3,17 @@ import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover';
 import { Calendar } from '../../../components/ui/calendar';
 
+const toETDate = (d) => d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
 const DateNavigator = ({ selectedDate, onDateChange }) => {
   const dateObj = new Date(selectedDate + 'T12:00:00');
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const todayStr = toETDate(new Date());
   const isToday = selectedDate === todayStr;
 
   const shift = (days) => {
     const d = new Date(dateObj);
     d.setDate(d.getDate() + days);
-    onDateChange(d.toISOString().split('T')[0]);
+    onDateChange(toETDate(d));
   };
 
   const formatted = dateObj.toLocaleDateString('en-US', {
@@ -38,7 +40,7 @@ const DateNavigator = ({ selectedDate, onDateChange }) => {
             <Calendar
               mode="single"
               selected={dateObj}
-              onSelect={(day) => { if (day) onDateChange(day.toISOString().split('T')[0]); }}
+              onSelect={(day) => { if (day) onDateChange(toETDate(day)); }}
               initialFocus
             />
           </PopoverContent>
