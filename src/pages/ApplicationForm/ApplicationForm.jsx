@@ -47,19 +47,27 @@ const ApplicationForm = () => {
         setApplicationQuestions(questions);
         
         const savedUser = localStorage.getItem('user');
-        let email = 'jac@pursuit.org';
-        let firstName = 'John';
-        let lastName = 'Doe';
-        
-        if (savedUser) {
-          try {
-            const userData = JSON.parse(savedUser);
-            email = userData.email || email;
-            firstName = userData.firstName || userData.first_name || firstName;
-            lastName = userData.lastName || userData.last_name || lastName;
-          } catch (e) {
-            console.warn('Could not parse saved user data');
-          }
+        if (!savedUser) {
+          navigate('/login');
+          return;
+        }
+
+        let email, firstName, lastName;
+        try {
+          const userData = JSON.parse(savedUser);
+          email = userData.email;
+          firstName = userData.firstName || userData.first_name;
+          lastName = userData.lastName || userData.last_name;
+        } catch (e) {
+          console.warn('Could not parse saved user data');
+          navigate('/login');
+          return;
+        }
+
+        if (!email) {
+          console.warn('No email found in user data');
+          navigate('/login');
+          return;
         }
         
         const applicant = await databaseService.createOrGetApplicant(email, firstName, lastName);

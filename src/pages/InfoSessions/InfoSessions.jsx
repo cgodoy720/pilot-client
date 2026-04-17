@@ -190,7 +190,7 @@ const InfoSessions = () => {
             const registrationData = {
                 applicantId: currentApplicantId,
                 name: user?.firstName || 'Applicant',
-                email: user?.email || 'jac@pursuit.org'
+                email: user?.email
             };
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/info-sessions/${eventId}/register`, {
@@ -225,7 +225,7 @@ const InfoSessions = () => {
                             registration_id: responseData.registration_id || `temp-${Date.now()}`,
                             applicant_id: currentApplicantId,
                             name: user?.firstName || 'Applicant',
-                            email: user?.email || 'jac@pursuit.org',
+                            email: user?.email,
                             status: 'registered',
                             registered_at: new Date().toISOString()
                         };
