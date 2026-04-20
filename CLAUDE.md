@@ -139,6 +139,7 @@ Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
 
 `src/pages/PlatformIntake/PlatformIntake.jsx` — form for reporting bugs and requesting features. Submissions go to `POST /api/platform-intake` on test-pilot-server, which also forwards them to pursuit-factory (`POST /api/intake`) to create tickets in the Kanban system.
 
+- **Nav placement**: standalone link directly above Logout in `Layout.jsx`, gated by `page:platform_intake` (granted to every non-admin role by default; admin via wildcard)
 - **Reporter name**: editable text input, pre-filled from auth store user name
 - **Reporter email**: read-only, pulled from authenticated user
 - **Type toggle**: bug (requires screenshot/video upload) or feature
