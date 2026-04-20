@@ -37,6 +37,7 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
   const [excuseReason, setExcuseReason] = useState('');
   const [excuseNote, setExcuseNote] = useState('');
   const [excuseError, setExcuseError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   const filtered = useMemo(() => {
     if (!statusFilter || !builders) return builders || [];
@@ -48,6 +49,13 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
 
   const handleStatusChange = async (builder, newStatus) => {
     if (newStatus === 'excused') {
+      // Guard: if another builder's excuse form is already open, make staff
+      // resolve (submit or cancel) it first so they can't silently drop an
+      // in-progress excuse by clicking "Excused" on a different row.
+      if (excusePending && excusePending.userId !== builder.userId) {
+        setSaveError('Finish the pending excuse form before starting another.');
+        return;
+      }
       setExcusePending({ userId: builder.userId, prevStatus: builder.status, attendanceId: builder.attendanceId });
       setExcuseReason('');
       setExcuseNote('');
@@ -55,6 +63,7 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
       return;
     }
     setSavingId(builder.userId);
+    setSaveError('');
     try {
       const res = builder.attendanceId
         ? await fetch(`${API_URL}/api/admin/attendance/manage/record/${builder.attendanceId}`, {
@@ -68,9 +77,10 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
             body: JSON.stringify({ userId: builder.userId, attendanceDate: selectedDate, status: newStatus }),
           });
       if (!res.ok) throw new Error(`Attendance update failed (${res.status})`);
-      onRefresh?.();
+      await onRefresh?.();
     } catch (e) {
       console.error('Attendance update failed:', e);
+      setSaveError(e.message || 'Failed to update attendance');
     }
     setSavingId(null);
   };
@@ -88,7 +98,7 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
       });
       if (!res.ok) throw new Error(`Excuse save failed (${res.status})`);
       setExcusePending(null);
-      onRefresh?.();
+      await onRefresh?.();
     } catch (e) {
       console.error('Excuse failed:', e);
       setExcuseError(e.message || 'Failed to save excuse');
@@ -100,6 +110,7 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
 
   const handleAddRecord = async (builder) => {
     setSavingAdd(true);
+    setSaveError('');
     try {
       const res = await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
         method: 'POST',
@@ -108,9 +119,10 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
       });
       if (!res.ok) throw new Error(`Add attendance failed (${res.status})`);
       setAddingFor(null);
-      onRefresh?.();
+      await onRefresh?.();
     } catch (e) {
       console.error('Add attendance failed:', e);
+      setSaveError(e.message || 'Failed to add attendance record');
     }
     setSavingAdd(false);
   };
@@ -155,6 +167,13 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
           </SheetTitle>
           <p className="text-xs text-slate-400 mt-0.5">{cohortName} — {dateStr}</p>
         </SheetHeader>
+
+        {saveError && (
+          <div className="mx-5 mt-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center justify-between">
+            <span>{saveError}</span>
+            <button onClick={() => setSaveError('')} className="text-red-500 hover:text-red-700 ml-2">Dismiss</button>
+          </div>
+        )}
 
         <div className="px-5 py-4 space-y-3">
           {/* Absent: Notify action bar */}

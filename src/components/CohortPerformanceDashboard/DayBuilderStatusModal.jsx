@@ -101,6 +101,11 @@ const DayBuilderStatusModal = ({
 
   const handleStatusChange = async (builder, newStatus) => {
     if (newStatus === 'excused') {
+      // Block silent overwrite of an in-progress excuse for a different row
+      if (excusePending && excusePending.userId !== builder.userId) {
+        setSaveError('Finish the pending excuse form before starting another.');
+        return;
+      }
       setExcusePending({ userId: builder.userId, attendanceId: builder.attendanceId });
       setExcuseReason(''); setExcuseNote(''); setExcuseError('');
       return;
@@ -118,7 +123,7 @@ const DayBuilderStatusModal = ({
             body: JSON.stringify({ userId: builder.userId, attendanceDate: dayData?.date, status: newStatus }),
           });
       if (!res.ok) throw new Error(`Attendance update failed (${res.status})`);
-      onRefresh?.();
+      await onRefresh?.();
     } catch (e) {
       console.error('Attendance update failed:', e);
       setSaveError(e.message || 'Failed to update attendance');
@@ -136,7 +141,8 @@ const DayBuilderStatusModal = ({
         body: JSON.stringify({ userId, absenceDate: dayData?.date, excuseReason, excuseDetails: excuseNote || '', staffNotes: '' }),
       });
       if (!res.ok) throw new Error(`Excuse save failed (${res.status})`);
-      setExcusePending(null); onRefresh?.();
+      setExcusePending(null);
+      await onRefresh?.();
     } catch (e) { console.error('Excuse failed:', e); setExcuseError(e.message || 'Failed to save'); }
     setSavingId(null);
   };
