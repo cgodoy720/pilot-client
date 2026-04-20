@@ -33,7 +33,6 @@ const GradeViewModal = ({
   const [tabValue, setTabValue] = useState("overview");
   const [userSubmissions, setUserSubmissions] = useState([]);
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState([]);
-  const [holisticHistory, setHolisticHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -236,18 +235,14 @@ const GradeViewModal = ({
 
     return sorted.map(round => {
       const key = `${round.assessment_period}|${round.level}`;
-      const holisticRecord = holisticHistory.find(
-        h => h.assessment_period === round.assessment_period && h.level === round.level
-      ) || null;
-
       const scores = round.submissions
         .filter(s => s.analysis?.overall_score != null)
         .map(s => s.analysis.overall_score);
       const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
 
-      return { ...round, key, holisticRecord, avgScore };
+      return { ...round, key, avgScore };
     });
-  }, [userSubmissions, comprehensiveAnalysis, holisticHistory]);
+  }, [userSubmissions, comprehensiveAnalysis]);
 
   useEffect(() => {
     if (rounds.length > 0 && expandedPeriods.size === 0) {
@@ -387,8 +382,8 @@ const GradeViewModal = ({
 
   const startEditing = (round) => {
     setEditingKey(round.key);
-    setEditingStrengths(round.holisticRecord?.strengths_summary || grade.strengths_summary || '');
-    setEditingGrowthAreas(round.holisticRecord?.growth_areas_summary || grade.growth_areas_summary || '');
+    setEditingStrengths(grade.strengths_summary || '');
+    setEditingGrowthAreas(grade.growth_areas_summary || '');
   };
 
   const cancelEditing = () => setEditingKey(null);
@@ -542,13 +537,13 @@ const GradeViewModal = ({
                                     <div>
                                       <h5 className="text-xs font-semibold mb-1 text-green-600 uppercase tracking-wide">Strengths</h5>
                                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                        {round.holisticRecord?.strengths_summary || grade.strengths_summary || 'No strengths summary available'}
+                                        {grade.strengths_summary || 'No strengths summary available'}
                                       </p>
                                     </div>
                                     <div>
                                       <h5 className="text-xs font-semibold mb-1 text-amber-600 uppercase tracking-wide">Growth Areas</h5>
                                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                        {round.holisticRecord?.growth_areas_summary || grade.growth_areas_summary || 'No growth areas summary available'}
+                                        {grade.growth_areas_summary || 'No growth areas summary available'}
                                       </p>
                                     </div>
                                   </div>

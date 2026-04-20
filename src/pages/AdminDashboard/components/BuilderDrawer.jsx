@@ -370,18 +370,21 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     if (!builder?.user_id) return;
     setLoading(true);
 
-    // TKT-22: fetch all-time data, not just current cohort date range
-    const allTimeStart = '2020-01-01';
-    const allTimeEnd = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    // Use caller-supplied date range to bound the per-builder fetch. Callers
+    // that want cross-cohort history pass an early startDate (e.g. TodayTab
+    // uses cohort start_date || '2024-01-01'), which keeps the window scoped
+    // instead of hammering the API with every record since 2020.
+    const rangeStart = startDate;
+    const rangeEnd = endDate;
 
     const fetchType = (type) =>
-      fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${allTimeStart}&endDate=${allTimeEnd}`)
+      fetch(`${LEGACY_API}/builders/${builder.user_id}/details?type=${type}&startDate=${rangeStart}&endDate=${rangeEnd}`)
         .then(r => r.ok ? r.json() : null)
         .catch(() => null);
 
     const fetchVideos = async () => {
       try {
-        const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${allTimeStart}&endDate=${allTimeEnd}`);
+        const legacyRes = await fetch(`${LEGACY_API}/video-analyses?level=${encodeURIComponent(selectedLevel || builder.level || '')}&startDate=${rangeStart}&endDate=${rangeEnd}`);
         if (legacyRes.ok) {
           const all = await legacyRes.json();
           const userVids = Array.isArray(all) ? all.filter(v => String(v.user_id) === String(builder.user_id)) : [];
@@ -450,7 +453,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       setVideos(vids);
       setSubmissions(subs || {});
     }).finally(() => setLoading(false));
-  }, [builder?.user_id, cohortId, token]);
+  }, [builder?.user_id, startDate, endDate, cohortId, token]);
 
   const fetchInsights = (refresh = false) => {
     if (!builder?.user_id || !cohortId || !token) return;
@@ -564,8 +567,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   useEffect(() => {
     if (!builder?.name) return;
     setSurveyLoading(true);
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    fetch(`${LEGACY_API}/surveys/responses?startDate=2020-01-01&endDate=${today}`)
+    fetch(`${LEGACY_API}/surveys/responses?startDate=${startDate}&endDate=${endDate}`)
       .then(r => r.json())
       .then(data => {
         const all = Array.isArray(data) ? data : [];
@@ -577,7 +579,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       })
       .catch(() => setSurveyResponses([]))
       .finally(() => setSurveyLoading(false));
-  }, [builder?.name]);
+  }, [builder?.name, startDate, endDate]);
 
   const handleLogStatusChange = (logId, newStatus) => {
     setBuilderLogs(prev => prev.map(l => l.log_id === logId ? { ...l, status: newStatus } : l));
@@ -681,10 +683,10 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   return createPortal(
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/20 z-[9998]" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/20 z-[100]" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed top-0 bottom-0 right-0 w-full max-w-[640px] bg-white shadow-2xl z-[9999] flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed top-0 bottom-0 right-0 w-full max-w-[640px] bg-white shadow-2xl z-[101] flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-[#E3E3E3] bg-white flex-shrink-0">
           <div>

@@ -56,20 +56,19 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
     }
     setSavingId(builder.userId);
     try {
-      if (builder.attendanceId) {
-        await fetch(`${API_URL}/api/admin/attendance/manage/record/${builder.attendanceId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ status: newStatus }),
-        });
-      } else {
-        await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ userId: builder.userId, attendanceDate: selectedDate, status: newStatus }),
-        });
-      }
-      onRefresh();
+      const res = builder.attendanceId
+        ? await fetch(`${API_URL}/api/admin/attendance/manage/record/${builder.attendanceId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ status: newStatus }),
+          })
+        : await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ userId: builder.userId, attendanceDate: selectedDate, status: newStatus }),
+          });
+      if (!res.ok) throw new Error(`Attendance update failed (${res.status})`);
+      onRefresh?.();
     } catch (e) {
       console.error('Attendance update failed:', e);
     }
@@ -82,13 +81,14 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
     setSavingId(userId);
     setExcuseError('');
     try {
-      await fetch(`${API_URL}/api/admin/excuses/mark-excused`, {
+      const res = await fetch(`${API_URL}/api/admin/excuses/mark-excused`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId, absenceDate: selectedDate, excuseReason, excuseDetails: excuseNote || '', staffNotes: '' }),
       });
+      if (!res.ok) throw new Error(`Excuse save failed (${res.status})`);
       setExcusePending(null);
-      onRefresh();
+      onRefresh?.();
     } catch (e) {
       console.error('Excuse failed:', e);
       setExcuseError(e.message || 'Failed to save excuse');
@@ -101,13 +101,14 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
   const handleAddRecord = async (builder) => {
     setSavingAdd(true);
     try {
-      await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
+      const res = await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId: builder.userId, attendanceDate: selectedDate, status: addStatus }),
       });
+      if (!res.ok) throw new Error(`Add attendance failed (${res.status})`);
       setAddingFor(null);
-      onRefresh();
+      onRefresh?.();
     } catch (e) {
       console.error('Add attendance failed:', e);
     }

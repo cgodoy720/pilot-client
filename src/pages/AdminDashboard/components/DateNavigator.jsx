@@ -6,18 +6,23 @@ import { Calendar } from '../../../components/ui/calendar';
 const toETDate = (d) => d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
 const DateNavigator = ({ selectedDate, onDateChange }) => {
-  const dateObj = new Date(selectedDate + 'T12:00:00');
+  // Anchor at noon UTC so the instant is unambiguous across user locales and
+  // DST shifts. Noon UTC falls squarely within the selectedDate in ET,
+  // so toLocaleDateString({ timeZone: 'America/New_York' }) renders the
+  // correct calendar day regardless of where the browser is running.
+  const dateObj = new Date(selectedDate + 'T12:00:00Z');
   const todayStr = toETDate(new Date());
   const isToday = selectedDate === todayStr;
 
   const shift = (days) => {
     const d = new Date(dateObj);
-    d.setDate(d.getDate() + days);
+    d.setUTCDate(d.getUTCDate() + days);
     onDateChange(toETDate(d));
   };
 
   const formatted = dateObj.toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    timeZone: 'America/New_York',
   });
 
   return (

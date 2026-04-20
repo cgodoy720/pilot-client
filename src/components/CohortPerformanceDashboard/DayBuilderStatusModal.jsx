@@ -32,6 +32,7 @@ const DayBuilderStatusModal = ({
   const [excuseReason, setExcuseReason] = useState('');
   const [excuseNote, setExcuseNote] = useState('');
   const [excuseError, setExcuseError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -105,20 +106,23 @@ const DayBuilderStatusModal = ({
       return;
     }
     setSavingId(builder.userId);
+    setSaveError('');
     try {
-      if (builder.attendanceId) {
-        await fetch(`${API_URL}/api/admin/attendance/manage/record/${builder.attendanceId}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ status: newStatus }),
-        });
-      } else {
-        await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ userId: builder.userId, attendanceDate: dayData?.date, status: newStatus }),
-        });
-      }
+      const res = builder.attendanceId
+        ? await fetch(`${API_URL}/api/admin/attendance/manage/record/${builder.attendanceId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ status: newStatus }),
+          })
+        : await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ userId: builder.userId, attendanceDate: dayData?.date, status: newStatus }),
+          });
+      if (!res.ok) throw new Error(`Attendance update failed (${res.status})`);
       onRefresh?.();
-    } catch (e) { console.error('Attendance update failed:', e); }
+    } catch (e) {
+      console.error('Attendance update failed:', e);
+      setSaveError(e.message || 'Failed to update attendance');
+    }
     setSavingId(null);
   };
 
@@ -127,10 +131,11 @@ const DayBuilderStatusModal = ({
     const { userId } = excusePending;
     setSavingId(userId); setExcuseError('');
     try {
-      await fetch(`${API_URL}/api/admin/excuses/mark-excused`, {
+      const res = await fetch(`${API_URL}/api/admin/excuses/mark-excused`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId, absenceDate: dayData?.date, excuseReason, excuseDetails: excuseNote || '', staffNotes: '' }),
       });
+      if (!res.ok) throw new Error(`Excuse save failed (${res.status})`);
       setExcusePending(null); onRefresh?.();
     } catch (e) { console.error('Excuse failed:', e); setExcuseError(e.message || 'Failed to save'); }
     setSavingId(null);
@@ -199,6 +204,13 @@ const DayBuilderStatusModal = ({
             <X className="h-5 w-5 text-slate-600" />
           </button>
         </div>
+
+        {saveError && (
+          <div className="px-6 py-2 bg-red-50 border-b border-red-200 text-xs text-red-700 flex items-center justify-between">
+            <span>{saveError}</span>
+            <button onClick={() => setSaveError('')} className="text-red-500 hover:text-red-700">Dismiss</button>
+          </div>
+        )}
 
         {/* Summary Stats */}
         {dayData?.summary && (

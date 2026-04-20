@@ -61,6 +61,7 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange, onLogUpda
   const [editNotes, setEditNotes] = useState(log.notes || '');
   const [editNextSteps, setEditNextSteps] = useState(log.next_steps || '');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const tags = Array.isArray(log.tags) ? log.tags : [];
   const involvedBuilders = Array.isArray(log.involved_builders) ? log.involved_builders : [];
@@ -136,22 +137,27 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange, onLogUpda
   const handleSaveEdit = async () => {
     if (!editNotes.trim()) return;
     setSavingEdit(true);
+    setEditError('');
     try {
       const res = await fetch(`${API_URL}/api/admin/dashboard/builder-logs/${log.log_id}/notes`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ notes: editNotes.trim(), next_steps: editNextSteps.trim() || null }),
       });
-      if (res.ok) {
-        setEditing(false);
-        onLogUpdated?.();
+      if (!res.ok) {
+        throw new Error(res.status === 404 ? 'Edit endpoint not available' : `Save failed (${res.status})`);
       }
-    } catch { /* ignore */ }
+      setEditing(false);
+      onLogUpdated?.();
+    } catch (e) {
+      setEditError(e.message || 'Failed to save edit');
+    }
     setSavingEdit(false);
   };
 
   const cancelEdit = () => {
     setEditing(false);
+    setEditError('');
     setEditNotes(log.notes || '');
     setEditNextSteps(log.next_steps || '');
   };
@@ -277,6 +283,7 @@ const BuilderLogEntry = ({ log, onStatusChange, onSupportStatusChange, onLogUpda
                   <button type="button" onClick={cancelEdit} className="flex items-center gap-1 px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700">
                     <X size={11} /> Cancel
                   </button>
+                  {editError && <span className="text-[10px] text-red-600 ml-1">{editError}</span>}
                 </div>
               </div>
             ) : (
