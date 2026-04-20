@@ -3,7 +3,6 @@ import useAuthStore from '../../../stores/authStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../../components/ui/sheet';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
-const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -89,7 +88,9 @@ const CohortComparisonTab = ({ programSlug = 'ai-native-builder' }) => {
       fetch(`${API_BASE}/api/admin/dashboard/cohort-comparison?programSlug=${programSlug}`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then(r => r.json()),
-      fetch(`${LEGACY_API}/surveys/nps/weekly-by-cohort?startDate=${sixMonthsAgo}&endDate=${today}&mode=calendar`)
+      fetch(`${API_BASE}/api/admin/dashboard/surveys/nps/weekly-by-cohort?startDate=${sixMonthsAgo}&endDate=${today}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
         .then(r => r.json())
         .catch(() => []),
     ]).then(([comparison, nps]) => {
@@ -145,8 +146,9 @@ const CohortComparisonTab = ({ programSlug = 'ai-native-builder' }) => {
       fetch(`${API_BASE}/api/admin/dashboard/cohort-week-detail?cohortId=${cid}`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then(r => r.json()).catch(() => ({ withdrawals: [], absences: null })),
-      fetch(`${LEGACY_API}/surveys/responses?startDate=${surveyStart}&endDate=${surveyEnd}`)
-        .then(r => r.json()).catch(() => []),
+      fetch(`${API_BASE}/api/admin/dashboard/surveys/responses?startDate=${surveyStart}&endDate=${surveyEnd}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.json()).catch(() => []),
     ]);
 
     const allResponses = Array.isArray(responsesRes) ? responsesRes : [];

@@ -37,6 +37,7 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
   const [savingEnrollmentId, setSavingEnrollmentId] = useState(null);
   const [editingEnrollmentId, setEditingEnrollmentId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [enrollmentFilter, setEnrollmentFilter] = useState('active');
   const [visibleCount, setVisibleCount] = useState(BATCH);
   const sentinelRef = useRef(null);
   const [verifyDrawerOpen, setVerifyDrawerOpen] = useState(false);
@@ -140,12 +141,18 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
   }, [builders, builderSort, npsMap]);
 
   const filteredBuilders = useMemo(() => {
-    if (!searchQuery.trim()) return sortedBuilders;
-    const q = searchQuery.toLowerCase();
-    return sortedBuilders.filter(b =>
-      b.name?.toLowerCase().includes(q) || b.email?.toLowerCase().includes(q)
-    );
-  }, [sortedBuilders, searchQuery]);
+    let list = sortedBuilders;
+    if (enrollmentFilter === 'active') {
+      list = list.filter(b => b.enrollment_status === 'in_progress' || b.enrollment_status === 'completed');
+    } else if (enrollmentFilter === 'withdrawn') {
+      list = list.filter(b => b.enrollment_status === 'withdrawn' || b.enrollment_status === 'dismissed');
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(b => b.name?.toLowerCase().includes(q) || b.email?.toLowerCase().includes(q));
+    }
+    return list;
+  }, [sortedBuilders, searchQuery, enrollmentFilter]);
 
   const visibleBuilders = filteredBuilders.slice(0, visibleCount);
 
@@ -214,10 +221,21 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
 
       <Card className="bg-white border border-[#E3E3E3]">
         <CardHeader className="pb-3 border-b border-[#E3E3E3]">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <CardTitle className="text-base font-semibold text-[#1E1E1E]">Builder Roster</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-base font-semibold text-[#1E1E1E] flex-shrink-0">Builder Roster</CardTitle>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex rounded-md border border-[#E3E3E3] overflow-hidden text-[10px] font-medium flex-shrink-0">
+                {[{ key: 'active', label: 'Active' }, { key: 'all', label: 'All' }, { key: 'withdrawn', label: 'Withdrawn' }].map(f => (
+                  <button
+                    key={f.key}
+                    onClick={() => setEnrollmentFilter(f.key)}
+                    className={`px-2.5 py-1 transition-colors ${enrollmentFilter === f.key ? 'bg-[#4242EA] text-white' : 'bg-white text-slate-500 hover:bg-[#FAFAFA]'}`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-shrink-0">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
@@ -227,8 +245,8 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
                   className="pl-8 pr-3 py-1.5 text-xs border border-[#E3E3E3] rounded-md bg-white focus:border-[#4242EA] focus:outline-none w-48"
                 />
               </div>
-              <Badge className="bg-[#EFEFEF] text-slate-600 text-xs">
-                {filteredBuilders.length}{filteredBuilders.length !== builders.length ? ` of ${builders.length}` : ''} builders
+              <Badge className="bg-[#EFEFEF] text-slate-600 text-xs w-[110px] text-center flex-shrink-0 justify-center">
+                {filteredBuilders.length} of {builders.length}
               </Badge>
             </div>
           </div>

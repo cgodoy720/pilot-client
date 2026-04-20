@@ -33,6 +33,8 @@ const MetricDetailDrawer = ({ metric, cohortRow, nps, mode, cohortName, selected
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceStatus, setAttendanceStatus] = useState('present');
   const [savingAttendance, setSavingAttendance] = useState(false);
+  const [excuseReason, setExcuseReason] = useState('');
+  const [excuseNote, setExcuseNote] = useState('');
   // Enrollment inline edit
   const [editingEnrollment, setEditingEnrollment] = useState(null);
   const [savingEnrollment, setSavingEnrollment] = useState(null);
@@ -160,19 +162,36 @@ const MetricDetailDrawer = ({ metric, cohortRow, nps, mode, cohortName, selected
   }, [metric, token, selectedCohortId, cohortName]);
 
   const handleAddAttendance = async (builder) => {
+    if (attendanceStatus === 'excused' && !excuseReason) return;
     setSavingAttendance(true);
     try {
-      await fetch(`${API_BASE}/api/admin/attendance/manual`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          userId: builder.user_id,
-          date: attendanceDate,
-          status: attendanceStatus,
-          cohort: cohortName,
-        }),
-      });
+      if (attendanceStatus === 'excused') {
+        await fetch(`${API_BASE}/api/admin/excuses/mark-excused`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            userId: builder.user_id,
+            absenceDate: attendanceDate,
+            excuseReason,
+            excuseDetails: excuseNote || '',
+            staffNotes: '',
+          }),
+        });
+      } else {
+        await fetch(`${API_BASE}/api/admin/attendance/manual`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            userId: builder.user_id,
+            date: attendanceDate,
+            status: attendanceStatus,
+            cohort: cohortName,
+          }),
+        });
+      }
       setAddingAttendanceFor(null);
+      setExcuseReason('');
+      setExcuseNote('');
     } catch (e) {
       console.error('Failed to add attendance:', e);
     }
@@ -283,19 +302,34 @@ const MetricDetailDrawer = ({ metric, cohortRow, nps, mode, cohortName, selected
                       </button>
                     </div>
                     {addingAttendanceFor === b.user_id && (
-                      <div className="w-full flex items-center gap-1.5 mt-1.5 pt-1.5 border-t border-[#EFEFEF]">
-                        <input type="date" value={attendanceDate} onChange={e => setAttendanceDate(e.target.value)}
-                          className="text-[10px] border border-[#E3E3E3] rounded px-1.5 py-0.5 bg-white focus:outline-none focus:border-[#4242EA] flex-1" />
-                        <select value={attendanceStatus} onChange={e => setAttendanceStatus(e.target.value)}
-                          className="text-[10px] border border-[#E3E3E3] rounded px-1 py-0.5 bg-white focus:outline-none">
-                          <option value="present">Present</option>
-                          <option value="late">Late</option>
-                          <option value="excused">Excused</option>
-                        </select>
-                        <button onClick={() => handleAddAttendance(b)} disabled={savingAttendance}
-                          className="text-[10px] px-2 py-0.5 bg-[#4242EA] text-white rounded hover:bg-[#3535c8] disabled:opacity-50">
-                          {savingAttendance ? '...' : 'Save'}
-                        </button>
+                      <div className="w-full mt-1.5 pt-1.5 border-t border-[#EFEFEF] space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <input type="date" value={attendanceDate} onChange={e => setAttendanceDate(e.target.value)}
+                            className="text-[10px] border border-[#E3E3E3] rounded px-1.5 py-0.5 bg-white focus:outline-none focus:border-[#4242EA] flex-1" />
+                          <select value={attendanceStatus} onChange={e => { setAttendanceStatus(e.target.value); setExcuseReason(''); setExcuseNote(''); }}
+                            className="text-[10px] border border-[#E3E3E3] rounded px-1 py-0.5 bg-white focus:outline-none">
+                            <option value="present">Present</option>
+                            <option value="late">Late</option>
+                            <option value="excused">Excused</option>
+                          </select>
+                        </div>
+                        {attendanceStatus === 'excused' && (
+                          <div className="space-y-1.5">
+                            <select value={excuseReason} onChange={e => setExcuseReason(e.target.value)}
+                              className={`w-full text-[10px] px-1.5 py-0.5 border rounded bg-white focus:outline-none focus:border-[#4242EA] ${!excuseReason ? 'border-amber-300' : 'border-[#E3E3E3]'}`}>
+                              <option value="">Select excuse type *</option>
+                              {['Sick', 'Personal', 'Program Event', 'Technical Issue', 'Other'].map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                            <input type="text" value={excuseNote} onChange={e => setExcuseNote(e.target.value)} placeholder="Optional note..."
+                              className="w-full text-[10px] px-1.5 py-0.5 border border-[#E3E3E3] rounded bg-white focus:outline-none focus:border-[#4242EA]" />
+                          </div>
+                        )}
+                        <div className="flex justify-end">
+                          <button onClick={() => handleAddAttendance(b)} disabled={savingAttendance || (attendanceStatus === 'excused' && !excuseReason)}
+                            className="text-[10px] px-2 py-0.5 bg-[#4242EA] text-white rounded hover:bg-[#3535c8] disabled:opacity-50">
+                            {savingAttendance ? '...' : 'Save'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

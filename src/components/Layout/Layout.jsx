@@ -47,7 +47,8 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewVolunteerFeedback = canAccessPage('volunteer_feedback');
   const canViewWeeklyReports = canAccessPage('weekly_reports');
   const canViewPlatformAnalytics = canAccessPage('platform_analytics');
-  
+  const canViewPlatformIntake = canAccessPage('platform_intake');
+
   // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
   
@@ -73,7 +74,6 @@ const Layout = ({ children, isLoading = false }) => {
   // Staff dropdown (remaining items) -- staff/admin roles
   const staffDropdownItems = isStaffOrAdminRole ? [
     canViewFormBuilder && { to: '/forms', label: 'Form Builder' },
-    { to: '/platform-intake', label: 'Platform Intake' },
     canViewTemplateManagement && { to: '/template-management', label: 'Templates' },
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
   ].filter(Boolean) : [];
@@ -490,9 +490,8 @@ const Layout = ({ children, isLoading = false }) => {
           </svg>
         ), 'Account')} */}
 
-        {/* Platform Intake — hidden until admin page is built
-        {renderNavLink('/platform-intake', <FileText className="h-4 w-4 text-[#E3E3E3]" />, 'Platform Intake')}
-        */}
+        {/* Platform Intake — available to all authenticated users */}
+        {renderNavLink('/platform-intake', <FileText className="h-4 w-4 text-[#E3E3E3]" />, 'Platform Intake', canViewPlatformIntake)}
 
         {/* Logout */}
         {(isMobile && isMobileNavbarOpen) || !isMobile ? (

@@ -12,6 +12,7 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
   const [selectedDate, setSelectedDate] = useState(getTodayET);
   const [dayInfo, setDayInfo] = useState(null);
   const [selectedBuilder, setSelectedBuilder] = useState(null);
+  const [attendanceRefreshKey, setAttendanceRefreshKey] = useState(0);
 
   const selectedCohort = useMemo(
     () => cohorts.find(c => c.cohort_id === selectedCohortId),
@@ -54,12 +55,14 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
         selectedDate={selectedDate}
         cohortName={cohortName}
         selectedCohortId={selectedCohortId}
+        externalRefreshKey={attendanceRefreshKey}
       />
       <FacilitatorTodos
         selectedDate={selectedDate}
         selectedCohortId={selectedCohortId}
         cohortName={cohortName}
         onBuilderClick={(builder) => setSelectedBuilder(builder)}
+        onAttendanceChange={() => setAttendanceRefreshKey(k => k + 1)}
       />
       <CurriculumScheduleView
         selectedDate={selectedDate}
