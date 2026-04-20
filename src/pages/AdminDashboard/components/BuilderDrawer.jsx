@@ -112,6 +112,18 @@ function parseWorkProductItem(item, submissionContent) {
     } catch { /* keep dash */ }
   }
 
+  // Only accept http(s) submission URLs — a javascript:/data: URL from the
+  // API would execute when rendered into <a href>. Use the URL() parser
+  // (not a regex) so edge cases like uppercase schemes, whitespace, and
+  // embedded nulls are normalized consistently.
+  const safeUrl = (raw) => {
+    if (typeof raw !== 'string') return null;
+    try {
+      const u = new URL(raw.trim());
+      return (u.protocol === 'https:' || u.protocol === 'http:') ? u.href : null;
+    } catch { return null; }
+  };
+
   let submissionUrl = null;
   if (submissionContent) {
     try {
@@ -120,9 +132,7 @@ function parseWorkProductItem(item, submissionContent) {
         submissionUrl = null;
       }
     } catch {
-      if (typeof submissionContent === 'string' && /^https?:\/\//.test(submissionContent.trim())) {
-        submissionUrl = submissionContent.trim();
-      }
+      submissionUrl = safeUrl(submissionContent);
     }
   }
 

@@ -289,7 +289,9 @@ const AttendanceTab = ({ selectedCohortId, cohorts = [] }) => {
                 </TableHeader>
                 <TableBody>
                   {atRiskBuilders.map((builder, i) => {
-                    const isAtRisk = builder.attendanceRate < requirement;
+                    // attendanceRate is null on holiday-only slices
+                    const rate = typeof builder.attendanceRate === 'number' ? builder.attendanceRate : null;
+                    const isAtRisk = rate != null && rate < requirement;
                     return (
                       <TableRow key={i} className="border-b border-[#E3E3E3]">
                         <TableCell>
@@ -308,7 +310,7 @@ const AttendanceTab = ({ selectedCohortId, cohorts = [] }) => {
                             isAtRisk ? 'text-red-600' : 'text-slate-900'
                           }`}
                         >
-                          {builder.attendanceRate.toFixed(1)}%
+                          {rate != null ? `${rate.toFixed(1)}%` : '—'}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge

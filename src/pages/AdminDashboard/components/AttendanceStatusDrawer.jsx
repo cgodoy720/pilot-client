@@ -21,6 +21,7 @@ const FILTER_LABELS = {
   late: 'Late',
   absent: 'Absent',
   excused: 'Excused',
+  no_class: 'No Class',
 };
 
 const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selectedDate, cohortName, onRefresh }) => {
@@ -98,6 +99,7 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
       });
       if (!res.ok) throw new Error(`Excuse save failed (${res.status})`);
       setExcusePending(null);
+      setExcuseError('');
       await onRefresh?.();
     } catch (e) {
       console.error('Excuse failed:', e);
@@ -141,7 +143,10 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
           messageType: 'absence_notice',
         }),
       });
-      const data = await res.json();
+      // A 502/504 upstream error often returns HTML — parse defensively so
+      // we surface the HTTP status instead of a JSON-parse stack trace.
+      if (!res.ok) throw new Error(`Notify failed (${res.status})`);
+      const data = await res.json().catch(() => ({ success: false, error: 'Invalid response' }));
       if (data.success) {
         setNotifyResult({ sent: data.sent, failed: data.failed });
       } else {
@@ -240,8 +245,8 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
                       </div>
                       {excuseError && <p className="text-[10px] text-red-500">{excuseError}</p>}
                       <div className="flex justify-end gap-1.5">
-                        <button onClick={handleExcuseCancel} className="text-[10px] px-2.5 py-1 rounded border border-[#E3E3E3] text-slate-500 hover:bg-slate-50">Cancel</button>
-                        <button onClick={handleExcuseSubmit} className="text-[10px] px-2.5 py-1 rounded bg-[#4242EA] text-white hover:bg-[#3535c8]">Save Excuse</button>
+                        <button onClick={handleExcuseCancel} disabled={savingId === excusePending?.userId} className="text-[10px] px-2.5 py-1 rounded border border-[#E3E3E3] text-slate-500 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+                        <button onClick={handleExcuseSubmit} disabled={savingId === excusePending?.userId} className="text-[10px] px-2.5 py-1 rounded bg-[#4242EA] text-white hover:bg-[#3535c8] disabled:opacity-50">{savingId === excusePending?.userId ? 'Saving...' : 'Save Excuse'}</button>
                       </div>
                     </div>
                   )}

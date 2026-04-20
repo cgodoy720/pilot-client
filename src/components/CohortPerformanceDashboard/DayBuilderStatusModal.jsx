@@ -142,6 +142,7 @@ const DayBuilderStatusModal = ({
       });
       if (!res.ok) throw new Error(`Excuse save failed (${res.status})`);
       setExcusePending(null);
+      setExcuseError('');
       await onRefresh?.();
     } catch (e) { console.error('Excuse failed:', e); setExcuseError(e.message || 'Failed to save'); }
     setSavingId(null);
@@ -318,6 +319,7 @@ const DayBuilderStatusModal = ({
                         absent: 'bg-red-100 text-red-700',
                         excused: 'bg-blue-100 text-blue-700',
                         pending: 'bg-slate-100 text-slate-700',
+                        no_class: 'bg-slate-100 text-slate-500',
                       };
                       return (
                         <React.Fragment key={`${builder.userId}-${index}`}>
@@ -362,8 +364,8 @@ const DayBuilderStatusModal = ({
                                   </select>
                                   <input type="text" value={excuseNote} onChange={e => setExcuseNote(e.target.value)} placeholder="Optional note..."
                                     className="text-xs px-2 py-1 border border-[#E3E3E3] rounded bg-white focus:outline-none focus:border-[#4242EA] flex-1 min-w-[120px]" />
-                                  <button onClick={handleExcuseCancel} className="text-xs px-2.5 py-1 rounded border border-[#E3E3E3] text-slate-500 hover:bg-slate-50">Cancel</button>
-                                  <button onClick={handleExcuseSubmit} className="text-xs px-2.5 py-1 rounded bg-[#4242EA] text-white hover:bg-[#3535c8]">Save</button>
+                                  <button onClick={handleExcuseCancel} disabled={savingId === excusePending?.userId} className="text-xs px-2.5 py-1 rounded border border-[#E3E3E3] text-slate-500 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+                                  <button onClick={handleExcuseSubmit} disabled={savingId === excusePending?.userId} className="text-xs px-2.5 py-1 rounded bg-[#4242EA] text-white hover:bg-[#3535c8] disabled:opacity-50">{savingId === excusePending?.userId ? 'Saving...' : 'Save'}</button>
                                   {excuseError && <span className="text-[10px] text-red-500">{excuseError}</span>}
                                 </div>
                               </TableCell>
