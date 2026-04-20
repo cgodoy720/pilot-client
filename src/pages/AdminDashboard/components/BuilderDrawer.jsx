@@ -36,14 +36,16 @@ const sentimentColor = (s) => {
   return 'bg-slate-100 text-slate-600';
 };
 
+// Keys are lowercase to match the AI prompt output in
+// test-pilot-server/routes/adminDashboard.js (builder-insights-summary),
+// which returns "positive | neutral | mixed | negative".
 const SENTIMENT_STYLES = {
-  'Very Positive': { bg: 'bg-green-100', text: 'text-green-700 border-green-200', dot: 'bg-green-500' },
-  'Positive':      { bg: 'bg-green-50',  text: 'text-green-600 border-green-200', dot: 'bg-green-400' },
-  'Neutral':       { bg: 'bg-slate-100', text: 'text-slate-600 border-slate-200', dot: 'bg-slate-400' },
-  'Negative':      { bg: 'bg-red-50',    text: 'text-red-600 border-red-200',     dot: 'bg-red-400' },
-  'Very Negative': { bg: 'bg-red-100',   text: 'text-red-700 border-red-200',     dot: 'bg-red-500' },
-  'Mixed':         { bg: 'bg-amber-50',  text: 'text-amber-600 border-amber-200', dot: 'bg-amber-400' },
+  'very positive': { bg: 'bg-green-100', text: 'text-green-700 border-green-200', dot: 'bg-green-500' },
+  positive:        { bg: 'bg-green-50',  text: 'text-green-600 border-green-200', dot: 'bg-green-400' },
   neutral:         { bg: 'bg-slate-100', text: 'text-slate-600 border-slate-200', dot: 'bg-slate-400' },
+  mixed:           { bg: 'bg-amber-50',  text: 'text-amber-600 border-amber-200', dot: 'bg-amber-400' },
+  negative:        { bg: 'bg-red-50',    text: 'text-red-600 border-red-200',     dot: 'bg-red-400' },
+  'very negative': { bg: 'bg-red-100',   text: 'text-red-700 border-red-200',     dot: 'bg-red-500' },
 };
 
 const Section = ({ icon: Icon, title, count, children, defaultOpen = false }) => {
@@ -763,7 +765,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {(() => {
-                          const s = SENTIMENT_STYLES[insightsSummary.sentiment] || SENTIMENT_STYLES.neutral;
+                          const s = SENTIMENT_STYLES[(insightsSummary.sentiment || '').toLowerCase()] || SENTIMENT_STYLES.neutral;
                           return (
                             <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.bg} ${s.text}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
