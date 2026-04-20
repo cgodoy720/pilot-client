@@ -1,7 +1,7 @@
 # Objects production-readiness — MVP launch plan
 
 **Created:** 2026-04-20
-**Status:** PR #147 (this planning doc) open for review; PRs #148-#169 queued below. See live per-PR status in the "PR sequence" table.
+**Status:** PR #147 merged 2026-04-20. PR #148 (page-rename cleanup) open for review; PRs #149-#169 queued below. See live per-PR status in the "PR sequence" table.
 **Scope:** The five core Salesforce-backed objects used in daily workflows — **Opportunities, Accounts, Contacts, Tasks, Activities** — brought to production-ready quality for MVP launch.
 
 This plan supersedes B3 (row caps) and B6 (Contacts inline-edit) in `mvp-launch-sprint.md`. Those symptoms roll into PRs #149-#151 below and expand to cover all five objects.
@@ -72,8 +72,8 @@ Routing-to-component mapping verified directly in `App.tsx` + `Layout.tsx:72-103
 
 | Sidebar label | Route | Renders | Notes |
 |---|---|---|---|
-| Progress | `/dashboard` | `pages/Overview.tsx` | Per-owner opportunity cards. Wall of Progress feature lives here. |
-| Priorities | `/priorities` | `pages/MyDashboard.tsx` | Renders `PriorityTable` custom component (imported MyDashboard.tsx:56, used line 1238). The file name `MyDashboard.tsx` is a legacy; the page IS the Priorities page. |
+| Progress | `/dashboard` | `pages/Progress.tsx` | Per-owner opportunity cards. Wall of Progress feature lives here. |
+| Priorities | `/priorities` | `pages/Priorities.tsx` | Renders `PriorityTable` custom component (imported Priorities.tsx:56, used line 1238). |
 | Reports | `/reports` | `pages/Reports.tsx` | Tabbed container for Opp/Acct/Contact/Tasks (and Activities post-PR #158). |
 | Projects | `/projects` | `pages/Projects.tsx` | |
 | Settings | `/settings` | `pages/Settings.tsx` | |
@@ -83,13 +83,11 @@ Off-MVP routes that still render lists and need captions:
 - `/overview` → redirects to `/dashboard` (legacy alias only).
 
 Surfaces needing `<RowCountCaption>` (PR #151):
-- `pages/MyDashboard.tsx` (the **Priorities** page) — `PriorityTable` adapter likely needed to expose visible/total
-- `pages/Overview.tsx` (the **Progress** page / Wall of Progress) — per-owner card headers
+- `pages/Priorities.tsx` — `PriorityTable` adapter likely needed to expose visible/total
+- `pages/Progress.tsx` (Wall of Progress) — per-owner card headers
 - `pages/WeeklyPriorities.tsx` (off-MVP standalone)
 - `pages/Accounts.tsx` detail dialog — nested Opportunities grid (rendered at Accounts.tsx:916 area inside the `activeTab < 3` condition)
 - Finance pages (`UnpaidBills`, `ReceivedPayments`, `PendingInvoices`, `PaymentProcessing`, `GivingCapacity`, `FinanceDashboard`) — non-SF but user-facing lists (all 6 verified to exist)
-
-There is no `pages/Priorities.tsx` file — the "Priorities" navbar entry routes to `MyDashboard.tsx`.
 
 ### Edit-dialog inventory and critical gaps
 
@@ -117,8 +115,8 @@ This table is the source of truth for per-PR status. Each PR that ships updates 
 
 | # | Slug | Ships what | Size | Status |
 |---|---|---|---|---|
-| [#147](https://github.com/Pursuit-Assets/bedrock/pull/147) | `pr-planning` | This plan doc + doc updates across existing task files | docs-only | 👀 in review |
-| #148 | `pr-page-rename-cleanup` | Rename `MyDashboard.tsx` → `Priorities.tsx` and `Overview.tsx` → `Progress.tsx` to align file/component names with sidebar labels | S | ⏳ Queued |
+| [#147](https://github.com/Pursuit-Assets/bedrock/pull/147) | `pr-planning` | This plan doc + doc updates across existing task files | docs-only | ✅ merged |
+| #148 | `pr-page-rename-cleanup` | Rename `MyDashboard.tsx` → `Priorities.tsx` and `Overview.tsx` → `Progress.tsx` to align file/component names with sidebar labels | S | 👀 in review |
 | #149 | `pr-contacts-accounts-pagination` | Backend: Contacts + Accounts + opp-tasks + my-tasks → `query_all()` pattern | S-M | ⏳ Queued |
 | #150 | `pr-rowcount-caption-reports-tabs` | `<RowCountCaption>` component + apply to Opportunities (migrate) / Accounts / Contacts / Tasks | M | ⏳ Queued |
 | #151 | `pr-rowcount-caption-other-surfaces` | Apply caption to Priorities / Progress / WeeklyPriorities / Accounts-detail / Finance pages | S | ⏳ Queued |
