@@ -472,6 +472,13 @@ const CohortPerformanceDashboard = () => {
         onClose={handleModalClose}
         dayData={dayBuilders}
         loading={dayBuildersLoading}
+        onRefresh={async () => {
+          if (!selectedCohort || !selectedDay?.date) return;
+          try {
+            const response = await cachedAdminApi.getCachedDayBuilderStatus(selectedCohort, selectedDay.date, token, { forceRefresh: true });
+            setDayBuilders(response.data);
+          } catch (err) { console.error('Refresh failed:', err); }
+        }}
       />
     </div>
   );

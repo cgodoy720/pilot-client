@@ -23,7 +23,9 @@ const STATUS_COLORS = {
   pending: 'bg-slate-100 text-slate-500',
 };
 
-const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilderClick }) => {
+const EXCUSE_REASONS = ['Sick', 'Personal', 'Program Event', 'Technical Issue', 'Other'];
+
+const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilderClick, onAttendanceChange }) => {
   const token = useAuthStore((s) => s.token);
   const [open, setOpen] = useState(() => localStorage.getItem('pursuit_todos_open') !== 'false');
   const [nextStepLogs, setNextStepLogs] = useState([]);
@@ -45,14 +47,20 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
   const [attendanceBuilders, setAttendanceBuilders] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceSaving, setAttendanceSaving] = useState(null);
+  const [excusePending, setExcusePending] = useState(null);
+  const [excuseReason, setExcuseReason] = useState('');
+  const [excuseNote, setExcuseNote] = useState('');
+  const [excuseError, setExcuseError] = useState('');
   const [enrollmentDrawer, setEnrollmentDrawer] = useState(false);
   const [enrollmentBuilders, setEnrollmentBuilders] = useState([]);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [enrollmentSavingId, setEnrollmentSavingId] = useState(null);
 
-  // Curriculum days for the cohort (to know which days need attendance verification)
+  // Instructional curriculum days only (excludes weekends/holidays)
   const [curriculumDates, setCurriculumDates] = useState(new Set());
-  // Force re-render trigger for localStorage-based state
+  const NON_INSTRUCTIONAL_TYPES = ['Holiday'];
+  // Backend-persisted verified dates: { "2026-04-07": { verifiedBy, verifiedAt }, ... }
+  const [verifiedDates, setVerifiedDates] = useState({});
   const [tick, setTick] = useState(0);
 
   const handleOpenChange = (isOpen) => {
@@ -72,13 +80,24 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
         (data.weeks || data || []).forEach(w => {
           (w.days || []).forEach(d => {
             const dateStr = d.day_date?.split?.('T')?.[0] || d.day_date;
-            if (dateStr) dates.add(dateStr);
+            if (dateStr && !NON_INSTRUCTIONAL_TYPES.includes(d.day_type)) dates.add(dateStr);
           });
         });
         setCurriculumDates(dates);
       })
       .catch(() => {});
   }, [token, cohortName]);
+
+  // Fetch backend-verified attendance dates
+  useEffect(() => {
+    if (!selectedCohortId || !token) return;
+    fetch(`${API_URL}/api/admin/dashboard/attendance-verification?cohortId=${selectedCohortId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (data.success) setVerifiedDates(data.verified || {}); })
+      .catch(() => {});
+  }, [selectedCohortId, token, tick]);
 
   // Fetch open logs
   useEffect(() => {
@@ -99,16 +118,15 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
     const days = [];
     const start = new Date(ATTENDANCE_VERIFY_START + 'T12:00:00');
     const selected = new Date(selectedDate + 'T12:00:00');
-    const todayStr = new Date().toISOString().split('T')[0];
-    // Check if it's past noon ET for today's verification
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
     const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const pastNoonET = nowET.getHours() >= 12;
 
     const cursor = new Date(start);
     while (cursor <= selected) {
-      const ds = cursor.toISOString().split('T')[0];
-      if (curriculumDates.has(ds) && !localStorage.getItem(`attendance_verified_${selectedCohortId}_${ds}`)) {
-        // For today: only show after 2h into class (noon ET)
+      const ds = cursor.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const isVerified = verifiedDates[ds] || localStorage.getItem(`attendance_verified_${selectedCohortId}_${ds}`);
+      if (curriculumDates.has(ds) && !isVerified) {
         if (ds === todayStr && !pastNoonET) {
           // Skip — too early in the day
         } else {
@@ -118,7 +136,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
       cursor.setDate(cursor.getDate() + 1);
     }
     return days;
-  }, [selectedCohortId, selectedDate, tick, curriculumDates]);
+  }, [selectedCohortId, selectedDate, tick, curriculumDates, verifiedDates]);
 
   // Enrollment verification needed
   const enrollmentNeedsVerification = useMemo(() => {
@@ -141,6 +159,13 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
   };
 
   const handleAttendanceStatusChange = async (builder, newStatus) => {
+    if (newStatus === 'excused') {
+      setExcusePending({ userId: builder.userId, attendanceId: builder.attendanceId });
+      setExcuseReason('');
+      setExcuseNote('');
+      setExcuseError('');
+      return;
+    }
     setAttendanceSaving(builder.userId);
     try {
       if (builder.attendanceId) {
@@ -154,17 +179,52 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
           body: JSON.stringify({ userId: builder.userId, attendanceDate: attendanceDrawer, status: newStatus }),
         });
       }
-      // Refresh list
+      cachedAdminApi.invalidateAllAttendanceCaches();
       const res = await cachedAdminApi.getCachedDayBuilderStatus(cohortName, attendanceDrawer, token, { forceRefresh: true });
       setAttendanceBuilders(res.data?.builders || []);
+      if (onAttendanceChange) onAttendanceChange();
     } catch (e) { console.error('Attendance update failed:', e); }
     setAttendanceSaving(null);
   };
 
-  const confirmAttendanceVerify = () => {
-    localStorage.setItem(`attendance_verified_${selectedCohortId}_${attendanceDrawer}`, new Date().toISOString());
+  const handleExcuseSubmit = async () => {
+    if (!excuseReason) { setExcuseError('Excuse type is required'); return; }
+    const { userId } = excusePending;
+    setAttendanceSaving(userId);
+    setExcuseError('');
+    try {
+      await fetch(`${API_URL}/api/admin/excuses/mark-excused`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, absenceDate: attendanceDrawer, excuseReason, excuseDetails: excuseNote || '', staffNotes: '' }),
+      });
+      setExcusePending(null);
+      cachedAdminApi.invalidateAllAttendanceCaches();
+      const res = await cachedAdminApi.getCachedDayBuilderStatus(cohortName, attendanceDrawer, token, { forceRefresh: true });
+      setAttendanceBuilders(res.data?.builders || []);
+      if (onAttendanceChange) onAttendanceChange();
+    } catch (e) { console.error('Excuse failed:', e); setExcuseError(e.message || 'Failed to save'); }
+    setAttendanceSaving(null);
+  };
+
+  const handleExcuseCancel = () => { setExcusePending(null); setExcuseReason(''); setExcuseNote(''); setExcuseError(''); };
+
+  const confirmAttendanceVerify = async () => {
+    const date = attendanceDrawer;
+    // Optimistic: localStorage fallback + close drawer immediately
+    localStorage.setItem(`attendance_verified_${selectedCohortId}_${date}`, new Date().toISOString());
     setAttendanceDrawer(null);
     setTick(t => t + 1);
+    // Persist to backend
+    try {
+      await fetch(`${API_URL}/api/admin/dashboard/attendance-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cohortId: selectedCohortId, date }),
+      });
+    } catch (e) { console.error('Failed to persist verification:', e); }
+    // Notify parent to refresh attendance section
+    cachedAdminApi.invalidateAllAttendanceCaches();
+    if (onAttendanceChange) onAttendanceChange();
   };
 
   // ── Enrollment verification drawer ──
@@ -272,7 +332,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
               role="button"
               tabIndex={0}
               onClick={(e) => { e.stopPropagation(); setShowLogModal(true); }}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setShowLogModal(true); } }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setShowLogModal(true); } }}
               className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-[#4242EA] hover:bg-[#EFEFEF] transition-colors cursor-pointer"
               title="Add builder log"
             >
@@ -343,7 +403,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
                                 onBuilderClick({ user_id: log.builder_id, name: log.builder_name, email: log.builder_email });
                               }
                             }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); if (onBuilderClick) onBuilderClick({ user_id: log.builder_id, name: log.builder_name, email: log.builder_email }); } }}
+                            onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && onBuilderClick) { e.stopPropagation(); onBuilderClick({ user_id: log.builder_id, name: log.builder_name, email: log.builder_email }); } }}
                             className="text-xs font-medium text-[#4242EA] hover:underline cursor-pointer">{log.builder_name}</span>
                           <Badge className={`text-[10px] px-1.5 py-0 ${
                             log.log_type === 'behavioral' ? 'bg-amber-100 text-amber-700' :
@@ -430,22 +490,49 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
                 <div className="space-y-2">{[1,2,3,4,5].map(i => <div key={i} className="h-10 bg-[#EFEFEF] rounded animate-pulse" />)}</div>
               ) : (
                 <div className="divide-y divide-[#EFEFEF]">
-                  {attendanceBuilders.map(b => (
-                    <div key={b.userId} className="flex items-center justify-between py-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-[#1E1E1E]">{b.firstName} {b.lastName}</p>
+                  {attendanceBuilders.map(b => {
+                    const isExcusePending = excusePending?.userId === b.userId;
+                    return (
+                      <div key={b.userId} className={`py-2 ${isExcusePending ? 'bg-blue-50/50 px-2 -mx-2 rounded' : ''}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-[#1E1E1E]">{b.firstName} {b.lastName}</p>
+                          </div>
+                          {attendanceSaving === b.userId ? (
+                            <span className="text-[10px] text-slate-400">Saving...</span>
+                          ) : (
+                            <select value={isExcusePending ? 'excused' : b.status}
+                              onChange={e => handleAttendanceStatusChange(b, e.target.value)}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none ${STATUS_COLORS[isExcusePending ? 'excused' : b.status] || STATUS_COLORS.pending}`}>
+                              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                            </select>
+                          )}
+                        </div>
+                        {isExcusePending && (
+                          <div className="mt-2 pt-2 border-t border-blue-100 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <label className="text-[10px] font-medium text-slate-500 w-12 flex-shrink-0">Type *</label>
+                              <select value={excuseReason} onChange={e => { setExcuseReason(e.target.value); setExcuseError(''); }}
+                                className={`flex-1 text-[10px] px-2 py-1 border rounded bg-white focus:outline-none focus:border-[#4242EA] ${excuseError && !excuseReason ? 'border-red-300' : 'border-[#E3E3E3]'}`}>
+                                <option value="">Select reason...</option>
+                                {EXCUSE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <label className="text-[10px] font-medium text-slate-500 w-12 flex-shrink-0 pt-1">Note</label>
+                              <input type="text" value={excuseNote} onChange={e => setExcuseNote(e.target.value)} placeholder="Optional details..."
+                                className="flex-1 text-[10px] px-2 py-1 border border-[#E3E3E3] rounded bg-white focus:outline-none focus:border-[#4242EA]" />
+                            </div>
+                            {excuseError && <p className="text-[10px] text-red-500">{excuseError}</p>}
+                            <div className="flex justify-end gap-1.5">
+                              <button onClick={handleExcuseCancel} className="text-[10px] px-2.5 py-1 rounded border border-[#E3E3E3] text-slate-500 hover:bg-slate-50">Cancel</button>
+                              <button onClick={handleExcuseSubmit} className="text-[10px] px-2.5 py-1 rounded bg-[#4242EA] text-white hover:bg-[#3535c8]">Save Excuse</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {attendanceSaving === b.userId ? (
-                        <span className="text-[10px] text-slate-400">Saving...</span>
-                      ) : (
-                        <select value={b.status}
-                          onChange={e => handleAttendanceStatusChange(b, e.target.value)}
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none ${STATUS_COLORS[b.status] || STATUS_COLORS.pending}`}>
-                          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-                        </select>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

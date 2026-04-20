@@ -31,6 +31,7 @@ const AssessmentGrades = ({ initialCohort = '', embedded = false, hideStatusBar 
   });
   const filtersRef = useRef({ cohort: initialCohort, assessmentPeriod: '' });
   const appliedFiltersRef = useRef({ cohort: initialCohort, assessmentPeriod: '' });
+  const prevInitialCohortRef = useRef(initialCohort);
   const latestGradesRequestIdRef = useRef(0);
   const activeGradesRequestControllerRef = useRef(null);
   const [availableCohorts, setAvailableCohorts] = useState([]);
@@ -63,6 +64,17 @@ const AssessmentGrades = ({ initialCohort = '', embedded = false, hideStatusBar 
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (initialCohort !== prevInitialCohortRef.current) {
+      prevInitialCohortRef.current = initialCohort;
+      const nextFilters = { ...filters, cohort: initialCohort };
+      setFilters(nextFilters);
+      filtersRef.current = nextFilters;
+      appliedFiltersRef.current = nextFilters;
+      fetchAssessmentGrades(true, nextFilters);
+    }
+  }, [initialCohort]);
 
   const fetchInitialData = async () => {
     try {

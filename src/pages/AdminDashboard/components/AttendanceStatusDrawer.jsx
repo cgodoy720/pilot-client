@@ -14,6 +14,7 @@ const STATUS_COLORS = {
   excused: 'bg-blue-100 text-blue-700',
   pending: 'bg-slate-100 text-slate-500',
 };
+const EXCUSE_REASONS = ['Sick', 'Personal', 'Program Event', 'Technical Issue', 'Other'];
 
 const FILTER_LABELS = {
   present: 'Present',
@@ -29,10 +30,13 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
   const [addingFor, setAddingFor] = useState(null);
   const [addStatus, setAddStatus] = useState('present');
   const [savingAdd, setSavingAdd] = useState(false);
-  // Notify state (Phase 2 will wire backend)
   const [notifyMessage, setNotifyMessage] = useState('');
   const [notifying, setNotifying] = useState(false);
   const [notifyResult, setNotifyResult] = useState(null);
+  const [excusePending, setExcusePending] = useState(null);
+  const [excuseReason, setExcuseReason] = useState('');
+  const [excuseNote, setExcuseNote] = useState('');
+  const [excuseError, setExcuseError] = useState('');
 
   const filtered = useMemo(() => {
     if (!statusFilter || !builders) return builders || [];
@@ -43,17 +47,22 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
   const isAbsent = statusFilter?.includes('absent') && !statusFilter?.includes('present');
 
   const handleStatusChange = async (builder, newStatus) => {
+    if (newStatus === 'excused') {
+      setExcusePending({ userId: builder.userId, prevStatus: builder.status, attendanceId: builder.attendanceId });
+      setExcuseReason('');
+      setExcuseNote('');
+      setExcuseError('');
+      return;
+    }
     setSavingId(builder.userId);
     try {
       if (builder.attendanceId) {
-        // Update existing record
         await fetch(`${API_URL}/api/admin/attendance/manage/record/${builder.attendanceId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ status: newStatus }),
         });
       } else {
-        // Create new record
         await fetch(`${API_URL}/api/admin/attendance/manage/record`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -66,6 +75,28 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
     }
     setSavingId(null);
   };
+
+  const handleExcuseSubmit = async () => {
+    if (!excuseReason) { setExcuseError('Excuse type is required'); return; }
+    const { userId } = excusePending;
+    setSavingId(userId);
+    setExcuseError('');
+    try {
+      await fetch(`${API_URL}/api/admin/excuses/mark-excused`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, absenceDate: selectedDate, excuseReason, excuseDetails: excuseNote || '', staffNotes: '' }),
+      });
+      setExcusePending(null);
+      onRefresh();
+    } catch (e) {
+      console.error('Excuse failed:', e);
+      setExcuseError(e.message || 'Failed to save excuse');
+    }
+    setSavingId(null);
+  };
+
+  const handleExcuseCancel = () => { setExcusePending(null); setExcuseReason(''); setExcuseNote(''); setExcuseError(''); };
 
   const handleAddRecord = async (builder) => {
     setSavingAdd(true);
@@ -147,31 +178,56 @@ const AttendanceStatusDrawer = ({ open, onClose, statusFilter, builders, selecte
 
           {/* Builder list */}
           <div className="border border-[#E3E3E3] rounded-md overflow-hidden divide-y divide-[#EFEFEF] max-h-[500px] overflow-y-auto">
-            {filtered.map(b => (
-              <div key={b.userId} className="px-3 py-2.5 hover:bg-[#FAFAFA]">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-[#1E1E1E]">{b.firstName} {b.lastName}</p>
-                    <p className="text-[10px] text-slate-400">{b.email}</p>
+            {filtered.map(b => {
+              const isExcusePending = excusePending?.userId === b.userId;
+              return (
+                <div key={b.userId} className={`px-3 py-2.5 ${isExcusePending ? 'bg-blue-50/50' : 'hover:bg-[#FAFAFA]'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-[#1E1E1E]">{b.firstName} {b.lastName}</p>
+                      <p className="text-[10px] text-slate-400">{b.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {savingId === b.userId ? (
+                        <span className="text-[10px] text-slate-400">Saving...</span>
+                      ) : (
+                        <select
+                          value={isExcusePending ? 'excused' : b.status}
+                          onChange={e => handleStatusChange(b, e.target.value)}
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none ${STATUS_COLORS[isExcusePending ? 'excused' : b.status] || STATUS_COLORS.pending}`}
+                        >
+                          {STATUS_OPTIONS.map(s => (
+                            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {savingId === b.userId ? (
-                      <span className="text-[10px] text-slate-400">Saving...</span>
-                    ) : (
-                      <select
-                        value={b.status}
-                        onChange={e => handleStatusChange(b, e.target.value)}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer focus:outline-none ${STATUS_COLORS[b.status] || STATUS_COLORS.pending}`}
-                      >
-                        {STATUS_OPTIONS.map(s => (
-                          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
+                  {isExcusePending && (
+                    <div className="mt-2 pt-2 border-t border-blue-100 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-medium text-slate-500 w-12 flex-shrink-0">Type *</label>
+                        <select value={excuseReason} onChange={e => { setExcuseReason(e.target.value); setExcuseError(''); }}
+                          className={`flex-1 text-[10px] px-2 py-1 border rounded bg-white focus:outline-none focus:border-[#4242EA] ${excuseError && !excuseReason ? 'border-red-300' : 'border-[#E3E3E3]'}`}>
+                          <option value="">Select reason...</option>
+                          {EXCUSE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <label className="text-[10px] font-medium text-slate-500 w-12 flex-shrink-0 pt-1">Note</label>
+                        <input type="text" value={excuseNote} onChange={e => setExcuseNote(e.target.value)} placeholder="Optional details..."
+                          className="flex-1 text-[10px] px-2 py-1 border border-[#E3E3E3] rounded bg-white focus:outline-none focus:border-[#4242EA]" />
+                      </div>
+                      {excuseError && <p className="text-[10px] text-red-500">{excuseError}</p>}
+                      <div className="flex justify-end gap-1.5">
+                        <button onClick={handleExcuseCancel} className="text-[10px] px-2.5 py-1 rounded border border-[#E3E3E3] text-slate-500 hover:bg-slate-50">Cancel</button>
+                        <button onClick={handleExcuseSubmit} className="text-[10px] px-2.5 py-1 rounded bg-[#4242EA] text-white hover:bg-[#3535c8]">Save Excuse</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </SheetContent>
