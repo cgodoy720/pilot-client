@@ -47,6 +47,7 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewVolunteerFeedback = canAccessPage('volunteer_feedback');
   const canViewWeeklyReports = canAccessPage('weekly_reports');
   const canViewPlatformAnalytics = canAccessPage('platform_analytics');
+  const canViewDemoCohort = canAccessPage('demo_cohort');
   const canViewPlatformIntake = canAccessPage('platform_intake');
 
   // Check if on Pathfinder pages for light mode styling
@@ -56,7 +57,8 @@ const Layout = ({ children, isLoading = false }) => {
   const isAdminRole = userRole === 'admin';
   const isStaffOrAdminRole = userRole === 'staff' || userRole === 'admin';
   const hasAnyAdminPagePermission = canViewAdminPrompts || canViewOrganizationManagement
-    || canViewPermissionManagement || canViewWeeklyReports || canViewPlatformAnalytics;
+    || canViewPermissionManagement || canViewWeeklyReports || canViewPlatformAnalytics
+    || canViewDemoCohort;
   // Program dropdown -- staff/admin roles
   const programDropdownItems = isStaffOrAdminRole ? [
     canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Hub' },
@@ -86,6 +88,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewPermissionManagement && { to: '/admin/permissions', label: 'Permissions' },
     canViewPlatformAnalytics && { to: '/admin/platform-analytics', label: 'Platform Analytics' },
     canViewWeeklyReports && { to: '/admin/weekly-reports', label: 'Weekly Reports' },
+    canViewDemoCohort && { to: '/admin/demo-cohort-refresh', label: 'Demo Cohort' },
   ].filter(Boolean) : [];
 
   // Volunteering dashboard visibility
@@ -134,6 +137,7 @@ const Layout = ({ children, isLoading = false }) => {
     '/admin/permissions': 'Permissions',
     '/admin/platform-analytics': 'Platform Analytics',
     '/admin/weekly-reports': 'Weekly Reports',
+    '/admin/demo-cohort-refresh': 'Demo Cohort',
   };
   const matchedSecondaryRoute = Object.keys(secondaryPageTitles).find(
     route => location.pathname === route || location.pathname.startsWith(route + '/')
@@ -249,7 +253,7 @@ const Layout = ({ children, isLoading = false }) => {
     }
 
     // Admin section routes → Settings
-    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/platform-analytics', '/admin/weekly-reports'];
+    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/platform-analytics', '/admin/weekly-reports', '/admin/demo-cohort-refresh'];
     if (adminRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
     }

@@ -54,6 +54,7 @@ import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalC
 import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
 import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
 import PermissionManagement from './pages/Admin/PermissionManagement';
+import DemoCohortRefresh from './pages/Admin/DemoCohortRefresh/DemoCohortRefresh';
 import ContentPreview from './pages/ContentPreview';
 
 // Template Management page
@@ -344,6 +345,15 @@ function App() {
           </Layout>
         } />
         
+        {/* Demo Cohort Manager (Admin only) */}
+        <Route path="/admin/demo-cohort-refresh" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.DEMO_COHORT}>
+              <DemoCohortRefresh />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Permission Management (Admin only) */}
         <Route path="/admin/permissions" element={
           <Layout>

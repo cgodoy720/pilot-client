@@ -123,7 +123,9 @@ afterEach(() => {
 
 **Staff/Admin**: `/admin-dashboard`, `/admin-attendance-dashboard`, `/admissions-dashboard`, `/content/*`, `/facilitator-view`, `/volunteer-management`, `/forms`, `/sputnik`, `/workshop-admin-dashboard`, `/platform-intake`
 
-**Admin-only**: `/admin-prompts`, `/admin/organization-management`, `/admin/permissions`, `/admin/weekly-reports`, `/admin/platform-analytics`
+**Admin-only**: `/admin-prompts`, `/admin/organization-management`, `/admin/permissions`, `/admin/weekly-reports`, `/admin/platform-analytics`, `/admin/demo-cohort-refresh`
+
+**Demo Cohort Manager** (`/admin/demo-cohort-refresh`, `pages/Admin/DemoCohortRefresh/DemoCohortRefresh.jsx`): admin tool to wipe and rebuild the Platform Demo cohort with 12 months of curriculum + past-day attendance/submissions/feedback for `dave+demo@pursuit.org`. Gated by `page:demo_cohort` (admin-only by wildcard; grantable to staff). Three cards — Status, Seed 12 months (configurable operating days + source 4-week template cycle), Advance to today (idempotent catch-up). Legacy single-week refresh lives as a collapsed utility at the bottom. Backend: `/api/admin/demo-cohort/*` in test-pilot-server.
 
 ## API Integration
 
