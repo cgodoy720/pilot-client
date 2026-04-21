@@ -212,32 +212,17 @@ async def list_deleted_projects(user=Depends(check_permission("edit_projects")),
     ]}
 
 
-@router.get("/projects/users")
-async def list_project_users(user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
-    """List active users eligible for project contributor picker (have edit_projects or admin)."""
-    rows = await conn.fetch(
-        "SELECT ou.email, ou.display_name AS name "
-        "FROM public.org_users ou "
-        "JOIN bedrock.user_config uc ON uc.org_user_id = ou.id "
-        "JOIN bedrock.permission_profile pp ON pp.id = uc.profile_id "
-        "WHERE COALESCE(ou.is_active, true) = true "
-        "AND (pp.permissions @> '{\"edit_projects\": true}'::jsonb "
-        "     OR pp.permissions @> '{\"manage_users_roles\": true}'::jsonb) "
-        "ORDER BY ou.display_name, ou.email"
-    )
-    return {"success": True, "data": [dict(r) for r in rows]}
-
-
 @router.get("/users/active")
 async def list_active_users(user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
-    """List all active staff, for the Projects owner multi-select picker.
+    """List all active staff — used by every picker that selects a person
+    (project owner, project contributors, task/milestone owners).
 
-    Broader than /api/projects/users (which gates on edit_projects) — owner
-    selection needs to cover every active Pursuit teammate, including people
-    who don't themselves have project-edit rights. Service accounts are
-    excluded by display_name so 'Systems Admin' never appears in the picker.
-    Non-SF teammates (sf_user_id IS NULL) are surfaced via is_in_sf=false so
-    the UI can visually distinguish them if it wants to.
+    Covers every active Pursuit teammate, including those without project-edit
+    rights: adding them as a contributor grants project view access, but
+    mutating endpoints still enforce check_permission("edit_projects")
+    separately. Service accounts are excluded by display_name so 'Systems
+    Admin' never appears in the picker. Non-SF teammates (sf_user_id IS NULL)
+    are surfaced via is_in_sf=false so the UI can visually distinguish them.
     """
     rows = await conn.fetch(
         "SELECT id, email, display_name, sf_user_id "

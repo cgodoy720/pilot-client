@@ -641,14 +641,9 @@ export const apiService = {
   importProjectData: (projectId: string, data: { workstreams: any[]; replace?: boolean }) =>
     api.post(`/api/projects/${projectId}/import`, data),
 
-  // Project ownership & contributors (M19)
-  getProjectUsers: () =>
-    api.get('/api/projects/users'),
-
-  /** Active staff eligible to be selected as task/milestone owners.
-   *  Broader than getProjectUsers (which is edit_projects-gated) — this covers
-   *  every active Pursuit teammate including those without project-edit rights.
-   *  Service accounts (Systems Admin) are excluded server-side. */
+  /** Active staff eligible to be picked as project owners, contributors, or
+   *  task/milestone owners. Service accounts (Systems Admin) are excluded
+   *  server-side. Gated by view_projects, so any project viewer can load it. */
   getActiveUsers: () =>
     api.get('/api/users/active'),
 
