@@ -18,21 +18,33 @@ import {
   Tabs,
   Tab,
   Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  CircularProgress,
 } from '@mui/material';
 import {
   OpenInNew as OpenInNewIcon,
   History as HistoryIcon,
   Edit as EditIcon,
   Close as CloseIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { useQueryClient } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import ConfirmSaveButton from './ConfirmSaveButton';
 import ActivityTimeline from './ActivityTimeline';
+import PaymentEditDialog from './PaymentEditDialog';
 import { apiService } from '../services/api';
 import { usePermissions } from '../contexts/PermissionsContext';
-import { OPPORTUNITY_STAGES, COLLECTING_STAGES, CLOSED_STAGES } from '../types/salesforce';
+import { COLLECTING_STAGES, CLOSED_STAGES } from '../types/salesforce';
 import { useOpportunityRecordTypes } from '../hooks/useOpportunityRecordTypes';
+import { useSchemaPicklist } from '../hooks/useSchemaPicklist';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -131,6 +143,34 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
   // the Renewal/Repeat field below — what RMs actually want to classify is the
   // Record Type (Philanthropy / Employer Service / etc).
   const recordTypes = useOpportunityRecordTypes();
+
+  // Schema-driven picklists for StageName and RenewalRepeat__c. Each hook owns
+  // its own react-query cache key ((sobject, fieldName)) and fetches schema
+  // independently — the underlying endpoint is the same one record-types hits,
+  // so the browser coalesces subsequent opens within the 30-min stale window.
+  // Empty options → disabled fallback with distinguished helper text
+  // (error vs empty) per feedback_sf_stages_sacred.
+  const stages = useSchemaPicklist('Opportunity', 'StageName');
+  const renewalRepeat = useSchemaPicklist('Opportunity', 'RenewalRepeat__c');
+
+  // Payment Schedule inline accordion. Read-first UX per JP direction:
+  // show the list when the user expands, and only enter edit mode when the
+  // per-row EditIcon is clicked (PaymentEditDialog stacks on this drawer).
+  // Lazy-fetch: `enabled: expanded` so we don't pay the SF round-trip when
+  // the user never cares about payments on this opp.
+  const [scheduleExpanded, setScheduleExpanded] = useState(false);
+  const [detailPayment, setDetailPayment] = useState<Record<string, any> | null>(null);
+  const paymentListQuery = useQuery(
+    ['opp-payment-list', opportunityId],
+    async () => {
+      const res = await apiService.getSfOpportunityPayments(opportunityId!);
+      return (Array.isArray(res.data) ? res.data : []) as Record<string, any>[];
+    },
+    {
+      enabled: !!opportunityId && scheduleExpanded,
+      staleTime: 30 * 1000, // 30s — payment rollups can change after a save
+    },
+  );
 
   // ── Local state ─────────────────────────────────────────────────────────
   const [editForm, setEditForm] = useState<Record<string, any>>({});
@@ -512,24 +552,52 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Stage"
-                  fullWidth
-                  size="small"
-                  select
-                  required
-                  disabled={!canEdit}
-                  value={editForm.StageName || ''}
-                  onChange={(e) => handleFieldChange('StageName', e.target.value)}
-                  error={!!errors.StageName}
-                  helperText={errors.StageName}
-                >
-                  {OPPORTUNITY_STAGES.map((stage) => (
-                    <MenuItem key={stage} value={stage}>
-                      {stage}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                {/* Stage — schema-driven (replaces hardcoded OPPORTUNITY_STAGES
+                    which silently drifted from SF). Disabled fallback shows
+                    the stored value so a picklist deactivation never hides
+                    data, per feedback_sf_stages_sacred. */}
+                {stages.options.length > 0 ? (
+                  <TextField
+                    label="Stage"
+                    fullWidth
+                    size="small"
+                    select
+                    required
+                    disabled={!canEdit}
+                    value={editForm.StageName || ''}
+                    onChange={(e) => handleFieldChange('StageName', e.target.value)}
+                    error={!!errors.StageName}
+                    helperText={errors.StageName}
+                  >
+                    {stages.options.map((stage) => (
+                      <MenuItem key={stage} value={stage}>
+                        {stage}
+                      </MenuItem>
+                    ))}
+                    {/* Preserve a stored stage SF deactivated since the record
+                        was saved (picklist drift). */}
+                    {editForm.StageName
+                      && !stages.options.some((s) => s === editForm.StageName) && (
+                      <MenuItem value={editForm.StageName} disabled>
+                        {editForm.StageName} (inactive)
+                      </MenuItem>
+                    )}
+                  </TextField>
+                ) : (
+                  <TextField
+                    label="Stage"
+                    fullWidth
+                    size="small"
+                    required
+                    disabled
+                    value={editForm.StageName || ''}
+                    error={!!errors.StageName}
+                    helperText={errors.StageName
+                      || (stages.error
+                        ? 'Stage list unavailable'
+                        : 'No active stages available')}
+                  />
+                )}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -613,20 +681,43 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
                 )}
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Renewal / Repeat"
-                  fullWidth
-                  size="small"
-                  select
-                  disabled={!canEdit}
-                  value={editForm.RenewalRepeat__c || ''}
-                  onChange={(e) => handleFieldChange('RenewalRepeat__c', e.target.value)}
-                >
-                  <MenuItem value="">None</MenuItem>
-                  <MenuItem value="New">New</MenuItem>
-                  <MenuItem value="Renewal">Renewal</MenuItem>
-                  <MenuItem value="Upsell">Upsell</MenuItem>
-                </TextField>
+                {/* Renewal / Repeat — schema-driven (was hardcoded
+                    None/New/Renewal/Upsell). Nullable field, so the
+                    editable branch always prepends an explicit "None" option
+                    users can re-select to clear. */}
+                {renewalRepeat.options.length > 0 ? (
+                  <TextField
+                    label="Renewal / Repeat"
+                    fullWidth
+                    size="small"
+                    select
+                    disabled={!canEdit}
+                    value={editForm.RenewalRepeat__c || ''}
+                    onChange={(e) => handleFieldChange('RenewalRepeat__c', e.target.value)}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {renewalRepeat.options.map((v) => (
+                      <MenuItem key={v} value={v}>{v}</MenuItem>
+                    ))}
+                    {editForm.RenewalRepeat__c
+                      && !renewalRepeat.options.some((v) => v === editForm.RenewalRepeat__c) && (
+                      <MenuItem value={editForm.RenewalRepeat__c} disabled>
+                        {editForm.RenewalRepeat__c} (inactive)
+                      </MenuItem>
+                    )}
+                  </TextField>
+                ) : (
+                  <TextField
+                    label="Renewal / Repeat"
+                    fullWidth
+                    size="small"
+                    disabled
+                    value={editForm.RenewalRepeat__c || ''}
+                    helperText={renewalRepeat.error
+                      ? 'Renewal / Repeat list unavailable'
+                      : 'No active Renewal / Repeat values available'}
+                  />
+                )}
               </Grid>
               <Grid item xs={12} sm={6}>
                 <FormControlLabel
@@ -754,12 +845,127 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Next Scheduled:</strong>{' '}
-                      {formatDate(editForm.Earliest_Scheduled_Payment__c)}
-                    </Typography>
+                    {/* Next Scheduled — editable date picker (was read-only
+                        display). Mirrors the Close Date / Contract Start /
+                        Contract End pattern: TextField type="date" with
+                        InputLabelProps={{shrink:true}}. Stays inside the
+                        stage-gated Payment Summary block per JP direction. */}
+                    <TextField
+                      label="Next Scheduled Payment"
+                      fullWidth
+                      size="small"
+                      type="date"
+                      disabled={!canEdit}
+                      value={editForm.Earliest_Scheduled_Payment__c || ''}
+                      onChange={(e) =>
+                        handleFieldChange('Earliest_Scheduled_Payment__c', e.target.value)
+                      }
+                      InputLabelProps={{ shrink: true }}
+                    />
                   </Grid>
                 </Grid>
+
+                {/* Inline Payment Schedule list — read-first per JP direction.
+                    Expanding fetches the full SF payment records for this opp
+                    via getSfOpportunityPayments. Per-row EditIcon opens
+                    PaymentEditDialog as a stacked modal on top of the Opp
+                    drawer (no navigation away). Replaces an earlier
+                    "View Payment Schedule" nav link that dead-ended users
+                    on a separate page with no back nav. */}
+                <Accordion
+                  elevation={0}
+                  disableGutters
+                  expanded={scheduleExpanded}
+                  onChange={(_, isExpanded) => setScheduleExpanded(isExpanded)}
+                  sx={{
+                    mt: 1.5,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    '&:before': { display: 'none' },
+                  }}
+                >
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon fontSize="small" />}
+                    sx={{ minHeight: 40, '& .MuiAccordionSummary-content': { my: 0.5 } }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Payment Schedule
+                      {paymentListQuery.data != null && (
+                        <Chip
+                          label={paymentListQuery.data.length}
+                          size="small"
+                          sx={{ ml: 1, height: 18, fontSize: 11 }}
+                        />
+                      )}
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ p: 0 }}>
+                    {paymentListQuery.isLoading && (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                        <CircularProgress size={20} />
+                      </Box>
+                    )}
+                    {paymentListQuery.error != null && (
+                      <Alert severity="error" sx={{ m: 1 }}>
+                        Could not load payments for this opportunity.
+                      </Alert>
+                    )}
+                    {paymentListQuery.data != null
+                      && paymentListQuery.data.length === 0 && (
+                      <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                        No payments on file for this opportunity yet.
+                      </Typography>
+                    )}
+                    {paymentListQuery.data != null
+                      && paymentListQuery.data.length > 0 && (
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Scheduled</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Payment Date</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                            <TableCell width={40} />
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {paymentListQuery.data.map((p) => (
+                            <TableRow key={p.Id} hover>
+                              <TableCell>
+                                {p.npe01__Payment_Amount__c != null
+                                  ? `$${Number(p.npe01__Payment_Amount__c).toLocaleString()}`
+                                  : '—'}
+                              </TableCell>
+                              <TableCell>{formatDate(p.npe01__Scheduled_Date__c)}</TableCell>
+                              <TableCell>{formatDate(p.npe01__Payment_Date__c)}</TableCell>
+                              <TableCell>
+                                {p.npe01__Paid__c ? (
+                                  <Chip label="Paid" size="small" color="success" variant="outlined" />
+                                ) : p.Payment_Status__c ? (
+                                  <Chip label={p.Payment_Status__c} size="small" variant="outlined" />
+                                ) : (
+                                  '—'
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Tooltip title="Edit payment details">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => setDetailPayment(p)}
+                                    aria-label={`Edit payment ${p.Name || p.Id}`}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
               </>
             )}
 
@@ -940,6 +1146,26 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
           </ConfirmSaveButton>
         )}
       </Box>
+
+      {/*
+        PaymentEditDialog stacks on top of this Opp drawer when the user
+        clicks the edit icon on a row in the inline Payment Schedule
+        accordion. Mounting it inside the Drawer keeps it visually tied
+        to the Opp context. On save we refetch the inline list so the
+        user sees the updated row without closing the drawer. Mounted
+        unconditionally (`open` drives visibility) so MUI's Dialog
+        handles enter/exit transitions cleanly.
+      */}
+      <PaymentEditDialog
+        open={detailPayment !== null}
+        onClose={() => setDetailPayment(null)}
+        paymentId={detailPayment?.Id ?? null}
+        initialData={detailPayment ?? undefined}
+        onSaved={() => {
+          setDetailPayment(null);
+          paymentListQuery.refetch();
+        }}
+      />
     </Drawer>
   );
 };
