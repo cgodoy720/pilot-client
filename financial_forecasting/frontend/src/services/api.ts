@@ -140,7 +140,7 @@ export const apiService = {
   servicesHealth: () => api.get('/health/services'),
 
   // Salesforce - Opportunities
-  getOpportunities: (params?: { stage?: string; stages?: readonly string[]; limit?: number; record_type?: string; active_only?: boolean }) =>
+  getOpportunities: (params?: { stage?: string; stages?: readonly string[]; limit?: number; record_type?: string; opp_type?: string; active_only?: boolean }) =>
     api.get('/api/salesforce/opportunities', {
       params,
       paramsSerializer: (p: Record<string, string | string[] | number | boolean | undefined | null>) => {
@@ -322,6 +322,12 @@ export const apiService = {
   // Salesforce - Users
   getUsers: (params?: { limit?: number }) =>
     api.get('/api/salesforce/users', { params }),
+
+  // Progress Visibility override was removed 2026-04-21 (BUG-UI-19).
+  // The /api/progress-tracking/* routes still exist on the backend but
+  // are intentionally left orphaned — to be pruned once we've confirmed
+  // no external caller depends on them. Do not re-add client methods;
+  // use `apiService.getUsers()` for active SF users instead.
 
   // Sage Intacct - Invoices
   getInvoices: (params?: { customer_id?: string; limit?: number }) =>
@@ -732,6 +738,15 @@ export const apiService = {
 
   prospectImportWriteToCrm: (sessionId?: string) =>
     api.post('/api/prospect-import/write-to-crm', { session_id: sessionId }),
+
+  // Platform Intake (bug/feature submissions → public.platform_intake)
+  // Accepts FormData so the optional attachment can ride along. Axios
+  // leaves the Content-Type header off when the body is FormData so the
+  // browser can set the correct multipart boundary.
+  submitPlatformIntake: (payload: FormData) =>
+    api.post('/api/platform-intake', payload, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 };
 
 // Export axios instance for custom requests

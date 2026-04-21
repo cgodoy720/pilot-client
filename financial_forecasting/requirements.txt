@@ -32,6 +32,9 @@ google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 google-api-python-client==2.111.0
 
+# Google Cloud Storage (for Platform Intake file uploads)
+google-cloud-storage==2.19.0
+
 # Anthropic (AI analysis)
 anthropic>=0.30.0
 
