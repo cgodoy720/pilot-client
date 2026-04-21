@@ -37,29 +37,87 @@ const api: AxiosInstance = axios.create({
   withCredentials: true, // Include cookies in requests
 });
 
-// Request interceptor for adding auth token
+// ---------------------------------------------------------------------------
+// Salesforce session gating
+// ---------------------------------------------------------------------------
+// All /api/salesforce/* calls wait on a one-time /auth/salesforce/status check
+// so that on page load (and after a session-expired retry), every SF request
+// carries a freshly-validated cookie. The backend's /auth/salesforce/status
+// refreshes the access_token and writes a new sf_tokens cookie when needed;
+// awaiting it here lets the browser's cookie jar update before the gated
+// request actually goes out.
+
+let _sfReadyPromise: Promise<void> | null = null;
+
+function _runSfStatusCheck(): Promise<void> {
+  return api
+    .get('/auth/salesforce/status', { _sfSkipRetry: true } as any)
+    .then(() => {})
+    .catch(() => {});
+}
+
+function _ensureSfReady(): Promise<void> {
+  if (!_sfReadyPromise) {
+    _sfReadyPromise = _runSfStatusCheck();
+  }
+  return _sfReadyPromise;
+}
+
 api.interceptors.request.use(
-  (config) => {
-    // In production, add authentication token here
-    // const token = localStorage.getItem('auth_token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+  async (config) => {
+    const url = config.url || '';
+    const skip = (config as any)._sfSkipRetry;
+    if (url.includes('/api/salesforce/') && !skip) {
+      await _ensureSfReady();
+    }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+function _isSalesforceSessionError(error: AxiosError): boolean {
+  if (error.response?.status !== 500) return false;
+  const detail = (error.response?.data as any)?.detail;
+  if (typeof detail !== 'string') return false;
+  return (
+    detail.includes('session expired') ||
+    detail.includes('INVALID_SESSION_ID') ||
+    detail.includes('re-authentication failed')
+  );
+}
+
+// If a session error slips past the request-side gate (e.g. token expired
+// mid-request), replace the ready-promise with a fresh status-check so any
+// concurrent requests await the same refresh rather than stampeding.
+function _refreshSalesforceSession(): Promise<void> {
+  _sfReadyPromise = _runSfStatusCheck();
+  return _sfReadyPromise;
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
+    const config = error.config as (typeof error.config & { _sfRetried?: boolean; _sfSkipRetry?: boolean }) | undefined;
+
+    if (
+      config &&
+      !config._sfRetried &&
+      !config._sfSkipRetry &&
+      _isSalesforceSessionError(error) &&
+      !(config.url || '').includes('/auth/salesforce/status')
+    ) {
+      config._sfRetried = true;
+      try {
+        await _refreshSalesforceSession();
+        return api.request(config);
+      } catch (refreshErr) {
+        console.error('Salesforce session refresh failed:', refreshErr);
+      }
+    }
+
     if (error.response) {
       const status = error.response.status;
       const detail = (error.response.data as any)?.detail || '';
-      // Permission denied from check_permission() — show a user-friendly toast
       if (status === 403 && typeof detail === 'string' && detail.startsWith('Permission denied:')) {
         import('react-hot-toast').then(({ toast }) => {
           toast.error(detail.replace('Permission denied: ', 'You need the ') + ' permission');
@@ -67,10 +125,8 @@ api.interceptors.response.use(
       }
       console.error('API Error:', status, error.response.data);
     } else if (error.request) {
-      // Request made but no response
       console.error('Network Error:', error.request);
     } else {
-      // Something else happened
       console.error('Error:', error.message);
     }
     return Promise.reject(error);

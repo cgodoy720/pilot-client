@@ -661,20 +661,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         <Toolbar sx={{ minHeight: '48px !important', height: 48 }} />
         <PlatformIdentityBanner />
-        {/* Page identity header — single source of truth from ALL_MENU_ITEMS.
-            Renders title + subtitle on every top-level page so users always
-            know what page they're on and what it's for. Pages keep their own
-            section-specific headers below (e.g. date ranges, project names). */}
-        {currentMenuItem && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="h5" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-              {currentMenuItem.text}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-              {currentMenuItem.subtitle}
-            </Typography>
-          </Box>
-        )}
+        {/* Page-identity H5 + subtitle removed (PR126-5) — it duplicated the
+            title already rendered in the top toolbar. Pages keep their own
+            section-specific headers. Subtitles live in the sidebar tooltip. */}
         {children}
       </Box>
 

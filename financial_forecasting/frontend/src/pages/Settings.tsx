@@ -351,10 +351,7 @@ const Settings: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
-      <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
-        Settings
-      </Typography>
-
+      {/* "Settings" H5 removed (PR126-5) — duplicated the toolbar title. */}
       <Tabs value={settingsTab} onChange={(_, v) => setSettingsTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
         <Tab label="Connections" value="connections" />
         {isAdmin && <Tab label="Users" value="users" />}

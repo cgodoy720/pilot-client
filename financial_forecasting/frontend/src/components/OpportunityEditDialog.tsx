@@ -31,7 +31,7 @@ import ActivityTimeline from './ActivityTimeline';
 import { apiService } from '../services/api';
 import { usePermissions } from '../contexts/PermissionsContext';
 import { OPPORTUNITY_STAGES, COLLECTING_STAGES, CLOSED_STAGES } from '../types/salesforce';
-import { useOpportunityTypePicklist } from '../hooks/useOpportunityTypePicklist';
+import { useOpportunityRecordTypes } from '../hooks/useOpportunityRecordTypes';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -104,9 +104,12 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
   const queryClient = useQueryClient();
   const { can, isAdmin, sfUserId } = usePermissions();
 
-  // SF Opportunity.Type picklist for the Type field. Shared react-query
-  // cache-key with the grid's TypeCell, so this dedupes to the same fetch.
-  const typePicklist = useOpportunityTypePicklist();
+  // Available Opportunity Record Types. Shares the same SF describe() network
+  // call as other callers via react-query cache dedupe. See BUG-UI-9: the
+  // previous "Type" dropdown was bound to Opportunity.Type, which duplicates
+  // the Renewal/Repeat field below — what RMs actually want to classify is the
+  // Record Type (Philanthropy / Employer Service / etc).
+  const recordTypes = useOpportunityRecordTypes();
 
   // ── Local state ─────────────────────────────────────────────────────────
   const [editForm, setEditForm] = useState<Record<string, any>>({});
@@ -239,10 +242,24 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
     [users, editForm.OwnerId],
   );
 
-  const selectedAccount = useMemo(
-    () => accounts.find((a) => a.Id === editForm.AccountId) || null,
-    [accounts, editForm.AccountId],
-  );
+  // Prefer the account from the loaded list (which carries any richer
+  // fields the Autocomplete might surface later). If the opp's linked
+  // Account.Id isn't in the list — which happens today because
+  // `/api/salesforce/accounts` truncates at 2000 rows alphabetically,
+  // pending JP's `pr-contacts-accounts-pagination` — synthesize a
+  // minimal option from the opp's SOQL-joined Account.Name so the field
+  // displays correctly instead of appearing empty. The id stays stable,
+  // so saving without touching the field does not reassign.
+  const selectedAccount = useMemo(() => {
+    if (!editForm.AccountId) return null;
+    const fromList = accounts.find((a) => a.Id === editForm.AccountId);
+    if (fromList) return fromList;
+    const joinedName = originalOpp?.Account?.Name;
+    if (joinedName) {
+      return { Id: editForm.AccountId, Name: joinedName } as AccountOption;
+    }
+    return null;
+  }, [accounts, editForm.AccountId, originalOpp]);
 
   // ── Field change handler ────────────────────────────────────────────────
   const handleFieldChange = (field: string, value: any) => {
@@ -500,44 +517,42 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                {/* Type is a SF picklist — render as Select when the picklist
-                    is available. On fetch failure (empty options) fall back
-                    to a free-text TextField so editing still works offline
-                    or during a schema endpoint outage. */}
-                {typePicklist.options.length > 0 ? (
+                {/* Record Type — lets RMs reclassify an opportunity (e.g.
+                    Philanthropy → Employer Service). Falls back to a
+                    read-only display if the describe endpoint is unavailable
+                    or the user's profile has no assignable record types, so
+                    we never silently drop the classification. */}
+                {recordTypes.options.length > 0 ? (
                   <TextField
-                    label="Type"
+                    label="Record Type"
                     fullWidth
                     size="small"
                     select
                     disabled={!canEdit}
-                    value={editForm.Type || ''}
-                    onChange={(e) => handleFieldChange('Type', e.target.value)}
+                    value={editForm.RecordTypeId || ''}
+                    onChange={(e) => handleFieldChange('RecordTypeId', e.target.value)}
                   >
-                    <MenuItem value="">
-                      <em>— None —</em>
-                    </MenuItem>
-                    {typePicklist.options.map((opt) => (
-                      <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                    {recordTypes.options.map((rt) => (
+                      <MenuItem key={rt.id} value={rt.id}>{rt.name}</MenuItem>
                     ))}
-                    {/* If the record's current Type isn't in the active
-                        picklist (e.g. a deprecated value), still show it so
-                        the user isn't confused by a silent clear. */}
-                    {editForm.Type && !typePicklist.options.includes(editForm.Type) && (
-                      <MenuItem value={editForm.Type} disabled>
-                        {editForm.Type} (inactive)
+                    {/* If the record's current RecordType isn't in the user's
+                        assignable list (common for legacy data or cross-team
+                        opps), still show it so the selection stays stable. */}
+                    {editForm.RecordTypeId
+                      && !recordTypes.options.some((rt) => rt.id === editForm.RecordTypeId) && (
+                      <MenuItem value={editForm.RecordTypeId} disabled>
+                        {originalOpp.RecordType?.Name || 'Current'} (not assignable)
                       </MenuItem>
                     )}
                   </TextField>
                 ) : (
                   <TextField
-                    label="Type"
+                    label="Record Type"
                     fullWidth
                     size="small"
-                    disabled={!canEdit}
-                    value={editForm.Type || ''}
-                    onChange={(e) => handleFieldChange('Type', e.target.value)}
-                    helperText={typePicklist.error ? 'Type picklist unavailable — free text' : undefined}
+                    disabled
+                    value={originalOpp.RecordType?.Name || ''}
+                    helperText={recordTypes.error ? 'Record Type list unavailable' : undefined}
                   />
                 )}
               </Grid>
@@ -741,7 +756,17 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
               <Grid item xs={12} sm={6}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <Autocomplete
-                    options={accounts}
+                    // When the current account isn't in the loaded list
+                    // (2000-row cap), inject the synthesized selected
+                    // option into `options` too so MUI doesn't warn
+                    // "value is not in options" and the item renders in
+                    // the listbox if the user opens the dropdown.
+                    options={
+                      selectedAccount
+                      && !accounts.some((a) => a.Id === selectedAccount.Id)
+                        ? [selectedAccount, ...accounts]
+                        : accounts
+                    }
                     loading={accountsLoading}
                     getOptionLabel={(option: AccountOption) => option.Name || ''}
                     value={selectedAccount}
@@ -822,15 +847,14 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
             </Grid>
 
             {/* ── Read-only footer ────────────────────────────────────── */}
+            {/* Record Type is intentionally omitted here — it's now editable
+                in the main form (BUG-UI-9). */}
             <Box sx={{ mt: 2.5, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
               <Typography variant="caption" color="text.secondary">
                 Created: {formatDate(originalOpp.CreatedDate)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Last Modified: {formatDate(originalOpp.LastModifiedDate)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Record Type: {originalOpp.RecordType?.Name || '—'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Last Activity: {formatDate(originalOpp.LastActivityDate)}

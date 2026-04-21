@@ -10,12 +10,10 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { formatDollarMillions } from '../utils/formatters';
 import {
   Box,
   Card,
   CardContent,
-  Typography,
   Button,
   Dialog,
   DialogTitle,
@@ -524,25 +522,7 @@ const Opportunities: React.FC = () => {
       {/* Data grid */}
       <Card>
         <CardContent>
-          {visibleOpps.length > 0 && viewMode !== 'closed' && (
-            <Box sx={{ p: 2, mb: 2, bgcolor: 'background.paper', borderRadius: 1, display: 'flex', gap: 3, flexWrap: 'wrap', border: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Showing: {visibleOpps.length} opportunities</Typography>
-              {viewMode === 'open' && (
-                <>
-                  <Typography variant="body2">Total Value: {formatDollarMillions(visibleOpps.reduce((s, o) => s + (o.Amount || 0), 0))}</Typography>
-                  <Typography variant="body2">Weighted Value: {formatDollarMillions(visibleOpps.reduce((s, o) => s + ((o.Amount || 0) * (o.Probability || 0)) / 100, 0))}</Typography>
-                  <Typography variant="body2">Avg Probability: {visibleOpps.length > 0 ? Math.round(visibleOpps.reduce((s, o) => s + (o.Probability || 0), 0) / visibleOpps.length) : 0}%</Typography>
-                </>
-              )}
-              {viewMode === 'collecting' && (
-                <>
-                  <Typography variant="body2">Total Amount: {formatDollarMillions(visibleOpps.reduce((s, o) => s + (o.Amount || 0), 0))}</Typography>
-                  <Typography variant="body2">Received: {formatDollarMillions(visibleOpps.reduce((s, o) => s + (o.npe01__Payments_Made__c || 0), 0))}</Typography>
-                  <Typography variant="body2">Outstanding: {formatDollarMillions(visibleOpps.reduce((s, o) => s + ((o.Amount || 0) - (o.npe01__Payments_Made__c || 0)), 0))}</Typography>
-                </>
-              )}
-            </Box>
-          )}
+          {/* Summary strip removed — duplicated the topline cards above. */}
 
           <Box sx={{ height: 'calc(100vh - 500px)', minHeight: 600, width: '100%' }}>
             <DataGrid
