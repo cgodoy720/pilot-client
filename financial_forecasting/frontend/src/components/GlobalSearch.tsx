@@ -298,7 +298,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
       handleClose();
       inputRef.current?.blur();
       if (mobileOpen) setMobileOpen(false);
-      navigate(`/reports?tab=${TAB_NAMES[type]}&search=${encodeURIComponent(name)}`);
+      navigate(`/details?tab=${TAB_NAMES[type]}&search=${encodeURIComponent(name)}`);
     },
     [query, handleClear, handleClose, mobileOpen, navigate],
   );

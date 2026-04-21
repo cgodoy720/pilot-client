@@ -17,6 +17,7 @@ import {
   Tooltip,
   Tabs,
   Tab,
+  Chip,
 } from '@mui/material';
 import {
   OpenInNew as OpenInNewIcon,
@@ -89,6 +90,26 @@ function formatDate(iso: string | null | undefined): string {
     return iso;
   }
 }
+
+/** Short "MMM d, yyyy" — used in the drawer's sticky metadata header where
+ * a locale-string ('M/D/YYYY, H:MM:SS AM') is too visually heavy. */
+function formatDateShort(iso: string | null | undefined): string {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
+
+function formatCurrency(val: number | null | undefined): string {
+  if (val == null) return '';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+}
+
+/** Shared drawer header gradient — matches TaskPanel so the four drawers
+ * (Opp, Account, Contact, Task) all read as the same visual family. */
+const DRAWER_HEADER_GRADIENT = 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)';
 
 // ── Component ───────────────────────────────────────────────────────────────
 
@@ -396,19 +417,56 @@ const OpportunityEditDialog: React.FC<OpportunityEditDialogProps> = ({
         }}
       />
 
-      {/* Header */}
-      <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <Box>
-          <Typography variant="h6">Edit Opportunity</Typography>
-          {originalOpp?.Name && (
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.25 }}>
-              {originalOpp.Name}
+      {/* Header — matches TaskPanel's gradient + metadata-chip style so the
+          four drawers (Opp / Account / Contact / Task) read as one family. */}
+      <Box sx={{
+        p: 2.5,
+        background: DRAWER_HEADER_GRADIENT,
+        color: 'white',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box sx={{ flex: 1, mr: 1, minWidth: 0 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.5, wordBreak: 'break-word' }}>
+              {originalOpp?.Name || 'Edit Opportunity'}
             </Typography>
-          )}
+            <Typography variant="body2" sx={{ opacity: 0.85, wordBreak: 'break-word' }}>
+              {originalOpp?.Account?.Name || 'No Account'}
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} size="small" sx={{ color: 'white', mt: -0.5 }}>
+            <CloseIcon />
+          </IconButton>
         </Box>
-        <IconButton onClick={onClose} size="small" sx={{ mt: 0.5 }}>
-          <CloseIcon />
-        </IconButton>
+
+        {originalOpp && (
+          <Box sx={{ display: 'flex', gap: 1.5, mt: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {originalOpp.StageName && (
+              <Chip
+                label={originalOpp.StageName}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600, fontSize: '0.75rem' }}
+              />
+            )}
+            {originalOpp.Amount != null && (
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                {formatCurrency(originalOpp.Amount)}
+              </Typography>
+            )}
+            {originalOpp.CloseDate && (
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Close: {formatDateShort(originalOpp.CloseDate)}
+              </Typography>
+            )}
+            {originalOpp.Owner?.Name && (
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Owner: {originalOpp.Owner.Name}
+              </Typography>
+            )}
+          </Box>
+        )}
       </Box>
 
       {/* Scrollable content */}

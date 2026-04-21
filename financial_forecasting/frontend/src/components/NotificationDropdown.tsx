@@ -375,7 +375,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           </Button>
           <Button
             size="small"
-            onClick={() => { handleClose(); navigate('/reports'); }}
+            onClick={() => { handleClose(); navigate('/details'); }}
             sx={{ textTransform: 'none', fontSize: '0.75rem' }}
           >
             View Pipeline

@@ -111,38 +111,38 @@ const Progress: React.FC = () => {
     [opportunitiesData],
   );
 
-  // Fetch active SF users enriched with the Bedrock "progress-tracked" override.
-  // The override lives in bedrock.progress_tracked_override and is managed by
-  // admins in Settings → Progress Visibility. Untoggled users default to
-  // tracked (visible). See routes/progress_tracking.py.
-  const { data: progressUsersData, isLoading: usersLoading } = useQuery(
-    'progress-tracked-users',
-    async () => (await apiService.getProgressTrackedUsers()).data,
+  // Fetch active SF users directly. The Bedrock "progress-tracked override"
+  // concept was removed (BUG-UI-19, 2026-04-21): service accounts and
+  // non-revenue-tracked staff are filtered out naturally by (a) the absence
+  // of a revenue target in Settings → Targets and (b) not owning any open
+  // opportunities in Salesforce — no third per-user toggle needed.
+  const { data: sfUsersData, isLoading: usersLoading } = useQuery(
+    'sf-users-progress',
+    async () => {
+      const res = await apiService.getUsers({ limit: 1000 });
+      return res.data?.data || res.data?.users || res.data || [];
+    },
     { staleTime: 300000 },
   );
 
-  // Normalize to the {Id, Name, IsActive} shape the rest of this component
-  // already uses (leftovers from when we hit /api/salesforce/users); carry
-  // is_tracked through for the filter below.
+  // Normalize to the {Id, Name, IsActive} shape the rest of this component uses.
   const allUsers = useMemo<
-    Array<{ Id: string; Name: string; IsActive: boolean; is_tracked: boolean }>
+    Array<{ Id: string; Name: string; IsActive: boolean }>
   >(
     () =>
-      (Array.isArray(progressUsersData) ? progressUsersData : []).map((u: any) => ({
-        Id: u.sf_user_id,
-        Name: u.name,
-        IsActive: u.is_active !== false,
-        is_tracked: u.is_tracked !== false,
+      (Array.isArray(sfUsersData) ? sfUsersData : []).map((u: any) => ({
+        Id: u.Id,
+        Name: u.Name,
+        IsActive: u.IsActive !== false,
       })),
-    [progressUsersData],
+    [sfUsersData],
   );
 
-  // IsActive is guaranteed true by the backend (WHERE IsActive=true) but we
-  // keep the check as belt-and-suspenders. The load-bearing filter here is
-  // is_tracked — admins toggle this via Settings to hide bots / ex-employees
-  // from the Progress page without touching Salesforce.
+  // IsActive is guaranteed true by the backend (WHERE IsActive=true) but
+  // the belt-and-suspenders filter here also guards against any future
+  // endpoint change that widens the query.
   const activeUsers = useMemo(
-    () => allUsers.filter((u) => u.IsActive && u.is_tracked),
+    () => allUsers.filter((u) => u.IsActive),
     [allUsers],
   );
 
@@ -446,10 +446,10 @@ const Progress: React.FC = () => {
   }, [opportunities]);
 
   // Per-owner progress for targets table. Shows ONLY users who match all
-  // three criteria (set by JP + Jac 2026-04-15):
+  // three criteria (set by JP + Jac 2026-04-15; Progress Visibility override
+  // removed 2026-04-21, BUG-UI-19):
   //   (a) FY revenue target set in Settings → Targets
-  //   (b) IsActive=true in Salesforce AND visible via Bedrock override
-  //       (Settings → Progress Visibility)
+  //   (b) IsActive=true in Salesforce
   //   (c) Owns at least one opportunity in Salesforce
   // Users missing a target are simply omitted from this table — no
   // "Target not set" placeholder rows. (A banner that counted them and

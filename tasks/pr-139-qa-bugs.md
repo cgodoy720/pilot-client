@@ -225,6 +225,27 @@ under the wrong key? Frontend form field name not matching the API field?
 - **BUG-UI-18 — Progress bar percentage text unreadable mid-range** ✅ FIXED (2026-04-20)
   Devika's 47% row rendered white text on a bar that only filled to 47% — the label (centered at `left: 50%`) sat past the fill edge on the light-grey unfilled track, making it invisible. Root cause: the text color threshold was `pct > 0.35`, which flipped to white as soon as the bar reached 35% even though the label center lives at the 50% mark. Raised threshold to `0.55` on both the Team total row and per-owner rows in `Progress.tsx` so white only kicks in once the fill clearly passes the label position. Light-grey unfilled tracks continue to render dark text, which stays readable.
 
+- **BUG-UI-20 — "Stale Deals" card count doesn't match the filtered table count** ✅ FIXED 2026-04-21
+  Unified all three "stale" predicates on the card's definition (`LastModifiedDate > 30d`). Removed the `isPastDue` OR leg and `CloseDate required` AND leg from the click-through filter; removed the `CreatedDate` fallback from both the click-through and the filter-bar `staleOnly` toggle. Card count = click-through count = filter-bar count, all three.
+  Location: Opportunities page → topline cards → "Stale Deals" (388) → click card → table filters to 473 rows.
+  Root cause: three different definitions of "stale" on the same page.
+  1. Card count (`SummaryCards.tsx:67-69`): `opps.filter(o => o.LastModifiedDate && differenceInDays(today, parseISO(o.LastModifiedDate)) > 30)`
+  2. Click-through filter (`Opportunities.tsx:390-397`, `initialFilter === 'stale'`): `opp.CloseDate && (isPastDue OR differenceInDays(now, LastMod ?? CreatedDate) > 30)` — adds `isPastDue` (past-due-by-CloseDate) as an OR leg, falls back to CreatedDate, and requires CloseDate exist.
+  3. Filter bar `staleOnly` toggle (`Opportunities.tsx:366-373`): `differenceInDays(now, LastMod ?? CreatedDate) > 30` — no past-due leg.
+  The card label *"No activity 30+ days"* describes only definition 1, so the card is right; the filter is wrong to include `isPastDue`.
+  Fix: unify all three on the card's predicate (`LastModifiedDate > 30d`). If "overdue" (past CloseDate) is a concept we want to surface, give it its own card/chip — don't fold it into stale.
+  Not on JP's plan. Filed by Jac 2026-04-21.
+
+- **BUG-UI-19 — Remove Progress Page Visibility concept entirely** ✅ FRONTEND DONE 2026-04-21 (backend orphaned)
+  Removed the Settings → Progress Visibility tab, removed all frontend reads of the `is_tracked` flag (Progress.tsx now uses `apiService.getUsers()` directly and filters on `IsActive` only), and removed the two `apiService` methods (`getProgressTrackedUsers`, `setProgressTrackedOverride`). Backend routes (`/api/progress-tracking/*`) and the `bedrock.progress_tracked_override` table are left orphaned — to be pruned in a follow-up once we confirm no external caller depends on them.
+  Location: Settings → "Progress Page Visibility" panel (currently toggles per-SF-user visibility on the Progress page individual table).
+  Why remove: redundant gating layer. Whether a user is shown on Progress is already determined by (1) active status in Salesforce and (2) whether they have a target set in Settings → Targets. Service accounts (Slackbot, Integration User, Data.com Clean, Chatter Expert, Automated Process, etc.) naturally filter out via target configuration. The per-user Visible toggle adds a third hidden source of truth users have to maintain.
+  Scope: this is a full-feature delete, not a UI hide. Needs:
+  - Frontend: remove the "Progress Page Visibility" card from Settings, remove any `progress_visible` / `progress_hidden` flag reads from Progress.tsx filtering logic.
+  - Backend: remove the storage (likely a `bedrock.progress_visibility` or similar table) and its endpoints.
+  - Migration: drop the table/column if used.
+  Filed by Jac 2026-04-20.
+
 - **BUG-DATA-1 — Accounts not rendering in Opportunities grid / Reports tables / Edit drawer** ✅ FIXED (2026-04-20)
   Root cause: the frontend had two different rendering paths for the same opp.Account data. `PriorityTable` reads `opp.Account?.Name` directly from the SOQL join (always accurate). `AccountCell` (used by the Opportunities grid, Reports tables) and the Edit drawer's `<Autocomplete>` both ignored the joined name and instead looked up `AccountId` in the bulk `/api/salesforce/accounts` list — which is capped at 2000 rows with `ORDER BY Name ASC`, so any opp whose account sorts after the 2000th rendered as "No Account" or an empty dropdown.
   Fix: threaded the opp's joined `Account.Name` as an authoritative display label. In `AccountCell`, added a `displayName` prop that takes priority over the accounts-list lookup. In `OpportunityEditDialog`, synthesized `selectedAccount` from `originalOpp.Account.Name` when the id isn't in the loaded list, and injected that synthesized option into the Autocomplete's `options` array so MUI doesn't warn and the item renders in the listbox.
@@ -237,8 +258,7 @@ Copying from prior PR #126 QA comment — worth re-verifying under #139:
 - [ ] Accounts sort Z→A still only sorts first 500 (not full list) — **covered by JP's PR #149 `pr-contacts-accounts-pagination` (⏳ Queued as of 2026-04-20). Backend still uses `query()` + `le=2000` cap; the fix is switching to `query_all()`. Not shipped yet.**
 - [ ] Reports → unlock dialog appears but inline edit still fails after unlock
 - [ ] Opportunities topline cards show 577, table shows 568 (count mismatch)
-- [ ] Settings → Progress Visibility panel still present (you asked to remove —
-      redundant with active status + targets + open opps)
+- [ ] Settings → Progress Visibility panel still present (tracked as **BUG-UI-19** above — full feature delete, not just UI hide)
 - [ ] Duplicate second header on every page (app-wide)
 - [ ] "Reports" page title — is this the right name?
 - [ ] Account/Contact drawer styling still doesn't match other side panels

@@ -323,14 +323,11 @@ export const apiService = {
   getUsers: (params?: { limit?: number }) =>
     api.get('/api/salesforce/users', { params }),
 
-  // Progress-page visibility override (Settings → Progress Visibility)
-  // GET returns active SF users enriched with the Bedrock `is_tracked` flag;
-  // PUT upserts the admin override row for a single SF User Id.
-  getProgressTrackedUsers: () =>
-    api.get('/api/progress-tracking/users'),
-
-  setProgressTrackedOverride: (sfUserId: string, isTracked: boolean) =>
-    api.put(`/api/progress-tracking/overrides/${sfUserId}`, { is_tracked: isTracked }),
+  // Progress Visibility override was removed 2026-04-21 (BUG-UI-19).
+  // The /api/progress-tracking/* routes still exist on the backend but
+  // are intentionally left orphaned — to be pruned once we've confirmed
+  // no external caller depends on them. Do not re-add client methods;
+  // use `apiService.getUsers()` for active SF users instead.
 
   // Sage Intacct - Invoices
   getInvoices: (params?: { customer_id?: string; limit?: number }) =>

@@ -683,7 +683,7 @@ const PriorityTable: React.FC<PriorityTableProps> = ({ opportunities, onAddTask,
   const hasActiveFilters = filters.aijiOnly || filters.stage.length > 0 || filters.closeDateRange !== 'all' || filters.hasTasks !== 'all' || filters.amountMin !== null;
 
   const handleOpenInPipeline = (opp: PriorityOpp) => {
-    window.open(`/reports?search=${encodeURIComponent(opp.Name)}`, '_blank');
+    window.open(`/details?search=${encodeURIComponent(opp.Name)}`, '_blank');
   };
 
   const handleTaskCountClick = (oppId: string) => {

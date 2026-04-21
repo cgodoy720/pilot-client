@@ -964,7 +964,7 @@ const Priorities: React.FC = () => {
       source += `, ${format(new Date(), 'MMMM yyyy')}`;
     }
 
-    navigate('/reports', {
+    navigate('/details', {
       state: { dashboardFilters: { owners, closeDateStart, closeDateEnd, source } },
     });
   }, [prefs.dateRange, resolvedFilterId, sfUsers, navigate]);
