@@ -1320,6 +1320,13 @@ function PathfinderAdmin() {
                   setWeekOffset={setWeekOffset}
                   expandedHighlightGroups={expandedHighlightGroups}
                   toggleHighlightGroup={toggleHighlightGroup}
+                  token={token}
+                  cohortFilter={cohortFilter}
+                  onRefresh={() => {
+                    fetchOverview();
+                    fetchHighlights();
+                    fetchLeaderboard();
+                  }}
                 />
               )}
             </Suspense>
