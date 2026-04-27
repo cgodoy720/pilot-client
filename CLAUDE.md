@@ -127,6 +127,8 @@ afterEach(() => {
 
 **Demo Cohort Manager** (`/admin/demo-cohort-refresh`, `pages/Admin/DemoCohortRefresh/DemoCohortRefresh.jsx`): admin tool to wipe and rebuild the Platform Demo cohort with 12 months of curriculum + past-day attendance/submissions/feedback for `dave+demo@pursuit.org`. Gated by `page:demo_cohort` (admin-only by wildcard; grantable to staff). Three cards — Status, Seed 12 months (configurable operating days + source 4-week template cycle), Advance to today (idempotent catch-up). Legacy single-week refresh lives as a collapsed utility at the bottom. Backend: `/api/admin/demo-cohort/*` in test-pilot-server.
 
+**Performance page** (`/performance`, `pages/Performance/Performance.jsx`): two-panel builder view — `AttendanceCalendar` on the left, `WeeklyFeedbackReport` on the right (week-selector dropdown + report). As of 2026-04-27 the right panel renders unconditionally for all cohorts; the previous cohort gate that limited the report to `March 2026 L1` was removed. `WeeklyFeedbackReport` pulls from `utils/weeklyFeedbackService.js` (`fetchAvailableReportWeeks`, `fetchWeeklyFeedbackReport`). The legacy `components/FeedbackInbox.jsx` and `utils/performanceFeedbackService.js` (`fetchCombinedFeedback`, `filterFeedback`, `getFeedbackStatistics`) are parked but no longer wired up — kept on disk in case the inbox view needs to be revived; do not re-import without product sign-off.
+
 ## API Integration
 
 Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
