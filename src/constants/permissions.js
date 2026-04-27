@@ -46,6 +46,7 @@ export const PAGE_PERMISSIONS = {
   ORGANIZATION_MANAGEMENT: 'page:organization_management',
   WEEKLY_REPORTS: 'page:weekly_reports',
   PLATFORM_ANALYTICS: 'page:platform_analytics',
+  DEMO_COHORT: 'page:demo_cohort',
   
   // Workshop admin
   WORKSHOP_ADMIN: 'page:workshop_admin',

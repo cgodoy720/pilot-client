@@ -691,8 +691,7 @@ function Dashboard() {
               )}
             </div>
 
-            {/* Hide week navigation for external cohorts and workshop participants */}
-            {!isExternalCohort && !isWorkshopParticipant && (
+            {!isWorkshopParticipant && (
             <div className="dashboard__date-picker">
               <button
                 className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
@@ -1275,8 +1274,7 @@ function Dashboard() {
           {/* Divider 2 */}
           <div className="dashboard__mobile-divider-2" />
 
-          {/* Date Picker - hidden for external cohorts and workshop participants */}
-          {!isExternalCohort && !isWorkshopParticipant && (
+          {!isWorkshopParticipant && (
           <div className="dashboard__mobile-date-picker">
             <button
               className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${

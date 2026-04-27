@@ -876,6 +876,50 @@ export const getAssessmentGradesSummary = async (token, params = {}) => {
   }
 };
 
+// ============================================================================
+// DEMO COHORT REFRESH
+// ============================================================================
+
+const demoCohortRequest = async (path, token, { method = 'GET', body } = {}) => {
+  const response = await fetch(`${API_URL}/api/admin/demo-cohort${path}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `API error: ${response.status}`);
+  }
+  return data;
+};
+
+export const listDemoCohortSources = (token) =>
+  demoCohortRequest('/cohorts', token);
+
+export const listDemoCohortCurriculum = (cohortId, token) =>
+  demoCohortRequest(`/cohorts/${cohortId}/curriculum`, token);
+
+export const previewDemoCohortRefresh = (payload, token) =>
+  demoCohortRequest('/refresh/preview', token, { method: 'POST', body: payload });
+
+export const executeDemoCohortRefresh = (payload, token) =>
+  demoCohortRequest('/refresh', token, { method: 'POST', body: payload });
+
+export const getDemoCohortStatus = (token) =>
+  demoCohortRequest('/status', token);
+
+export const startDemoSeedJob = (payload, token) =>
+  demoCohortRequest('/seed', token, { method: 'POST', body: payload });
+
+export const getDemoSeedJob = (jobId, token) =>
+  demoCohortRequest(`/seed-jobs/${jobId}`, token);
+
+export const advanceDemoCohort = (token, body = {}) =>
+  demoCohortRequest('/advance', token, { method: 'POST', body });
+
 export const adminApi = {
   getAdminQuickStats,
   getAssessmentGradesSummary,
@@ -904,6 +948,14 @@ export const adminApi = {
   getCsvExportStatistics,
   getAdminQuickStats,
   getAssessmentGradesSummary,
+  listDemoCohortSources,
+  listDemoCohortCurriculum,
+  previewDemoCohortRefresh,
+  executeDemoCohortRefresh,
+  getDemoCohortStatus,
+  startDemoSeedJob,
+  getDemoSeedJob,
+  advanceDemoCohort,
 };
 
 export default adminApi;

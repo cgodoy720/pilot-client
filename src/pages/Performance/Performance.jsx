@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../stores/authStore';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import AttendanceCalendar from './components/AttendanceCalendar';
-import FeedbackInbox from './components/FeedbackInbox';
 import WeeklyFeedbackReport from './components/WeeklyFeedbackReport';
 import { fetchUserAttendance } from '../../utils/attendanceService';
-import { fetchCombinedFeedback } from '../../utils/performanceFeedbackService';
 import { getUserProfilePhoto } from '../../utils/userPhotoService';
 
 const Performance = () => {
@@ -16,7 +14,6 @@ const Performance = () => {
   const [userPhoto, setUserPhoto] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
   const [programInfo, setProgramInfo] = useState(null);
-  const [feedbackData, setFeedbackData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -101,28 +98,6 @@ const Performance = () => {
     loadAttendanceData();
   }, [user, token, selectedMonth, selectedYear]);
 
-  // Load feedback data (using existing API)
-  useEffect(() => {
-    const loadFeedbackData = async () => {
-      if (user?.user_id) {
-        try {
-          const dateRange = {
-            month: `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`
-          };
-          
-          const feedback = await fetchCombinedFeedback(user.user_id, dateRange);
-          setFeedbackData(feedback);
-          console.log('✅ Loaded feedback data:', feedback.length, 'items');
-        } catch (error) {
-          console.error('Failed to load feedback data:', error);
-          setError('Failed to load feedback data');
-        }
-      }
-    };
-
-    loadFeedbackData();
-  }, [user, selectedMonth, selectedYear]);
-
   // Set loading to false when all data is loaded
   useEffect(() => {
     // Simple timeout to show the page after a short delay
@@ -139,28 +114,6 @@ const Performance = () => {
 
   const handleYearChange = (year) => {
     setSelectedYear(year);
-  };
-
-  const handleTaskClick = (feedbackItem) => {
-    console.log('Task clicked:', feedbackItem);
-    // Handle task click - could open modal or navigate
-  };
-
-  const handleIncompleteTaskNavigate = (feedbackItem) => {
-    // Extract task/day information from feedback item
-    const taskId = feedbackItem.task_id;
-    const dayId = feedbackItem.day_id;
-    
-    if (dayId) {
-      // Navigate to learning page with specific day
-      window.location.href = `/learning?dayId=${dayId}`;
-    } else if (taskId) {
-      // Navigate to specific task
-      window.location.href = `/tasks/${taskId}`;
-    } else {
-      // Fallback to main learning page
-      window.location.href = '/learning';
-    }
   };
 
   if (error && !loading) {
@@ -225,19 +178,9 @@ const Performance = () => {
         {/* Vertical Divider */}
         <div className="w-px bg-[#C8C8C8]"></div>
         
-        {/* Right Panel - Feedback Inbox (Full Space) */}
+        {/* Right Panel - Weekly Feedback Report (Full Space) */}
         <div className="flex-1 px-10 flex flex-col bg-[#EFEFEF] overflow-visible">
-          {user.cohort === 'March 2026 L1'
-            ? <WeeklyFeedbackReport userId={user.user_id} token={token} />
-            : <FeedbackInbox
-                userId={user.user_id}
-                month={selectedMonth}
-                year={selectedYear}
-                feedbackData={feedbackData}
-                onTaskClick={handleTaskClick}
-                onIncompleteTaskNavigate={handleIncompleteTaskNavigate}
-              />
-          }
+          <WeeklyFeedbackReport userId={user.user_id} token={token} />
         </div>
       </div>
       
