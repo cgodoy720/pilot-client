@@ -38,6 +38,8 @@ const AdmissionsDashboard = () => {
 
   // Data state
   const [stats, setStats] = useState(null);
+  // Applicant list is one row per applicant from the API. With a cohort selected, the server joins the
+  // latest application row for that applicant within that cohort (newest created_at / application_id).
   const [applications, setApplications] = useState([]);
   const [infoSessions, setInfoSessions] = useState([]);
   const [workshops, setWorkshops] = useState([]);
@@ -115,6 +117,11 @@ const AdmissionsDashboard = () => {
           info_session_status: toArray(parsed.applicationFilters?.info_session_status),
           workshop_status: toArray(parsed.applicationFilters?.workshop_status),
           program_admission_status: toArray(parsed.applicationFilters?.program_admission_status),
+          enrollment_status: toArray(parsed.applicationFilters?.enrollment_status),
+          source_bucket: toArray(parsed.applicationFilters?.source_bucket),
+          account_age_bucket: toArray(parsed.applicationFilters?.account_age_bucket),
+          application_age_bucket: toArray(parsed.applicationFilters?.application_age_bucket),
+          last_activity_bucket: toArray(parsed.applicationFilters?.last_activity_bucket),
           structured_task_grade: toArray(parsed.applicationFilters?.structured_task_grade),
           ready_for_workshop_invitation: false,
           name_search: '',
@@ -133,6 +140,11 @@ const AdmissionsDashboard = () => {
       info_session_status: [],
       workshop_status: [],
       program_admission_status: [],
+      enrollment_status: [],
+      source_bucket: [],
+      account_age_bucket: [],
+      application_age_bucket: [],
+      last_activity_bucket: [],
       structured_task_grade: [],
       ready_for_workshop_invitation: false,
       name_search: '',
@@ -168,6 +180,12 @@ const AdmissionsDashboard = () => {
     workshop: true,
     structured_task_grade: true,
     admission: true,
+    enrollment: true,
+    cohort: true,
+    source_bucket: false,
+    account_age_bucket: false,
+    application_age_bucket: false,
+    last_activity_bucket: true,
     notes: true,
     deliberation: true,
     age: false,
@@ -308,6 +326,33 @@ const AdmissionsDashboard = () => {
   }, [openFilterColumn]);
 
   // Helper: map overview quick view to a cohort_id or 'deferred'
+  const getCurrentActiveCohort = (candidateCohorts = []) => {
+    const now = new Date();
+    return [...candidateCohorts]
+      .filter((cohort) => {
+        if (!cohort?.cohort_id) return false;
+        const name = (cohort.name || '').toLowerCase();
+        if (!name.includes('l1')) return false;
+        const cutoffOrStart = cohort.cutoff_date || cohort.start_date;
+        return cutoffOrStart && new Date(cutoffOrStart) >= now;
+      })
+      .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))[0] || null;
+  };
+
+  const applyCurrentCycleDefault = (candidateCohorts = []) => {
+    const currentActive = getCurrentActiveCohort(candidateCohorts);
+    if (!currentActive?.cohort_id) return;
+
+    if (!overviewQuickView) {
+      setOverviewQuickView(currentActive.cohort_id);
+    }
+
+    setApplicationFilters(prev => {
+      if (prev.cohort_id) return prev;
+      return { ...prev, cohort_id: currentActive.cohort_id, offset: 0 };
+    });
+  };
+
   const getOverviewCohortParam = () => {
     if (!overviewQuickView || overviewQuickView === 'all_time') return '';
     if (overviewQuickView === 'deferred') return 'deferred';
@@ -373,6 +418,7 @@ const AdmissionsDashboard = () => {
       const data = await response.json();
       setStats(data.stats);
       setCohorts(data.cohorts);
+      applyCurrentCycleDefault(data.cohorts || []);
       // Note: Overview endpoint no longer returns applications to prevent timeout
       // Applications are fetched separately per-tab as needed
     } catch (error) {
@@ -452,6 +498,7 @@ const AdmissionsDashboard = () => {
       const data = await response.json();
       setApplications(data.applications);
       setCohorts(data.cohorts);
+      applyCurrentCycleDefault(data.cohorts || []);
       setHasMore(data.applications?.applications?.length < data.applications?.total);
     } catch (error) {
       console.error('Error fetching applications data:', error);
@@ -476,6 +523,7 @@ const AdmissionsDashboard = () => {
       const data = await response.json();
       setInfoSessions(data.infoSessions);
       setCohorts(data.cohorts);
+      applyCurrentCycleDefault(data.cohorts || []);
     } catch (error) {
       console.error('Error fetching info sessions data:', error);
     } finally {
@@ -648,6 +696,11 @@ const AdmissionsDashboard = () => {
           info_session_status: applicationFilters.info_session_status,
           workshop_status: applicationFilters.workshop_status,
           program_admission_status: applicationFilters.program_admission_status,
+          enrollment_status: applicationFilters.enrollment_status,
+          source_bucket: applicationFilters.source_bucket,
+          account_age_bucket: applicationFilters.account_age_bucket,
+          application_age_bucket: applicationFilters.application_age_bucket,
+          last_activity_bucket: applicationFilters.last_activity_bucket,
           structured_task_grade: applicationFilters.structured_task_grade,
           cohort_id: applicationFilters.cohort_id,
           deliberation: applicationFilters.deliberation

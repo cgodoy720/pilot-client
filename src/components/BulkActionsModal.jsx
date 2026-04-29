@@ -17,11 +17,14 @@ const BulkActionsModal = ({ isOpen, selectedCount, onClose, onAction, isLoading 
         { value: 'remind_application', label: 'Remind to submit application' },
         { value: 'admit_to_program', label: 'Admit to program' },
         { value: 'reject_from_program', label: 'Reject from program' },
-        { value: 'waitlist_applicant', label: 'Add to waitlist' },
-        { value: 'defer_applicant', label: 'Defer application' },
+        { value: 'defer_applicant', label: 'Defer to a future cohort' },
         { value: 'undefer_applicant', label: 'Remove deferral (return to active pool)' },
         { value: 'allow_reapply', label: 'Allow reapply (for rejected applicants)' },
         { value: 'withdraw_applicant', label: 'Mark as withdrawn' },
+        { value: 'set_enrollment_pending', label: 'Set enrollment: pending' },
+        { value: 'set_enrollment_enrolled', label: 'Set enrollment: enrolled' },
+        { value: 'set_enrollment_deferred', label: 'Set enrollment: deferred' },
+        { value: 'set_enrollment_withdrawn', label: 'Set enrollment: withdrawn' },
         { value: 'send_custom_email', label: 'Send custom email' }
     ];
 
@@ -56,16 +59,22 @@ const BulkActionsModal = ({ isOpen, selectedCount, onClose, onAction, isLoading 
                 return 'Update admission status to "accepted" and send acceptance email';
             case 'reject_from_program':
                 return 'Update admission status to "rejected" and send rejection email';
-            case 'waitlist_applicant':
-                return 'Update admission status to "waitlisted" and send waitlist notification';
             case 'defer_applicant':
-                return 'Update admission status to "deferred" for future consideration';
+                return 'Defer applicants to a future cohort — sets enrollment_status to "deferred" and moves them to the selected cohort';
             case 'undefer_applicant':
-                return 'Remove deferral status and return applicant to active pool for current cohort';
+                return 'Remove deferral and return applicants to the current signup cohort';
             case 'allow_reapply':
                 return 'Allow rejected applicant to reapply - they will be added to next cohort at info session stage';
             case 'withdraw_applicant':
                 return 'Update admission status to "withdrawn" - applicant has voluntarily withdrawn from consideration';
+            case 'set_enrollment_pending':
+                return 'Set enrollment status to "pending"';
+            case 'set_enrollment_enrolled':
+                return 'Set enrollment status to "enrolled"';
+            case 'set_enrollment_deferred':
+                return 'Set enrollment status to "deferred"';
+            case 'set_enrollment_withdrawn':
+                return 'Set enrollment status to "withdrawn"';
             case 'send_custom_email':
                 return 'Send custom email with your provided subject and body';
             default:
