@@ -222,10 +222,11 @@ class DatabaseService {
   }
 
   // Save user response to database
-  async saveResponse(applicationId, questionId, responseValue) {
+  async saveResponse(applicationId, questionId, responseValue, applicantId = null) {
     try {
       // Use authenticated endpoint if we have a token, otherwise use anonymous
       const useAnonymous = !this.isAuthenticated();
+      const resolvedApplicantId = applicantId || this.currentApplicant?.applicant_id || this.currentApplicant?.applicantId;
       const url = useAnonymous 
         ? `${API_BASE_URL}/applications/response/anonymous`
         : `${API_BASE_URL}/applications/response`;
@@ -237,7 +238,12 @@ class DatabaseService {
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ applicationId, questionId, responseValue }),
+        body: JSON.stringify({
+          applicationId,
+          questionId,
+          responseValue,
+          ...(useAnonymous ? { applicantId: resolvedApplicantId } : {})
+        }),
       });
 
       if (!response.ok) {
@@ -252,10 +258,11 @@ class DatabaseService {
   }
 
   // Submit application
-  async submitApplication(applicationId) {
+  async submitApplication(applicationId, applicantId = null) {
     try {
       // Use authenticated endpoint if we have a token, otherwise use anonymous
       const useAnonymous = !this.isAuthenticated();
+      const resolvedApplicantId = applicantId || this.currentApplicant?.applicant_id || this.currentApplicant?.applicantId;
       const url = useAnonymous 
         ? `${API_BASE_URL}/applications/application/${applicationId}/submit/anonymous`
         : `${API_BASE_URL}/applications/${applicationId}/submit`;
@@ -267,6 +274,7 @@ class DatabaseService {
       const response = await fetch(url, {
         method: 'PUT',
         headers,
+        body: useAnonymous ? JSON.stringify({ applicantId: resolvedApplicantId }) : undefined,
       });
 
       if (!response.ok) {
@@ -463,29 +471,6 @@ class DatabaseService {
     }
   }
 
-  // Defer application (requires authentication)
-  async deferApplication() {
-    try {
-      if (!this.isAuthenticated()) {
-        throw new Error('You must be logged in to defer your application');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/applications/defer`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to defer application');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error deferring application:', error);
-      throw error;
-    }
-  }
 }
 
 export default new DatabaseService(); 

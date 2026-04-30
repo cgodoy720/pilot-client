@@ -356,6 +356,7 @@ function ApplicantDashboard() {
 
   const changeSubmittedApplicationCohort = async () => {
     if (!currentApplication?.application_id || !currentApplicantId) return;
+    if (!canEditSubmittedApplication()) return;
 
     if (cohortOptions.length === 0) {
       await Swal.fire({
@@ -513,7 +514,7 @@ function ApplicantDashboard() {
     }
   };
 
-  const loadPledgeStatus = async () => {
+  const loadOnboardingStatus = async () => {
     try {
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
 
@@ -993,7 +994,7 @@ function ApplicantDashboard() {
                         <p className="text-sm text-indigo-700 mb-3">
                           You applied for <strong>{getCurrentApplicationCohort()?.name || 'your selected cohort'}</strong>.
                         </p>
-                        {cohortOptions.length > 1 && (
+                        {cohortOptions.length > 1 && canEditSubmittedApplication() && (
                           <button
                             onClick={changeSubmittedApplicationCohort}
                             disabled={isUpdatingCohort}
@@ -1043,11 +1044,10 @@ function ApplicantDashboard() {
                                 const token = localStorage.getItem('applicantToken');
                                 const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/undefer`, {
                                   method: 'POST',
-                                  headers: { 
+                                  headers: {
                                     'Content-Type': 'application/json',
                                     'Authorization': `Bearer ${token}`
-                                  },
-                                  body: JSON.stringify({ applicantId: currentApplicantId })
+                                  }
                                 });
 
                                 if (!response.ok) {
@@ -1125,10 +1125,14 @@ function ApplicantDashboard() {
                           if (!isConfirmed || !chosenCohortId) return;
 
                           try {
+                            const token = localStorage.getItem('applicantToken');
                             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/defer`, {
                               method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ applicantId: currentApplicantId, cohortId: chosenCohortId })
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: JSON.stringify({ cohortId: chosenCohortId })
                             });
 
                             if (!response.ok) {

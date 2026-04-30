@@ -142,9 +142,14 @@ const ApplicationForm = () => {
 
         if (application?.status === 'submitted' && editSubmitted) {
           try {
-            application = await databaseService.reopenSubmittedApplication(
+            const reopenedApplication = await databaseService.reopenSubmittedApplication(
               application.application_id
             );
+            application = {
+              ...application,
+              ...reopenedApplication,
+              cohort_id: reopenedApplication.cohort_id || application.cohort_id
+            };
             localStorage.setItem('applicationStatus', 'in_progress');
 
             const cleanUrl = new URL(window.location);
@@ -342,7 +347,8 @@ const ApplicationForm = () => {
               await databaseService.saveResponse(
                 currentSession.application.application_id,
                 questionId,
-                responseValue
+                responseValue,
+                currentSession.applicant.applicant_id
               );
               savedCount++;
             }
@@ -870,7 +876,10 @@ const ApplicationForm = () => {
         }
 
         console.log('🎯 Submitting application:', currentSession.application.application_id);
-        const result = await databaseService.submitApplication(currentSession.application.application_id);
+        const result = await databaseService.submitApplication(
+          currentSession.application.application_id,
+          currentSession.applicant.applicant_id
+        );
         console.log('✅ Submission result:', result);
 
         localStorage.removeItem('applicationFormData');
@@ -972,12 +981,11 @@ const ApplicationForm = () => {
     setIsUpdatingCohort(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/applications/application/${currentSession.application.application_id}/cohort/anonymous`,
+        `${import.meta.env.VITE_API_URL}/api/applications/application/${currentSession.application.application_id}/cohort`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: databaseService.getAuthHeaders(),
           body: JSON.stringify({
-            applicantId: currentSession.applicant.applicant_id,
             cohortId: nextCohortId
           })
         }
