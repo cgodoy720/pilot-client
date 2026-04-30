@@ -181,30 +181,17 @@ class DatabaseService {
   // Create application
   async createApplication(cohortId = null) {
     try {
-      // Use authenticated endpoint if we have a token, otherwise use anonymous
-      const useAnonymous = !this.isAuthenticated();
-      const url = useAnonymous 
-        ? `${API_BASE_URL}/applications/application/anonymous`
-        : `${API_BASE_URL}/applications/application`;
-      
-      const headers = useAnonymous 
-        ? { 'Content-Type': 'application/json' }
-        : this.getAuthHeaders();
-      
-      // For anonymous, we need the applicant_id
-      if (useAnonymous && !this.currentApplicant?.applicant_id) {
-        throw new Error('No applicant available for anonymous application creation. Please create applicant first.');
+      if (!this.isAuthenticated()) {
+        throw new Error('You must be logged in to create an application');
       }
-      
-      const body = useAnonymous 
-        ? { applicantId: this.currentApplicant.applicant_id, cohortId }
-        : { cohortId };
+      const url = `${API_BASE_URL}/applications/application`;
+      const body = { cohortId };
 
-      console.log('Creating application with:', { url, body, useAnonymous });
+      console.log('Creating application with:', { url, body });
 
       const response = await fetch(url, {
         method: 'POST',
-        headers,
+        headers: this.getAuthHeaders(),
         body: JSON.stringify(body),
       });
 
@@ -222,27 +209,20 @@ class DatabaseService {
   }
 
   // Save user response to database
-  async saveResponse(applicationId, questionId, responseValue, applicantId = null) {
+  async saveResponse(applicationId, questionId, responseValue) {
     try {
-      // Use authenticated endpoint if we have a token, otherwise use anonymous
-      const useAnonymous = !this.isAuthenticated();
-      const resolvedApplicantId = applicantId || this.currentApplicant?.applicant_id || this.currentApplicant?.applicantId;
-      const url = useAnonymous 
-        ? `${API_BASE_URL}/applications/response/anonymous`
-        : `${API_BASE_URL}/applications/response`;
-      
-      const headers = useAnonymous 
-        ? { 'Content-Type': 'application/json' }
-        : this.getAuthHeaders();
+      if (!this.isAuthenticated()) {
+        throw new Error('You must be logged in to save application responses');
+      }
+      const url = `${API_BASE_URL}/applications/response`;
 
       const response = await fetch(url, {
         method: 'POST',
-        headers,
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           applicationId,
           questionId,
-          responseValue,
-          ...(useAnonymous ? { applicantId: resolvedApplicantId } : {})
+          responseValue
         }),
       });
 
@@ -258,23 +238,16 @@ class DatabaseService {
   }
 
   // Submit application
-  async submitApplication(applicationId, applicantId = null) {
+  async submitApplication(applicationId) {
     try {
-      // Use authenticated endpoint if we have a token, otherwise use anonymous
-      const useAnonymous = !this.isAuthenticated();
-      const resolvedApplicantId = applicantId || this.currentApplicant?.applicant_id || this.currentApplicant?.applicantId;
-      const url = useAnonymous 
-        ? `${API_BASE_URL}/applications/application/${applicationId}/submit/anonymous`
-        : `${API_BASE_URL}/applications/${applicationId}/submit`;
-      
-      const headers = useAnonymous 
-        ? { 'Content-Type': 'application/json' }
-        : this.getAuthHeaders();
+      if (!this.isAuthenticated()) {
+        throw new Error('You must be logged in to submit an application');
+      }
+      const url = `${API_BASE_URL}/applications/${applicationId}/submit`;
 
       const response = await fetch(url, {
         method: 'PUT',
-        headers,
-        body: useAnonymous ? JSON.stringify({ applicantId: resolvedApplicantId }) : undefined,
+        headers: this.getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -352,18 +325,13 @@ class DatabaseService {
   // Get all responses for an application
   async getApplicationResponses(applicationId) {
     try {
-      // Use authenticated endpoint if we have a token, otherwise use anonymous
-      const useAnonymous = !this.isAuthenticated();
-      const url = useAnonymous 
-        ? `${API_BASE_URL}/applications/application/${applicationId}/responses/anonymous`
-        : `${API_BASE_URL}/applications/${applicationId}/responses`;
-      
-      const headers = useAnonymous 
-        ? { 'Content-Type': 'application/json' }
-        : this.getAuthHeaders();
+      if (!this.isAuthenticated()) {
+        throw new Error('You must be logged in to load application responses');
+      }
+      const url = `${API_BASE_URL}/applications/${applicationId}/responses`;
 
       const response = await fetch(url, {
-        headers,
+        headers: this.getAuthHeaders(),
       });
       
       if (!response.ok) {

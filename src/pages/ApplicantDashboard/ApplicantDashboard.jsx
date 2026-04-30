@@ -311,7 +311,9 @@ function ApplicantDashboard() {
 
   const loadCohortOptions = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`, {
+        headers: databaseService.getAuthHeaders()
+      });
       if (!response.ok) return;
       const data = await response.json();
       setCohortOptions(Array.isArray(data) ? data : []);
@@ -1086,7 +1088,9 @@ function ApplicantDashboard() {
                           // Fetch current + next application cohorts and keep the later option.
                           let cohortList = [];
                           try {
-                            const cohortsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`);
+                            const cohortsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`, {
+                              headers: databaseService.getAuthHeaders()
+                            });
                             const cohortsData = await cohortsRes.json();
                             cohortList = Array.isArray(cohortsData) ? cohortsData.slice(1) : [];
                           } catch (err) {

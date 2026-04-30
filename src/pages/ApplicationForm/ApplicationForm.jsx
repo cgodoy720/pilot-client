@@ -107,7 +107,7 @@ const ApplicationForm = () => {
         let cohortChoices = [];
         try {
           const cohortResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`, {
-            headers: { 'Content-Type': 'application/json' }
+            headers: databaseService.getAuthHeaders()
           });
           if (cohortResponse.ok) {
             cohortChoices = await cohortResponse.json();
@@ -347,8 +347,7 @@ const ApplicationForm = () => {
               await databaseService.saveResponse(
                 currentSession.application.application_id,
                 questionId,
-                responseValue,
-                currentSession.applicant.applicant_id
+                responseValue
               );
               savedCount++;
             }
@@ -877,8 +876,7 @@ const ApplicationForm = () => {
 
         console.log('🎯 Submitting application:', currentSession.application.application_id);
         const result = await databaseService.submitApplication(
-          currentSession.application.application_id,
-          currentSession.applicant.applicant_id
+          currentSession.application.application_id
         );
         console.log('✅ Submission result:', result);
 
