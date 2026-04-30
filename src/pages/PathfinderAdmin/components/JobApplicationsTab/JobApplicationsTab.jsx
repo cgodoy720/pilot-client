@@ -1,9 +1,15 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
 import { Card, CardContent } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';
 import { Badge } from '../../../../components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '../../../../components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../../components/ui/dialog';
+import { Input } from '../../../../components/ui/input';
+import { Label } from '../../../../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
+import { Textarea } from '../../../../components/ui/textarea';
+import Swal from 'sweetalert2';
 import KanbanBoard from '../shared/KanbanBoard';
 import JobApplicationDetailModal from '../shared/JobApplicationDetailModal';
 import BuilderFilterModal from '../shared/BuilderFilterModal';
@@ -25,8 +31,60 @@ const JobApplicationsTab = ({
   setShowBuilderFilterModal,
   collapsedColumns,
   toggleColumnCollapse,
-  getUniqueBuilders
+  builders,
+  token,
+  onRefresh
 }) => {
+  // Map builders to include full_name for BuilderFilterModal
+  const buildersWithFullName = (builders || []).map(b => ({
+    ...b,
+    full_name: `${b.first_name} ${b.last_name}`
+  }));
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    builderId: '', companyName: '', roleTitle: '', stage: 'prospect',
+    dateApplied: new Date().toISOString().split('T')[0],
+    location: '', jobUrl: '', salaryRange: '', notes: '',
+    contactName: '', contactEmail: '', sourceType: ''
+  });
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddApplication = async () => {
+    if (!addForm.builderId || !addForm.companyName || !addForm.roleTitle) {
+      Swal.fire({ icon: 'warning', title: 'Required', text: 'Builder, company, and role are required.' });
+      return;
+    }
+    setIsAdding(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/job-applications`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(addForm)
+        }
+      );
+      if (response.ok) {
+        Swal.fire({ icon: 'success', title: 'Added', text: 'Job application created.', timer: 1500, showConfirmButton: false });
+        setShowAddModal(false);
+        setAddForm({
+          builderId: '', companyName: '', roleTitle: '', stage: 'prospect',
+          dateApplied: new Date().toISOString().split('T')[0],
+          location: '', jobUrl: '', salaryRange: '', notes: '',
+          contactName: '', contactEmail: '', sourceType: ''
+        });
+        if (onRefresh) onRefresh();
+      } else {
+        const data = await response.json();
+        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Failed to create application.' });
+      }
+    } catch (err) {
+      console.error('Add application error:', err);
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to create application.' });
+    }
+    setIsAdding(false);
+  };
   const SortableHeader = ({ sortKey, children }) => (
     <TableHead 
       className="cursor-pointer select-none hover:bg-gray-50 transition-colors"
@@ -156,6 +214,14 @@ const JobApplicationsTab = ({
             <p className="text-sm text-gray-600">View all job applications submitted by builders</p>
           </div>
           
+          {/* Add Job Application Button */}
+          <Button
+            size="sm"
+            onClick={() => setShowAddModal(true)}
+          >
+            + Add Job
+          </Button>
+
           {/* Filter Button */}
           <Button
             variant="outline"
@@ -305,15 +371,110 @@ const JobApplicationsTab = ({
         application={selectedJobApplication}
         open={!!selectedJobApplication}
         onOpenChange={(open) => !open && setSelectedJobApplication(null)}
+        token={token}
+        onRefresh={onRefresh}
       />
-      
+
       <BuilderFilterModal
         open={showBuilderFilterModal}
         onOpenChange={setShowBuilderFilterModal}
-        builders={getUniqueBuilders()}
+        builders={buildersWithFullName}
         selectedBuilder={selectedBuilderFilter}
         onSelectBuilder={setSelectedBuilderFilter}
       />
+
+      {/* Add Job Application Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Job Application</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-gray-600">Builder *</Label>
+              <Select value={addForm.builderId ? String(addForm.builderId) : ''} onValueChange={v => setAddForm({ ...addForm, builderId: parseInt(v) })}>
+                <SelectTrigger><SelectValue placeholder="Select Builder" /></SelectTrigger>
+                <SelectContent>
+                  {buildersWithFullName.map(b => (
+                    <SelectItem key={b.builder_id} value={String(b.builder_id)}>{b.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-gray-600">Company *</Label>
+                <Input value={addForm.companyName} onChange={e => setAddForm({ ...addForm, companyName: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">Role *</Label>
+                <Input value={addForm.roleTitle} onChange={e => setAddForm({ ...addForm, roleTitle: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-gray-600">Stage</Label>
+                <Select value={addForm.stage} onValueChange={v => setAddForm({ ...addForm, stage: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="applied">Applied</SelectItem>
+                    <SelectItem value="screen">Phone Screen</SelectItem>
+                    <SelectItem value="oa">Online Assessment</SelectItem>
+                    <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="offer">Offer</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">Date Applied</Label>
+                <Input type="date" value={addForm.dateApplied} onChange={e => setAddForm({ ...addForm, dateApplied: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-gray-600">Location</Label>
+                <Input value={addForm.location} onChange={e => setAddForm({ ...addForm, location: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">Salary Range</Label>
+                <Input value={addForm.salaryRange} onChange={e => setAddForm({ ...addForm, salaryRange: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-gray-600">Contact Name</Label>
+                <Input value={addForm.contactName} onChange={e => setAddForm({ ...addForm, contactName: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">Contact Email</Label>
+                <Input value={addForm.contactEmail} onChange={e => setAddForm({ ...addForm, contactEmail: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-gray-600">Job URL</Label>
+              <Input value={addForm.jobUrl} onChange={e => setAddForm({ ...addForm, jobUrl: e.target.value })} />
+            </div>
+            <div>
+              <Label className="text-xs text-gray-600">Source</Label>
+              <Input value={addForm.sourceType} onChange={e => setAddForm({ ...addForm, sourceType: e.target.value })} placeholder="e.g. LinkedIn, Referral, Job Board" />
+            </div>
+            <div>
+              <Label className="text-xs text-gray-600">Notes</Label>
+              <Textarea value={addForm.notes} onChange={e => setAddForm({ ...addForm, notes: e.target.value })} rows={3} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
+              <Button onClick={handleAddApplication} disabled={isAdding}>
+                {isAdding ? 'Adding...' : 'Add Application'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

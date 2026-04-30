@@ -378,7 +378,7 @@ function PathfinderAdmin() {
               await Promise.all([fetchProjects(), fetchProjectsOverview(), fetchPendingApprovals(), fetchApprovedPRDs()]);
               break;
             case 'job-applications':
-              await fetchJobApplications();
+              await Promise.all([fetchJobApplications(), fetchBuilders()]);
               break;
             case 'employment-records':
               fetchUnreviewedCount();
@@ -1320,6 +1320,13 @@ function PathfinderAdmin() {
                   setWeekOffset={setWeekOffset}
                   expandedHighlightGroups={expandedHighlightGroups}
                   toggleHighlightGroup={toggleHighlightGroup}
+                  token={token}
+                  cohortFilter={cohortFilter}
+                  onRefresh={() => {
+                    fetchOverview();
+                    fetchHighlights();
+                    fetchLeaderboard();
+                  }}
                 />
               )}
             </Suspense>
@@ -1443,7 +1450,9 @@ function PathfinderAdmin() {
                 setShowBuilderFilterModal={setShowBuilderFilterModal}
                 collapsedColumns={collapsedColumns}
                 toggleColumnCollapse={toggleColumnCollapse}
-                getUniqueBuilders={getUniqueBuilders}
+                builders={builders}
+                token={token}
+                onRefresh={fetchJobApplications}
               />
             </Suspense>
           </TabsContent>
