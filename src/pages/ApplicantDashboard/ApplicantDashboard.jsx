@@ -391,13 +391,14 @@ function ApplicantDashboard() {
 
     setIsUpdatingCohort(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/application/${currentApplication.application_id}/cohort/anonymous`, {
+      const token = localStorage.getItem('applicantToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/application/${currentApplication.application_id}/cohort`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          applicantId: currentApplicantId,
-          cohortId: selectedCohortId
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ cohortId: selectedCohortId })
       });
 
       if (!response.ok) {

@@ -301,7 +301,7 @@ const ApplicationRow = React.memo(({
       {visibleColumns.enrollment && (
         <TableCell>
           {app.enrollment_status ? (
-            <Badge className={`${getStatusBadgeClasses(app.enrollment_status)} font-proxima`}>
+            <Badge className={`${getStatusBadgeClasses(app.enrollment_status, 'enrollment')} font-proxima`}>
               {formatStatus(app.enrollment_status)}
             </Badge>
           ) : '-'}

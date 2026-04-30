@@ -143,8 +143,7 @@ const ApplicationForm = () => {
         if (application?.status === 'submitted' && editSubmitted) {
           try {
             application = await databaseService.reopenSubmittedApplication(
-              application.application_id,
-              applicant.applicant_id
+              application.application_id
             );
             localStorage.setItem('applicationStatus', 'in_progress');
 

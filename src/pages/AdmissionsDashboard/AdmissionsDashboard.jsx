@@ -418,7 +418,6 @@ const AdmissionsDashboard = () => {
       const data = await response.json();
       setStats(data.stats);
       setCohorts(data.cohorts);
-      applyCurrentCycleDefault(data.cohorts || []);
       // Note: Overview endpoint no longer returns applications to prevent timeout
       // Applications are fetched separately per-tab as needed
     } catch (error) {
@@ -498,7 +497,6 @@ const AdmissionsDashboard = () => {
       const data = await response.json();
       setApplications(data.applications);
       setCohorts(data.cohorts);
-      applyCurrentCycleDefault(data.cohorts || []);
       setHasMore(data.applications?.applications?.length < data.applications?.total);
     } catch (error) {
       console.error('Error fetching applications data:', error);
@@ -523,7 +521,6 @@ const AdmissionsDashboard = () => {
       const data = await response.json();
       setInfoSessions(data.infoSessions);
       setCohorts(data.cohorts);
-      applyCurrentCycleDefault(data.cohorts || []);
     } catch (error) {
       console.error('Error fetching info sessions data:', error);
     } finally {
@@ -625,6 +622,14 @@ const AdmissionsDashboard = () => {
       fetchOverviewData();
     }
   }, [token, hasAdminAccess]);
+
+  // Apply the current-cycle default once cohorts are known. Centralized here so
+  // the three tab fetchers can't race each other on first render.
+  useEffect(() => {
+    if (cohorts && cohorts.length > 0) {
+      applyCurrentCycleDefault(cohorts);
+    }
+  }, [cohorts]);
 
   // Tab-specific data loading - lazy load when switching tabs
   useEffect(() => {

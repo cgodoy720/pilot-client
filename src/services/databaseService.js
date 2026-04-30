@@ -280,21 +280,11 @@ class DatabaseService {
     }
   }
 
-  async reopenSubmittedApplication(applicationId, applicantId = null) {
+  async reopenSubmittedApplication(applicationId) {
     try {
-      const useAnonymous = !this.isAuthenticated();
-      const url = useAnonymous
-        ? `${API_BASE_URL}/applications/application/${applicationId}/reopen/anonymous`
-        : `${API_BASE_URL}/applications/${applicationId}/reopen`;
-
-      const headers = useAnonymous
-        ? { 'Content-Type': 'application/json' }
-        : this.getAuthHeaders();
-
-      const response = await fetch(url, {
+      const response = await fetch(`${API_BASE_URL}/applications/${applicationId}/reopen`, {
         method: 'PUT',
-        headers,
-        body: useAnonymous ? JSON.stringify({ applicantId }) : undefined,
+        headers: this.getAuthHeaders(),
       });
 
       if (!response.ok) {

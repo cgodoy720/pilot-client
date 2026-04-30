@@ -84,22 +84,29 @@ export const formatEventDate = (dateString) => {
   });
 };
 
-// Get status badge color classes
-export const getStatusBadgeClasses = (status) => {
+// Get status badge color classes.
+// `context` disambiguates statuses that overlap across domains (e.g. 'withdrawn'
+// exists in both admission and enrollment with different colors). Pass
+// 'enrollment' for enrollment_status; otherwise leave unset.
+export const getStatusBadgeClasses = (status, context) => {
+  if (context === 'enrollment' && status === 'withdrawn') {
+    return 'bg-slate-100 text-slate-700';
+  }
+
   const statusColors = {
     // Application statuses
     'no_application': 'bg-gray-100 text-gray-700',
     'in_progress': 'bg-yellow-100 text-yellow-800',
     'submitted': 'bg-blue-100 text-blue-800',
     'ineligible': 'bg-red-100 text-red-800',
-    
+
     // Assessment statuses
     'strong_recommend': 'bg-green-100 text-green-800',
     'recommend': 'bg-emerald-100 text-emerald-700',
     'review_needed': 'bg-yellow-100 text-yellow-800',
     'not_recommend': 'bg-red-100 text-red-800',
     'pending': 'bg-gray-100 text-gray-600',
-    
+
     // Attendance statuses
     'registered': 'bg-blue-100 text-blue-700',
     'attended': 'bg-green-100 text-green-800',
@@ -108,8 +115,8 @@ export const getStatusBadgeClasses = (status) => {
     'attended_event': 'bg-green-100 text-green-800',  // External event attendance
     'no_show': 'bg-red-100 text-red-800',
     'cancelled': 'bg-gray-100 text-gray-600',
-    
-    // Admission statuses
+
+    // Admission statuses (default for ambiguous keys like 'withdrawn')
     'accepted': 'bg-green-100 text-green-800',
     'rejected': 'bg-red-100 text-red-800',
     'withdrawn': 'bg-gray-100 text-gray-700',
@@ -118,16 +125,15 @@ export const getStatusBadgeClasses = (status) => {
     'enrolled': 'bg-emerald-100 text-emerald-800',
     'deferred': 'bg-purple-100 text-purple-700',
     'rolled_over': 'bg-indigo-100 text-indigo-700',
-    'withdrawn': 'bg-slate-100 text-slate-700',
     'selected_this_cycle': 'bg-blue-100 text-blue-700',
     'carried_forward': 'bg-indigo-100 text-indigo-700',
-    
+
     // Deliberation
     'yes': 'bg-green-100 text-green-800',
     'maybe': 'bg-yellow-100 text-yellow-800',
     'no': 'bg-red-100 text-red-800'
   };
-  
+
   return statusColors[status] || 'bg-gray-100 text-gray-600';
 };
 
