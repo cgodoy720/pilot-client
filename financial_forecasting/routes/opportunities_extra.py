@@ -8,11 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from auth import require_auth
+from db import get_db
 from dependencies import get_mcp_client
 from mcp_client import UnifiedMCPClient
 from models import OpportunityStage
 from routes.permissions import check_permission
 from security import validate_salesforce_id, escape_soql_string
+from services.awards_service import ensure_for_opp as ensure_award_for_opp
 from services.cache import cache, CACHE_TTL_STAGE_HISTORY
 
 logger = logging.getLogger(__name__)
@@ -311,9 +313,16 @@ async def validate_stage_change(
 async def update_opportunity_stage(
     request: dict,
     client: UnifiedMCPClient = Depends(get_mcp_client),
+    conn=Depends(get_db),
     user=Depends(check_permission("edit_own_opportunities")),
 ):
-    """Update opportunity stage with validation."""
+    """Update opportunity stage with validation.
+
+    Side effect: when an opp transitions into a closed/active-grant
+    Philanthropy stage, idempotently ensure a `bedrock.award` row exists.
+    Failures here are logged but do not fail the stage update — the SF
+    write has already succeeded.
+    """
     # TODO: Phase 3 — use per-user SF tokens when available for write attribution
     try:
         salesforce = client.salesforce
@@ -331,6 +340,23 @@ async def update_opportunity_stage(
         await salesforce.update_record("Opportunity", opp_id, {"StageName": new_stage})
         cache.invalidate_prefix("opps:")
         cache.invalidate_prefix("stage_history")
+
+        # Side effect: auto-create Award row for Philanthropy opps that
+        # have reached an award-eligible stage. Idempotent. Best-effort —
+        # never fails the SF write.
+        try:
+            await ensure_award_for_opp(
+                conn, salesforce, opp_id,
+                stage_name_hint=new_stage,
+                # record_type unknown without an extra SF read; let the
+                # service fetch it when needed.
+            )
+        except Exception:
+            logger.exception(
+                "awards.ensure_for_opp failed for opp=%s after stage update; "
+                "stage write succeeded, award lifecycle row may be missing.",
+                opp_id,
+            )
 
         return {
             "success": True,
