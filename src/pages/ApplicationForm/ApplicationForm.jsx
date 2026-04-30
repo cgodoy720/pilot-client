@@ -10,6 +10,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { AnimatedRadioGroup, AnimatedRadioItem } from '../../components/ui/animated-radio';
 import { AnimatedCheckbox } from '../../components/ui/animated-checkbox';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
@@ -21,6 +22,31 @@ const ApplicationForm = () => {
   const handleLogout = () => {
     localStorage.removeItem('user');
     navigate('/login');
+  };
+
+  const formatCohortDate = (dateValue) => {
+    if (!dateValue) return null;
+    try {
+      return new Date(dateValue).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const getCohortOptionLabel = (cohort, index) => {
+    const cycleLabel = index === 0 ? 'Current cycle' : 'Next cycle';
+    const startDate = formatCohortDate(cohort.start_date);
+    const cutoffDate = formatCohortDate(cohort.cutoff_date || cohort.effective_cutoff);
+    const dateParts = [
+      startDate ? `starts ${startDate}` : null,
+      cutoffDate ? `deadline ${cutoffDate}` : null
+    ].filter(Boolean);
+
+    return `${cycleLabel}: ${cohort.name}${dateParts.length ? ` (${dateParts.join(', ')})` : ''}`;
   };
   
   const [applicationQuestions, setApplicationQuestions] = useState([]);
@@ -37,6 +63,9 @@ const ApplicationForm = () => {
   const [showValidation, setShowValidation] = useState(false);
   const [isIneligible, setIsIneligible] = useState(false);
   const [eligibilityFailures, setEligibilityFailures] = useState([]);
+  const [cohortOptions, setCohortOptions] = useState([]);
+  const [selectedCohortId, setSelectedCohortId] = useState('');
+  const [isUpdatingCohort, setIsUpdatingCohort] = useState(false);
 
   useEffect(() => {
     const initializeApplication = async () => {
@@ -70,8 +99,24 @@ const ApplicationForm = () => {
           return;
         }
         
+        const urlParams = new URLSearchParams(window.location.search);
+        const editSubmitted = urlParams.get('editSubmitted') === 'true';
         const applicant = await databaseService.createOrGetApplicant(email, firstName, lastName);
         console.log('Applicant:', applicant);
+
+        let cohortChoices = [];
+        try {
+          const cohortResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`, {
+            headers: databaseService.getAuthHeaders()
+          });
+          if (cohortResponse.ok) {
+            cohortChoices = await cohortResponse.json();
+            setCohortOptions(cohortChoices || []);
+          }
+        } catch (cohortError) {
+          console.warn('Failed to load cohort options for application form:', cohortError);
+        }
+        const defaultCohortId = cohortChoices?.[0]?.cohort_id || '';
         
         let existingApplication = null;
         try {
@@ -91,13 +136,40 @@ const ApplicationForm = () => {
         if (!application) {
           console.log('Creating new application...');
           databaseService.currentApplicant = applicant;
-          application = await databaseService.createApplication();
+          application = await databaseService.createApplication(defaultCohortId || null);
           console.log('Created new application:', application);
+        }
+
+        if (application?.status === 'submitted' && editSubmitted) {
+          try {
+            const reopenedApplication = await databaseService.reopenSubmittedApplication(
+              application.application_id
+            );
+            application = {
+              ...application,
+              ...reopenedApplication,
+              cohort_id: reopenedApplication.cohort_id || application.cohort_id
+            };
+            localStorage.setItem('applicationStatus', 'in_progress');
+
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('editSubmitted');
+            window.history.replaceState({}, '', cleanUrl);
+          } catch (reopenError) {
+            console.error('Failed to reopen submitted application:', reopenError);
+            await Swal.fire({
+              icon: 'error',
+              title: 'Application Cannot Be Edited',
+              text: reopenError.message || 'This application can no longer be edited.',
+              confirmButtonColor: '#4242ea'
+            });
+            navigate('/apply');
+            return;
+          }
         }
         
         if (application && application.status === 'ineligible') {
           const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
-          const urlParams = new URLSearchParams(window.location.search);
           const resetFromUrl = urlParams.get('resetEligibility') === 'true';
           
           console.log('🔍 RESET DEBUG: Found ineligible application', {
@@ -171,6 +243,7 @@ const ApplicationForm = () => {
           application
         };
         setCurrentSession(session);
+        setSelectedCohortId(application?.cohort_id || defaultCohortId || '');
         
         databaseService.currentApplication = application;
         
@@ -786,10 +859,27 @@ const ApplicationForm = () => {
       }
 
       if (currentSession?.application) {
+        if (!selectedCohortId) {
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Select a Cohort',
+            text: 'Please select which cohort you are applying to before submitting.',
+            confirmButtonColor: '#4242ea'
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (currentSession.application.cohort_id !== selectedCohortId) {
+          await updateApplicationCohort(selectedCohortId);
+        }
+
         console.log('🎯 Submitting application:', currentSession.application.application_id);
-        const result = await databaseService.submitApplication(currentSession.application.application_id);
+        const result = await databaseService.submitApplication(
+          currentSession.application.application_id
+        );
         console.log('✅ Submission result:', result);
-        
+
         localStorage.removeItem('applicationFormData');
         localStorage.removeItem('applicationCurrentSection');
         localStorage.removeItem('applicationCurrentQuestionIndex');
@@ -881,7 +971,66 @@ const ApplicationForm = () => {
     navigate('/apply');
   };
 
-  const handleBeginApplication = () => {
+  const updateApplicationCohort = async (nextCohortId) => {
+    if (!currentSession?.application?.application_id || !currentSession?.applicant?.applicant_id || !nextCohortId) {
+      return;
+    }
+
+    setIsUpdatingCohort(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/applications/application/${currentSession.application.application_id}/cohort`,
+        {
+          method: 'PUT',
+          headers: databaseService.getAuthHeaders(),
+          body: JSON.stringify({
+            cohortId: nextCohortId
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update cohort assignment');
+      }
+
+      setCurrentSession((prev) => ({
+        ...prev,
+        application: {
+          ...prev.application,
+          cohort_id: nextCohortId
+        }
+      }));
+    } finally {
+      setIsUpdatingCohort(false);
+    }
+  };
+
+  const handleBeginApplication = async () => {
+    if (!selectedCohortId) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Select a Cohort',
+        text: 'Please select which cohort you are applying to before continuing.',
+        confirmButtonColor: '#4242ea'
+      });
+      return;
+    }
+
+    if (currentSession?.application?.cohort_id !== selectedCohortId) {
+      try {
+        await updateApplicationCohort(selectedCohortId);
+      } catch (error) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Could Not Save Cohort',
+          text: error.message || 'Please try again.',
+          confirmButtonColor: '#4242ea'
+        });
+        return;
+      }
+    }
+
     setCurrentSection(0);
     setCurrentQuestionIndex(0);
   };
@@ -1294,8 +1443,46 @@ const ApplicationForm = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <p className="text-lg leading-relaxed text-[#1E1E1E]">
-                      We're excited you're here. Applications for our next cohort launching on <strong>March 14th</strong> close <strong>February 15th</strong>, so now's the time to share your story.
+                      We're excited you're here. Choose the cohort you want to apply for below, then share your story.
                   </p>
+
+                  <Card className="bg-indigo-50 border-indigo-200">
+                    <CardContent className="p-5 space-y-3">
+                      <h3 className="text-lg font-bold text-[#1E1E1E]">Choose Your Cohort</h3>
+                      <p className="text-sm text-gray-600">
+                        You can apply to the currently active cohort or the next upcoming cohort.
+                      </p>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                        <div className="w-full md:max-w-[360px]">
+                          <Select
+                            value={selectedCohortId || '_none'}
+                            onValueChange={(value) => setSelectedCohortId(value === '_none' ? '' : value)}
+                          >
+                            <SelectTrigger className="bg-white">
+                              <SelectValue placeholder="Select a cohort" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">Select a cohort</SelectItem>
+                              {cohortOptions.map((cohort, index) => (
+                                <SelectItem key={cohort.cohort_id} value={cohort.cohort_id}>
+                                  {getCohortOptionLabel(cohort, index)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {currentSession?.application?.application_id && (
+                          <Button
+                            variant="outline"
+                            onClick={() => updateApplicationCohort(selectedCohortId)}
+                            disabled={!selectedCohortId || isUpdatingCohort || currentSession?.application?.cohort_id === selectedCohortId}
+                          >
+                            {isUpdatingCohort ? 'Saving...' : 'Save Cohort Selection'}
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
 
                     <div>
                       <h3 className="text-xl font-bold text-[#1E1E1E] mb-4">When filling out your application, keep these things in mind:</h3>

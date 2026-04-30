@@ -16,10 +16,8 @@ const ProgramAdmissionPipeline = ({ programAdmissions = [] }) => {
                 return '#22c55e'; // Green
             case 'rejected':
                 return '#ef4444'; // Red
-            case 'waitlisted':
-                return '#fbbf24'; // Yellow
-            case 'deferred':
-                return '#a855f7'; // Purple
+            case 'withdrawn':
+                return '#6b7280'; // Dark gray
             default:
                 return '#9ca3af';
         }
@@ -33,10 +31,8 @@ const ProgramAdmissionPipeline = ({ programAdmissions = [] }) => {
                 return 'Accepted';
             case 'rejected':
                 return 'Rejected';
-            case 'waitlisted':
-                return 'Waitlisted';
-            case 'deferred':
-                return 'Deferred';
+            case 'withdrawn':
+                return 'Withdrawn';
             default:
                 return status;
         }
@@ -44,7 +40,7 @@ const ProgramAdmissionPipeline = ({ programAdmissions = [] }) => {
 
     // Sort by status priority
     const sortedAdmissions = [...programAdmissions].sort((a, b) => {
-        const order = ['pending', 'accepted', 'waitlisted', 'deferred', 'rejected'];
+        const order = ['pending', 'accepted', 'rejected', 'withdrawn'];
         return order.indexOf(a.status) - order.indexOf(b.status);
     });
 

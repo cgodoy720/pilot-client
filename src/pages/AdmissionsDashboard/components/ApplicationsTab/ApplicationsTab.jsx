@@ -69,8 +69,52 @@ const filterOptions = {
     { value: 'pending', label: 'Pending' },
     { value: 'accepted', label: 'Accepted' },
     { value: 'rejected', label: 'Rejected' },
-    { value: 'waitlisted', label: 'Waitlisted' },
+    { value: 'withdrawn', label: 'Withdrawn' },
+  ],
+  enrollment_status: [
+    { value: '', label: 'All' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'enrolled', label: 'Enrolled' },
     { value: 'deferred', label: 'Deferred' },
+    { value: 'withdrawn', label: 'Withdrawn' },
+  ],
+  source_bucket: [
+    { value: '', label: 'All' },
+    { value: 'selected_this_cycle', label: 'Selected This Cycle' },
+    { value: 'carried_forward', label: 'Carried Forward' },
+  ],
+  account_age_bucket: [
+    { value: '', label: 'All' },
+    { value: '0-14', label: '0-14 days' },
+    { value: '0-30', label: '0-30 days' },
+    { value: '31-60', label: '31-60 days' },
+    { value: '61-90', label: '61-90 days' },
+    { value: '91-120', label: '91-120 days' },
+    { value: '121-150', label: '121-150 days' },
+    { value: '151-180', label: '151-180 days' },
+    { value: '180+', label: '180+ days' },
+  ],
+  application_age_bucket: [
+    { value: '', label: 'All' },
+    { value: '0-14', label: '0-14 days' },
+    { value: '0-30', label: '0-30 days' },
+    { value: '31-60', label: '31-60 days' },
+    { value: '61-90', label: '61-90 days' },
+    { value: '91-120', label: '91-120 days' },
+    { value: '121-150', label: '121-150 days' },
+    { value: '151-180', label: '151-180 days' },
+    { value: '180+', label: '180+ days' },
+  ],
+  last_activity_bucket: [
+    { value: '', label: 'All' },
+    { value: '0-14', label: '0-14 days' },
+    { value: '0-30', label: '0-30 days' },
+    { value: '31-60', label: '31-60 days' },
+    { value: '61-90', label: '61-90 days' },
+    { value: '91-120', label: '91-120 days' },
+    { value: '121-150', label: '121-150 days' },
+    { value: '151-180', label: '151-180 days' },
+    { value: '180+', label: '180+ days' },
   ],
   deliberation: [
     { value: '', label: 'All' },
@@ -98,6 +142,12 @@ const columnLabels = {
   workshop: 'Workshop',
   structured_task_grade: 'Workshop Grade',
   admission: 'Admission',
+  enrollment: 'Enrollment',
+  cohort: 'Cohort',
+  source_bucket: 'Source',
+  account_age_bucket: 'Account Age',
+  application_age_bucket: 'Application Age',
+  last_activity_bucket: 'Last Activity',
   deliberation: 'Deliberation',
   notes: 'Notes',
   age: 'Age',
@@ -133,6 +183,18 @@ const calculateAge = (dateOfBirth) => {
   }
 };
 
+const formatDate = (dateValue, options = {}) => {
+  if (!dateValue) return '-';
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    ...options
+  });
+};
+
 // Memoized ApplicationRow component to prevent unnecessary re-renders
 const ApplicationRow = React.memo(({ 
   app, 
@@ -141,7 +203,8 @@ const ApplicationRow = React.memo(({
   onSelect, 
   onViewApplication,
   onOpenNotes,
-  onDeliberationChange 
+  onDeliberationChange,
+  cohortNameMap
 }) => {
   return (
     <TableRow key={app.applicant_id} className="hover:bg-gray-50">
@@ -233,6 +296,47 @@ const ApplicationRow = React.memo(({
               {formatStatus(app.program_admission_status)}
             </Badge>
           )}
+        </TableCell>
+      )}
+      {visibleColumns.enrollment && (
+        <TableCell>
+          {app.enrollment_status ? (
+            <Badge className={`${getStatusBadgeClasses(app.enrollment_status, 'enrollment')} font-proxima`}>
+              {formatStatus(app.enrollment_status)}
+            </Badge>
+          ) : '-'}
+        </TableCell>
+      )}
+      {visibleColumns.cohort && (
+        <TableCell className="font-proxima text-gray-600 max-w-[180px] truncate" title={cohortNameMap?.[app.cohort_id] || app.cohort_name || ''}>
+          {cohortNameMap?.[app.cohort_id] || app.cohort_name || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.source_bucket && (
+        <TableCell>
+          {app.source_bucket ? (
+            <Badge className="bg-slate-100 text-slate-700 font-proxima">
+              {formatStatus(app.source_bucket)}
+            </Badge>
+          ) : '-'}
+        </TableCell>
+      )}
+      {visibleColumns.account_age_bucket && (
+        <TableCell className="font-proxima text-gray-600">
+          {app.account_age_bucket || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.application_age_bucket && (
+        <TableCell className="font-proxima text-gray-600">
+          {app.application_age_bucket || '-'}
+        </TableCell>
+      )}
+      {visibleColumns.last_activity_bucket && (
+        <TableCell
+          className="font-proxima text-gray-600"
+          title={app.last_activity_at ? new Date(app.last_activity_at).toLocaleString() : ''}
+        >
+          {formatDate(app.last_activity_at)}
         </TableCell>
       )}
       {visibleColumns.deliberation && (
@@ -453,6 +557,8 @@ const ApplicationsTab = ({
 }) => {
   const navigate = useNavigate();
   const [tableSearchTerm, setTableSearchTerm] = React.useState('');
+  const [targetCohortId, setTargetCohortId] = React.useState('');
+  const [movingCohort, setMovingCohort] = React.useState(false);
   const [csvExportColumns, setCsvExportColumns] = React.useState({
     name: true,
     email: true,
@@ -487,6 +593,12 @@ const ApplicationsTab = ({
       workshop: visibleColumns.workshop ?? true,
       workshop_grade: visibleColumns.structured_task_grade ?? false,
       admission: visibleColumns.admission ?? true,
+      enrollment: visibleColumns.enrollment ?? true,
+      cohort: visibleColumns.cohort ?? true,
+      source_bucket: visibleColumns.source_bucket ?? false,
+      account_age_bucket: visibleColumns.account_age_bucket ?? false,
+      application_age_bucket: visibleColumns.application_age_bucket ?? false,
+      last_activity_bucket: visibleColumns.last_activity_bucket ?? true,
       deliberation: visibleColumns.deliberation ?? false,
       age: visibleColumns.age ?? false,
       gender: visibleColumns.gender ?? false,
@@ -497,6 +609,47 @@ const ApplicationsTab = ({
       income: visibleColumns.income ?? false
     });
   }, [visibleColumns]);
+
+  const cohortNameMap = useMemo(() => {
+    const map = {};
+    (cohorts || []).forEach((cohort) => {
+      map[cohort.cohort_id] = cohort.name;
+    });
+    return map;
+  }, [cohorts]);
+
+  const handleMoveSelectedToCohort = useCallback(async () => {
+    if (selectedApplicants.length === 0 || !targetCohortId) return;
+    setMovingCohort(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/bulk-actions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'move_to_cohort',
+          applicant_ids: selectedApplicants,
+          cohort_id: targetCohortId
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to move selected applicants');
+      }
+
+      await fetchApplications();
+      setSelectedApplicants([]);
+      setTargetCohortId('');
+    } catch (error) {
+      console.error('Error moving selected applicants to cohort:', error);
+      alert(error.message || 'Failed to move selected applicants');
+    } finally {
+      setMovingCohort(false);
+    }
+  }, [selectedApplicants, targetCohortId, token, fetchApplications, setSelectedApplicants]);
   
   // Handle navigating to applicant detail
   const handleViewApplication = useCallback((applicantId) => {
@@ -594,6 +747,12 @@ const ApplicationsTab = ({
     workshop: { label: 'Workshop', getValue: (app) => app.workshop_status || '' },
     workshop_grade: { label: 'Workshop Grade', getValue: (app) => app.structured_task_grade || '' },
     admission: { label: 'Admission', getValue: (app) => app.program_admission_status || '' },
+    enrollment: { label: 'Enrollment', getValue: (app) => app.enrollment_status || '' },
+    cohort: { label: 'Cohort', getValue: (app) => cohortNameMap[app.cohort_id] || app.cohort_name || '' },
+    source_bucket: { label: 'Source Bucket', getValue: (app) => app.source_bucket || '' },
+    account_age_bucket: { label: 'Account Age Bucket', getValue: (app) => app.account_age_bucket || '' },
+    application_age_bucket: { label: 'Application Age Bucket', getValue: (app) => app.application_age_bucket || '' },
+    last_activity_bucket: { label: 'Last Activity Date', getValue: (app) => app.last_activity_at ? new Date(app.last_activity_at).toLocaleDateString() : '' },
     deliberation: { label: 'Deliberation', getValue: (app) => app.deliberation || '' },
     age: { label: 'Age', getValue: (app) => {
       const dob = app.demographics?.date_of_birth || app.date_of_birth;
@@ -665,7 +824,7 @@ const ApplicationsTab = ({
       console.error('Error exporting CSV:', error);
       alert('Failed to export data');
     }
-  }, [selectedApplicants, token, csvExportColumns]);
+  }, [selectedApplicants, token, csvExportColumns, cohortNameMap]);
 
   // Optimized filter update handlers
   const handleColumnToggle = useCallback((column, checked) => {
@@ -697,6 +856,11 @@ const ApplicationsTab = ({
       info_session_status: [],
       workshop_status: [],
       program_admission_status: [],
+      enrollment_status: [],
+      source_bucket: [],
+      account_age_bucket: [],
+      application_age_bucket: [],
+      last_activity_bucket: [],
       structured_task_grade: [],
       deliberation: [],
       offset: 0
@@ -986,6 +1150,29 @@ const ApplicationsTab = ({
           </SelectContent>
         </Select>
 
+        {/* Move selected applicants to cohort */}
+        <Select value={targetCohortId || '_none'} onValueChange={(value) => setTargetCohortId(value === '_none' ? '' : value)}>
+          <SelectTrigger className="w-[210px] bg-white font-proxima">
+            <SelectValue placeholder="Move selected to cohort..." />
+          </SelectTrigger>
+          <SelectContent className="font-proxima">
+            <SelectItem value="_none">Move selected to cohort...</SelectItem>
+            {cohorts.map((cohort) => (
+              <SelectItem key={`move-${cohort.cohort_id}`} value={cohort.cohort_id}>
+                {cohort.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          className="font-proxima"
+          disabled={selectedApplicants.length === 0 || !targetCohortId || movingCohort}
+          onClick={handleMoveSelectedToCohort}
+        >
+          {movingCohort ? 'Moving...' : `Move Selected (${selectedApplicants.length})`}
+        </Button>
+
         {/* Columns Toggle */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
@@ -1088,7 +1275,7 @@ const ApplicationsTab = ({
         </Button>
 
         {/* Active Filters Indicator */}
-        {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
+        {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.enrollment_status?.length > 0 || applicationFilters.source_bucket?.length > 0 || applicationFilters.account_age_bucket?.length > 0 || applicationFilters.application_age_bucket?.length > 0 || applicationFilters.last_activity_bucket?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
           <div className="flex items-center gap-2 ml-auto flex-wrap">
             <span className="text-sm text-gray-500 font-proxima">Active filters:</span>
             {applicationFilters.status?.length > 0 && (
@@ -1119,6 +1306,31 @@ const ApplicationsTab = ({
             {applicationFilters.program_admission_status?.length > 0 && (
               <Badge className="bg-yellow-100 text-yellow-700 font-proxima cursor-pointer hover:bg-yellow-200" onClick={() => handleClearFilter('program_admission_status')}>
                 Admission: {applicationFilters.program_admission_status.map(formatStatus).join(', ')} ✕
+              </Badge>
+            )}
+            {applicationFilters.enrollment_status?.length > 0 && (
+              <Badge className="bg-emerald-100 text-emerald-700 font-proxima cursor-pointer hover:bg-emerald-200" onClick={() => handleClearFilter('enrollment_status')}>
+                Enrollment: {applicationFilters.enrollment_status.map(formatStatus).join(', ')} ✕
+              </Badge>
+            )}
+            {applicationFilters.source_bucket?.length > 0 && (
+              <Badge className="bg-slate-100 text-slate-700 font-proxima cursor-pointer hover:bg-slate-200" onClick={() => handleClearFilter('source_bucket')}>
+                Source: {applicationFilters.source_bucket.map(formatStatus).join(', ')} ✕
+              </Badge>
+            )}
+            {applicationFilters.account_age_bucket?.length > 0 && (
+              <Badge className="bg-cyan-100 text-cyan-700 font-proxima cursor-pointer hover:bg-cyan-200" onClick={() => handleClearFilter('account_age_bucket')}>
+                Account Age: {applicationFilters.account_age_bucket.join(', ')} ✕
+              </Badge>
+            )}
+            {applicationFilters.application_age_bucket?.length > 0 && (
+              <Badge className="bg-violet-100 text-violet-700 font-proxima cursor-pointer hover:bg-violet-200" onClick={() => handleClearFilter('application_age_bucket')}>
+                App Age: {applicationFilters.application_age_bucket.join(', ')} ✕
+              </Badge>
+            )}
+            {applicationFilters.last_activity_bucket?.length > 0 && (
+              <Badge className="bg-teal-100 text-teal-700 font-proxima cursor-pointer hover:bg-teal-200" onClick={() => handleClearFilter('last_activity_bucket')}>
+                Last Activity: {applicationFilters.last_activity_bucket.join(', ')} ✕
               </Badge>
             )}
             {applicationFilters.deliberation?.length > 0 && (
@@ -1208,6 +1420,34 @@ const ApplicationsTab = ({
                       {renderSortableFilterableHeader('admission', 'program_admission_status', 'Admission', 'program_admission_status')}
                     </TableHead>
                   )}
+                  {visibleColumns.enrollment && (
+                    <TableHead>
+                      {renderSortableFilterableHeader('enrollment', 'enrollment_status', 'Enrollment', 'enrollment_status')}
+                    </TableHead>
+                  )}
+                  {visibleColumns.cohort && (
+                    <TableHead className="font-proxima-bold">Cohort</TableHead>
+                  )}
+                  {visibleColumns.source_bucket && (
+                    <TableHead>
+                      {renderSortableFilterableHeader('source_bucket', 'source_bucket', 'Source', 'source_bucket')}
+                    </TableHead>
+                  )}
+                  {visibleColumns.account_age_bucket && (
+                    <TableHead>
+                      {renderSortableFilterableHeader('account_age_bucket', 'account_age_bucket', 'Account Age', 'account_age_bucket')}
+                    </TableHead>
+                  )}
+                  {visibleColumns.application_age_bucket && (
+                    <TableHead>
+                      {renderSortableFilterableHeader('application_age_bucket', 'application_age_bucket', 'Application Age', 'application_age_bucket')}
+                    </TableHead>
+                  )}
+                  {visibleColumns.last_activity_bucket && (
+                    <TableHead>
+                      {renderSortableFilterableHeader('last_activity_bucket', 'last_activity_bucket', 'Last Activity', 'last_activity_bucket')}
+                    </TableHead>
+                  )}
                   {visibleColumns.deliberation && (
                     <TableHead>
                       {renderSortableFilterableHeader('deliberation', 'deliberation', 'Deliberation', 'deliberation')}
@@ -1252,6 +1492,7 @@ const ApplicationsTab = ({
                     onViewApplication={handleViewApplication}
                     onOpenNotes={openNotesModal}
                     onDeliberationChange={handleDeliberationChange}
+                    cohortNameMap={cohortNameMap}
                   />
                 ))}
               </TableBody>
@@ -1263,7 +1504,7 @@ const ApplicationsTab = ({
           <div className="text-center">
             <p className="text-gray-500 font-proxima text-lg">No applicants found</p>
             <p className="text-gray-400 font-proxima text-sm mt-1">Try adjusting your filters</p>
-            {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
+            {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.enrollment_status?.length > 0 || applicationFilters.source_bucket?.length > 0 || applicationFilters.account_age_bucket?.length > 0 || applicationFilters.application_age_bucket?.length > 0 || applicationFilters.last_activity_bucket?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
               <Button
                 variant="outline"
                 className="mt-4 font-proxima"

@@ -147,6 +147,272 @@ const OverviewTab = ({
     );
   };
 
+  const renderBucketRows = (buckets = {}) => {
+    const bucketOrder = ['0-14', '0-30', '31-60', '61-90', '91-120', '121-150', '151-180', '180+'];
+    const total = Object.values(buckets).reduce((sum, value) => sum + (Number(value) || 0), 0);
+
+    return bucketOrder.map((bucket) => {
+      const count = Number(buckets[bucket] || 0);
+      const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+      return (
+        <div key={bucket} className="space-y-1">
+          <div className="flex items-center justify-between text-sm font-proxima">
+            <span className="text-gray-700">{bucket} days</span>
+            <span className="font-proxima-bold text-[#1a1a1a]">{count}</span>
+          </div>
+          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-[#4242ea]"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+        </div>
+      );
+    });
+  };
+
+  const TooltipLabel = ({ children, tooltip }) => (
+    <span className="inline-flex items-center gap-1">
+      <span>{children}</span>
+      <span className="relative inline-flex group">
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-200 text-[10px] font-proxima-bold text-gray-600">
+          ?
+        </span>
+        <span className="pointer-events-none absolute left-1/2 bottom-full z-50 mb-2 hidden w-72 -translate-x-1/2 rounded-md bg-[#1a1a1a] px-3 py-2 text-left text-xs font-normal leading-snug text-white shadow-lg group-hover:block">
+          {tooltip}
+        </span>
+      </span>
+    </span>
+  );
+
+  const tooltips = {
+    totalPool: 'Everyone in the selected cohort view. For the current cycle, this includes applications assigned to the current cohort plus applicant accounts that have not started an application yet.',
+    infoSessionAttendees: 'Applicants in this cohort view who have attended an info session at any time. The cohort breakdown separates attendance in this recruitment cycle from attendance in prior cycles.',
+    workshopParticipants: 'Applicants in this cohort view who have attended an admissions workshop at any time. For current-cycle views, this can include carried-forward applicants who attended a workshop in a prior cycle.',
+    offersExtended: 'Applicants in this cohort view whose admission decision is accepted. This includes offers from this cycle and accepted applicants carried from prior cycles.',
+    accountsCreated: 'Applicant accounts in this cohort view that do not yet have an application row. In the current active cycle, no-application accounts are included as current-cycle prospects.',
+    inProgress: 'Applications in this cohort view with application.status = in_progress.',
+    submitted: 'Applications in this cohort view with application.status = submitted.',
+    ineligible: 'Applications in this cohort view with application.status = ineligible or an ineligible admissions status.',
+    infoRegistered: 'Applicants in this cohort view with any info session registration record.',
+    infoAttended: 'Applicants in this cohort view with attended, attended late, or very late info session attendance at any time.',
+    infoThisCycle: 'Applicants in this cohort view who attended an info session during this cohort recruitment window.',
+    workshopRegistered: 'Applicants in this cohort view whose pipeline stage is a workshop stage: invited, registered, attended, or no-show.',
+    workshopAttended: 'Applicants in this cohort view with attended, attended late, or very late workshop attendance at any time. This can include carried-forward applicants from prior cycles.',
+    offersThisCycle: 'Accepted applicants whose offer belongs to this cohort recruitment window.',
+    offersPriorCycles: 'Accepted applicants in this cohort view whose offer came from a prior cycle.',
+    selectedThisCycle: 'Applicants who entered or selected the selected cohort during this recruitment cycle. In the current active cycle, no-application accounts count here.',
+    activityRecency: 'Latest meaningful applicant activity: signup, info session registration/attendance, application start/submission, response updates, or workshop registration/attendance. System/admin updates are excluded.'
+  };
+
+  const renderStageSummaryCards = () => {
+    if (activeOverviewStage === 'applied' && appliedStatusBreakdown) {
+      return (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-600 font-proxima">
+                <TooltipLabel tooltip={tooltips.accountsCreated}>Accounts Created</TooltipLabel>
+              </div>
+              <div className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
+                {appliedStatusBreakdown.accounts_created}
+              </div>
+              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.accounts_created_net_new ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.accounts_created_rolled ?? 0}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 bg-yellow-50 rounded-lg">
+              <div className="text-sm text-gray-600 font-proxima">
+                <TooltipLabel tooltip={tooltips.inProgress}>In Progress</TooltipLabel>
+              </div>
+              <div className="text-2xl font-bold text-yellow-700 font-proxima-bold">
+                {appliedStatusBreakdown.in_progress}
+              </div>
+              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.in_progress_net_new ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.in_progress_rolled ?? 0}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="text-sm text-gray-600 font-proxima">
+                <TooltipLabel tooltip={tooltips.submitted}>Submitted</TooltipLabel>
+              </div>
+              <div className="text-2xl font-bold text-blue-700 font-proxima-bold">
+                {appliedStatusBreakdown.submitted}
+              </div>
+              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.submitted_net_new ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.submitted_rolled ?? 0}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 bg-red-50 rounded-lg">
+              <div className="text-sm text-gray-600 font-proxima">
+                <TooltipLabel tooltip={tooltips.ineligible}>Ineligible</TooltipLabel>
+              </div>
+              <div className="text-2xl font-bold text-red-700 font-proxima-bold">
+                {appliedStatusBreakdown.ineligible}
+              </div>
+              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.ineligible_net_new ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.ineligible_rolled ?? 0}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          {displayStats.lastActivityBuckets && (
+            <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
+              <div className="mb-4">
+                <h4 className="text-base font-proxima-bold text-[#1a1a1a]">
+                  <TooltipLabel tooltip={tooltips.activityRecency}>Activity Recency</TooltipLabel>
+                </h4>
+                <p className="text-sm text-gray-500 font-proxima">
+                  Latest applicant activity from signup, event registration/attendance, application start/submission, or response updates.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {renderBucketRows(displayStats.lastActivityBuckets)}
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    if (activeOverviewStage === 'info') {
+      const total = displayStats.infoSessions?.totalRegistrations ?? 0;
+      const attended = displayStats.infoSessions?.totalAttended ?? 0;
+      const attendedThisCohort = displayStats.infoSessions?.attendedThisCohort ?? 0;
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.infoRegistered}>Registered for Info Session</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-purple-700 font-proxima-bold">{total}</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.infoAttended}>Attended Info Session</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-green-700 font-proxima-bold">{attended}</div>
+          </div>
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.infoThisCycle}>Attended This Cycle</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-blue-700 font-proxima-bold">{attendedThisCohort}</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeOverviewStage === 'workshops') {
+      const total = displayStats.workshops?.totalRegistrations ?? 0;
+      const attended = displayStats.workshops?.totalAttended ?? 0;
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.workshopRegistered}>Workshop Registered / Invited</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-purple-700 font-proxima-bold">{total}</div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.workshopAttended}>Workshop Attended</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-green-700 font-proxima-bold">{attended}</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeOverviewStage === 'offers') {
+      const total = displayStats.offers?.total ?? displayStats.offersExtended ?? 0;
+      const thisCohort = displayStats.offers?.thisCohort ?? 0;
+      const priorCohorts = displayStats.offers?.priorCohorts ?? 0;
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.offersExtended}>Offers Extended</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-green-700 font-proxima-bold">{total}</div>
+          </div>
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.offersThisCycle}>This Cycle</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-blue-700 font-proxima-bold">{thisCohort}</div>
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.offersPriorCycles}>Prior Cycles</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">{priorCohorts}</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeOverviewStage === 'marketing') {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.totalPool}>Total Pool</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
+              {displayStats.totalApplicants ?? 0}
+            </div>
+          </div>
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-sm text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.selectedThisCycle}>Selected This Cycle</TooltipLabel>
+            </div>
+            <div className="text-2xl font-bold text-blue-700 font-proxima-bold">
+              {displayStats.sourceBreakdown?.selected_this_cycle ?? 0}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -184,25 +450,27 @@ const OverviewTab = ({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {/* Total Pool with Net New vs Rollover breakdown */}
+        {/* Total Pool with source bucket breakdown */}
         <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Total Pool</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.totalPool}>Total Pool</TooltipLabel>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
               {appliedStatusBreakdown?.total ?? displayStats.totalApplicants ?? 0}
             </div>
-            {/* Net New vs Rollover breakdown */}
+            {/* Source bucket breakdown */}
             {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
               <div className="mt-2 space-y-1">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="text-gray-600 font-proxima">Net New: {displayStats.netNewApplicants ?? 0}</span>
+                  <span className="text-gray-600 font-proxima">Selected This Cycle: {displayStats.sourceBreakdown?.selected_this_cycle ?? displayStats.netNewApplicants ?? 0}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                  <span className="text-gray-600 font-proxima">Rolled Over: {displayStats.rolloverApplicants ?? 0}</span>
+                  <span className="text-gray-600 font-proxima">Carried Forward: {displayStats.sourceBreakdown?.carried_forward ?? displayStats.rolloverApplicants ?? 0}</span>
                 </div>
               </div>
             )}
@@ -213,7 +481,9 @@ const OverviewTab = ({
         {/* Info Session Attendees */}
         <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Info Session Attendees</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.infoSessionAttendees}>Info Session Attendees</TooltipLabel>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
@@ -239,12 +509,27 @@ const OverviewTab = ({
         {/* Workshop Participants */}
         <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Workshop Participants</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.workshopParticipants}>Workshop Participants</TooltipLabel>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
               {displayStats.workshops?.totalAttended ?? 0}
             </div>
+            {/* This cohort vs any cohort breakdown */}
+            {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && displayStats.workshops?.attendedThisCohort !== undefined && (
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-purple-500 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">This Cohort: {displayStats.workshops.attendedThisCohort}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-2 h-2 bg-gray-400 rounded-full"></span>
+                  <span className="text-gray-600 font-proxima">Prior Cohorts: {(displayStats.workshops.totalAttended ?? 0) - (displayStats.workshops.attendedThisCohort ?? 0)}</span>
+                </div>
+              </div>
+            )}
             {renderChange('workshops')}
           </CardContent>
         </Card>
@@ -252,7 +537,9 @@ const OverviewTab = ({
         {/* Offers Extended */}
         <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">Offers Extended</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 font-proxima">
+              <TooltipLabel tooltip={tooltips.offersExtended}>Offers Extended</TooltipLabel>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
@@ -270,16 +557,6 @@ const OverviewTab = ({
                   <span className="text-gray-600 font-proxima">Prior Cohorts: {displayStats.offers?.priorCohorts ?? 0}</span>
                 </div>
               </div>
-            )}
-            {compareEnabled && comparisonStats ? (
-              renderChange('offers')
-            ) : (
-              <span className="text-sm text-gray-500 font-proxima">
-                {displayStats.totalApplicants > 0 
-                  ? `${Math.round(((displayStats.offers?.total ?? displayStats.offersExtended ?? 0) / displayStats.totalApplicants) * 100)}%`
-                  : '0%'
-                }
-              </span>
             )}
           </CardContent>
         </Card>
@@ -331,83 +608,7 @@ const OverviewTab = ({
             ))}
           </div>
 
-          {/* Status Breakdown for Applied Stage */}
-          {activeOverviewStage === 'applied' && appliedStatusBreakdown && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-600 font-proxima">Accounts Created</div>
-                <div className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
-                  {appliedStatusBreakdown.accounts_created}
-                </div>
-                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.accounts_created_net_new ?? 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.accounts_created_rolled ?? 0}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 bg-yellow-50 rounded-lg">
-                <div className="text-sm text-gray-600 font-proxima">In Progress</div>
-                <div className="text-2xl font-bold text-yellow-700 font-proxima-bold">
-                  {appliedStatusBreakdown.in_progress}
-                </div>
-                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.in_progress_net_new ?? 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.in_progress_rolled ?? 0}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <div className="text-sm text-gray-600 font-proxima">Submitted</div>
-                <div className="text-2xl font-bold text-blue-700 font-proxima-bold">
-                  {appliedStatusBreakdown.submitted}
-                </div>
-                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.submitted_net_new ?? 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.submitted_rolled ?? 0}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 bg-red-50 rounded-lg">
-                <div className="text-sm text-gray-600 font-proxima">Ineligible</div>
-                <div className="text-2xl font-bold text-red-700 font-proxima-bold">
-                  {appliedStatusBreakdown.ineligible}
-                </div>
-                {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Net New: {appliedStatusBreakdown.ineligible_net_new ?? 0}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                      <span className="text-gray-600 font-proxima">Rolled Over: {appliedStatusBreakdown.ineligible_rolled ?? 0}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {renderStageSummaryCards()}
 
           {/* Demographics Charts */}
           {demoLoading ? (

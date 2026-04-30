@@ -39,7 +39,7 @@ const DRILL_COLS = {
 
 const ENROLLMENT_STAGES = new Set(['enrolled', 'l1_completed', 'l2_completed', 'l3_completed']);
 const ENROLLMENT_STATUSES = ['in_progress', 'completed', 'withdrawn', 'inactive'];
-const ADMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'waitlisted', 'withdrawn'];
+const ADMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'withdrawn'];
 const DRILL_LIMIT = 50;
 
 const fmt = (d) => {
