@@ -4,6 +4,11 @@ dist-ssr
 *.local
 .vite
 
+# Re-include src/lib/ — the root .gitignore globs `lib/` for Python's
+# virtualenv layout, which incidentally catches our React lib/ folder.
+!src/lib/
+!src/lib/**
+
 # Editor / OS
 .DS_Store
 .idea

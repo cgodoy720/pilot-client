@@ -18,6 +18,13 @@ export default defineConfig({
         target: process.env.VITE_API_URL || "http://localhost:8000",
         changeOrigin: true,
       },
+      // /auth/me, /auth/google, /auth/salesforce, /auth/logout, etc. all
+      // live on the FastAPI backend. Without this proxy entry the browser
+      // hits Vite directly, which 404s, and the auth state breaks.
+      "/auth": {
+        target: process.env.VITE_API_URL || "http://localhost:8000",
+        changeOrigin: true,
+      },
     },
   },
 });
