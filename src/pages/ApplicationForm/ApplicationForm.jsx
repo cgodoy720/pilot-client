@@ -99,6 +99,8 @@ const ApplicationForm = () => {
           return;
         }
         
+        const urlParams = new URLSearchParams(window.location.search);
+        const editSubmitted = urlParams.get('editSubmitted') === 'true';
         const applicant = await databaseService.createOrGetApplicant(email, firstName, lastName);
         console.log('Applicant:', applicant);
 
@@ -137,10 +139,33 @@ const ApplicationForm = () => {
           application = await databaseService.createApplication(defaultCohortId || null);
           console.log('Created new application:', application);
         }
+
+        if (application?.status === 'submitted' && editSubmitted) {
+          try {
+            application = await databaseService.reopenSubmittedApplication(
+              application.application_id,
+              applicant.applicant_id
+            );
+            localStorage.setItem('applicationStatus', 'in_progress');
+
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('editSubmitted');
+            window.history.replaceState({}, '', cleanUrl);
+          } catch (reopenError) {
+            console.error('Failed to reopen submitted application:', reopenError);
+            await Swal.fire({
+              icon: 'error',
+              title: 'Application Cannot Be Edited',
+              text: reopenError.message || 'This application can no longer be edited.',
+              confirmButtonColor: '#4242ea'
+            });
+            navigate('/apply');
+            return;
+          }
+        }
         
         if (application && application.status === 'ineligible') {
           const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
-          const urlParams = new URLSearchParams(window.location.search);
           const resetFromUrl = urlParams.get('resetEligibility') === 'true';
           
           console.log('🔍 RESET DEBUG: Found ineligible application', {

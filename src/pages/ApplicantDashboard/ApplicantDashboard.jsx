@@ -593,6 +593,9 @@ function ApplicantDashboard() {
   }
 
   const isButtonEnabled = (section) => {
+    if (section.key === 'application' && statuses.application === 'submitted') {
+      return canEditSubmittedApplication();
+    }
     if (section.key === 'workshop') {
       return section.buttonEnabled(statuses.workshop, statuses.application)
     }
@@ -601,6 +604,17 @@ function ApplicantDashboard() {
     }
     return section.buttonEnabled(statuses[section.key])
   }
+
+  const canEditSubmittedApplication = () => {
+    return (
+      statuses.application === 'submitted' &&
+      currentApplication?.application_id &&
+      (
+        !applicantStage?.program_admission_status ||
+        applicantStage.program_admission_status === 'pending'
+      )
+    );
+  };
 
   const getApplicationProgressText = () => {
     if (applicationProgress) {
@@ -987,6 +1001,11 @@ function ApplicantDashboard() {
                             {isUpdatingCohort ? 'Updating...' : 'Change Cohort'}
                           </button>
                         )}
+                        {canEditSubmittedApplication() && (
+                          <p className="text-xs text-indigo-600 mt-2">
+                            Need to make a change? You can edit and resubmit while your application is still pending review.
+                          </p>
+                        )}
                       </div>
                     )}
                     
@@ -1344,9 +1363,11 @@ function ApplicantDashboard() {
                         </button>
                       ) : (
                         <Link to={enabled ? (
-                          section.key === 'infoSession' ? '/info-sessions' : 
+                          section.key === 'infoSession' ? '/info-sessions' :
                           section.key === 'workshop' ? '/workshops' :
-                          section.key === 'application' ? '/application-form' : 
+                          section.key === 'application' ? (
+                            status === 'submitted' ? '/application-form?editSubmitted=true' : '/application-form'
+                          ) :
                           section.key === 'pledge' ? '/pledge' :
                           section.key === 'onboarding' ? '/onboarding' : '#'
                         ) : '#'}>
@@ -1359,7 +1380,9 @@ function ApplicantDashboard() {
                               'bg-gray-300 text-gray-500 cursor-not-allowed'
                             }`}
                           >
-                            {section.getButtonLabel(status)}
+                            {section.key === 'application' && status === 'submitted' && canEditSubmittedApplication()
+                              ? 'Edit Application'
+                              : section.getButtonLabel(status)}
                           </button>
                         </Link>
                       )}

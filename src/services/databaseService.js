@@ -280,6 +280,35 @@ class DatabaseService {
     }
   }
 
+  async reopenSubmittedApplication(applicationId, applicantId = null) {
+    try {
+      const useAnonymous = !this.isAuthenticated();
+      const url = useAnonymous
+        ? `${API_BASE_URL}/applications/application/${applicationId}/reopen/anonymous`
+        : `${API_BASE_URL}/applications/${applicationId}/reopen`;
+
+      const headers = useAnonymous
+        ? { 'Content-Type': 'application/json' }
+        : this.getAuthHeaders();
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers,
+        body: useAnonymous ? JSON.stringify({ applicantId }) : undefined,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error reopening submitted application:', error);
+      throw error;
+    }
+  }
+
   // Get application by applicant ID
   async getApplicationByApplicantId(applicantId) {
     try {
