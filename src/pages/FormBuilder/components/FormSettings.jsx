@@ -193,6 +193,77 @@ const FormSettings = ({ settings, onUpdate }) => {
         )}
       </div>
 
+      {/* Confirmation Email to Respondent */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6">Confirmation Email to Respondent</h3>
+
+        <div className="mb-6">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.confirmation_email_enabled || false}
+              onChange={(e) => handleChange('confirmation_email_enabled', e.target.checked)}
+              className="w-5 h-5 accent-[#4242ea] cursor-pointer mt-0.5"
+            />
+            <div className="flex-1">
+              <strong className="text-gray-800 block">Send a Confirmation Email</strong>
+              <p className="text-sm text-gray-600 mt-1">
+                Email the respondent a confirmation when they submit this form
+              </p>
+            </div>
+          </label>
+        </div>
+
+        {settings.confirmation_email_enabled && (
+          <div className="space-y-4">
+            {!settings.require_email && (
+              <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                Enable <strong>Require Email Address</strong> above so we have somewhere to send the confirmation. Without it, no email will be sent.
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">From Name</label>
+              <input
+                type="text"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                value={settings.confirmation_email_from_name || ''}
+                onChange={(e) => handleChange('confirmation_email_from_name', e.target.value)}
+                placeholder="Pursuit"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
+              <input
+                type="text"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                value={settings.confirmation_email_subject || ''}
+                onChange={(e) => handleChange('confirmation_email_subject', e.target.value)}
+                placeholder="Thank you for your submission to {{form_title}}"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Body</label>
+              <textarea
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base font-mono resize-vertical transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                value={settings.confirmation_email_body || ''}
+                onChange={(e) => handleChange('confirmation_email_body', e.target.value)}
+                placeholder={'Hi,\n\nThanks for submitting "{{form_title}}" on {{submission_date}}. We\'ve received your response and will be in touch if we need anything further.\n\n— The Pursuit Team'}
+                rows={8}
+              />
+            </div>
+
+            <p className="text-xs text-gray-500">
+              Available variables: <code className="px-1 py-0.5 bg-gray-100 rounded">{'{{form_title}}'}</code>{' '}
+              <code className="px-1 py-0.5 bg-gray-100 rounded">{'{{submission_date}}'}</code>{' '}
+              <code className="px-1 py-0.5 bg-gray-100 rounded">{'{{respondent_email}}'}</code>. Leave any field blank to use the default.
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Form Limits */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-gray-800 mb-6">Form Limits (Optional)</h3>
