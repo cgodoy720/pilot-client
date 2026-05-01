@@ -258,12 +258,20 @@ async def get_project(project_id: str, user=Depends(check_permission("view_proje
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # Check whether the due_date column has been migrated yet.
+    has_due_date = await conn.fetchval(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_schema='bedrock' AND table_name='milestone' AND column_name='due_date'"
+    )
+
+    due_date_col = "m.due_date AS m_due_date," if has_due_date else "NULL::date AS m_due_date,"
+
     rows = await conn.fetch(
-        """
+        f"""
         SELECT
             w.id AS w_id, w.name AS w_name, w.description AS w_desc, w.sort_order AS w_sort,
             m.id AS m_id, m.title AS m_title, m.status AS m_status, m.priority AS m_priority,
-            m.owner AS m_owner, m.owner_ids AS m_owner_ids, m.due_date AS m_due_date,
+            m.owner AS m_owner, m.owner_ids AS m_owner_ids, {due_date_col}
             m.description AS m_desc, m.source_links AS m_links, m.sort_order AS m_sort,
             t.id AS t_id, t.title AS t_title, t.status AS t_status, t.owner AS t_owner,
             t.owner_ids AS t_owner_ids,
