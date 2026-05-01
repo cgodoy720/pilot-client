@@ -9,6 +9,7 @@ import { PipelinePage } from "./pages/Pipeline";
 import { OpportunityDetailPage } from "./pages/OpportunityDetail";
 import { AwardsPage } from "./pages/Awards";
 import { ProjectsPage } from "./pages/Projects";
+import { ProjectDetailPage } from "./pages/ProjectDetail";
 import { TasksPage } from "./pages/Tasks";
 import { ContactsPage } from "./pages/Contacts";
 import { ContactDetailPage } from "./pages/ContactDetail";
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/opportunities/:id" element={<OpportunityDetailPage />} />
         <Route path="/awards" element={<AwardsPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/:id" element={<ProjectDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
         <Route path="/contacts/:id" element={<ContactDetailPage />} />

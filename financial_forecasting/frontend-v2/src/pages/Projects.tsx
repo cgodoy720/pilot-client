@@ -1,9 +1,9 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
-import { ProjectDrawer } from "@/components/ProjectDrawer";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { Toolbar } from "@/components/ui/Toolbar";
@@ -48,9 +48,7 @@ function extractProject(p: BedrockProject, key: ColKey): unknown {
 export function ProjectsPage() {
   const { data, isLoading, isError, error } = useProjects();
   const [q, setQ] = useState("");
-  const [drawerProject, setDrawerProject] = useState<BedrockProject | null>(
-    null,
-  );
+  const navigate = useNavigate();
 
   const { sort, toggle } = useSort<ColKey>({
     key: "updated",
@@ -195,7 +193,7 @@ export function ProjectsPage() {
                     <ProjectRow
                       key={p.id}
                       p={p}
-                      onOpen={() => setDrawerProject(p)}
+                      onOpen={() => navigate(`/projects/${p.id}`)}
                     />
                   );
                 })}
@@ -210,10 +208,6 @@ export function ProjectsPage() {
         </table>
       </div>
 
-      <ProjectDrawer
-        project={drawerProject}
-        onClose={() => setDrawerProject(null)}
-      />
     </div>
   );
 }
