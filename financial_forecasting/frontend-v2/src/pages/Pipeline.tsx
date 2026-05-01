@@ -20,6 +20,7 @@ import {
   type StageBucket,
 } from "@/lib/stages";
 import { cn } from "@/lib/utils";
+import { useAccounts } from "@/services/accounts";
 import {
   useCreateOpportunity,
   useOpportunities,
@@ -140,6 +141,7 @@ export function PipelinePage() {
   const { data, isLoading, isError, error } = useOpportunities({
     recordType: recordType === "All" ? undefined : recordType,
   });
+  const accountsQ = useAccounts();
   const usersQ = useActiveUsers();
   const updateOpp = useUpdateOpportunity();
   const updateStage = useUpdateOpportunityStage();
@@ -165,6 +167,15 @@ export function PipelinePage() {
         label: u.Name,
       })),
     [usersQ.data],
+  );
+
+  const accountOptions = useMemo(
+    () =>
+      (accountsQ.data ?? []).map((a) => ({
+        value: a.Id,
+        label: a.Name,
+      })),
+    [accountsQ.data],
   );
 
   const filtered = useMemo(() => {
@@ -428,6 +439,7 @@ export function PipelinePage() {
       {showCreate ? (
         <CreateOpportunityModal
           ownerOptions={ownerOptions}
+          accountOptions={accountOptions}
           onClose={() => setShowCreate(false)}
           onCreated={(id) => {
             setShowCreate(false);
@@ -441,10 +453,12 @@ export function PipelinePage() {
 
 function CreateOpportunityModal({
   ownerOptions,
+  accountOptions,
   onClose,
   onCreated,
 }: {
   ownerOptions: { value: string; label: string }[];
+  accountOptions: { value: string; label: string }[];
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
@@ -453,23 +467,32 @@ function CreateOpportunityModal({
     Name: "",
     StageName: "New Lead",
     CloseDate: "",
+    AccountId: "",
     Amount: "",
     OwnerId: "",
   });
+  const [accountQ, setAccountQ] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  const filteredAccounts = useMemo(() => {
+    if (!accountQ.trim()) return accountOptions.slice(0, 50);
+    const q = accountQ.toLowerCase();
+    return accountOptions.filter((a) => a.label.toLowerCase().includes(q)).slice(0, 50);
+  }, [accountOptions, accountQ]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.Name.trim() || !form.CloseDate) return;
+    if (!form.Name.trim() || !form.CloseDate || !form.AccountId) return;
     setError(null);
     try {
       const result = await createOpp.mutateAsync({
         Name: form.Name.trim(),
         StageName: form.StageName,
         CloseDate: form.CloseDate,
+        AccountId: form.AccountId,
         Amount: form.Amount ? Number(form.Amount.replace(/[^0-9.]/g, "")) : undefined,
         OwnerId: form.OwnerId || undefined,
       });
@@ -500,6 +523,38 @@ function CreateOpportunityModal({
               required
               className={modalInputCls}
             />
+          </ModalField>
+          <ModalField label="Account *">
+            <input
+              value={accountQ}
+              onChange={(e) => {
+                setAccountQ(e.target.value);
+                setForm((f) => ({ ...f, AccountId: "" }));
+              }}
+              placeholder="Search accounts…"
+              className={modalInputCls}
+            />
+            {accountQ.trim() && !form.AccountId ? (
+              <div className="mt-0.5 max-h-36 overflow-auto rounded border border-border-strong bg-surface shadow-md">
+                {filteredAccounts.length === 0 ? (
+                  <div className="px-3 py-2 text-[12px] text-ink-3">No accounts found</div>
+                ) : (
+                  filteredAccounts.map((a) => (
+                    <button
+                      key={a.value}
+                      type="button"
+                      className="block w-full px-3 py-1.5 text-left text-[12.5px] hover:bg-surface-2"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, AccountId: a.value }));
+                        setAccountQ(a.label);
+                      }}
+                    >
+                      {a.label}
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
           </ModalField>
           <ModalField label="Stage">
             <select value={form.StageName} onChange={set("StageName")} className={modalInputCls}>
@@ -544,7 +599,7 @@ function CreateOpportunityModal({
             </button>
             <button
               type="submit"
-              disabled={!form.Name.trim() || !form.CloseDate || createOpp.isPending}
+              disabled={!form.Name.trim() || !form.CloseDate || !form.AccountId || createOpp.isPending}
               className="rounded border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:opacity-50"
             >
               {createOpp.isPending ? "Creating…" : "Create opportunity"}

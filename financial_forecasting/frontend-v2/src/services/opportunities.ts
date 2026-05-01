@@ -73,7 +73,7 @@ export interface CreateOpportunityBody {
   Name: string;
   StageName: string;
   CloseDate: string;
-  AccountId?: string;
+  AccountId: string;
   Amount?: number | null;
   OwnerId?: string | null;
   Description?: string | null;
