@@ -213,10 +213,14 @@ export interface BedrockActivity {
   description?: string | null;
   email_snippet?: string | null;
   occurred_at?: string | null;
+  activity_date?: string | null;
   created_at?: string | null;
   opportunity_id?: string | null;
   account_id?: string | null;
   contact_ids?: string[] | null;
   award_id?: string | null;
   owner_email?: string | null;
+  /** Enriched by /account/{id}/full endpoint */
+  _context_type?: "account" | "opportunity" | "contact" | null;
+  _context_name?: string | null;
 }

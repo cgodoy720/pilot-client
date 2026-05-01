@@ -118,11 +118,7 @@ export function useUpdateOpportunity() {
       );
       return data;
     },
-    onMutate: async ({ id, patch, displayPatch }) => {
-      await qc.cancelQueries({ queryKey: ["opportunities"] });
-      const snapshots = qc
-        .getQueriesData<SfOpportunity[]>({ queryKey: ["opportunities"] })
-        .map(([key, data]) => ({ key, data }));
+    onSuccess: (_data, { id, patch, displayPatch }) => {
       const merged = { ...patch, ...(displayPatch ?? {}) };
       qc.setQueriesData<SfOpportunity[]>(
         { queryKey: ["opportunities"] },
@@ -131,10 +127,6 @@ export function useUpdateOpportunity() {
             o.Id === id ? ({ ...o, ...merged } as SfOpportunity) : o,
           ),
       );
-      return { snapshots };
-    },
-    onError: (_err, _vars, ctx) => {
-      ctx?.snapshots?.forEach(({ key, data }) => qc.setQueryData(key, data));
     },
     onSettled: () => {
       setTimeout(
@@ -342,8 +334,10 @@ export function useUpdateOpportunityStage() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["opportunities"] });
-      qc.invalidateQueries({ queryKey: ["awards"] });
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["opportunities"] });
+        qc.invalidateQueries({ queryKey: ["awards"] });
+      }, 2000);
     },
   });
 }

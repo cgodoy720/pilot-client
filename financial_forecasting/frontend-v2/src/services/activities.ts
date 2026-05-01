@@ -38,3 +38,25 @@ export function useActivities(filters: ActivityFilters) {
     enabled: !!(filters.opportunityId || filters.accountId || filters.contactId),
   });
 }
+
+async function fetchAccountFullActivities(
+  accountId: string,
+  limit: number,
+): Promise<BedrockActivity[]> {
+  const { data } = await api.get<ActivitiesResponse>(
+    `/api/activities/account/${encodeURIComponent(accountId)}/full?limit=${limit}`,
+  );
+  return data.data ?? [];
+}
+
+export function useAccountFullActivities(
+  accountId: string | undefined,
+  limit = 100,
+) {
+  return useQuery({
+    queryKey: ["activities-full", accountId, limit],
+    queryFn: () => fetchAccountFullActivities(accountId!, limit),
+    staleTime: 30_000,
+    enabled: !!accountId,
+  });
+}

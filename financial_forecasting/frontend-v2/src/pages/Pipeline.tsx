@@ -1,14 +1,18 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Search, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
+import { TaskExpandPanel, TASK_PANEL_HEIGHT } from "@/components/TaskExpandPanel";
+import { ColumnChooser } from "@/components/ui/ColumnChooser";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
+import { SavedViewsPicker } from "@/components/ui/SavedViewsPicker";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { StageChip } from "@/components/ui/StageChip";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
+import { useColumnVisibility } from "@/lib/columnVisibility";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
@@ -27,6 +31,7 @@ import {
   useUpdateOpportunity,
   useUpdateOpportunityStage,
 } from "@/services/opportunities";
+import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
 
@@ -131,6 +136,13 @@ export function PipelinePage() {
   const [recordType, setRecordType] = useState<RecordType>("All");
   const [q, setQ] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const canEdit = usePerm("edit_all_opportunities");
+
+  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
+    "bedrock-v2:vis:pipeline",
+    COLUMN_ORDER,
+  );
 
   const { sort, toggle } = useSort<ColKey>({ key: "close", direction: "asc" });
   const { widths, startResize } = useColumnWidths<ColKey>(
@@ -263,9 +275,11 @@ export function PipelinePage() {
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: (i) =>
+      filtered[i]?.Id === expandedId ? ROW_HEIGHT + TASK_PANEL_HEIGHT : ROW_HEIGHT,
     overscan: 8,
   });
+  useEffect(() => { virtualizer.measure(); }, [expandedId, virtualizer]);
   const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const paddingTop = virtualItems[0]?.start ?? 0;
@@ -319,6 +333,18 @@ export function PipelinePage() {
         <span className="ml-auto text-[11.5px] text-ink-3">
           {filtered.length.toLocaleString()} of {opps.length.toLocaleString()}
         </span>
+        <SavedViewsPicker
+          storageKey="bedrock-v2:views:pipeline"
+          currentFilters={{ scope, recordType }}
+          onLoad={(v) => { setScope(v.scope); setRecordType(v.recordType); }}
+        />
+        <ColumnChooser
+          allColumns={COLUMN_ORDER}
+          labels={COL_LABELS}
+          visible={visibleCols}
+          required={["name"]}
+          onToggle={toggleCol}
+        />
       </Toolbar>
 
       {/*
@@ -338,16 +364,16 @@ export function PipelinePage() {
             minWidth: tableMinWidth,
           }}
         >
-          <ColGroup order={COLUMN_ORDER} widths={widths} />
+          <ColGroup order={visibleCols} widths={widths} />
           <thead className="sticky top-0 z-10">
             <tr>
-              {COLUMN_ORDER.map((key, idx) => (
+              {visibleCols.map((key, idx) => (
                 <ResizableTh
                   key={key}
                   width={widths[key]}
                   onStartResize={(e) => startResize(key, e)}
                   align="left"
-                  isLast={idx === COLUMN_ORDER.length - 1}
+                  isLast={idx === visibleCols.length - 1}
                 >
                   <SortableHeader
                     label={COL_LABELS[key]}
@@ -361,11 +387,11 @@ export function PipelinePage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <SkeletonRows />
+              <SkeletonRows colCount={visibleCols.length} />
             ) : isError ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-10 text-center text-[13px] text-red"
                 >
                   Failed to load opportunities
@@ -375,7 +401,7 @@ export function PipelinePage() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-10 text-center text-[13px] text-ink-3"
                 >
                   {opps.length === 0
@@ -387,30 +413,43 @@ export function PipelinePage() {
               <>
                 {paddingTop > 0 ? (
                   <tr aria-hidden style={{ height: paddingTop }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
                 {virtualItems.map((vi) => {
                   const o = filtered[vi.index];
+                  const isExpanded = o.Id === expandedId;
                   return (
-                    <OpportunityRow
-                      key={o.Id}
-                      o={o}
-                      stageOptions={stageOptions}
-                      ownerOptions={ownerOptions}
-                      onOpen={() => navigate(`/opportunities/${o.Id}`)}
-                      onSaveStage={(stage) => saveStage(o.Id, stage)}
-                      onSaveAmount={(raw) => saveAmount(o.Id, raw)}
-                      onSaveProbability={(raw) => saveProbability(o.Id, raw)}
-                      onSaveOwner={(ownerId) => saveOwner(o.Id, ownerId)}
-                      onSaveNextStep={(next) => saveNextStep(o.Id, next)}
-                      onSavePaymentDate={(next) => savePaymentDate(o.Id, next)}
-                    />
+                    <Fragment key={o.Id}>
+                      <OpportunityRow
+                        o={o}
+                        stageOptions={stageOptions}
+                        ownerOptions={ownerOptions}
+                        onOpen={() => navigate(`/opportunities/${o.Id}`)}
+                        onSaveStage={(stage) => saveStage(o.Id, stage)}
+                        onSaveAmount={(raw) => saveAmount(o.Id, raw)}
+                        onSaveProbability={(raw) => saveProbability(o.Id, raw)}
+                        onSaveOwner={(ownerId) => saveOwner(o.Id, ownerId)}
+                        onSaveNextStep={(next) => saveNextStep(o.Id, next)}
+                        onSavePaymentDate={(next) => savePaymentDate(o.Id, next)}
+                        isExpanded={isExpanded}
+                        onToggleExpand={() => setExpandedId(isExpanded ? null : o.Id)}
+                        canEdit={canEdit}
+                        visibleCols={visibleCols}
+                      />
+                      {isExpanded ? (
+                        <tr>
+                          <td colSpan={visibleCols.length} className="p-0">
+                            <TaskExpandPanel scope={{ type: "opportunity", opportunityId: o.Id }} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
                 {paddingBottom > 0 ? (
                   <tr aria-hidden style={{ height: paddingBottom }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
               </>
@@ -419,17 +458,23 @@ export function PipelinePage() {
           {filtered.length > 0 && !isLoading ? (
             <tfoot className="sticky bottom-0 z-10">
               <tr className="border-t border-border-strong bg-surface-2">
-                <td
-                  colSpan={3}
-                  className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
-                >
-                  Totals · {filtered.length.toLocaleString()} opp
-                  {filtered.length === 1 ? "" : "s"}
-                </td>
-                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
-                  {fmtMoney(total)}
-                </td>
-                <td colSpan={4} />
+                {visibleCols.map((key, idx) => {
+                  if (idx === 0) {
+                    return (
+                      <td key={key} className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+                        Totals · {filtered.length.toLocaleString()} opp{filtered.length === 1 ? "" : "s"}
+                      </td>
+                    );
+                  }
+                  if (key === "amount") {
+                    return (
+                      <td key={key} className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
+                        {fmtMoney(total)}
+                      </td>
+                    );
+                  }
+                  return <td key={key} />;
+                })}
               </tr>
             </tfoot>
           ) : null}
@@ -672,6 +717,10 @@ interface RowProps {
   onSaveOwner: (ownerId: string) => Promise<void>;
   onSaveNextStep: (next: string) => Promise<void>;
   onSavePaymentDate: (next: string | null) => Promise<void>;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  canEdit: boolean;
+  visibleCols: ColKey[];
 }
 
 const OpportunityRow = memo(function OpportunityRow({
@@ -685,108 +734,116 @@ const OpportunityRow = memo(function OpportunityRow({
   onSaveOwner,
   onSaveNextStep,
   onSavePaymentDate,
+  isExpanded,
+  onToggleExpand,
+  canEdit,
+  visibleCols,
 }: RowProps) {
   const account = o.Account?.Name ?? "—";
+
+  const cells: Partial<Record<ColKey, React.ReactNode>> = {
+    name: (
+      <div className="flex min-w-0 items-center gap-1.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+          className="flex-shrink-0 text-ink-4 hover:text-ink-2 transition-colors"
+          aria-label={isExpanded ? "Collapse tasks" : "Expand tasks"}
+        >
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </button>
+        <div className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded bg-surface-2 text-[9px] font-semibold text-ink-2">
+          {initials(account)}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col leading-tight cursor-pointer" onClick={onOpen}>
+          <span className="truncate font-medium hover:underline" title={o.Name}>{o.Name}</span>
+          <span className="truncate text-[11px] text-ink-3" title={account}>{account}</span>
+        </div>
+      </div>
+    ),
+    owner: canEdit ? (
+      <InlineSelect
+        value={o.OwnerId}
+        options={ownerOptions}
+        onSave={onSaveOwner}
+        renderValue={(v) => (
+          <span className="truncate text-[12.5px] text-ink-2">
+            {o.Owner?.Name ?? ownerOptions.find((opt) => opt.value === v)?.label ?? "—"}
+          </span>
+        )}
+      />
+    ) : (
+      <span className="truncate text-[12.5px] text-ink-2">{o.Owner?.Name ?? "—"}</span>
+    ),
+    stage: canEdit ? (
+      <InlineSelect
+        value={o.StageName}
+        options={stageOptions}
+        onSave={onSaveStage}
+        renderValue={(v) => v ? <StageChip stage={v} /> : <span className="text-ink-4">—</span>}
+      />
+    ) : (
+      o.StageName ? <StageChip stage={o.StageName} /> : <span className="text-ink-4">—</span>
+    ),
+    amount: canEdit ? (
+      <InlineText
+        value={o.Amount != null ? String(o.Amount) : ""}
+        onSave={onSaveAmount}
+        placeholder="—"
+        className="justify-end text-right"
+      />
+    ) : (
+      <span className={cn("tabular-nums text-right block", o.Amount && o.Amount > 0 && "font-semibold")}>
+        {o.Amount != null ? fmtMoney(o.Amount) : "—"}
+      </span>
+    ),
+    probability: canEdit ? (
+      <InlineText
+        value={o.Probability != null ? `${o.Probability}%` : ""}
+        onSave={onSaveProbability}
+        placeholder="—"
+        className="justify-end text-right"
+      />
+    ) : (
+      <span className="tabular-nums text-right block">{o.Probability != null ? `${o.Probability}%` : "—"}</span>
+    ),
+    close: <>{fmtDate(o.CloseDate)}</>,
+    paymentDate: canEdit ? (
+      <InlineDate value={o.PaymentDate__c} onSave={onSavePaymentDate} align="right" placeholder="—" />
+    ) : (
+      <span className="text-right block text-ink-3">{fmtDate(o.PaymentDate__c)}</span>
+    ),
+    nextStep: canEdit ? (
+      <InlineText value={o.NextStep} onSave={onSaveNextStep} placeholder="Add next step…" />
+    ) : (
+      <span className="text-ink-3">{o.NextStep ?? ""}</span>
+    ),
+  };
+
+  const cellCls: Partial<Record<ColKey, string>> = {
+    name: "overflow-hidden px-3 py-1 text-[13px]",
+    owner: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-2",
+    stage: "overflow-hidden px-3 py-1 text-[13px]",
+    amount: cn(numCell, o.Amount && o.Amount > 0 && "font-semibold"),
+    probability: cn(numCell),
+    close: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-right text-[11.5px] tabular-nums text-ink-3",
+    paymentDate: "overflow-hidden px-3 py-1",
+    nextStep: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-3",
+  };
 
   return (
     <tr
       className="group/row border-b border-border-strong hover:bg-surface-2"
       style={{ height: ROW_HEIGHT }}
     >
-      {/* Opportunity (name + account) */}
-      <td
-        className="cursor-pointer overflow-hidden px-3 py-1 text-[13px]"
-        onClick={onOpen}
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded bg-surface-2 text-[9px] font-semibold text-ink-2">
-            {initials(account)}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col leading-tight">
-            <span className="truncate font-medium hover:underline" title={o.Name}>
-              {o.Name}
-            </span>
-            <span className="truncate text-[11px] text-ink-3" title={account}>
-              {account}
-            </span>
-          </div>
-        </div>
-      </td>
-
-      {/* Owner */}
-      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-2">
-        <InlineSelect
-          value={o.OwnerId}
-          options={ownerOptions}
-          onSave={onSaveOwner}
-          renderValue={(v) => (
-            <span className="truncate text-[12.5px] text-ink-2">
-              {o.Owner?.Name ??
-                ownerOptions.find((opt) => opt.value === v)?.label ??
-                "—"}
-            </span>
-          )}
-        />
-      </td>
-
-      {/* Stage */}
-      <td className="overflow-hidden px-3 py-1 text-[13px]">
-        <InlineSelect
-          value={o.StageName}
-          options={stageOptions}
-          onSave={onSaveStage}
-          renderValue={(v) =>
-            v ? <StageChip stage={v} /> : <span className="text-ink-4">—</span>
-          }
-        />
-      </td>
-
-      {/* Amount */}
-      <td className={cn(numCell, o.Amount && o.Amount > 0 && "font-semibold")}>
-        <InlineText
-          value={o.Amount != null ? String(o.Amount) : ""}
-          onSave={onSaveAmount}
-          placeholder="—"
-          className="justify-end text-right"
-        />
-      </td>
-
-      {/* Probability */}
-      <td className={cn(numCell)}>
-        <InlineText
-          value={o.Probability != null ? `${o.Probability}%` : ""}
-          onSave={onSaveProbability}
-          placeholder="—"
-          className="justify-end text-right"
-        />
-      </td>
-
-      {/* Close (display only for now) */}
-      <td
-        className="mono cursor-pointer overflow-hidden truncate px-3 py-1 text-right text-[11.5px] tabular-nums text-ink-3"
-        onClick={onOpen}
-      >
-        {fmtDate(o.CloseDate)}
-      </td>
-
-      {/* 1st Payment Date — editable */}
-      <td className="overflow-hidden px-3 py-1">
-        <InlineDate
-          value={o.PaymentDate__c}
-          onSave={onSavePaymentDate}
-          align="right"
-          placeholder="—"
-        />
-      </td>
-
-      {/* Next step */}
-      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-3">
-        <InlineText
-          value={o.NextStep}
-          onSave={onSaveNextStep}
-          placeholder="Add next step…"
-        />
-      </td>
+      {visibleCols.map((key) => (
+        <td
+          key={key}
+          className={cellCls[key]}
+          onClick={key === "close" ? onOpen : undefined}
+        >
+          {cells[key]}
+        </td>
+      ))}
     </tr>
   );
 });
@@ -794,12 +851,12 @@ const OpportunityRow = memo(function OpportunityRow({
 const numCell =
   "mono px-3 py-1 text-right text-[13px] tabular-nums overflow-hidden";
 
-function SkeletonRows() {
+function SkeletonRows({ colCount }: { colCount: number }) {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border-strong">
-          <td colSpan={COLUMN_ORDER.length} className="px-3 py-2.5">
+          <td colSpan={colCount} className="px-3 py-2.5">
             <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
           </td>
         </tr>

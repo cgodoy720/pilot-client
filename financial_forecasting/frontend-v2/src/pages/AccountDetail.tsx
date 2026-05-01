@@ -11,7 +11,7 @@ import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useUpdateAccount } from "@/services/accounts";
-import { useActivities } from "@/services/activities";
+import { useAccountFullActivities } from "@/services/activities";
 import { useContacts, useCreateContact } from "@/services/contacts";
 import { useOpportunities } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
@@ -49,7 +49,7 @@ export function AccountDetailPage() {
     () => allOpps.filter((o) => o.AccountId === id),
     [allOpps, id],
   );
-  const { data: activities = [] } = useActivities({ accountId: id, limit: 30 });
+  const { data: activities = [] } = useAccountFullActivities(id, 150);
   const usersQ = useActiveUsers();
   const updateAccount = useUpdateAccount();
 
@@ -312,7 +312,7 @@ export function AccountDetailPage() {
       </SectionCard>
 
       {/* Activity timeline */}
-      <ActivityTimeline activities={activities} />
+      <ActivityTimeline activities={activities} grouped />
 
       <div className="h-3" />
       <p className="mt-2 text-[11px] text-ink-4">

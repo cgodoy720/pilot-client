@@ -10,7 +10,6 @@ import {
   Users,
   Search,
   Settings as SettingsIcon,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -26,7 +25,6 @@ const NAV = [
   { to: "/projects", label: "Projects", icon: FolderOpen },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
   { to: "/contacts", label: "Contacts", icon: Users },
-  { to: "/cleanup", label: "Cleanup", icon: Sparkles },
 ] as const;
 
 const NAV_COLLAPSED_W = 52;

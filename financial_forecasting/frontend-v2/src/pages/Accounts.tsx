@@ -1,13 +1,17 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Sparkles, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Search, Sparkles, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
+import { TaskExpandPanel, TASK_PANEL_HEIGHT } from "@/components/TaskExpandPanel";
+import { ColumnChooser } from "@/components/ui/ColumnChooser";
 import { InlineSelect } from "@/components/ui/InlineEdit";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
+import { SavedViewsPicker } from "@/components/ui/SavedViewsPicker";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
+import { useColumnVisibility } from "@/lib/columnVisibility";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
@@ -15,6 +19,7 @@ import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useCreateAccount, useUpdateAccount } from "@/services/accounts";
 import { useOpportunities } from "@/services/opportunities";
+import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfAccount, SfOpportunity } from "@/types/salesforce";
 
@@ -122,10 +127,17 @@ export function AccountsPage() {
   const oppsQ = useOpportunities();
   const usersQ = useActiveUsers();
   const updateAccount = useUpdateAccount();
+  const canEdit = usePerm("edit_accounts");
 
   const [filter, setFilter] = useState<TypeFilter>("All");
   const [q, setQ] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
+    "bedrock-v2:vis:accounts",
+    COLUMN_ORDER,
+  );
 
   const { sort, toggle } = useSort<ColKey>({
     key: "openPipeline",
@@ -207,9 +219,11 @@ export function AccountsPage() {
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: (i) =>
+      filtered[i]?.Id === expandedId ? ROW_HEIGHT + TASK_PANEL_HEIGHT : ROW_HEIGHT,
     overscan: 8,
   });
+  useEffect(() => { virtualizer.measure(); }, [expandedId, virtualizer]);
   const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const paddingTop = virtualItems[0]?.start ?? 0;
@@ -261,6 +275,18 @@ export function AccountsPage() {
         <span className="ml-auto text-[11.5px] text-ink-3">
           {filtered.length.toLocaleString()} of {accounts.length.toLocaleString()}
         </span>
+        <SavedViewsPicker
+          storageKey="bedrock-v2:views:accounts"
+          currentFilters={{ filter }}
+          onLoad={(v) => setFilter(v.filter)}
+        />
+        <ColumnChooser
+          allColumns={COLUMN_ORDER}
+          labels={COL_LABELS}
+          visible={visibleCols}
+          required={["name"]}
+          onToggle={toggleCol}
+        />
       </Toolbar>
 
       {/*
@@ -280,16 +306,16 @@ export function AccountsPage() {
             minWidth: tableMinWidth,
           }}
         >
-          <ColGroup order={COLUMN_ORDER} widths={widths} />
+          <ColGroup order={visibleCols} widths={widths} />
           <thead className="sticky top-0 z-10">
             <tr>
-              {COLUMN_ORDER.map((key, idx) => (
+              {visibleCols.map((key, idx) => (
                 <ResizableTh
                   key={key}
                   width={widths[key]}
                   onStartResize={(e) => startResize(key, e)}
                   align="left"
-                  isLast={idx === COLUMN_ORDER.length - 1}
+                  isLast={idx === visibleCols.length - 1}
                 >
                   <SortableHeader
                     label={COL_LABELS[key]}
@@ -303,11 +329,11 @@ export function AccountsPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <SkeletonRows />
+              <SkeletonRows colCount={visibleCols.length} />
             ) : isError ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-10 text-center text-[13px] text-red"
                 >
                   Failed to load accounts
@@ -317,7 +343,7 @@ export function AccountsPage() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-10 text-center text-[13px] text-ink-3"
                 >
                   {accounts.length === 0
@@ -329,25 +355,38 @@ export function AccountsPage() {
               <>
                 {paddingTop > 0 ? (
                   <tr aria-hidden style={{ height: paddingTop }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
                 {virtualItems.map((vi) => {
                   const a = filtered[vi.index];
+                  const isExpanded = a.Id === expandedId;
                   return (
-                    <AccountRow
-                      key={a.Id}
-                      a={a}
-                      m={metricsByAccount.get(a.Id) ?? ZERO_METRICS}
-                      ownerOptions={ownerOptions}
-                      onOpen={() => navigate(`/accounts/${a.Id}`)}
-                      onSaveOwner={(id) => saveOwner(a.Id, id)}
-                    />
+                    <Fragment key={a.Id}>
+                      <AccountRow
+                        a={a}
+                        m={metricsByAccount.get(a.Id) ?? ZERO_METRICS}
+                        ownerOptions={ownerOptions}
+                        onOpen={() => navigate(`/accounts/${a.Id}`)}
+                        onSaveOwner={(id) => saveOwner(a.Id, id)}
+                        isExpanded={isExpanded}
+                        onToggleExpand={() => setExpandedId(isExpanded ? null : a.Id)}
+                        canEdit={canEdit}
+                        visibleCols={visibleCols}
+                      />
+                      {isExpanded ? (
+                        <tr>
+                          <td colSpan={visibleCols.length} className="p-0">
+                            <TaskExpandPanel scope={{ type: "account", accountId: a.Id }} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
                 {paddingBottom > 0 ? (
                   <tr aria-hidden style={{ height: paddingBottom }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
               </>
@@ -356,21 +395,27 @@ export function AccountsPage() {
           {filtered.length > 0 && !isLoading ? (
             <tfoot className="sticky bottom-0 z-10">
               <tr className="border-t border-border-strong bg-surface-2">
-                <td colSpan={2} className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
-                  Totals
-                </td>
-                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
-                  {fmtMoney(totals.openPipeline)}
-                </td>
-                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
-                  {fmtMoney(totals.amountWon)}
-                </td>
-                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
-                  {fmtMoney(totals.received)}
-                </td>
-                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
-                  {fmtMoney(totals.outstanding)}
-                </td>
+                {visibleCols.map((key, idx) => {
+                  const totalsMap: Partial<Record<ColKey, string>> = {
+                    openPipeline: fmtMoney(totals.openPipeline),
+                    amountWon: fmtMoney(totals.amountWon),
+                    received: fmtMoney(totals.received),
+                    outstanding: fmtMoney(totals.outstanding),
+                  };
+                  const label = totalsMap[key];
+                  if (idx === 0) {
+                    return (
+                      <td key={key} className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+                        Totals
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={key} className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
+                      {label ?? ""}
+                    </td>
+                  );
+                })}
               </tr>
             </tfoot>
           ) : null}
@@ -538,6 +583,10 @@ interface RowProps {
   ownerOptions: { value: string; label: string }[];
   onOpen: () => void;
   onSaveOwner: (ownerId: string) => Promise<void>;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  canEdit: boolean;
+  visibleCols: ColKey[];
 }
 
 const AccountRow = memo(function AccountRow({
@@ -546,64 +595,80 @@ const AccountRow = memo(function AccountRow({
   ownerOptions,
   onOpen,
   onSaveOwner,
+  isExpanded,
+  onToggleExpand,
+  canEdit,
+  visibleCols,
 }: RowProps) {
   const dash = <span className="text-ink-4">—</span>;
+
+  const cells: Partial<Record<ColKey, React.ReactNode>> = {
+    name: (
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+          className="flex-shrink-0 text-ink-4 hover:text-ink-2 transition-colors"
+          aria-label={isExpanded ? "Collapse tasks" : "Expand tasks"}
+        >
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </button>
+        <div className="min-w-0 flex-1 cursor-pointer" onClick={onOpen}>
+          <span className="block truncate font-medium hover:underline" title={a.Name}>
+            {a.Name}
+          </span>
+          {a.BillingCity || a.BillingState ? (
+            <span className="block truncate text-[11px] text-ink-3">
+              {[a.BillingCity, a.BillingState].filter(Boolean).join(", ")}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    ),
+    owner: canEdit ? (
+      <InlineSelect
+        value={a.OwnerId}
+        options={ownerOptions}
+        onSave={onSaveOwner}
+        renderValue={(v) => (
+          <span className="truncate text-[12.5px] text-ink-2">
+            {a.Owner?.Name ?? ownerOptions.find((o) => o.value === v)?.label ?? "—"}
+          </span>
+        )}
+      />
+    ) : (
+      <span className="truncate text-[12.5px] text-ink-2">{a.Owner?.Name ?? "—"}</span>
+    ),
+    openPipeline: m.openPipeline > 0 ? fmtMoney(m.openPipeline) : dash,
+    amountWon: m.amountWon > 0 ? fmtMoney(m.amountWon) : dash,
+    received: m.received > 0 ? fmtMoney(m.received) : dash,
+    outstanding: m.outstanding > 0 ? fmtMoney(m.outstanding) : dash,
+  };
+
+  const cellCls: Partial<Record<ColKey, string>> = {
+    name: "overflow-hidden px-3 py-1 text-[13px]",
+    owner: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-2",
+    openPipeline: cn(numCell, m.openPipeline > 0 && "font-semibold text-accent-ink"),
+    amountWon: cn(numCell, m.amountWon > 0 && "font-semibold text-green"),
+    received: cn(numCell, m.received > 0 && "font-medium text-green"),
+    outstanding: cn(numCell, m.outstanding > 0 && "font-medium text-amber"),
+  };
+
+  const clickable = new Set<ColKey>(["openPipeline", "amountWon", "received", "outstanding"]);
 
   return (
     <tr
       className="group/row border-b border-border-strong hover:bg-surface-2"
       style={{ height: ROW_HEIGHT }}
     >
-      <td
-        className="cursor-pointer overflow-hidden px-3 py-1 text-[13px]"
-        onClick={onOpen}
-      >
-        <span className="block truncate font-medium hover:underline" title={a.Name}>
-          {a.Name}
-        </span>
-        {a.BillingCity || a.BillingState ? (
-          <span className="block truncate text-[11px] text-ink-3">
-            {[a.BillingCity, a.BillingState].filter(Boolean).join(", ")}
-          </span>
-        ) : null}
-      </td>
-      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-2">
-        <InlineSelect
-          value={a.OwnerId}
-          options={ownerOptions}
-          onSave={onSaveOwner}
-          renderValue={(v) => (
-            <span className="truncate text-[12.5px] text-ink-2">
-              {a.Owner?.Name ??
-                ownerOptions.find((o) => o.value === v)?.label ?? "—"}
-            </span>
-          )}
-        />
-      </td>
-      <td
-        className={cn(numCell, m.openPipeline > 0 && "font-semibold text-accent-ink")}
-        onClick={onOpen}
-      >
-        {m.openPipeline > 0 ? fmtMoney(m.openPipeline) : dash}
-      </td>
-      <td
-        className={cn(numCell, m.amountWon > 0 && "font-semibold text-green")}
-        onClick={onOpen}
-      >
-        {m.amountWon > 0 ? fmtMoney(m.amountWon) : dash}
-      </td>
-      <td
-        className={cn(numCell, m.received > 0 && "font-medium text-green")}
-        onClick={onOpen}
-      >
-        {m.received > 0 ? fmtMoney(m.received) : dash}
-      </td>
-      <td
-        className={cn(numCell, m.outstanding > 0 && "font-medium text-amber")}
-        onClick={onOpen}
-      >
-        {m.outstanding > 0 ? fmtMoney(m.outstanding) : dash}
-      </td>
+      {visibleCols.map((key) => (
+        <td
+          key={key}
+          className={cellCls[key]}
+          onClick={clickable.has(key) ? onOpen : undefined}
+        >
+          {cells[key]}
+        </td>
+      ))}
     </tr>
   );
 });
@@ -611,12 +676,12 @@ const AccountRow = memo(function AccountRow({
 const numCell =
   "mono px-3 py-1 text-right text-[13px] tabular-nums overflow-hidden truncate cursor-pointer";
 
-function SkeletonRows() {
+function SkeletonRows({ colCount }: { colCount: number }) {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border-strong">
-          <td colSpan={COLUMN_ORDER.length} className="px-3 py-2.5">
+          <td colSpan={colCount} className="px-3 py-2.5">
             <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
           </td>
         </tr>

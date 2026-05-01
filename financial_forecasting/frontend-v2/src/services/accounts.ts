@@ -81,25 +81,16 @@ export function useUpdateAccount() {
       );
       return data;
     },
-    onMutate: async ({ id, patch, displayPatch }) => {
-      await qc.cancelQueries({ queryKey: ["accounts"] });
-      const previous = qc.getQueryData<SfAccount[]>(["accounts"]);
+    onSuccess: (_data, { id, patch, displayPatch }) => {
+      const merged = { ...patch, ...(displayPatch ?? {}) };
       qc.setQueryData<SfAccount[]>(["accounts"], (old) => {
         if (!old) return old;
-        const merged = { ...patch, ...(displayPatch ?? {}) };
         return old.map((a) =>
           a.Id === id ? ({ ...a, ...merged } as SfAccount) : a,
         );
       });
-      return { previous };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.previous) qc.setQueryData(["accounts"], ctx.previous);
     },
     onSettled: () => {
-      // Defer the refetch so SF has time to propagate the write.
-      // Without this delay the refetched list often still shows the
-      // old value, snapping the cell back.
       setTimeout(
         () => qc.invalidateQueries({ queryKey: ["accounts"] }),
         2000,

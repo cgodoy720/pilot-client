@@ -37,19 +37,30 @@ logger = logging.getLogger(__name__)
 PHILANTHROPY_RECORD_TYPE_NAME = "Philanthropy"
 
 WON_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
-    # Canonical 7-stage values (used by Bedrock-originated writes)
+    # Canonical 7-stage value (used by Bedrock-originated writes)
     "closed-won",
-    # Live SF stage values (per canonical-definitions.md §1)
-    "Closed Won",
-    "Closed / Fulfilled",
-    # Legacy "money in flight" values — included if present in current SF
+    # Live SF stage values verified against the joinpursuit org via
+    # `python -m scripts.backfill_awards --verify-stages` on 2026-04-30:
+    "Closed Won",                # 575 rows — current "won" label
+    "Closed / Completed",        # 1,751 rows — legacy "won" label
+    "Closed / Fulfilled",        # 0 rows in joinpursuit but kept for safety
+    "Collecting / In Effect",    # 28 rows — money in flight, post-award
+    # Variants split out historically (kept for safety against canonicalization):
     "Collecting",
     "In Effect",
 })
 
-# Stages that mean "this award is wrapping up" — used to default award_status.
+# Stages that mean "this award is wrapping up" — used to default award_status
+# to 'Closing' instead of 'Active'.
 CLOSING_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
     "Closed / Fulfilled",
+})
+
+# Stages that mean "this award is fully closed out (paid + reported)" — used
+# to default award_status to 'Closed' instead of 'Active'. Backfilled awards
+# from these stages should not appear in the active-management surface.
+CLOSED_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
+    "Closed / Completed",
 })
 
 
@@ -63,6 +74,8 @@ def is_award_eligible(stage_name: Optional[str], record_type_name: Optional[str]
 
 
 def initial_award_status(stage_name: str) -> str:
+    if stage_name in CLOSED_PHILANTHROPY_STAGES:
+        return "Closed"
     if stage_name in CLOSING_PHILANTHROPY_STAGES:
         return "Closing"
     return "Active"

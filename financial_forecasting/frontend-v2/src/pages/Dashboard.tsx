@@ -9,12 +9,16 @@ import { useAccounts } from "@/services/accounts";
 import { useAwards } from "@/services/awards";
 import { useCurrentUser } from "@/services/auth";
 import { useOpportunities } from "@/services/opportunities";
+import { useOwnerGoals } from "@/services/ownerGoals";
+import { useActiveUsers } from "@/services/users";
 
 export function DashboardPage() {
   const { data: user } = useCurrentUser();
   const { data: accounts = [] } = useAccounts();
   const { data: opps = [] } = useOpportunities();
   const { data: awards = [] } = useAwards();
+  const { data: ownerGoals = [] } = useOwnerGoals();
+  const { data: activeUsers = [] } = useActiveUsers();
 
   const openOpps = useMemo(
     () => opps.filter((o) => OPEN_BUCKETS.includes(bucketForStage(o.StageName))),
@@ -38,6 +42,56 @@ export function DashboardPage() {
     return new Date(o.CloseDate).getUTCFullYear() === thisYear;
   });
   const wonThisYearTotal = wonThisYear.reduce((s, o) => s + (o.Amount ?? 0), 0);
+
+  // Wall of Progress — per-owner rollup
+  const goalsThisYear = useMemo(
+    () => ownerGoals.filter((g) => g.fiscal_year === thisYear),
+    [ownerGoals, thisYear],
+  );
+
+  const wallRows = useMemo(() => {
+    // Build a set of all relevant owner IDs
+    const ownerIds = new Set<string>();
+    goalsThisYear.forEach((g) => ownerIds.add(g.sf_user_id));
+    opps.forEach((o) => { if (o.OwnerId) ownerIds.add(o.OwnerId); });
+
+    return Array.from(ownerIds)
+      .map((ownerId) => {
+        const sfUser = activeUsers.find((u) => u.Id === ownerId);
+        const name = sfUser?.Name ?? ownerId;
+        const goal = goalsThisYear.find((g) => g.sf_user_id === ownerId);
+        const goalAmount = goal?.goal_amount ?? null;
+
+        const ownerOpps = opps.filter((o) => o.OwnerId === ownerId);
+
+        const closedWon = ownerOpps
+          .filter((o) => {
+            if (bucketForStage(o.StageName) !== "won") return false;
+            if (!o.CloseDate) return false;
+            return new Date(o.CloseDate).getUTCFullYear() === thisYear;
+          })
+          .reduce((s, o) => s + (o.Amount ?? 0), 0);
+
+        const openOppsOwner = ownerOpps.filter((o) =>
+          OPEN_BUCKETS.includes(bucketForStage(o.StageName)),
+        );
+        const openPipeline = openOppsOwner.reduce((s, o) => s + (o.Amount ?? 0), 0);
+        const weighted = openOppsOwner.reduce(
+          (s, o) => s + ((o.Amount ?? 0) * (o.Probability ?? 0)) / 100,
+          0,
+        );
+
+        const pctToGoal = goalAmount && goalAmount > 0 ? (closedWon / goalAmount) * 100 : null;
+
+        return { ownerId, name, goalAmount, closedWon, openPipeline, weighted, pctToGoal };
+      })
+      .sort((a, b) => {
+        // Sort by FY goal desc, then closed won desc
+        const goalDiff = (b.goalAmount ?? -1) - (a.goalAmount ?? -1);
+        if (goalDiff !== 0) return goalDiff;
+        return b.closedWon - a.closedWon;
+      });
+  }, [goalsThisYear, opps, activeUsers, thisYear]);
 
   // Closing soon (next 30 days)
   const now = Date.now();
@@ -159,6 +213,78 @@ export function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {/* Wall of Progress */}
+      <section className="mt-6 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
+        <div className="border-b border-border-strong bg-surface-2 px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider text-ink-3">
+          Wall of Progress · FY {thisYear}
+        </div>
+        {wallRows.length === 0 ? (
+          <Empty>No owner data yet — goals and opportunities will appear here.</Empty>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[12.5px]">
+              <thead>
+                <tr>
+                  {(["Owner", "FY Goal", "Closed Won", "Open Pipeline", "% to Goal", "Weighted"] as const).map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="border-b border-border-strong bg-surface-2 px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-3"
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {wallRows.map((row) => {
+                  const pct = row.pctToGoal;
+                  const barColor =
+                    pct === null
+                      ? "bg-surface-2"
+                      : pct >= 100
+                        ? "bg-green-500"
+                        : pct >= 50
+                          ? "bg-amber-400"
+                          : "bg-red-400";
+                  const fillWidth =
+                    pct === null ? 0 : Math.min(100, pct);
+
+                  return (
+                    <tr
+                      key={row.ownerId}
+                      className="border-b border-border-strong hover:bg-surface-2/50"
+                    >
+                      <td className="px-4 py-2.5 font-medium">{row.name}</td>
+                      <td className="mono px-4 py-2.5 tabular-nums">
+                        {row.goalAmount != null ? fmtMoney(row.goalAmount) : "—"}
+                      </td>
+                      <td className="mono px-4 py-2.5 tabular-nums">{fmtMoney(row.closedWon)}</td>
+                      <td className="mono px-4 py-2.5 tabular-nums">{fmtMoney(row.openPipeline)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-[120px] overflow-hidden rounded-full bg-surface-2">
+                            <div
+                              className={`h-full rounded-full ${barColor}`}
+                              style={{ width: `${fillWidth}%` }}
+                            />
+                          </div>
+                          <span className="mono tabular-nums text-[11.5px]">
+                            {pct != null ? `${Math.round(pct)}%` : "—"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="mono px-4 py-2.5 tabular-nums">{fmtMoney(row.weighted)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
