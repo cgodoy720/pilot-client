@@ -22,6 +22,32 @@ export function useAccounts() {
   });
 }
 
+export interface CreateAccountBody {
+  Name: string;
+  Type?: string;
+  Industry?: string;
+  Website?: string;
+  BillingCity?: string;
+  BillingState?: string;
+  OwnerId?: string | null;
+}
+
+export function useCreateAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CreateAccountBody) => {
+      const { data } = await api.post<{ id: string; message: string }>(
+        "/api/salesforce/accounts",
+        body,
+      );
+      return data;
+    },
+    onSettled: () => {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["accounts"] }), 1500);
+    },
+  });
+}
+
 /**
  * Patch a Salesforce Account. Backend: PUT /api/salesforce/accounts/{id}
  *

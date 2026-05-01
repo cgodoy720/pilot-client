@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -9,6 +10,9 @@ import {
   Users,
   Search,
   Settings as SettingsIcon,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -22,20 +26,40 @@ const NAV = [
   { to: "/projects", label: "Projects", icon: FolderOpen },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
   { to: "/contacts", label: "Contacts", icon: Users },
+  { to: "/cleanup", label: "Cleanup", icon: Sparkles },
 ] as const;
 
+const NAV_COLLAPSED_W = 52;
+const NAV_EXPANDED_W = 232;
+
+function useSidebarCollapsed() {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("bedrock:sidebar-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const toggle = () =>
+    setCollapsed((c) => {
+      const next = !c;
+      try { localStorage.setItem("bedrock:sidebar-collapsed", String(next)); } catch {}
+      return next;
+    });
+  return { collapsed, toggle };
+}
+
 export function AppShell() {
+  const { collapsed, toggle } = useSidebarCollapsed();
   return (
-    <div className="grid h-screen grid-cols-[232px_1fr] overflow-hidden">
-      <Sidebar />
+    <div
+      className="grid h-screen overflow-hidden transition-[grid-template-columns] duration-200"
+      style={{
+        gridTemplateColumns: `${collapsed ? NAV_COLLAPSED_W : NAV_EXPANDED_W}px 1fr`,
+      }}
+    >
+      <Sidebar collapsed={collapsed} onToggle={toggle} />
       <main className="flex flex-col overflow-hidden">
-        <Topbar />
-        {/*
-          Outer region scrolls — most pages just lay content out and let
-          the window scroll. Virtualized list pages (e.g. Accounts) opt
-          out by setting `h-full overflow-hidden` on their root and
-          managing their own scrollable child.
-        */}
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
@@ -44,133 +68,173 @@ export function AppShell() {
   );
 }
 
-function Sidebar() {
+function Sidebar({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   const { data: user } = useCurrentUser();
   const sf = useSalesforceStatus();
 
   return (
-    <aside className="flex flex-col gap-1 overflow-y-auto border-r border-border bg-surface-2 p-3">
-      <div className="flex items-center gap-2 px-2 py-3">
-        <div className="grid h-6 w-6 place-items-center rounded-md bg-ink text-[13px] font-bold tracking-tight text-surface">
+    <aside
+      className={cn(
+        "relative flex flex-col gap-1 overflow-hidden border-r border-border bg-surface-2 transition-all duration-200",
+        collapsed ? "p-2" : "p-3",
+      )}
+    >
+      {/* Logo / wordmark */}
+      <div
+        className={cn(
+          "flex items-center gap-2 px-1 py-3",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        <div className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-md bg-ink text-[13px] font-bold tracking-tight text-surface">
           B
         </div>
-        <div className="flex flex-col leading-tight">
-          <span className="text-[15px] font-semibold tracking-tight">Bedrock</span>
-          <span className="text-[11px] text-ink-3">Pursuit · Workspace</span>
+        {!collapsed && (
+          <div className="flex flex-col leading-tight">
+            <span className="text-[15px] font-semibold tracking-tight">Bedrock</span>
+            <span className="text-[11px] text-ink-3">Pursuit · Workspace</span>
+          </div>
+        )}
+      </div>
+
+      {/* Search — hidden when collapsed */}
+      {!collapsed && (
+        <div className="mb-2 mt-1 flex h-[30px] items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-ink-3">
+          <Search size={13} />
+          <input
+            placeholder="Search records, contacts…"
+            className="min-w-0 flex-1 border-0 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-4"
+          />
+          <kbd className="rounded border border-border-strong px-1.5 py-px text-[10px] text-ink-3">
+            ⌘K
+          </kbd>
         </div>
-      </div>
+      )}
 
-      <div className="mb-2 mt-1 flex h-[30px] items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-ink-3">
-        <Search size={13} />
-        <input
-          placeholder="Search records, contacts…"
-          className="min-w-0 flex-1 border-0 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-4"
-        />
-        <kbd className="rounded border border-border-strong px-1.5 py-px text-[10px] text-ink-3">
-          ⌘K
-        </kbd>
-      </div>
+      {!collapsed && (
+        <div className="px-2 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+          Workspace
+        </div>
+      )}
 
-      <div className="px-2 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-        Workspace
-      </div>
       <nav className="flex flex-col gap-px">
         {NAV.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
+            title={collapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
-                "flex select-none items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-ink-2 hover:bg-black/[0.04] hover:text-ink",
+                "flex select-none items-center rounded-md text-[13px] font-medium text-ink-2 hover:bg-black/[0.04] hover:text-ink",
+                collapsed
+                  ? "h-9 w-9 justify-center"
+                  : "gap-2.5 px-2.5 py-1.5",
                 isActive &&
                   "border border-border-strong bg-surface text-ink shadow-sm",
               )
             }
           >
-            <item.icon size={16} className="opacity-70" />
-            <span>{item.label}</span>
+            <item.icon size={16} className="flex-shrink-0 opacity-70" />
+            {!collapsed && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
 
       <div className="mt-auto flex flex-col gap-px pt-4">
-        {/* SF connection indicator — clickable to /settings */}
-        {!sf.isLoading ? (
+        {/* SF status dot */}
+        {!sf.isLoading && (
           <NavLink
             to="/settings"
+            title={
+              collapsed
+                ? sf.data?.connected
+                  ? `Salesforce: ${sf.data.user_name ?? "connected"}`
+                  : "Salesforce not connected"
+                : undefined
+            }
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] hover:bg-black/[0.04]",
+                "flex items-center rounded-md hover:bg-black/[0.04]",
+                collapsed ? "h-9 w-9 justify-center" : "gap-2 px-2.5 py-1.5 text-[12px]",
                 isActive && "bg-surface",
               )
-            }
-            title={
-              sf.data?.connected
-                ? `Salesforce: ${sf.data.user_name ?? "connected"}`
-                : "Salesforce not connected — click to connect"
             }
           >
             <span
               className={cn(
-                "inline-block h-1.5 w-1.5 rounded-full",
+                "inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full",
                 sf.data?.connected ? "bg-green" : "bg-amber",
               )}
             />
-            <span className="text-ink-3">
-              {sf.data?.connected ? "Salesforce connected" : "Salesforce not connected"}
-            </span>
+            {!collapsed && (
+              <span className="text-ink-3">
+                {sf.data?.connected ? "Salesforce connected" : "Not connected"}
+              </span>
+            )}
           </NavLink>
-        ) : null}
+        )}
 
         <NavLink
           to="/settings"
+          title={collapsed ? "Settings" : undefined}
           className={({ isActive }) =>
             cn(
-              "flex select-none items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-ink-2 hover:bg-black/[0.04] hover:text-ink",
-              isActive &&
-                "border border-border-strong bg-surface text-ink shadow-sm",
+              "flex select-none items-center rounded-md text-[13px] font-medium text-ink-2 hover:bg-black/[0.04] hover:text-ink",
+              collapsed ? "h-9 w-9 justify-center" : "gap-2.5 px-2.5 py-1.5",
+              isActive && "border border-border-strong bg-surface text-ink shadow-sm",
             )
           }
         >
-          <SettingsIcon size={16} className="opacity-70" />
-          <span>Settings</span>
+          <SettingsIcon size={16} className="flex-shrink-0 opacity-70" />
+          {!collapsed && <span>Settings</span>}
         </NavLink>
 
-        {user ? (
-          <div className="mt-2 flex items-center gap-2 rounded-md px-2.5 py-2">
+        {/* User avatar */}
+        {user && (
+          <div
+            className={cn(
+              "mt-2 flex items-center rounded-md px-1 py-2",
+              collapsed ? "justify-center" : "gap-2 px-2.5",
+            )}
+          >
             {user.picture ? (
               <img
                 src={user.picture}
                 alt=""
-                className="h-6 w-6 rounded-full border border-border-strong"
+                className="h-6 w-6 flex-shrink-0 rounded-full border border-border-strong"
               />
             ) : (
-              <div className="grid h-6 w-6 place-items-center rounded-full bg-surface text-[11px] font-semibold text-ink-2">
+              <div className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-surface text-[11px] font-semibold text-ink-2">
                 {user.name?.[0] ?? "?"}
               </div>
             )}
-            <div className="flex min-w-0 flex-1 flex-col leading-tight">
-              <span className="truncate text-[12px] font-medium">
-                {user.name}
-              </span>
-              <span className="truncate text-[11px] text-ink-4">
-                {user.email}
-              </span>
-            </div>
+            {!collapsed && (
+              <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                <span className="truncate text-[12px] font-medium">{user.name}</span>
+                <span className="truncate text-[11px] text-ink-4">{user.email}</span>
+              </div>
+            )}
           </div>
-        ) : null}
+        )}
       </div>
-    </aside>
-  );
-}
 
-function Topbar() {
-  return (
-    <header className="flex h-12 flex-shrink-0 items-center gap-4 border-b border-border-strong bg-surface px-5">
-      <div className="flex items-center gap-1.5 text-[13px] text-ink-3">
-        <span className="font-semibold text-ink">Bedrock</span>
-      </div>
-      <div className="ml-auto" />
-    </header>
+      {/* Collapse toggle */}
+      <button
+        onClick={onToggle}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className={cn(
+          "absolute bottom-4 flex h-5 w-5 items-center justify-center rounded-full border border-border-strong bg-surface text-ink-3 shadow-sm hover:bg-surface-2 hover:text-ink",
+          collapsed ? "left-1/2 -translate-x-1/2" : "right-2",
+        )}
+      >
+        {collapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
+      </button>
+    </aside>
   );
 }

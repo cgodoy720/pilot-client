@@ -69,6 +69,32 @@ export function useOpportunityTasks(oppId: string | undefined) {
   });
 }
 
+export interface CreateOpportunityBody {
+  Name: string;
+  StageName: string;
+  CloseDate: string;
+  AccountId?: string;
+  Amount?: number | null;
+  OwnerId?: string | null;
+  Description?: string | null;
+}
+
+export function useCreateOpportunity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CreateOpportunityBody) => {
+      const { data } = await api.post<{ id: string; message: string }>(
+        "/api/salesforce/opportunities",
+        body,
+      );
+      return data;
+    },
+    onSettled: () => {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["opportunities"] }), 1500);
+    },
+  });
+}
+
 /**
  * Generic Opp patch — backend PUT /api/salesforce/opportunities/{id}.
  * Use for fields like NextStep, Description, Amount. For StageName,

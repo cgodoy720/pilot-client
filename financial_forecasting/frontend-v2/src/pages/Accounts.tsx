@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Sparkles } from "lucide-react";
+import { Plus, Search, Sparkles, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
@@ -13,7 +13,7 @@ import { fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccounts, useUpdateAccount } from "@/services/accounts";
+import { useAccounts, useCreateAccount, useUpdateAccount } from "@/services/accounts";
 import { useOpportunities } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
 import type { SfAccount, SfOpportunity } from "@/types/salesforce";
@@ -125,6 +125,7 @@ export function AccountsPage() {
 
   const [filter, setFilter] = useState<TypeFilter>("All");
   const [q, setQ] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
 
   const { sort, toggle } = useSort<ColKey>({
     key: "openPipeline",
@@ -229,7 +230,10 @@ export function AccountsPage() {
             <button className="inline-flex h-[30px] items-center gap-1.5 rounded border border-border-strong bg-surface px-3 text-[13px] font-medium text-ink hover:bg-surface-2">
               <Sparkles size={14} /> Enrich with Donor Atlas
             </button>
-            <button className="inline-flex h-[30px] items-center gap-1.5 rounded border border-ink bg-ink px-3 text-[13px] font-medium text-surface hover:opacity-90">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex h-[30px] items-center gap-1.5 rounded border border-ink bg-ink px-3 text-[13px] font-medium text-surface hover:opacity-90"
+            >
               <Plus size={14} /> New account
             </button>
           </>
@@ -372,6 +376,158 @@ export function AccountsPage() {
           ) : null}
         </table>
       </div>
+
+      {showCreate ? (
+        <CreateAccountModal
+          ownerOptions={ownerOptions}
+          onClose={() => setShowCreate(false)}
+          onCreated={(id) => {
+            setShowCreate(false);
+            navigate(`/accounts/${id}`);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function CreateAccountModal({
+  ownerOptions,
+  onClose,
+  onCreated,
+}: {
+  ownerOptions: { value: string; label: string }[];
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const createAccount = useCreateAccount();
+  const [form, setForm] = useState({
+    Name: "",
+    Type: "",
+    Industry: "",
+    Website: "",
+    BillingCity: "",
+    BillingState: "",
+    OwnerId: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.Name.trim()) return;
+    setError(null);
+    try {
+      const result = await createAccount.mutateAsync({
+        Name: form.Name.trim(),
+        Type: form.Type || undefined,
+        Industry: form.Industry.trim() || undefined,
+        Website: form.Website.trim() || undefined,
+        BillingCity: form.BillingCity.trim() || undefined,
+        BillingState: form.BillingState.trim() || undefined,
+        OwnerId: form.OwnerId || undefined,
+      });
+      onCreated(result.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create account.");
+    }
+  };
+
+  const ACCT_TYPES = ["Prospect", "Customer", "Partner", "Government", "Foundation", "Corporation", "Other"];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-lg border border-border-strong bg-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-border-strong px-5 py-3">
+          <span className="text-[14px] font-semibold">New account</span>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink">
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={submit} className="flex flex-col gap-3 px-5 py-4">
+          <AcctField label="Name *">
+            <input
+              value={form.Name}
+              onChange={set("Name")}
+              placeholder="Organization name"
+              required
+              className={acctInputCls}
+            />
+          </AcctField>
+          <AcctField label="Type">
+            <select value={form.Type} onChange={set("Type")} className={acctInputCls}>
+              <option value="">— select type —</option>
+              {ACCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </AcctField>
+          <AcctField label="Industry">
+            <input
+              value={form.Industry}
+              onChange={set("Industry")}
+              placeholder="Technology, Finance…"
+              className={acctInputCls}
+            />
+          </AcctField>
+          <AcctField label="Website">
+            <input
+              value={form.Website}
+              onChange={set("Website")}
+              placeholder="https://example.com"
+              className={acctInputCls}
+            />
+          </AcctField>
+          <div className="grid grid-cols-2 gap-3">
+            <AcctField label="City">
+              <input value={form.BillingCity} onChange={set("BillingCity")} placeholder="New York" className={acctInputCls} />
+            </AcctField>
+            <AcctField label="State">
+              <input value={form.BillingState} onChange={set("BillingState")} placeholder="NY" className={acctInputCls} />
+            </AcctField>
+          </div>
+          <AcctField label="Owner">
+            <select value={form.OwnerId} onChange={set("OwnerId")} className={acctInputCls}>
+              <option value="">— unassigned —</option>
+              {ownerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </AcctField>
+          {error ? <p className="text-[12px] text-red-500">{error}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded border border-border-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!form.Name.trim() || createAccount.isPending}
+              className="rounded border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:opacity-50"
+            >
+              {createAccount.isPending ? "Creating…" : "Create account"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const acctInputCls =
+  "w-full rounded border border-border-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ink-3 placeholder:text-ink-4";
+
+function AcctField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+        {label}
+      </span>
+      {children}
     </div>
   );
 }

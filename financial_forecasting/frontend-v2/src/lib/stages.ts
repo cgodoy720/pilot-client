@@ -136,3 +136,28 @@ export const ALL_BUCKETS: StageBucket[] = [
 
 export const OPEN_BUCKETS: StageBucket[] = ["lead", "qual", "ask", "prop", "contract"];
 export const CLOSED_BUCKETS: StageBucket[] = ["won", "lost"];
+
+/** Real SF StageName values for dropdowns — ordered by funnel position. */
+export const SF_STAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: "New Lead", label: "New Lead" },
+  { value: "Identified", label: "Identified" },
+  { value: "Lead Gen", label: "Lead Gen" },
+  { value: "Qualifying", label: "Qualifying" },
+  { value: "Discovery", label: "Discovery" },
+  { value: "Cultivation", label: "Cultivation" },
+  { value: "Solicitation", label: "Solicitation" },
+  { value: "Ask", label: "Ask" },
+  { value: "Design / Proposal Creation", label: "Design / Proposal Creation" },
+  { value: "Proposal Sent", label: "Proposal Sent" },
+  { value: "Proposal Negotiation", label: "Proposal Negotiation" },
+  { value: "Verbal Commitment", label: "Verbal Commitment" },
+  { value: "Contract Creation", label: "Contract Creation" },
+  { value: "Contract Signing", label: "Contract Signing" },
+  { value: "Contract Signed", label: "Contract Signed" },
+  { value: "Closed Won", label: "Closed Won" },
+  { value: "Collecting", label: "Collecting" },
+  { value: "Collecting / In Effect", label: "Collecting / In Effect" },
+  { value: "In Effect", label: "In Effect" },
+  { value: "Closed Lost", label: "Closed Lost" },
+  { value: "Withdrawn", label: "Withdrawn" },
+];

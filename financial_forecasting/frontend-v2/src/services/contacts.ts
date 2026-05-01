@@ -3,6 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { SfContact } from "@/types/salesforce";
 
+export interface CreateContactBody {
+  AccountId: string;
+  FirstName?: string;
+  LastName: string;
+  Email?: string;
+  Phone?: string;
+  Title?: string;
+}
+
 async function fetchContacts(accountId?: string): Promise<SfContact[]> {
   const path = accountId
     ? `/api/salesforce/contacts?account_id=${encodeURIComponent(accountId)}`
@@ -16,6 +25,25 @@ export function useContacts(accountId?: string) {
     queryKey: ["contacts", accountId ?? "all"],
     queryFn: () => fetchContacts(accountId),
     staleTime: 60_000,
+  });
+}
+
+export function useCreateContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CreateContactBody) => {
+      const { data } = await api.post<{ id: string; message: string }>(
+        "/api/salesforce/contacts",
+        body,
+      );
+      return data;
+    },
+    onSettled: (_data, _err, vars) => {
+      setTimeout(() => {
+        void qc.invalidateQueries({ queryKey: ["contacts", vars.AccountId] });
+        void qc.invalidateQueries({ queryKey: ["contacts", "all"] });
+      }, 1500);
+    },
   });
 }
 

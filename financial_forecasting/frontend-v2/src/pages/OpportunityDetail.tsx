@@ -4,15 +4,31 @@ import { ArrowLeft } from "lucide-react";
 
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { OppTasksSection } from "@/components/OppTasksSection";
+import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { SF_STAGE_OPTIONS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useActivities } from "@/services/activities";
 import {
   useOpportunities,
   useOpportunityPayments,
+  useUpdateOpportunity,
+  useUpdateOpportunityStage,
 } from "@/services/opportunities";
+import { useActiveUsers } from "@/services/users";
+
+const LEAD_SOURCE_OPTIONS = [
+  { value: "Web", label: "Web" },
+  { value: "Phone Inquiry", label: "Phone Inquiry" },
+  { value: "Partner Referral", label: "Partner Referral" },
+  { value: "Purchased List", label: "Purchased List" },
+  { value: "Other", label: "Other" },
+  { value: "Word of mouth", label: "Word of mouth" },
+  { value: "Event", label: "Event" },
+  { value: "Internal", label: "Internal" },
+];
 
 export function OpportunityDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -25,6 +41,14 @@ export function OpportunityDetailPage() {
 
   const { data: payments = [] } = useOpportunityPayments(id);
   const { data: activities = [] } = useActivities({ opportunityId: id, limit: 30 });
+  const usersQ = useActiveUsers();
+  const updateOpp = useUpdateOpportunity();
+  const updateStage = useUpdateOpportunityStage();
+
+  const ownerOptions = useMemo(
+    () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
+    [usersQ.data],
+  );
 
   if (!opp) {
     return (
@@ -37,6 +61,18 @@ export function OpportunityDetailPage() {
     );
   }
 
+  const patch = (field: string, val: unknown) =>
+    updateOpp.mutateAsync({ id: opp.Id, patch: { [field]: val } }).then(() => undefined);
+
+  const saveOwner = async (ownerId: string) => {
+    const ownerName = (usersQ.data ?? []).find((u) => u.Id === ownerId)?.Name ?? null;
+    await updateOpp.mutateAsync({
+      id: opp.Id,
+      patch: { OwnerId: ownerId },
+      displayPatch: { Owner: { Name: ownerName } },
+    });
+  };
+
   const totalPaid = payments
     .filter((p) => p.npe01__Paid__c)
     .reduce((s, p) => s + (p.npe01__Payment_Amount__c ?? 0), 0);
@@ -48,17 +84,24 @@ export function OpportunityDetailPage() {
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
       <BackLink />
 
+      {/* Header */}
       <div className="mt-4 flex items-start gap-4">
         <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-md bg-surface-2 text-[14px] font-semibold text-ink-2">
           {initials(opp.Account?.Name ?? opp.Name)}
         </div>
-        <div className="flex-1">
-          <h1 className="text-[24px] font-bold leading-tight tracking-tight">
-            {opp.Name}
-          </h1>
+        <div className="flex-1 min-w-0">
+          <InlineText
+            value={opp.Name}
+            onSave={(v) => patch("Name", v)}
+            className="text-[24px] font-bold leading-tight tracking-tight text-ink py-0"
+          />
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-3">
-            <StageChip stage={opp.StageName} />
-            {opp.Probability != null ? <span>{opp.Probability}%</span> : null}
+            <InlineSelect
+              value={opp.StageName}
+              options={SF_STAGE_OPTIONS}
+              onSave={(v) => updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)}
+              renderValue={() => <StageChip stage={opp.StageName} />}
+            />
             {opp.RecordType?.Name ? <Tag>{opp.RecordType.Name}</Tag> : null}
             {opp.AccountId ? (
               <Link
@@ -68,11 +111,11 @@ export function OpportunityDetailPage() {
                 · {opp.Account?.Name ?? opp.AccountId}
               </Link>
             ) : null}
-            {opp.Owner?.Name ? <span>· Owner: {opp.Owner.Name}</span> : null}
           </div>
         </div>
       </div>
 
+      {/* Stats row */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Amount" value={opp.Amount ? fmtMoney(opp.Amount) : "—"} />
         <Stat label="Paid" value={fmtMoney(totalPaid)} />
@@ -80,45 +123,105 @@ export function OpportunityDetailPage() {
         <Stat label="Close" value={fmtDate(opp.CloseDate)} />
       </div>
 
+      {/* Editable details grid */}
       <SectionCard title="Details">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 px-5 py-4 text-[12.5px] md:grid-cols-3">
-          <Meta label="Owner" value={opp.Owner?.Name} />
-          <Meta
-            label="Probability"
-            value={opp.Probability != null ? `${opp.Probability}%` : null}
-          />
-          <Meta label="Forecast" value={opp.ForecastCategory} />
-          <Meta label="Lead source" value={opp.LeadSource} />
-          <Meta label="Type" value={opp.RecordType?.Name} />
-          <Meta
-            label="Primary contact"
-            value={opp.npsp__Primary_Contact__r?.Name}
-          />
-          <Meta
-            label="1st payment"
-            value={opp.PaymentDate__c ? fmtDate(opp.PaymentDate__c) : null}
-          />
-        </dl>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-5 py-4 md:grid-cols-3">
+          <EditField label="Owner">
+            <InlineSelect
+              value={opp.OwnerId ?? null}
+              options={ownerOptions}
+              onSave={saveOwner}
+              renderValue={() => (
+                <span className="text-[13px] text-ink-2">
+                  {opp.Owner?.Name ?? ownerOptions.find((o) => o.value === opp.OwnerId)?.label ?? "—"}
+                </span>
+              )}
+            />
+          </EditField>
+          <EditField label="Amount">
+            <InlineText
+              value={opp.Amount != null ? String(opp.Amount) : ""}
+              onSave={(v) => patch("Amount", v ? Number(v.replace(/[^0-9.]/g, "")) : null)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="Close date">
+            <InlineDate
+              value={opp.CloseDate}
+              onSave={(v) => patch("CloseDate", v)}
+            />
+          </EditField>
+          <EditField label="Probability">
+            <InlineText
+              value={opp.Probability != null ? String(opp.Probability) : ""}
+              onSave={(v) => patch("Probability", v ? Number(v) : null)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="Forecast category">
+            <InlineText
+              value={opp.ForecastCategory}
+              onSave={(v) => patch("ForecastCategory", v)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="Lead source">
+            <InlineSelect
+              value={opp.LeadSource ?? null}
+              options={LEAD_SOURCE_OPTIONS}
+              onSave={(v) => patch("LeadSource", v)}
+              emptyLabel="—"
+            />
+          </EditField>
+          <EditField label="1st payment">
+            <InlineDate
+              value={opp.PaymentDate__c}
+              onSave={(v) => patch("PaymentDate__c", v)}
+            />
+          </EditField>
+          <EditField label="Primary contact">
+            <span className="px-1.5 py-1 text-[13px] text-ink-2">
+              {opp.npsp__Primary_Contact__r?.Name ?? <span className="italic text-ink-4">—</span>}
+            </span>
+          </EditField>
+          <EditField label="Type">
+            <span className="px-1.5 py-1 text-[13px] text-ink-2">
+              {opp.RecordType?.Name ?? <span className="italic text-ink-4">—</span>}
+            </span>
+          </EditField>
+        </div>
       </SectionCard>
 
-      {opp.NextStep || opp.Description ? (
-        <SectionCard title="About">
-          {opp.NextStep ? (
-            <div className="border-b border-border-strong px-5 py-3 text-[12.5px]">
-              <span className="text-ink-3">Next step:</span>{" "}
-              <span className="text-ink-2">{opp.NextStep}</span>
+      {/* Next step + description */}
+      <SectionCard title="Notes">
+        <div className="px-5 py-3 space-y-2">
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+              Next step
             </div>
-          ) : null}
-          {opp.Description ? (
-            <div className="whitespace-pre-wrap px-5 py-4 text-[13px] leading-relaxed text-ink-2">
-              {opp.Description}
+            <InlineText
+              value={opp.NextStep}
+              onSave={(v) => patch("NextStep", v)}
+              placeholder="Add a next step…"
+            />
+          </div>
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+              Description
             </div>
-          ) : null}
-        </SectionCard>
-      ) : null}
+            <InlineText
+              value={opp.Description}
+              onSave={(v) => patch("Description", v)}
+              placeholder="Add a description…"
+              multiline
+            />
+          </div>
+        </div>
+      </SectionCard>
 
       <OppTasksSection opportunityId={opp.Id} />
 
+      {/* Payments */}
       <SectionCard title={`Payments (${payments.length})`}>
         {payments.length === 0 ? (
           <Empty>No payment schedule.</Empty>
@@ -153,9 +256,7 @@ export function OpportunityDetailPage() {
                       {fmtDate(p.npe01__Scheduled_Date__c)}
                     </td>
                     <td className="mono px-5 py-2.5 text-right text-[13px] font-medium tabular-nums">
-                      {p.npe01__Payment_Amount__c
-                        ? fmtMoney(p.npe01__Payment_Amount__c)
-                        : "—"}
+                      {p.npe01__Payment_Amount__c ? fmtMoney(p.npe01__Payment_Amount__c) : "—"}
                     </td>
                     <td className="px-5 py-2.5">
                       <Tag variant={status.variant}>{status.label}</Tag>
@@ -221,13 +322,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SectionCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-6 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
       <div className="border-b border-border-strong bg-surface-2 px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider text-ink-3">
@@ -238,25 +333,17 @@ function SectionCard({
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-5 py-8 text-center text-[12.5px] text-ink-3">{children}</div>;
-}
-
-function Meta({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function EditField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col">
-      <dt className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
         {label}
-      </dt>
-      <dd className="text-[13px] text-ink-2">
-        {value ? value : <span className="text-ink-4">—</span>}
-      </dd>
+      </span>
+      {children}
     </div>
   );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return <div className="px-5 py-8 text-center text-[12.5px] text-ink-3">{children}</div>;
 }

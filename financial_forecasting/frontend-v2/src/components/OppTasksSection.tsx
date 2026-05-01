@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 
 import { InlineDate, InlineSelect } from "@/components/ui/InlineEdit";
 import {
@@ -64,6 +64,7 @@ export function OppTasksSection({
     [usersQ.data],
   );
 
+  const [showClosed, setShowClosed] = useState(false);
   const open = tasks.filter((t) => !isTaskClosed(t));
   const closed = tasks.filter((t) => isTaskClosed(t));
 
@@ -135,27 +136,33 @@ export function OppTasksSection({
         />
       </SectionShell>
 
-      {/* Completed tasks (collapsed/dimmed beneath open) */}
+      {/* Completed tasks — collapsible */}
       {closed.length > 0 ? (
-        <SectionShell
-          title={`${baseHeading} · Completed (${closed.length})`}
-          dim
-        >
-          <ScrollList maxH={CLOSED_LIST_MAX_H}>
-            {closed.map((t) => (
-              <TaskRow
-                key={t.Id}
-                t={t}
-                ownerOptions={ownerOptions}
-                onToggleComplete={() => toggleComplete(t)}
-                onSaveStatus={(s) => saveStatus(t.Id, s)}
-                onSavePriority={(p) => savePriority(t.Id, p)}
-                onSaveDate={(d) => saveDate(t.Id, d)}
-                onSaveOwner={(o) => saveOwner(t.Id, o)}
-              />
-            ))}
-          </ScrollList>
-        </SectionShell>
+        <section className="overflow-hidden rounded-lg border border-border-strong bg-surface-2/50 shadow-sm">
+          <button
+            onClick={() => setShowClosed((v) => !v)}
+            className="flex w-full items-center gap-1.5 border-b border-border-strong bg-surface-2/70 px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider text-ink-4 hover:text-ink-3"
+          >
+            {showClosed ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            {baseHeading} · Completed ({closed.length})
+          </button>
+          {showClosed && (
+            <ScrollList maxH={CLOSED_LIST_MAX_H}>
+              {closed.map((t) => (
+                <TaskRow
+                  key={t.Id}
+                  t={t}
+                  ownerOptions={ownerOptions}
+                  onToggleComplete={() => toggleComplete(t)}
+                  onSaveStatus={(s) => saveStatus(t.Id, s)}
+                  onSavePriority={(p) => savePriority(t.Id, p)}
+                  onSaveDate={(d) => saveDate(t.Id, d)}
+                  onSaveOwner={(o) => saveOwner(t.Id, o)}
+                />
+              ))}
+            </ScrollList>
+          )}
+        </section>
       ) : null}
     </div>
   );

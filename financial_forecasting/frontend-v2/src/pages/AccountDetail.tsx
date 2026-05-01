@@ -1,19 +1,38 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Mail, Phone } from "lucide-react";
+import { ArrowLeft, ExternalLink, Mail, Phone, Plus, X } from "lucide-react";
 
 import { AccountTasksSection } from "@/components/AccountTasksSection";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
+import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccounts } from "@/services/accounts";
+import { useAccounts, useUpdateAccount } from "@/services/accounts";
 import { useActivities } from "@/services/activities";
-import { useContacts } from "@/services/contacts";
+import { useContacts, useCreateContact } from "@/services/contacts";
 import { useOpportunities } from "@/services/opportunities";
+import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
+
+const ACCOUNT_TYPE_OPTIONS = [
+  { value: "Prospect", label: "Prospect" },
+  { value: "Customer", label: "Customer" },
+  { value: "Partner", label: "Partner" },
+  { value: "Government", label: "Government" },
+  { value: "Foundation", label: "Foundation" },
+  { value: "Corporation", label: "Corporation" },
+  { value: "Other", label: "Other" },
+];
+
+const ACCOUNT_TIER_OPTIONS = [
+  { value: "Tier 1", label: "Tier 1" },
+  { value: "Tier 2", label: "Tier 2" },
+  { value: "Tier 3", label: "Tier 3" },
+  { value: "Tier 4", label: "Tier 4" },
+];
 
 export function AccountDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -31,6 +50,15 @@ export function AccountDetailPage() {
     [allOpps, id],
   );
   const { data: activities = [] } = useActivities({ accountId: id, limit: 30 });
+  const usersQ = useActiveUsers();
+  const updateAccount = useUpdateAccount();
+
+  const ownerOptions = useMemo(
+    () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
+    [usersQ.data],
+  );
+
+  const [showAddContact, setShowAddContact] = useState(false);
 
   if (!account) {
     return (
@@ -42,6 +70,18 @@ export function AccountDetailPage() {
       </div>
     );
   }
+
+  const patch = (field: string, val: unknown) =>
+    updateAccount.mutateAsync({ id: account.Id, patch: { [field]: val } }).then(() => undefined);
+
+  const saveOwner = async (ownerId: string) => {
+    const ownerName = (usersQ.data ?? []).find((u) => u.Id === ownerId)?.Name ?? null;
+    await updateAccount.mutateAsync({
+      id: account.Id,
+      patch: { OwnerId: ownerId },
+      displayPatch: { Owner: { Name: ownerName } },
+    });
+  };
 
   const lifetime =
     account.npo02__TotalOppAmount__c ??
@@ -68,10 +108,12 @@ export function AccountDetailPage() {
         >
           {initials(account.Name)}
         </div>
-        <div className="flex-1">
-          <h1 className="text-[24px] font-bold leading-tight tracking-tight">
-            {account.Name}
-          </h1>
+        <div className="flex-1 min-w-0">
+          <InlineText
+            value={account.Name}
+            onSave={(v) => patch("Name", v)}
+            className="text-[24px] font-bold leading-tight tracking-tight text-ink py-0"
+          />
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-3">
             {account.Type ? <Tag>{account.Type}</Tag> : null}
             {account.Account_Tier__c ? (
@@ -108,14 +150,86 @@ export function AccountDetailPage() {
         <Stat label="Last activity" value={fmtDate(lastActivity)} />
       </div>
 
+      {/* Editable details */}
+      <SectionCard title="Details">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-5 py-4 md:grid-cols-3">
+          <EditField label="Owner">
+            <InlineSelect
+              value={account.OwnerId ?? null}
+              options={ownerOptions}
+              onSave={saveOwner}
+              renderValue={() => (
+                <span className="text-[13px] text-ink-2">
+                  {account.Owner?.Name ?? ownerOptions.find((o) => o.value === account.OwnerId)?.label ?? "—"}
+                </span>
+              )}
+            />
+          </EditField>
+          <EditField label="Type">
+            <InlineSelect
+              value={account.Type ?? null}
+              options={ACCOUNT_TYPE_OPTIONS}
+              onSave={(v) => patch("Type", v)}
+              emptyLabel="—"
+            />
+          </EditField>
+          <EditField label="Account tier">
+            <InlineSelect
+              value={account.Account_Tier__c ?? null}
+              options={ACCOUNT_TIER_OPTIONS}
+              onSave={(v) => patch("Account_Tier__c", v)}
+              emptyLabel="—"
+            />
+          </EditField>
+          <EditField label="Industry">
+            <InlineText
+              value={account.Industry ?? ""}
+              onSave={(v) => patch("Industry", v)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="Website">
+            <InlineText
+              value={account.Website ?? ""}
+              onSave={(v) => patch("Website", v)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="Phone">
+            <InlineText
+              value={account.Phone ?? ""}
+              onSave={(v) => patch("Phone", v)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="City">
+            <InlineText
+              value={account.BillingCity ?? ""}
+              onSave={(v) => patch("BillingCity", v)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="State">
+            <InlineText
+              value={account.BillingState ?? ""}
+              onSave={(v) => patch("BillingState", v)}
+              placeholder="—"
+            />
+          </EditField>
+        </div>
+      </SectionCard>
+
       {/* Description */}
-      {account.Description ? (
-        <SectionCard title="About">
-          <div className="whitespace-pre-wrap px-5 py-4 text-[13px] leading-relaxed text-ink-2">
-            {account.Description}
-          </div>
-        </SectionCard>
-      ) : null}
+      <SectionCard title="About">
+        <div className="px-5 py-3">
+          <InlineText
+            value={account.Description ?? ""}
+            onSave={(v) => patch("Description", v)}
+            placeholder="Add a description…"
+            multiline
+          />
+        </div>
+      </SectionCard>
 
       {/* Open opportunities */}
       {openOpps.length > 0 ? (
@@ -124,9 +238,6 @@ export function AccountDetailPage() {
         </SectionCard>
       ) : null}
 
-      {/* Tasks for this account — both account-level (WhatId = account_id)
-          and opp-tied (WhatId in account's opps). Single SOQL on the
-          backend, single section here. Opp-tied rows show "→ Opp Name". */}
       <AccountTasksSection accountId={account.Id} />
 
       {/* Closed-won opportunities */}
@@ -137,7 +248,17 @@ export function AccountDetailPage() {
       ) : null}
 
       {/* Contacts */}
-      <SectionCard title={`Contacts (${contacts.length})`}>
+      <SectionCard
+        title={`Contacts (${contacts.length})`}
+        action={
+          <button
+            onClick={() => setShowAddContact(true)}
+            className="inline-flex items-center gap-1 rounded border border-border-strong bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:bg-surface-2"
+          >
+            <Plus size={11} /> Add
+          </button>
+        }
+      >
         {contacts.length === 0 ? (
           <Empty>No contacts on this account.</Empty>
         ) : (
@@ -197,6 +318,148 @@ export function AccountDetailPage() {
       <p className="mt-2 text-[11px] text-ink-4">
         SF Id: <span className="mono">{account.Id}</span>
       </p>
+
+      {showAddContact ? (
+        <AddContactModal
+          accountId={account.Id}
+          onClose={() => setShowAddContact(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AddContactModal({
+  accountId,
+  onClose,
+}: {
+  accountId: string;
+  onClose: () => void;
+}) {
+  const createContact = useCreateContact();
+  const [form, setForm] = useState({
+    FirstName: "",
+    LastName: "",
+    Email: "",
+    Phone: "",
+    Title: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.LastName.trim()) return;
+    setError(null);
+    try {
+      await createContact.mutateAsync({
+        AccountId: accountId,
+        FirstName: form.FirstName.trim() || undefined,
+        LastName: form.LastName.trim(),
+        Email: form.Email.trim() || undefined,
+        Phone: form.Phone.trim() || undefined,
+        Title: form.Title.trim() || undefined,
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create contact.");
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-lg border border-border-strong bg-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-border-strong px-5 py-3">
+          <span className="text-[14px] font-semibold">Add contact</span>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink">
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={submit} className="flex flex-col gap-3 px-5 py-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="First name">
+              <input
+                value={form.FirstName}
+                onChange={set("FirstName")}
+                placeholder="Jane"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Last name *">
+              <input
+                value={form.LastName}
+                onChange={set("LastName")}
+                placeholder="Doe"
+                required
+                className={inputCls}
+              />
+            </Field>
+          </div>
+          <Field label="Email">
+            <input
+              type="email"
+              value={form.Email}
+              onChange={set("Email")}
+              placeholder="jane@example.com"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Phone">
+            <input
+              value={form.Phone}
+              onChange={set("Phone")}
+              placeholder="(555) 555-5555"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Title">
+            <input
+              value={form.Title}
+              onChange={set("Title")}
+              placeholder="VP of Engineering"
+              className={inputCls}
+            />
+          </Field>
+          {error ? (
+            <p className="text-[12px] text-red-500">{error}</p>
+          ) : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded border border-border-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!form.LastName.trim() || createContact.isPending}
+              className="rounded border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:opacity-50"
+            >
+              {createContact.isPending ? "Creating…" : "Create contact"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const inputCls =
+  "w-full rounded border border-border-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ink-3 placeholder:text-ink-4";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+        {label}
+      </span>
+      {children}
     </div>
   );
 }
@@ -225,18 +488,34 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function SectionCard({
   title,
+  action,
   children,
 }: {
   title: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="mt-6 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
-      <div className="border-b border-border-strong bg-surface-2 px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider text-ink-3">
-        {title}
+      <div className="flex items-center justify-between border-b border-border-strong bg-surface-2 px-5 py-2.5">
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">
+          {title}
+        </span>
+        {action ?? null}
       </div>
       {children}
     </section>
+  );
+}
+
+function EditField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+        {label}
+      </span>
+      {children}
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
@@ -16,10 +16,12 @@ import {
   bucketForStage,
   CLOSED_BUCKETS,
   OPEN_BUCKETS,
+  SF_STAGE_OPTIONS,
   type StageBucket,
 } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import {
+  useCreateOpportunity,
   useOpportunities,
   useUpdateOpportunity,
   useUpdateOpportunityStage,
@@ -127,6 +129,7 @@ export function PipelinePage() {
   const [scope, setScope] = useState<Scope>("open");
   const [recordType, setRecordType] = useState<RecordType>("All");
   const [q, setQ] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
 
   const { sort, toggle } = useSort<ColKey>({ key: "close", direction: "asc" });
   const { widths, startResize } = useColumnWidths<ColKey>(
@@ -268,7 +271,10 @@ export function PipelinePage() {
             : `${filtered.length.toLocaleString()} opportunities · ${fmtMoney(total)}`
         }
         actions={
-          <button className="inline-flex h-[30px] items-center gap-1.5 rounded border border-ink bg-ink px-3 text-[13px] font-medium text-surface hover:opacity-90">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex h-[30px] items-center gap-1.5 rounded border border-ink bg-ink px-3 text-[13px] font-medium text-surface hover:opacity-90"
+          >
             <Plus size={14} /> New opportunity
           </button>
         }
@@ -418,6 +424,148 @@ export function PipelinePage() {
           ) : null}
         </table>
       </div>
+
+      {showCreate ? (
+        <CreateOpportunityModal
+          ownerOptions={ownerOptions}
+          onClose={() => setShowCreate(false)}
+          onCreated={(id) => {
+            setShowCreate(false);
+            navigate(`/opportunities/${id}`);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function CreateOpportunityModal({
+  ownerOptions,
+  onClose,
+  onCreated,
+}: {
+  ownerOptions: { value: string; label: string }[];
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const createOpp = useCreateOpportunity();
+  const [form, setForm] = useState({
+    Name: "",
+    StageName: "New Lead",
+    CloseDate: "",
+    Amount: "",
+    OwnerId: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.Name.trim() || !form.CloseDate) return;
+    setError(null);
+    try {
+      const result = await createOpp.mutateAsync({
+        Name: form.Name.trim(),
+        StageName: form.StageName,
+        CloseDate: form.CloseDate,
+        Amount: form.Amount ? Number(form.Amount.replace(/[^0-9.]/g, "")) : undefined,
+        OwnerId: form.OwnerId || undefined,
+      });
+      onCreated(result.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create opportunity.");
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-lg border border-border-strong bg-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-border-strong px-5 py-3">
+          <span className="text-[14px] font-semibold">New opportunity</span>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink">
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={submit} className="flex flex-col gap-3 px-5 py-4">
+          <ModalField label="Name *">
+            <input
+              value={form.Name}
+              onChange={set("Name")}
+              placeholder="Opportunity name"
+              required
+              className={modalInputCls}
+            />
+          </ModalField>
+          <ModalField label="Stage">
+            <select value={form.StageName} onChange={set("StageName")} className={modalInputCls}>
+              {SF_STAGE_OPTIONS.map((s: { value: string; label: string }) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </ModalField>
+          <ModalField label="Close date *">
+            <input
+              type="date"
+              value={form.CloseDate}
+              onChange={set("CloseDate")}
+              required
+              className={modalInputCls}
+            />
+          </ModalField>
+          <ModalField label="Amount">
+            <input
+              value={form.Amount}
+              onChange={set("Amount")}
+              placeholder="0"
+              className={modalInputCls}
+            />
+          </ModalField>
+          <ModalField label="Owner">
+            <select value={form.OwnerId} onChange={set("OwnerId")} className={modalInputCls}>
+              <option value="">— unassigned —</option>
+              {ownerOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </ModalField>
+          {error ? <p className="text-[12px] text-red-500">{error}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded border border-border-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!form.Name.trim() || !form.CloseDate || createOpp.isPending}
+              className="rounded border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:opacity-50"
+            >
+              {createOpp.isPending ? "Creating…" : "Create opportunity"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const modalInputCls =
+  "w-full rounded border border-border-strong bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ink-3 placeholder:text-ink-4";
+
+function ModalField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+        {label}
+      </span>
+      {children}
     </div>
   );
 }
