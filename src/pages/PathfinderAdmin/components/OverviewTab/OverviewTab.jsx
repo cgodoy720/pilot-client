@@ -1,7 +1,10 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';
+import { Input } from '../../../../components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../../components/ui/dialog';
 import { getWeekDateRange, getMilestoneInfo } from '../shared/utils';
+import JobApplicationDetailModal from '../shared/JobApplicationDetailModal';
 
 const OverviewTab = ({
   overview,
@@ -10,9 +13,81 @@ const OverviewTab = ({
   weekOffset,
   setWeekOffset,
   expandedHighlightGroups,
-  toggleHighlightGroup
+  toggleHighlightGroup,
+  token,
+  cohortFilter,
+  onRefresh
 }) => {
   if (!overview) return null;
+
+  // Interview picker state
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerStep, setPickerStep] = useState('builder');
+  const [builders, setBuilders] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBuilder, setSelectedBuilder] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [pickerLoading, setPickerLoading] = useState(false);
+
+  const openPicker = async () => {
+    setShowPicker(true);
+    setPickerStep('builder');
+    setSearchQuery('');
+    setSelectedBuilder(null);
+    setApplications([]);
+    setPickerLoading(true);
+    try {
+      let url = `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/builders`;
+      if (cohortFilter && cohortFilter !== 'all') {
+        url += `?cohort=${encodeURIComponent(cohortFilter)}`;
+      }
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setBuilders(data);
+    } catch (err) {
+      console.error('Error fetching builders:', err);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  const selectBuilder = async (builder) => {
+    setSelectedBuilder(builder);
+    setPickerStep('application');
+    setPickerLoading(true);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/builders/${builder.builder_id}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      setApplications(data.applications?.data || []);
+    } catch (err) {
+      console.error('Error fetching builder applications:', err);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  const selectApplication = (app) => {
+    setSelectedApplication(app);
+    setShowPicker(false);
+  };
+
+  const closePicker = () => {
+    setShowPicker(false);
+    setPickerStep('builder');
+    setSearchQuery('');
+    setSelectedBuilder(null);
+    setApplications([]);
+  };
+
+  const filteredBuilders = builders.filter(b =>
+    `${b.first_name} ${b.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderLeaderboard = (types, isWeekly = true) => {
     if (leaderboard.length === 0) {
@@ -336,6 +411,13 @@ const OverviewTab = ({
           </h2>
           <div className="flex gap-2">
             <Button
+              size="sm"
+              onClick={openPicker}
+              className="bg-[#4242ea] text-white hover:bg-[#3333d1]"
+            >
+              Log Interview
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               onClick={() => setWeekOffset(weekOffset - 1)}
@@ -459,6 +541,83 @@ const OverviewTab = ({
         {/* All Time Stats Grid */}
         {renderStats(false)}
       </div>
+
+      {/* Builder/Application Picker Dialog */}
+      <Dialog open={showPicker} onOpenChange={(open) => { if (!open) closePicker(); }}>
+        <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              {pickerStep === 'builder' ? 'Select a Builder' : `${selectedBuilder?.first_name} ${selectedBuilder?.last_name} - Select Application`}
+            </DialogTitle>
+          </DialogHeader>
+
+          {pickerStep === 'builder' && (
+            <div className="flex flex-col gap-3 overflow-hidden">
+              <Input
+                placeholder="Search Builders..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <div className="overflow-y-auto max-h-[50vh] space-y-1">
+                {pickerLoading ? (
+                  <p className="text-sm text-gray-500 p-4 text-center">Loading...</p>
+                ) : filteredBuilders.length === 0 ? (
+                  <p className="text-sm text-gray-500 p-4 text-center">No Builders found</p>
+                ) : (
+                  filteredBuilders.map(b => (
+                    <button
+                      key={b.builder_id}
+                      onClick={() => selectBuilder(b)}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-[#f0f0f0] transition-colors text-sm"
+                    >
+                      <span className="font-medium">{b.first_name} {b.last_name}</span>
+                      <span className="text-gray-500 ml-2">({b.application_count || 0} applications)</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {pickerStep === 'application' && (
+            <div className="flex flex-col gap-3 overflow-hidden">
+              <Button variant="ghost" size="sm" onClick={() => { setPickerStep('builder'); setSearchQuery(''); }} className="self-start">
+                Back to Builders
+              </Button>
+              <div className="overflow-y-auto max-h-[50vh] space-y-1">
+                {pickerLoading ? (
+                  <p className="text-sm text-gray-500 p-4 text-center">Loading...</p>
+                ) : applications.length === 0 ? (
+                  <p className="text-sm text-gray-500 p-4 text-center">No applications found for this Builder</p>
+                ) : (
+                  applications.map(app => (
+                    <button
+                      key={app.job_application_id}
+                      onClick={() => selectApplication(app)}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-[#f0f0f0] transition-colors text-sm border border-[#e0e0e0] mb-1"
+                    >
+                      <div className="font-medium">{app.company_name}</div>
+                      <div className="text-gray-500">{app.role_title || 'No role specified'} - {app.stage}</div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Job Application Detail Modal (for logging interview) */}
+      <JobApplicationDetailModal
+        application={selectedApplication}
+        open={!!selectedApplication}
+        onOpenChange={(open) => { if (!open) setSelectedApplication(null); }}
+        token={token}
+        onRefresh={() => {
+          setSelectedApplication(null);
+          if (onRefresh) onRefresh();
+        }}
+      />
     </div>
   );
 };
