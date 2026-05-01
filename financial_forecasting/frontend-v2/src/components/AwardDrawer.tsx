@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
+import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { Drawer } from "@/components/ui/Drawer";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { useActivities } from "@/services/activities";
 import {
   useOpportunityPayments,
@@ -11,6 +15,28 @@ import {
 } from "@/services/opportunities";
 import type { Award } from "@/services/awards";
 import type { SfOpportunity, SfPayment, SfTask } from "@/types/salesforce";
+
+interface OppProject {
+  id: string;
+  project_id: string;
+  role: string | null;
+  project_name: string;
+  project_status: string | null;
+}
+
+function useOpportunityProjects(oppId: string) {
+  return useQuery({
+    queryKey: ["opp-projects", oppId],
+    queryFn: async () => {
+      const { data } = await api.get<{ success: boolean; data: OppProject[] }>(
+        `/api/opportunities/${oppId}/projects`,
+      );
+      return data.data;
+    },
+    staleTime: 60_000,
+    enabled: !!oppId,
+  });
+}
 
 export function AwardDrawer({
   award,
@@ -53,8 +79,9 @@ function AwardDrawerBody({
   const { data: tasks = [] } = useOpportunityTasks(oppId);
   const { data: activities = [] } = useActivities({
     opportunityId: oppId,
-    limit: 30,
+    limit: 100,
   });
+  const { data: linkedProjects = [] } = useOpportunityProjects(oppId);
 
   // Stats
   const amount = opp?.Amount ?? 0;
@@ -142,52 +169,35 @@ function AwardDrawerBody({
         )}
       </Section>
 
-      {/* Linked project — TODO: backend endpoint doesn't exist yet.
-          routes/projects.py exposes
-            GET /projects/{project_id}/opportunities
-          but no reverse lookup (opportunity → projects). When that
-          lands, replace this with a real query + link out to /projects/X. */}
-      <Section title="Linked project">
-        <div className="px-4 py-3 text-[12px] text-ink-3">
-          <span className="italic">
-            TODO: needs an opportunity → projects lookup endpoint
-            (`GET /api/opportunities/&#123;id&#125;/projects` or equivalent).
-            Once available, render a link to /projects/&#123;X&#125; for any
-            project_opportunity rows referencing this opp.
-          </span>
-        </div>
-      </Section>
-
-      {/* Activity timeline */}
-      <Section title={`Activity (${activities.length})`}>
-        {activities.length === 0 ? (
-          <Empty>No activities logged.</Empty>
-        ) : (
+      {/* Linked projects */}
+      {linkedProjects.length > 0 ? (
+        <Section title={`Projects (${linkedProjects.length})`}>
           <ul className="flex flex-col">
-            {activities.slice(0, 20).map((a) => (
+            {linkedProjects.map((lp) => (
               <li
-                key={a.id}
-                className="flex items-start gap-2 border-b border-border-strong px-4 py-2 last:border-b-0"
+                key={lp.id}
+                className="flex items-center gap-3 border-b border-border-strong px-4 py-2.5 last:border-b-0"
               >
-                <Tag>{a.type}</Tag>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px]">
-                    {a.subject ?? "(no subject)"}
-                  </div>
-                  {a.email_snippet || a.description ? (
-                    <div className="line-clamp-1 text-[11.5px] text-ink-3">
-                      {a.email_snippet ?? a.description}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="mono flex-shrink-0 text-[10.5px] text-ink-3">
-                  {fmtDate(a.occurred_at ?? a.created_at)}
-                </div>
+                <Link
+                  to={`/projects/${lp.project_id}`}
+                  className="flex-1 truncate text-[13px] font-medium hover:underline"
+                >
+                  {lp.project_name}
+                </Link>
+                {lp.role ? (
+                  <Tag>{lp.role}</Tag>
+                ) : null}
+                {lp.project_status ? (
+                  <span className="text-[11px] text-ink-3">{lp.project_status}</span>
+                ) : null}
               </li>
             ))}
           </ul>
-        )}
-      </Section>
+        </Section>
+      ) : null}
+
+      {/* Activity timeline */}
+      <ActivityTimeline activities={activities} grouped title={`Activity (${activities.length})`} />
     </div>
   );
 }

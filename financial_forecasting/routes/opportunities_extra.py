@@ -370,3 +370,39 @@ async def update_opportunity_stage(
     except Exception as e:
         logger.exception("Error in update_opportunity_stage")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ---------------------------------------------------------------------------
+# Opportunity → Projects reverse lookup
+# ---------------------------------------------------------------------------
+
+@router.get("/api/opportunities/{opportunity_id}/projects")
+async def get_opportunity_projects(
+    opportunity_id: str,
+    user=Depends(check_permission("view_projects")),
+    conn=Depends(get_db),
+):
+    """Return all projects linked to a given Opportunity."""
+    validate_salesforce_id(opportunity_id, "opportunity_id")
+    rows = await conn.fetch(
+        """
+        SELECT po.id, po.project_id, po.role, po.created_at,
+               p.name AS project_name, p.status AS project_status
+        FROM bedrock.project_opportunity po
+        JOIN bedrock.project p ON p.id = po.project_id AND p.deleted_at IS NULL
+        WHERE po.opportunity_id = $1
+        ORDER BY po.created_at
+        """,
+        opportunity_id,
+    )
+    return {"success": True, "data": [
+        {
+            "id": str(r["id"]),
+            "project_id": str(r["project_id"]),
+            "role": r["role"],
+            "project_name": r["project_name"],
+            "project_status": r["project_status"],
+            "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        }
+        for r in rows
+    ]}

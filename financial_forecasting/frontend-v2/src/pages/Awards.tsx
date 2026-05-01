@@ -4,12 +4,15 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { AwardDrawer } from "@/components/AwardDrawer";
 import { PageHeader } from "@/components/PageHeader";
+import { ColumnChooser } from "@/components/ui/ColumnChooser";
 import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
+import { SavedViewsPicker } from "@/components/ui/SavedViewsPicker";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { Tag } from "@/components/ui/Tag";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
+import { useColumnVisibility } from "@/lib/columnVisibility";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import {
@@ -19,7 +22,12 @@ import {
   type AwardStatus,
 } from "@/services/awards";
 import { useOpportunities } from "@/services/opportunities";
+import { usePerm } from "@/services/permissions";
 import type { SfOpportunity } from "@/types/salesforce";
+
+interface AwardFilter {
+  status: "All" | AwardStatus;
+}
 
 const STATUS_FILTERS: { value: "All" | AwardStatus; label: string }[] = [
   { value: "All", label: "All" },
@@ -99,9 +107,15 @@ function extractAward(
 }
 
 export function AwardsPage() {
-  const [filter, setFilter] = useState<"All" | AwardStatus>("All");
+  const [filter, setFilter] = useState<AwardFilter>({ status: "All" });
   const [q, setQ] = useState("");
   const [drawerAward, setDrawerAward] = useState<Award | null>(null);
+
+  const canEdit = usePerm("edit_awards");
+  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility<ColKey>(
+    "bedrock-v2:vis:awards",
+    COLUMN_ORDER,
+  );
 
   const { sort, toggle } = useSort<ColKey>({
     key: "awardDate",
@@ -117,7 +131,7 @@ export function AwardsPage() {
     isLoading: awardsLoading,
     isError,
     error,
-  } = useAwards(filter === "All" ? undefined : filter);
+  } = useAwards(filter.status === "All" ? undefined : filter.status);
   const { data: oppsData } = useOpportunities({ recordType: "Philanthropy" });
   const updateAward = useUpdateAward();
 
@@ -182,8 +196,10 @@ export function AwardsPage() {
 
       <Toolbar>
         <ButtonGroup
-          value={filter}
-          onChange={(v) => setFilter(v as "All" | AwardStatus)}
+          value={filter.status}
+          onChange={(v) =>
+            setFilter((f) => ({ ...f, status: v as "All" | AwardStatus }))
+          }
           options={STATUS_FILTERS}
         />
         <div className="relative">
@@ -198,6 +214,18 @@ export function AwardsPage() {
             className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
           />
         </div>
+        <SavedViewsPicker<AwardFilter>
+          storageKey="bedrock-v2:views:awards"
+          currentFilters={filter}
+          onLoad={setFilter}
+        />
+        <ColumnChooser<ColKey>
+          allColumns={COLUMN_ORDER}
+          labels={COL_LABELS}
+          visible={visibleCols}
+          onToggle={toggleCol}
+          required={["name"]}
+        />
         <span className="ml-auto text-[11.5px] text-ink-3">
           {filtered.length.toLocaleString()} of {awards.length.toLocaleString()}
         </span>
@@ -215,16 +243,16 @@ export function AwardsPage() {
             minWidth: tableMinWidth,
           }}
         >
-          <ColGroup order={COLUMN_ORDER} widths={widths} />
+          <ColGroup order={visibleCols} widths={widths} />
           <thead className="sticky top-0 z-10">
             <tr>
-              {COLUMN_ORDER.map((key, idx) => (
+              {visibleCols.map((key, idx) => (
                 <ResizableTh
                   key={key}
                   width={widths[key]}
                   onStartResize={(e) => startResize(key, e)}
                   align="left"
-                  isLast={idx === COLUMN_ORDER.length - 1}
+                  isLast={idx === visibleCols.length - 1}
                 >
                   <SortableHeader
                     label={COL_LABELS[key]}
@@ -238,11 +266,11 @@ export function AwardsPage() {
           </thead>
           <tbody>
             {awardsLoading ? (
-              <SkeletonRows />
+              <SkeletonRows colCount={visibleCols.length} />
             ) : isError ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-10 text-center text-[13px] text-red"
                 >
                   Failed to load awards
@@ -252,7 +280,7 @@ export function AwardsPage() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-12 text-center text-[13px] text-ink-3"
                 >
                   {awards.length === 0 ? (
@@ -279,7 +307,7 @@ export function AwardsPage() {
               <>
                 {paddingTop > 0 ? (
                   <tr aria-hidden style={{ height: paddingTop }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
                 {virtualItems.map((vi) => {
@@ -290,6 +318,8 @@ export function AwardsPage() {
                       key={a.id}
                       a={a}
                       opp={opp}
+                      visibleCols={visibleCols}
+                      canEdit={canEdit}
                       onOpen={() => setDrawerAward(a)}
                       onSaveStatus={async (status) => {
                         await updateAward.mutateAsync({
@@ -314,7 +344,7 @@ export function AwardsPage() {
                 })}
                 {paddingBottom > 0 ? (
                   <tr aria-hidden style={{ height: paddingBottom }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
               </>
@@ -323,16 +353,27 @@ export function AwardsPage() {
           {filtered.length > 0 && !awardsLoading ? (
             <tfoot className="sticky bottom-0 z-10">
               <tr className="border-t border-border-strong bg-surface-2">
-                <td
-                  colSpan={2}
-                  className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
-                >
-                  Totals
-                </td>
-                <td className="mono px-3 py-2 text-[13px] font-semibold tabular-nums">
-                  {fmtMoney(totalAmount)}
-                </td>
-                <td colSpan={3} />
+                {visibleCols.map((key: ColKey, idx: number) => {
+                  if (idx === 0)
+                    return (
+                      <td
+                        key={key}
+                        className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
+                      >
+                        Totals
+                      </td>
+                    );
+                  if (key === "amount")
+                    return (
+                      <td
+                        key={key}
+                        className="mono px-3 py-2 text-[13px] font-semibold tabular-nums"
+                      >
+                        {fmtMoney(totalAmount)}
+                      </td>
+                    );
+                  return <td key={key} />;
+                })}
               </tr>
             </tfoot>
           ) : null}
@@ -351,6 +392,8 @@ export function AwardsPage() {
 interface RowProps {
   a: Award;
   opp: SfOpportunity | undefined;
+  visibleCols: ColKey[];
+  canEdit: boolean;
   onOpen: () => void;
   onSaveStatus: (status: string) => Promise<void>;
   onSavePeriodEnd: (date: string) => Promise<void>;
@@ -360,6 +403,8 @@ interface RowProps {
 const AwardRow = memo(function AwardRow({
   a,
   opp,
+  visibleCols,
+  canEdit,
   onOpen,
   onSaveStatus,
   onSavePeriodEnd,
@@ -368,83 +413,101 @@ const AwardRow = memo(function AwardRow({
   const account = opp?.Account?.Name ?? "—";
   const oppName = opp?.Name ?? a.opportunity_id;
 
+  const cells: Record<ColKey, React.ReactNode> = {
+    name: (
+      <div className="flex min-w-0 items-center gap-2">
+        <div
+          className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded text-[9px] font-semibold text-surface"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))",
+          }}
+        >
+          {initials(account === "—" ? oppName : account)}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col leading-tight">
+          <span className="truncate font-medium hover:underline" title={oppName}>
+            {oppName}
+          </span>
+          <span className="truncate text-[11px] text-ink-3">{account}</span>
+        </div>
+      </div>
+    ),
+    status: canEdit ? (
+      <InlineSelect
+        value={a.award_status}
+        options={STATUS_OPTIONS}
+        onSave={(v) => onSaveStatus(v)}
+        renderValue={(v) =>
+          v ? (
+            <Tag variant={statusVariant(v as AwardStatus)}>{v}</Tag>
+          ) : (
+            <Tag>—</Tag>
+          )
+        }
+      />
+    ) : a.award_status ? (
+      <Tag variant={statusVariant(a.award_status)}>{a.award_status}</Tag>
+    ) : (
+      <Tag>—</Tag>
+    ),
+    amount: opp?.Amount ? (
+      fmtMoney(opp.Amount)
+    ) : (
+      <span className="text-ink-4">—</span>
+    ),
+    awardDate: fmtDate(a.award_date),
+    periodEnd: canEdit ? (
+      <InlineText
+        value={a.period_end_date}
+        onSave={onSavePeriodEnd}
+        placeholder="YYYY-MM-DD"
+      />
+    ) : (
+      <span className="mono text-[11.5px] text-ink-3">{fmtDate(a.period_end_date)}</span>
+    ),
+    notes: canEdit ? (
+      <InlineText value={a.notes} onSave={onSaveNotes} placeholder="Add notes…" />
+    ) : (
+      <span className="text-[12.5px] text-ink-3">{a.notes ?? "—"}</span>
+    ),
+  };
+
+  const cellCls: Record<ColKey, string> = {
+    name: "cursor-pointer overflow-hidden px-3 py-1 text-[13px]",
+    status: "overflow-hidden px-3 py-1 text-[13px]",
+    amount: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[13px] font-medium tabular-nums",
+    awardDate: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[11.5px] text-ink-3",
+    periodEnd: "mono overflow-hidden px-3 py-1 text-[11.5px] text-ink-3",
+    notes: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-3",
+  };
+
+  const clickable = new Set<ColKey>(["name", "amount", "awardDate"]);
+
   return (
     <tr
       className="group/row border-b border-border-strong hover:bg-surface-2"
       style={{ height: ROW_HEIGHT }}
     >
-      <td
-        className="cursor-pointer overflow-hidden px-3 py-1 text-[13px]"
-        onClick={onOpen}
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <div
-            className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded text-[9px] font-semibold text-surface"
-            style={{
-              background:
-                "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))",
-            }}
-          >
-            {initials(account === "—" ? oppName : account)}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col leading-tight">
-            <span className="truncate font-medium hover:underline" title={oppName}>
-              {oppName}
-            </span>
-            <span className="truncate text-[11px] text-ink-3">{account}</span>
-          </div>
-        </div>
-      </td>
-      <td className="overflow-hidden px-3 py-1 text-[13px]">
-        <InlineSelect
-          value={a.award_status}
-          options={STATUS_OPTIONS}
-          onSave={(v) => onSaveStatus(v)}
-          renderValue={(v) =>
-            v ? (
-              <Tag variant={statusVariant(v as AwardStatus)}>{v}</Tag>
-            ) : (
-              <Tag>—</Tag>
-            )
-          }
-        />
-      </td>
-      <td
-        className="mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[13px] font-medium tabular-nums"
-        onClick={onOpen}
-      >
-        {opp?.Amount ? (
-          fmtMoney(opp.Amount)
-        ) : (
-          <span className="text-ink-4">—</span>
-        )}
-      </td>
-      <td
-        className="mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[11.5px] text-ink-3"
-        onClick={onOpen}
-      >
-        {fmtDate(a.award_date)}
-      </td>
-      <td className="mono overflow-hidden px-3 py-1 text-[11.5px] text-ink-3">
-        <InlineText
-          value={a.period_end_date}
-          onSave={onSavePeriodEnd}
-          placeholder="YYYY-MM-DD"
-        />
-      </td>
-      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-3">
-        <InlineText value={a.notes} onSave={onSaveNotes} placeholder="Add notes…" />
-      </td>
+      {visibleCols.map((key: ColKey) => (
+        <td
+          key={key}
+          className={cellCls[key]}
+          onClick={clickable.has(key) ? onOpen : undefined}
+        >
+          {cells[key]}
+        </td>
+      ))}
     </tr>
   );
 });
 
-function SkeletonRows() {
+function SkeletonRows({ colCount }: { colCount: number }) {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border-strong">
-          <td colSpan={COLUMN_ORDER.length} className="px-3 py-2.5">
+          <td colSpan={colCount} className="px-3 py-2.5">
             <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
           </td>
         </tr>
