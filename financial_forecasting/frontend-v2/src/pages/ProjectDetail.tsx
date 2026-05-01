@@ -919,19 +919,6 @@ function BackLink() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border-strong bg-surface px-4 py-3 shadow-sm">
-      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-        {label}
-      </div>
-      <div className="mono mt-1 text-[18px] font-semibold tabular-nums">
-        {value}
-      </div>
-    </div>
-  );
-}
-
 // ── Editable project name ─────────────────────────────────────────────────────
 
 function EditableProjectName({
@@ -986,6 +973,59 @@ function EditableProjectName({
   );
 }
 
+// ── Editable project description ─────────────────────────────────────────────
+
+function EditableProjectDescription({
+  description,
+  projectId,
+  canEdit,
+}: {
+  description: string;
+  projectId: string;
+  canEdit: boolean;
+}) {
+  const updateProject = useUpdateProject(projectId);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(description);
+
+  function save() {
+    const trimmed = draft.trim();
+    if (trimmed !== description) {
+      updateProject.mutate({ description: trimmed });
+    }
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <textarea
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") { setDraft(description); setEditing(false); }
+        }}
+        rows={3}
+        className="mt-2 w-full max-w-2xl rounded bg-transparent text-[13px] text-ink-2 outline-none ring-1 ring-accent resize-none"
+      />
+    );
+  }
+
+  return (
+    <p
+      className={cn(
+        "mt-2 max-w-2xl whitespace-pre-wrap text-[13px] text-ink-2",
+        canEdit && "cursor-text rounded hover:bg-surface-2/60",
+        !description && canEdit && "text-ink-4 italic",
+      )}
+      onClick={() => canEdit && setEditing(true)}
+    >
+      {description || (canEdit ? "Add a description…" : null)}
+    </p>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ProjectDetailPage() {
@@ -995,23 +1035,6 @@ export function ProjectDetailPage() {
   const canEdit = usePerm("edit_projects");
 
   const workstreams: ProjectWorkstream[] = detail?.workstreams ?? [];
-
-  const totalMilestones = useMemo(
-    () => workstreams.reduce((sum, ws) => sum + ws.milestones.length, 0),
-    [workstreams],
-  );
-
-  const openTaskCount = useMemo(() => {
-    let count = 0;
-    for (const ws of workstreams) {
-      for (const ms of ws.milestones) {
-        for (const t of ms.tasks) {
-          if (!isClosedStatus(t.status ?? "")) count++;
-        }
-      }
-    }
-    return count;
-  }, [workstreams]);
 
   if (detailQ.isLoading) {
     return (
@@ -1053,18 +1076,11 @@ export function ProjectDetailPage() {
         {subtitle ? (
           <p className="mt-1 text-[12.5px] text-ink-3">{subtitle}</p>
         ) : null}
-        {detail.description ? (
-          <p className="mt-2 max-w-2xl whitespace-pre-wrap text-[13px] text-ink-2">
-            {detail.description}
-          </p>
-        ) : null}
-      </div>
-
-      {/* Stat strip */}
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        <Stat label="Workstreams" value={String(workstreams.length)} />
-        <Stat label="Milestones" value={String(totalMilestones)} />
-        <Stat label="Open tasks" value={String(openTaskCount)} />
+        <EditableProjectDescription
+          description={detail.description}
+          projectId={id}
+          canEdit={canEdit}
+        />
       </div>
 
       {/* Board */}

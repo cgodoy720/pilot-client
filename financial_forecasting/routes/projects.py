@@ -874,13 +874,25 @@ async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depen
     from datetime import date as d
     wid = uuid.UUID(workstream_id)
     owner_ids = [uuid.UUID(x) for x in body.owner_ids]
-    due_date_val = d.fromisoformat(body.due_date) if body.due_date else None
-    row = await conn.fetchrow(
-        """INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, owner_ids, due_date, description, source_links, sort_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
-        wid, body.title, body.status, body.priority, body.owner, owner_ids, due_date_val,
-        body.description, body.source_links, body.sort_order,
+    has_due_date_col = await conn.fetchval(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_schema='bedrock' AND table_name='milestone' AND column_name='due_date'"
     )
+    if has_due_date_col:
+        due_date_val = d.fromisoformat(body.due_date) if body.due_date else None
+        row = await conn.fetchrow(
+            """INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, owner_ids, due_date, description, source_links, sort_order)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
+            wid, body.title, body.status, body.priority, body.owner, owner_ids, due_date_val,
+            body.description, body.source_links, body.sort_order,
+        )
+    else:
+        row = await conn.fetchrow(
+            """INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, owner_ids, description, source_links, sort_order)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id""",
+            wid, body.title, body.status, body.priority, body.owner, owner_ids,
+            body.description, body.source_links, body.sort_order,
+        )
     return {"success": True, "data": {"id": str(row["id"])}}
 
 
@@ -895,7 +907,18 @@ async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depend
     if "owner_ids" in fields:
         fields["owner_ids"] = [uuid.UUID(x) for x in fields["owner_ids"]]
     if "due_date" in fields:
-        fields["due_date"] = d.fromisoformat(fields["due_date"]) if fields["due_date"] else None
+        # Drop silently if migration hasn't run yet
+        has_col = await conn.fetchval(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_schema='bedrock' AND table_name='milestone' AND column_name='due_date'"
+        )
+        if has_col:
+            fields["due_date"] = d.fromisoformat(fields["due_date"]) if fields["due_date"] else None
+        else:
+            del fields["due_date"]
+
+    if not fields:
+        return {"success": True, "data": {"message": "Nothing to update (migration pending)"}}
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [mid] + list(fields.values())
