@@ -15,14 +15,14 @@ export default defineConfig({
     port: 4200,
     proxy: {
       "/api": {
-        target: process.env.VITE_API_URL || "http://localhost:8000",
+        target: process.env.VITE_API_URL || "http://127.0.0.1:8000",
         changeOrigin: true,
       },
       // /auth/me, /auth/google, /auth/salesforce, /auth/logout, etc. all
       // live on the FastAPI backend. Without this proxy entry the browser
       // hits Vite directly, which 404s, and the auth state breaks.
       "/auth": {
-        target: process.env.VITE_API_URL || "http://localhost:8000",
+        target: process.env.VITE_API_URL || "http://127.0.0.1:8000",
         changeOrigin: true,
       },
     },

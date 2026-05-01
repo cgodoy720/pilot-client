@@ -1,17 +1,34 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { AwardDrawer } from "@/components/AwardDrawer";
 import { PageHeader } from "@/components/PageHeader";
+import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
+import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
+import { SortableHeader } from "@/components/ui/SortableHeader";
 import { Tag } from "@/components/ui/Tag";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
+import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { useAwards, type Award, type AwardStatus } from "@/services/awards";
+import { sortBy, useSort } from "@/lib/sort";
+import {
+  useAwards,
+  useUpdateAward,
+  type Award,
+  type AwardStatus,
+} from "@/services/awards";
 import { useOpportunities } from "@/services/opportunities";
 import type { SfOpportunity } from "@/types/salesforce";
 
 const STATUS_FILTERS: { value: "All" | AwardStatus; label: string }[] = [
   { value: "All", label: "All" },
+  { value: "Active", label: "Active" },
+  { value: "Closing", label: "Closing" },
+  { value: "Closed", label: "Closed" },
+];
+
+const STATUS_OPTIONS: { value: AwardStatus; label: string }[] = [
   { value: "Active", label: "Active" },
   { value: "Closing", label: "Closing" },
   { value: "Closed", label: "Closed" },
@@ -23,17 +40,86 @@ function statusVariant(s: AwardStatus): "green" | "amber" | "default" {
   return "default";
 }
 
+type ColKey =
+  | "name"
+  | "status"
+  | "amount"
+  | "awardDate"
+  | "periodEnd"
+  | "notes";
+
+const COLUMN_ORDER: ColKey[] = [
+  "name",
+  "status",
+  "amount",
+  "awardDate",
+  "periodEnd",
+  "notes",
+];
+
+const DEFAULT_WIDTHS: Record<ColKey, number> = {
+  name: 320,
+  status: 110,
+  amount: 130,
+  awardDate: 130,
+  periodEnd: 130,
+  notes: 360,
+};
+
+const COL_LABELS: Record<ColKey, string> = {
+  name: "Award",
+  status: "Status",
+  amount: "Amount",
+  awardDate: "Awarded",
+  periodEnd: "Period ends",
+  notes: "Notes",
+};
+
+const ROW_HEIGHT = 44;
+
+function extractAward(
+  a: Award,
+  opp: SfOpportunity | undefined,
+  key: ColKey,
+): unknown {
+  switch (key) {
+    case "name":
+      return opp?.Name ?? a.opportunity_id;
+    case "status":
+      return a.award_status;
+    case "amount":
+      return opp?.Amount ?? 0;
+    case "awardDate":
+      return a.award_date;
+    case "periodEnd":
+      return a.period_end_date;
+    case "notes":
+      return a.notes;
+  }
+}
+
 export function AwardsPage() {
   const [filter, setFilter] = useState<"All" | AwardStatus>("All");
   const [q, setQ] = useState("");
+  const [drawerAward, setDrawerAward] = useState<Award | null>(null);
 
-  const { data: awardsData, isLoading: awardsLoading, isError, error } = useAwards(
-    filter === "All" ? undefined : filter,
+  const { sort, toggle } = useSort<ColKey>({
+    key: "awardDate",
+    direction: "desc",
+  });
+  const { widths, startResize } = useColumnWidths<ColKey>(
+    "bedrock-v2:cols:awards",
+    DEFAULT_WIDTHS,
   );
-  // Opps come from SF — used to enrich each Award with its parent's name +
-  // account + amount. We restrict to Philanthropy since that's the only
-  // record type that produces awards today.
+
+  const {
+    data: awardsData,
+    isLoading: awardsLoading,
+    isError,
+    error,
+  } = useAwards(filter === "All" ? undefined : filter);
   const { data: oppsData } = useOpportunities({ recordType: "Philanthropy" });
+  const updateAward = useUpdateAward();
 
   const oppById = useMemo(() => {
     const m = new Map<string, SfOpportunity>();
@@ -43,23 +129,48 @@ export function AwardsPage() {
 
   const awards = awardsData ?? [];
   const filtered = useMemo(() => {
-    if (!q) return awards;
-    const needle = q.toLowerCase();
-    return awards.filter((a) => {
-      const opp = oppById.get(a.opportunity_id);
-      const oppName = (opp?.Name ?? "").toLowerCase();
-      const account = (opp?.Account?.Name ?? "").toLowerCase();
-      return oppName.includes(needle) || account.includes(needle);
-    });
-  }, [awards, oppById, q]);
+    const filt = q
+      ? awards.filter((a) => {
+          const opp = oppById.get(a.opportunity_id);
+          const oppName = (opp?.Name ?? "").toLowerCase();
+          const account = (opp?.Account?.Name ?? "").toLowerCase();
+          const notes = (a.notes ?? "").toLowerCase();
+          const needle = q.toLowerCase();
+          return (
+            oppName.includes(needle) ||
+            account.includes(needle) ||
+            notes.includes(needle)
+          );
+        })
+      : awards;
+    return sortBy(filt, sort, (a, key) =>
+      extractAward(a, oppById.get(a.opportunity_id), key),
+    );
+  }, [awards, oppById, q, sort]);
 
   const totalAmount = filtered.reduce(
     (s, a) => s + (oppById.get(a.opportunity_id)?.Amount ?? 0),
     0,
   );
 
+  const tableMinWidth = totalWidth(widths);
+
+  // ── Virtualization ─────────────────────────────────────────────────
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+  const paddingTop = virtualItems[0]?.start ?? 0;
+  const paddingBottom =
+    totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
+
   return (
-    <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
+    <div className="flex h-full flex-col px-7 py-6 pb-6">
       <PageHeader
         title="Awards"
         subtitle={
@@ -81,10 +192,10 @@ export function AwardsPage() {
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
           />
           <input
-            placeholder="Search by opp or funder"
+            placeholder="Search by opp, funder, notes"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-64 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
+            className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
           />
         </div>
         <span className="ml-auto text-[11.5px] text-ink-3">
@@ -92,27 +203,36 @@ export function AwardsPage() {
         </span>
       </Toolbar>
 
-      <div className="overflow-hidden rounded-b-lg border border-border-strong bg-surface">
-        <table className="w-full border-collapse">
-          <thead>
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-x-auto rounded-b-lg border border-border-strong bg-surface"
+      >
+        <table
+          className="border-collapse"
+          style={{
+            tableLayout: "fixed",
+            width: "100%",
+            minWidth: tableMinWidth,
+          }}
+        >
+          <ColGroup order={COLUMN_ORDER} widths={widths} />
+          <thead className="sticky top-0 z-10">
             <tr>
-              {[
-                "Award",
-                "Status",
-                "Amount",
-                "Awarded",
-                "Period ends",
-                "Notes",
-              ].map((h, i) => (
-                <th
-                  key={h}
-                  className={cn(
-                    "border-b border-border-strong bg-surface-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3",
-                    i === 2 ? "text-right" : "text-left",
-                  )}
+              {COLUMN_ORDER.map((key, idx) => (
+                <ResizableTh
+                  key={key}
+                  width={widths[key]}
+                  onStartResize={(e) => startResize(key, e)}
+                  align="left"
+                  isLast={idx === COLUMN_ORDER.length - 1}
                 >
-                  {h}
-                </th>
+                  <SortableHeader
+                    label={COL_LABELS[key]}
+                    sortKey={key}
+                    sort={sort}
+                    onToggle={toggle}
+                  />
+                </ResizableTh>
               ))}
             </tr>
           </thead>
@@ -121,14 +241,20 @@ export function AwardsPage() {
               <SkeletonRows />
             ) : isError ? (
               <tr>
-                <td colSpan={6} className="px-7 py-10 text-center text-[13px] text-red">
+                <td
+                  colSpan={COLUMN_ORDER.length}
+                  className="px-7 py-10 text-center text-[13px] text-red"
+                >
                   Failed to load awards
                   {error instanceof Error ? `: ${error.message}` : ""}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-7 py-12 text-center text-[13px] text-ink-3">
+                <td
+                  colSpan={COLUMN_ORDER.length}
+                  className="px-7 py-12 text-center text-[13px] text-ink-3"
+                >
                   {awards.length === 0 ? (
                     <div className="flex flex-col gap-1">
                       <span className="font-medium text-ink">No awards yet</span>
@@ -150,24 +276,107 @@ export function AwardsPage() {
                 </td>
               </tr>
             ) : (
-              filtered.map((a) => (
-                <AwardRow key={a.id} a={a} opp={oppById.get(a.opportunity_id)} />
-              ))
+              <>
+                {paddingTop > 0 ? (
+                  <tr aria-hidden style={{ height: paddingTop }}>
+                    <td colSpan={COLUMN_ORDER.length} />
+                  </tr>
+                ) : null}
+                {virtualItems.map((vi) => {
+                  const a = filtered[vi.index];
+                  const opp = oppById.get(a.opportunity_id);
+                  return (
+                    <AwardRow
+                      key={a.id}
+                      a={a}
+                      opp={opp}
+                      onOpen={() => setDrawerAward(a)}
+                      onSaveStatus={async (status) => {
+                        await updateAward.mutateAsync({
+                          id: a.id,
+                          patch: { award_status: status as AwardStatus },
+                        });
+                      }}
+                      onSavePeriodEnd={async (period_end_date) => {
+                        await updateAward.mutateAsync({
+                          id: a.id,
+                          patch: { period_end_date },
+                        });
+                      }}
+                      onSaveNotes={async (notes) => {
+                        await updateAward.mutateAsync({
+                          id: a.id,
+                          patch: { notes },
+                        });
+                      }}
+                    />
+                  );
+                })}
+                {paddingBottom > 0 ? (
+                  <tr aria-hidden style={{ height: paddingBottom }}>
+                    <td colSpan={COLUMN_ORDER.length} />
+                  </tr>
+                ) : null}
+              </>
             )}
           </tbody>
+          {filtered.length > 0 && !awardsLoading ? (
+            <tfoot className="sticky bottom-0 z-10">
+              <tr className="border-t border-border-strong bg-surface-2">
+                <td
+                  colSpan={2}
+                  className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
+                >
+                  Totals
+                </td>
+                <td className="mono px-3 py-2 text-[13px] font-semibold tabular-nums">
+                  {fmtMoney(totalAmount)}
+                </td>
+                <td colSpan={3} />
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
       </div>
+
+      <AwardDrawer
+        award={drawerAward}
+        opp={drawerAward ? oppById.get(drawerAward.opportunity_id) : undefined}
+        onClose={() => setDrawerAward(null)}
+      />
     </div>
   );
 }
 
-function AwardRow({ a, opp }: { a: Award; opp: SfOpportunity | undefined }) {
+interface RowProps {
+  a: Award;
+  opp: SfOpportunity | undefined;
+  onOpen: () => void;
+  onSaveStatus: (status: string) => Promise<void>;
+  onSavePeriodEnd: (date: string) => Promise<void>;
+  onSaveNotes: (notes: string) => Promise<void>;
+}
+
+const AwardRow = memo(function AwardRow({
+  a,
+  opp,
+  onOpen,
+  onSaveStatus,
+  onSavePeriodEnd,
+  onSaveNotes,
+}: RowProps) {
   const account = opp?.Account?.Name ?? "—";
   const oppName = opp?.Name ?? a.opportunity_id;
 
   return (
-    <tr className="cursor-pointer border-b border-border-strong hover:bg-surface-2">
-      <td className="px-3 py-2.5 text-[13px]">
+    <tr
+      className="group/row border-b border-border-strong hover:bg-surface-2"
+      style={{ height: ROW_HEIGHT }}
+    >
+      <td
+        className="cursor-pointer overflow-hidden px-3 py-1 text-[13px]"
+        onClick={onOpen}
+      >
         <div className="flex min-w-0 items-center gap-2">
           <div
             className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded text-[9px] font-semibold text-surface"
@@ -179,40 +388,63 @@ function AwardRow({ a, opp }: { a: Award; opp: SfOpportunity | undefined }) {
             {initials(account === "—" ? oppName : account)}
           </div>
           <div className="flex min-w-0 flex-1 flex-col leading-tight">
-            <span className="truncate font-medium">{oppName}</span>
+            <span className="truncate font-medium hover:underline" title={oppName}>
+              {oppName}
+            </span>
             <span className="truncate text-[11px] text-ink-3">{account}</span>
           </div>
         </div>
       </td>
-      <td className="px-3 py-2.5 text-[13px]">
-        <Tag variant={statusVariant(a.award_status)}>{a.award_status}</Tag>
+      <td className="overflow-hidden px-3 py-1 text-[13px]">
+        <InlineSelect
+          value={a.award_status}
+          options={STATUS_OPTIONS}
+          onSave={(v) => onSaveStatus(v)}
+          renderValue={(v) =>
+            v ? (
+              <Tag variant={statusVariant(v as AwardStatus)}>{v}</Tag>
+            ) : (
+              <Tag>—</Tag>
+            )
+          }
+        />
       </td>
-      <td className="mono px-3 py-2.5 text-right text-[13px] font-medium tabular-nums">
+      <td
+        className="mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[13px] font-medium tabular-nums"
+        onClick={onOpen}
+      >
         {opp?.Amount ? (
           fmtMoney(opp.Amount)
         ) : (
           <span className="text-ink-4">—</span>
         )}
       </td>
-      <td className="mono px-3 py-2.5 text-[11.5px] text-ink-3">
+      <td
+        className="mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[11.5px] text-ink-3"
+        onClick={onOpen}
+      >
         {fmtDate(a.award_date)}
       </td>
-      <td className="mono px-3 py-2.5 text-[11.5px] text-ink-3">
-        {fmtDate(a.period_end_date)}
+      <td className="mono overflow-hidden px-3 py-1 text-[11.5px] text-ink-3">
+        <InlineText
+          value={a.period_end_date}
+          onSave={onSavePeriodEnd}
+          placeholder="YYYY-MM-DD"
+        />
       </td>
-      <td className="px-3 py-2.5 text-[12.5px] text-ink-3">
-        <span className="line-clamp-1">{a.notes || "—"}</span>
+      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-3">
+        <InlineText value={a.notes} onSave={onSaveNotes} placeholder="Add notes…" />
       </td>
     </tr>
   );
-}
+});
 
 function SkeletonRows() {
   return (
     <>
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border-strong">
-          <td colSpan={6} className="px-3 py-2.5">
+          <td colSpan={COLUMN_ORDER.length} className="px-3 py-2.5">
             <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
           </td>
         </tr>

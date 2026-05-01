@@ -539,6 +539,9 @@ async def get_accounts(
     # "return all" via query_all() pagination; the frontend relies on this
     # to avoid silent truncation when Pursuit's Account count exceeds 2000.
     limit: Optional[int] = Query(None, le=2000),
+    # `fields=light` returns only the ~17 fields the v2 frontend uses,
+    # cutting SOQL payload ~70% vs the full 50-field default (kept for v1).
+    fields: Optional[str] = Query(None),
     client: UnifiedMCPClient = Depends(get_mcp_client),
     user = Depends(require_auth)
 ):
@@ -546,40 +549,54 @@ async def get_accounts(
     try:
         if "salesforce" not in (client.connected_services or []):
             return []
-        cache_key = f"accounts:{limit or 'all'}"
+        use_light = fields == "light"
+        cache_key = f"accounts:{limit or 'all'}:{'light' if use_light else 'full'}"
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
 
         salesforce = client.salesforce
 
-        query = """
-        SELECT Id, Name, Type, Industry, Phone, Fax, Website, Description,
-               BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry,
-               AnnualRevenue, NumberOfEmployees, AccountSource, OwnerId, Owner.Name,
-               ParentId, RecordTypeId, RecordType.Name,
-               CreatedDate, LastModifiedDate, LastActivityDate,
-               Account_Tier__c, Active__c, Company_Size__c,
-               npsp__Grantmaker__c, npsp__Funding_Focus__c,
-               Philanthropy__c, Fee_For_Service__c, Hiring__c, Investment__c,
-               Volunteering__c, Fellow_Recruitment__c, Media_Marketing__c,
-               Influence__c, Startup__c, Organization_Focus_Area_s__c,
-               npo02__TotalOppAmount__c, npo02__NumberOfClosedOpps__c,
-               npo02__AverageAmount__c, npo02__LargestAmount__c, npo02__SmallestAmount__c,
-               npo02__FirstCloseDate__c, npo02__LastCloseDate__c,
-               npo02__OppAmountThisYear__c, npo02__OppAmountLastYear__c,
-               npo02__Best_Gift_Year__c, npo02__Best_Gift_Year_Total__c,
-               npsp__Matching_Gift_Company__c, npsp__Matching_Gift_Percent__c,
-               npsp__Matching_Gift_Amount_Max__c, npsp__Matching_Gift_Amount_Min__c,
-               npsp__Matching_Gift_Annual_Employee_Max__c,
-               npsp__Matching_Gift_Administrator_Name__c, npsp__Matching_Gift_Email__c,
-               npsp__Matching_Gift_Phone__c, npsp__Matching_Gift_Comments__c,
-               npsp__Matching_Gift_Info_Updated__c, npsp__Matching_Gift_Request_Deadline__c,
-               Total_Revenue_Generated__c,
-               Last_Activity_Date__c, Date_of_First_Pursuit_Hire__c
-        FROM Account
-        ORDER BY Name ASC
-        """
+        if use_light:
+            query = """
+            SELECT Id, Name, Type, Industry, Website, Description,
+                   BillingCity, BillingState, OwnerId, Owner.Name,
+                   Account_Tier__c,
+                   npo02__TotalOppAmount__c, npo02__NumberOfClosedOpps__c,
+                   Total_Revenue_Generated__c,
+                   Last_Activity_Date__c, LastActivityDate,
+                   CreatedDate, LastModifiedDate
+            FROM Account
+            ORDER BY Name ASC
+            """
+        else:
+            query = """
+            SELECT Id, Name, Type, Industry, Phone, Fax, Website, Description,
+                   BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry,
+                   AnnualRevenue, NumberOfEmployees, AccountSource, OwnerId, Owner.Name,
+                   ParentId, RecordTypeId, RecordType.Name,
+                   CreatedDate, LastModifiedDate, LastActivityDate,
+                   Account_Tier__c, Active__c, Company_Size__c,
+                   npsp__Grantmaker__c, npsp__Funding_Focus__c,
+                   Philanthropy__c, Fee_For_Service__c, Hiring__c, Investment__c,
+                   Volunteering__c, Fellow_Recruitment__c, Media_Marketing__c,
+                   Influence__c, Startup__c, Organization_Focus_Area_s__c,
+                   npo02__TotalOppAmount__c, npo02__NumberOfClosedOpps__c,
+                   npo02__AverageAmount__c, npo02__LargestAmount__c, npo02__SmallestAmount__c,
+                   npo02__FirstCloseDate__c, npo02__LastCloseDate__c,
+                   npo02__OppAmountThisYear__c, npo02__OppAmountLastYear__c,
+                   npo02__Best_Gift_Year__c, npo02__Best_Gift_Year_Total__c,
+                   npsp__Matching_Gift_Company__c, npsp__Matching_Gift_Percent__c,
+                   npsp__Matching_Gift_Amount_Max__c, npsp__Matching_Gift_Amount_Min__c,
+                   npsp__Matching_Gift_Annual_Employee_Max__c,
+                   npsp__Matching_Gift_Administrator_Name__c, npsp__Matching_Gift_Email__c,
+                   npsp__Matching_Gift_Phone__c, npsp__Matching_Gift_Comments__c,
+                   npsp__Matching_Gift_Info_Updated__c, npsp__Matching_Gift_Request_Deadline__c,
+                   Total_Revenue_Generated__c,
+                   Last_Activity_Date__c, Date_of_First_Pursuit_Hire__c
+            FROM Account
+            ORDER BY Name ASC
+            """
         if limit is not None:
             query += f" LIMIT {limit}"
 
@@ -1431,7 +1448,8 @@ async def get_opportunity_tasks(
         salesforce = client.salesforce
         query = f"""
         SELECT Id, Subject, Status, Priority, ActivityDate, Description,
-               OwnerId, Owner.Name, WhoId, Who.Name, WhatId, Type, TaskSubtype,
+               IsClosed, OwnerId, Owner.Name, WhoId, Who.Name, WhatId,
+               Type, TaskSubtype,
                CreatedById, CreatedBy.Name, CreatedDate, LastModifiedDate
         FROM Task
         WHERE WhatId = '{opportunity_id}'
@@ -1452,6 +1470,7 @@ async def get_opportunity_tasks(
                 "Priority": t.get("Priority"),
                 "ActivityDate": t.get("ActivityDate"),
                 "Description": t.get("Description"),
+                "IsClosed": t.get("IsClosed"),
                 "OwnerId": t.get("OwnerId"),
                 "OwnerName": (t.get("Owner") or {}).get("Name"),
                 "WhoId": t.get("WhoId"),
@@ -1501,9 +1520,119 @@ async def create_opportunity_task(
         result = await salesforce.create_record("Task", fields)
         task_id = result.get("id") or result.get("Id")
         cache.invalidate_prefix("my-tasks:")
+        cache.invalidate_prefix("account-tasks:")
         return ApiResponse(success=True, data={"id": task_id, "message": "Task created"})
     except Exception as e:
         logger.error(f"Error creating task: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create task")
+
+
+@app.get("/api/salesforce/accounts/{account_id}/tasks")
+async def get_account_tasks(
+    account_id: str,
+    limit: Optional[int] = Query(None, le=2000),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Tasks where WhatId is the account directly OR any of the account's
+    opportunities. SF Task.WhatId is a polymorphic lookup, so a single
+    SOQL with `WhatId IN (...)` covers both kinds in one round-trip.
+
+    Cached server-side (60s) — the account-detail page hits this on every
+    navigation, and SF tasks change far less than once a minute. Any
+    task mutation invalidates the prefix.
+    """
+    validate_salesforce_id(account_id, "account_id")
+    try:
+        salesforce = client.salesforce
+
+        cache_key = f"account-tasks:{account_id}:{limit or 'all'}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        # Resolve the account's opportunity ids first; we need them for the
+        # WhatId IN (...) clause so opp-scoped tasks surface alongside
+        # account-scoped ones.
+        opp_query = f"""
+        SELECT Id FROM Opportunity WHERE AccountId = '{account_id}'
+        """
+        opp_result = await salesforce.query_all(opp_query)
+        opp_ids = [r["Id"] for r in opp_result.get("records", [])]
+
+        # SOQL accepts up to 1000 ids in IN; cap defensively.
+        whatids = [account_id] + opp_ids[:999]
+        whatid_list = ",".join(f"'{wid}'" for wid in whatids)
+        query = f"""
+        SELECT Id, Subject, Status, Priority, ActivityDate, Description,
+               IsClosed, OwnerId, Owner.Name, WhoId, Who.Name, WhatId, What.Name,
+               Type, TaskSubtype,
+               CreatedById, CreatedBy.Name, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE WhatId IN ({whatid_list})
+        ORDER BY ActivityDate DESC NULLS LAST
+        """
+        if limit is not None:
+            query += f" LIMIT {limit}"
+
+        result = await salesforce.query_all(query)
+        tasks = result.get("records", [])
+
+        formatted = []
+        for t in tasks:
+            formatted.append({
+                "Id": t.get("Id"),
+                "Subject": t.get("Subject"),
+                "Status": t.get("Status"),
+                "Priority": t.get("Priority"),
+                "ActivityDate": t.get("ActivityDate"),
+                "Description": t.get("Description"),
+                "IsClosed": t.get("IsClosed"),
+                "OwnerId": t.get("OwnerId"),
+                "OwnerName": (t.get("Owner") or {}).get("Name"),
+                "WhoId": t.get("WhoId"),
+                "WhoName": (t.get("Who") or {}).get("Name"),
+                "WhatId": t.get("WhatId"),
+                "WhatName": (t.get("What") or {}).get("Name"),
+                "Type": t.get("Type"),
+                "TaskSubtype": t.get("TaskSubtype"),
+                "CreatedById": t.get("CreatedById"),
+                "CreatedByName": (t.get("CreatedBy") or {}).get("Name"),
+                "CreatedDate": t.get("CreatedDate"),
+                "LastModifiedDate": t.get("LastModifiedDate"),
+            })
+
+        response = ApiResponse(success=True, data=formatted, meta={"count": len(formatted)})
+        cache.set(cache_key, response, ttl_seconds=60)
+        return response
+    except Exception as e:
+        logger.error(f"Error fetching account tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/salesforce/accounts/{account_id}/tasks")
+async def create_account_task(
+    account_id: str,
+    task_data: TaskCreateRequest,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(check_permission("create_tasks")),
+):
+    """Create a task tied directly to an Account (WhatId = account_id).
+    Account-level tasks aren't lock-gated the way opp-level ones are —
+    locking lives on Opportunity in this org.
+    """
+    validate_salesforce_id(account_id, "account_id")
+    try:
+        salesforce = client.salesforce
+        # Path param wins (same defensive ordering as create_opportunity_task)
+        fields = {**task_data.model_dump(exclude_none=True), "WhatId": account_id}
+        result = await salesforce.create_record("Task", fields)
+        task_id = result.get("id") or result.get("Id")
+        cache.invalidate_prefix("my-tasks:")
+        cache.invalidate_prefix("account-tasks:")
+        return ApiResponse(success=True, data={"id": task_id, "message": "Task created"})
+    except Exception as e:
+        logger.error(f"Error creating account task: {e}")
         raise HTTPException(status_code=500, detail="Failed to create task")
 
 
@@ -1539,6 +1668,7 @@ async def update_task(
 
         await salesforce.update_record("Task", task_id, fields)
         cache.invalidate_prefix("my-tasks:")
+        cache.invalidate_prefix("account-tasks:")
         return ApiResponse(success=True, data={"message": "Task updated"})
     except HTTPException:
         raise
@@ -1564,6 +1694,7 @@ async def delete_task(
             raise HTTPException(403, "Cannot delete tasks from a locked opportunity")
         await salesforce.delete_record("Task", task_id)
         cache.invalidate_prefix("my-tasks:")
+        cache.invalidate_prefix("account-tasks:")
         return ApiResponse(success=True, data={"message": "Task deleted"})
     except HTTPException:
         raise
@@ -1631,6 +1762,7 @@ async def duplicate_task(
         new_task = await salesforce.create_record("Task", fields)
         new_id = new_task.get("id") or new_task.get("Id")
         cache.invalidate_prefix("my-tasks:")
+        cache.invalidate_prefix("account-tasks:")
         return ApiResponse(success=True, data={"id": new_id, "message": "Task duplicated"})
     except HTTPException:
         raise

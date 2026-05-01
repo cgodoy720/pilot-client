@@ -30,6 +30,12 @@ export function AppShell() {
       <Sidebar />
       <main className="flex flex-col overflow-hidden">
         <Topbar />
+        {/*
+          Outer region scrolls — most pages just lay content out and let
+          the window scroll. Virtualized list pages (e.g. Accounts) opt
+          out by setting `h-full overflow-hidden` on their root and
+          managing their own scrollable child.
+        */}
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>

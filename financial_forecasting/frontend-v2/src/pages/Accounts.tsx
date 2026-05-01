@@ -1,13 +1,22 @@
-import { useMemo, useState } from "react";
-import { Filter, Plus, Search, Sparkles } from "lucide-react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Search, Sparkles } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
-import { Tag } from "@/components/ui/Tag";
-import { ButtonGroup, FilterPill, Toolbar } from "@/components/ui/Toolbar";
-import { fmtDateShort, fmtMoney, initials } from "@/lib/format";
+import { InlineSelect } from "@/components/ui/InlineEdit";
+import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
+import { SortableHeader } from "@/components/ui/SortableHeader";
+import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
+import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
+import { fmtMoney } from "@/lib/format";
+import { sortBy, useSort } from "@/lib/sort";
+import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccounts } from "@/services/accounts";
-import type { SfAccount } from "@/types/salesforce";
+import { useAccounts, useUpdateAccount } from "@/services/accounts";
+import { useOpportunities } from "@/services/opportunities";
+import { useActiveUsers } from "@/services/users";
+import type { SfAccount, SfOpportunity } from "@/types/salesforce";
 
 const TYPE_FILTERS = ["All", "Foundation", "Corporate", "Government", "Individual"] as const;
 type TypeFilter = (typeof TYPE_FILTERS)[number];
@@ -22,30 +31,198 @@ function matchesType(account: SfAccount, filter: TypeFilter): boolean {
   return true;
 }
 
+interface AccountMetrics {
+  openPipeline: number;
+  amountWon: number;
+  received: number;
+  outstanding: number;
+}
+
+const ZERO_METRICS: AccountMetrics = {
+  openPipeline: 0,
+  amountWon: 0,
+  received: 0,
+  outstanding: 0,
+};
+
+function buildMetricsMap(opps: SfOpportunity[]): Map<string, AccountMetrics> {
+  const m = new Map<string, AccountMetrics>();
+  for (const o of opps) {
+    const accountId = o.AccountId;
+    if (!accountId) continue;
+    let cur = m.get(accountId);
+    if (!cur) {
+      cur = { ...ZERO_METRICS };
+      m.set(accountId, cur);
+    }
+    const bucket = bucketForStage(o.StageName);
+    const amount = o.Amount ?? 0;
+    if (OPEN_BUCKETS.includes(bucket)) {
+      cur.openPipeline += amount;
+    } else if (bucket === "won") {
+      cur.amountWon += amount;
+      cur.received += o.npe01__Payments_Made__c ?? 0;
+    }
+  }
+  for (const v of m.values()) {
+    v.outstanding = Math.max(0, v.amountWon - v.received);
+  }
+  return m;
+}
+
+type ColKey = "name" | "owner" | "openPipeline" | "amountWon" | "received" | "outstanding";
+
+const COLUMN_ORDER: ColKey[] = [
+  "name",
+  "owner",
+  "openPipeline",
+  "amountWon",
+  "received",
+  "outstanding",
+];
+
+const DEFAULT_WIDTHS: Record<ColKey, number> = {
+  name: 280,
+  owner: 160,
+  openPipeline: 130,
+  amountWon: 130,
+  received: 120,
+  outstanding: 130,
+};
+
+const COL_LABELS: Record<ColKey, string> = {
+  name: "Account",
+  owner: "Account owner",
+  openPipeline: "Open pipeline",
+  amountWon: "Amount won",
+  received: "Received",
+  outstanding: "Outstanding",
+};
+
+const ROW_HEIGHT = 44; // px — must match the row's actual rendered height
+
+function extractAccount(
+  a: SfAccount,
+  metrics: AccountMetrics,
+  key: ColKey,
+): unknown {
+  switch (key) {
+    case "name": return a.Name;
+    case "owner": return a.Owner?.Name;
+    case "openPipeline": return metrics.openPipeline;
+    case "amountWon": return metrics.amountWon;
+    case "received": return metrics.received;
+    case "outstanding": return metrics.outstanding;
+  }
+}
+
 export function AccountsPage() {
-  const { data, isLoading, isError, error } = useAccounts();
+  const navigate = useNavigate();
+  const accountsQ = useAccounts();
+  const oppsQ = useOpportunities();
+  const usersQ = useActiveUsers();
+  const updateAccount = useUpdateAccount();
+
   const [filter, setFilter] = useState<TypeFilter>("All");
   const [q, setQ] = useState("");
 
-  const accounts = data ?? [];
-  const filtered = useMemo(
-    () =>
-      accounts.filter(
-        (a) =>
-          matchesType(a, filter) &&
-          (!q || (a.Name ?? "").toLowerCase().includes(q.toLowerCase())),
-      ),
-    [accounts, filter, q],
+  const { sort, toggle } = useSort<ColKey>({
+    key: "openPipeline",
+    direction: "desc",
+  });
+  const { widths, startResize } = useColumnWidths<ColKey>(
+    "bedrock-v2:cols:accounts",
+    DEFAULT_WIDTHS,
   );
 
+  const accounts = accountsQ.data ?? [];
+  const opps = oppsQ.data ?? [];
+
+  const metricsByAccount = useMemo(() => buildMetricsMap(opps), [opps]);
+
+  const filtered = useMemo(() => {
+    const f = accounts.filter(
+      (a) =>
+        matchesType(a, filter) &&
+        (!q ||
+          (a.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
+          (a.Owner?.Name ?? "").toLowerCase().includes(q.toLowerCase())),
+    );
+    return sortBy(f, sort, (a, key) =>
+      extractAccount(a, metricsByAccount.get(a.Id) ?? ZERO_METRICS, key),
+    );
+  }, [accounts, filter, q, sort, metricsByAccount]);
+
+  const totals = useMemo(
+    () =>
+      filtered.reduce<AccountMetrics>(
+        (acc, a) => {
+          const m = metricsByAccount.get(a.Id);
+          if (!m) return acc;
+          return {
+            openPipeline: acc.openPipeline + m.openPipeline,
+            amountWon: acc.amountWon + m.amountWon,
+            received: acc.received + m.received,
+            outstanding: acc.outstanding + m.outstanding,
+          };
+        },
+        { ...ZERO_METRICS },
+      ),
+    [filtered, metricsByAccount],
+  );
+
+  const ownerOptions = useMemo(
+    () =>
+      (usersQ.data ?? []).map((u) => ({
+        value: u.Id,
+        label: u.Name,
+      })),
+    [usersQ.data],
+  );
+
+  const saveOwner = useCallback(
+    async (id: string, ownerId: string) => {
+      // Resolve the owner's name so the row's display label updates
+      // optimistically alongside OwnerId.
+      const ownerName =
+        (usersQ.data ?? []).find((u) => u.Id === ownerId)?.Name ?? null;
+      await updateAccount.mutateAsync({
+        id,
+        patch: { OwnerId: ownerId },
+        displayPatch: { Owner: { Name: ownerName } },
+      });
+    },
+    [updateAccount, usersQ.data],
+  );
+
+  const isLoading = accountsQ.isLoading || oppsQ.isLoading;
+  const isError = accountsQ.isError || oppsQ.isError;
+  const error = accountsQ.error ?? oppsQ.error;
+
+  const tableMinWidth = totalWidth(widths);
+
+  // ── Virtualization ─────────────────────────────────────────────────
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+  const paddingTop = virtualItems[0]?.start ?? 0;
+  const paddingBottom =
+    totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
+
   return (
-    <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
+    <div className="flex h-full flex-col px-7 py-6 pb-6">
       <PageHeader
         title="Accounts"
         subtitle={
           isLoading
             ? "Loading…"
-            : `${accounts.length.toLocaleString()} funder organizations`
+            : `${accounts.length.toLocaleString()} funder organizations · ${fmtMoney(totals.openPipeline)} open pipeline · ${fmtMoney(totals.amountWon)} won`
         }
         actions={
           <>
@@ -71,46 +248,52 @@ export function AccountsPage() {
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
           />
           <input
-            placeholder="Search accounts"
+            placeholder="Search by name or owner"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-56 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
+            className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
           />
         </div>
-        <FilterPill>
-          <Filter size={12} /> Tier <span className="text-ink-4">·</span> Any
-        </FilterPill>
-        <FilterPill>
-          <Filter size={12} /> Owner <span className="text-ink-4">·</span> Any
-        </FilterPill>
         <span className="ml-auto text-[11.5px] text-ink-3">
           {filtered.length.toLocaleString()} of {accounts.length.toLocaleString()}
         </span>
       </Toolbar>
 
-      <div className="overflow-hidden rounded-b-lg border border-border-strong bg-surface">
-        <table className="w-full border-collapse">
-          <thead>
+      {/*
+        Single scroll container. Header is sticky, body is virtualized via
+        spacer rows above + below the visible window. Total row count
+        stays under ~30 in the DOM regardless of dataset size.
+      */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-auto rounded-b-lg border border-border-strong bg-surface"
+      >
+        <table
+          className="border-collapse"
+          style={{
+            tableLayout: "fixed",
+            width: "100%",
+            minWidth: tableMinWidth,
+          }}
+        >
+          <ColGroup order={COLUMN_ORDER} widths={widths} />
+          <thead className="sticky top-0 z-10">
             <tr>
-              {[
-                "Account",
-                "Type",
-                "Tier",
-                "Industry",
-                "Active opps",
-                "Closed opps",
-                "Lifetime",
-                "Last activity",
-              ].map((h, i) => (
-                <th
-                  key={h}
-                  className={cn(
-                    "border-b border-border-strong bg-surface-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3",
-                    i >= 4 && i <= 6 ? "text-right" : "text-left",
-                  )}
+              {COLUMN_ORDER.map((key, idx) => (
+                <ResizableTh
+                  key={key}
+                  width={widths[key]}
+                  onStartResize={(e) => startResize(key, e)}
+                  align="left"
+                  isLast={idx === COLUMN_ORDER.length - 1}
                 >
-                  {h}
-                </th>
+                  <SortableHeader
+                    label={COL_LABELS[key]}
+                    sortKey={key}
+                    sort={sort}
+                    onToggle={toggle}
+                  />
+                </ResizableTh>
               ))}
             </tr>
           </thead>
@@ -119,90 +302,165 @@ export function AccountsPage() {
               <SkeletonRows />
             ) : isError ? (
               <tr>
-                <td colSpan={8} className="px-7 py-10 text-center text-[13px] text-red">
+                <td
+                  colSpan={COLUMN_ORDER.length}
+                  className="px-7 py-10 text-center text-[13px] text-red"
+                >
                   Failed to load accounts
                   {error instanceof Error ? `: ${error.message}` : ""}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-7 py-10 text-center text-[13px] text-ink-3">
+                <td
+                  colSpan={COLUMN_ORDER.length}
+                  className="px-7 py-10 text-center text-[13px] text-ink-3"
+                >
                   {accounts.length === 0
                     ? "No accounts. (Is Salesforce connected?)"
                     : "No accounts match your filters."}
                 </td>
               </tr>
             ) : (
-              filtered.map((a) => <AccountRow key={a.Id} a={a} />)
+              <>
+                {paddingTop > 0 ? (
+                  <tr aria-hidden style={{ height: paddingTop }}>
+                    <td colSpan={COLUMN_ORDER.length} />
+                  </tr>
+                ) : null}
+                {virtualItems.map((vi) => {
+                  const a = filtered[vi.index];
+                  return (
+                    <AccountRow
+                      key={a.Id}
+                      a={a}
+                      m={metricsByAccount.get(a.Id) ?? ZERO_METRICS}
+                      ownerOptions={ownerOptions}
+                      onOpen={() => navigate(`/accounts/${a.Id}`)}
+                      onSaveOwner={(id) => saveOwner(a.Id, id)}
+                    />
+                  );
+                })}
+                {paddingBottom > 0 ? (
+                  <tr aria-hidden style={{ height: paddingBottom }}>
+                    <td colSpan={COLUMN_ORDER.length} />
+                  </tr>
+                ) : null}
+              </>
             )}
           </tbody>
+          {filtered.length > 0 && !isLoading ? (
+            <tfoot className="sticky bottom-0 z-10">
+              <tr className="border-t border-border-strong bg-surface-2">
+                <td colSpan={2} className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+                  Totals
+                </td>
+                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
+                  {fmtMoney(totals.openPipeline)}
+                </td>
+                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
+                  {fmtMoney(totals.amountWon)}
+                </td>
+                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
+                  {fmtMoney(totals.received)}
+                </td>
+                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
+                  {fmtMoney(totals.outstanding)}
+                </td>
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
       </div>
     </div>
   );
 }
 
-function AccountRow({ a }: { a: SfAccount }) {
-  const lifetime = a.npo02__TotalOppAmount__c ?? a.Total_Revenue_Generated__c ?? 0;
-  const lastActivity = a.Last_Activity_Date__c ?? a.LastActivityDate ?? null;
+interface RowProps {
+  a: SfAccount;
+  m: AccountMetrics;
+  ownerOptions: { value: string; label: string }[];
+  onOpen: () => void;
+  onSaveOwner: (ownerId: string) => Promise<void>;
+}
+
+const AccountRow = memo(function AccountRow({
+  a,
+  m,
+  ownerOptions,
+  onOpen,
+  onSaveOwner,
+}: RowProps) {
+  const dash = <span className="text-ink-4">—</span>;
 
   return (
-    <tr className="cursor-pointer border-b border-border-strong hover:bg-surface-2">
-      <td className="px-3 py-2.5 text-[13px]">
-        <div className="flex min-w-0 items-center gap-2">
-          <div
-            className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded text-[9px] font-semibold text-surface"
-            style={{
-              background:
-                "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))",
-            }}
-          >
-            {initials(a.Name)}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col leading-tight">
-            <span className="truncate font-medium">{a.Name}</span>
-            {a.BillingCity || a.BillingState ? (
-              <span className="truncate text-[11px] text-ink-3">
-                {[a.BillingCity, a.BillingState].filter(Boolean).join(", ")}
-              </span>
-            ) : null}
-          </div>
-        </div>
+    <tr
+      className="group/row border-b border-border-strong hover:bg-surface-2"
+      style={{ height: ROW_HEIGHT }}
+    >
+      <td
+        className="cursor-pointer overflow-hidden px-3 py-1 text-[13px]"
+        onClick={onOpen}
+      >
+        <span className="block truncate font-medium hover:underline" title={a.Name}>
+          {a.Name}
+        </span>
+        {a.BillingCity || a.BillingState ? (
+          <span className="block truncate text-[11px] text-ink-3">
+            {[a.BillingCity, a.BillingState].filter(Boolean).join(", ")}
+          </span>
+        ) : null}
       </td>
-      <td className="px-3 py-2.5 text-[13px]">
-        {a.Type ? <Tag>{a.Type}</Tag> : <span className="text-ink-4">—</span>}
+      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-2">
+        <InlineSelect
+          value={a.OwnerId}
+          options={ownerOptions}
+          onSave={onSaveOwner}
+          renderValue={(v) => (
+            <span className="truncate text-[12.5px] text-ink-2">
+              {a.Owner?.Name ??
+                ownerOptions.find((o) => o.value === v)?.label ?? "—"}
+            </span>
+          )}
+        />
       </td>
-      <td className="px-3 py-2.5 text-[13px]">
-        {a.Account_Tier__c ? (
-          <Tag variant="accent">{a.Account_Tier__c}</Tag>
-        ) : (
-          <span className="text-ink-4">—</span>
-        )}
+      <td
+        className={cn(numCell, m.openPipeline > 0 && "font-semibold text-accent-ink")}
+        onClick={onOpen}
+      >
+        {m.openPipeline > 0 ? fmtMoney(m.openPipeline) : dash}
       </td>
-      <td className="px-3 py-2.5 text-[13px] text-ink-3">{a.Industry ?? "—"}</td>
-      <td className="mono px-3 py-2.5 text-right text-[13px] tabular-nums">
-        {/* Active opps not in current SF response — show — until we wire it */}
-        <span className="text-ink-4">—</span>
+      <td
+        className={cn(numCell, m.amountWon > 0 && "font-semibold text-green")}
+        onClick={onOpen}
+      >
+        {m.amountWon > 0 ? fmtMoney(m.amountWon) : dash}
       </td>
-      <td className="mono px-3 py-2.5 text-right text-[13px] tabular-nums">
-        {a.npo02__NumberOfClosedOpps__c ?? <span className="text-ink-4">—</span>}
+      <td
+        className={cn(numCell, m.received > 0 && "font-medium text-green")}
+        onClick={onOpen}
+      >
+        {m.received > 0 ? fmtMoney(m.received) : dash}
       </td>
-      <td className="mono px-3 py-2.5 text-right text-[13px] font-medium tabular-nums">
-        {lifetime > 0 ? fmtMoney(lifetime) : <span className="text-ink-4">—</span>}
-      </td>
-      <td className="mono px-3 py-2.5 text-[11.5px] text-ink-3">
-        {fmtDateShort(lastActivity)}
+      <td
+        className={cn(numCell, m.outstanding > 0 && "font-medium text-amber")}
+        onClick={onOpen}
+      >
+        {m.outstanding > 0 ? fmtMoney(m.outstanding) : dash}
       </td>
     </tr>
   );
-}
+});
+
+const numCell =
+  "mono px-3 py-1 text-right text-[13px] tabular-nums overflow-hidden truncate cursor-pointer";
 
 function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border-strong">
-          <td colSpan={8} className="px-3 py-2.5">
+          <td colSpan={COLUMN_ORDER.length} className="px-3 py-2.5">
             <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
           </td>
         </tr>

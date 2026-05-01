@@ -1,11 +1,17 @@
-import { useMemo, useState } from "react";
-import { Filter, Plus, Search } from "lucide-react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Search } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
+import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
+import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
+import { SortableHeader } from "@/components/ui/SortableHeader";
 import { StageChip } from "@/components/ui/StageChip";
-import { Tag } from "@/components/ui/Tag";
-import { ButtonGroup, FilterPill, Toolbar } from "@/components/ui/Toolbar";
+import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
+import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { sortBy, useSort } from "@/lib/sort";
 import {
   bucketForStage,
   CLOSED_BUCKETS,
@@ -13,7 +19,12 @@ import {
   type StageBucket,
 } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useOpportunities } from "@/services/opportunities";
+import {
+  useOpportunities,
+  useUpdateOpportunity,
+  useUpdateOpportunityStage,
+} from "@/services/opportunities";
+import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
 
 const SCOPES = [
@@ -50,33 +61,205 @@ function bucketAmount(opps: SfOpportunity[], bucket: StageBucket): number {
     .reduce((s, o) => s + (o.Amount ?? 0), 0);
 }
 
+type ColKey =
+  | "name"
+  | "owner"
+  | "stage"
+  | "amount"
+  | "probability"
+  | "close"
+  | "paymentDate"
+  | "nextStep";
+
+const COLUMN_ORDER: ColKey[] = [
+  "name",
+  "owner",
+  "stage",
+  "amount",
+  "probability",
+  "close",
+  "paymentDate",
+  "nextStep",
+];
+
+// Defaults balanced for ~1280px viewport. Mirrors the legacy DEFAULT_VISIBLE
+// set: name+account / owner / stage / amount / probability / close /
+// 1st-payment / next-step. Sum ≈ 1310 to leave a touch of horizontal slack.
+const DEFAULT_WIDTHS: Record<ColKey, number> = {
+  name: 260,
+  owner: 150,
+  stage: 150,
+  amount: 130,
+  probability: 90,
+  close: 110,
+  paymentDate: 120,
+  nextStep: 200,
+};
+
+const COL_LABELS: Record<ColKey, string> = {
+  name: "Opportunity",
+  owner: "Owner",
+  stage: "Stage",
+  amount: "Amount",
+  probability: "Prob.",
+  close: "Close",
+  paymentDate: "1st Payment",
+  nextStep: "Next step",
+};
+
+const ROW_HEIGHT = 44; // px — must match the row's actual rendered height
+
+function extractOpp(o: SfOpportunity, key: ColKey): unknown {
+  switch (key) {
+    case "name": return o.Name;
+    case "owner": return o.Owner?.Name;
+    case "stage": return o.StageName;
+    case "amount": return o.Amount ?? 0;
+    case "probability": return o.Probability ?? 0;
+    case "close": return o.CloseDate;
+    case "paymentDate": return o.PaymentDate__c;
+    case "nextStep": return o.NextStep;
+  }
+}
+
 export function PipelinePage() {
+  const navigate = useNavigate();
   const [scope, setScope] = useState<Scope>("open");
   const [recordType, setRecordType] = useState<RecordType>("All");
   const [q, setQ] = useState("");
 
+  const { sort, toggle } = useSort<ColKey>({ key: "close", direction: "asc" });
+  const { widths, startResize } = useColumnWidths<ColKey>(
+    "bedrock-v2:cols:pipeline",
+    DEFAULT_WIDTHS,
+  );
+
   const { data, isLoading, isError, error } = useOpportunities({
     recordType: recordType === "All" ? undefined : recordType,
   });
+  const usersQ = useActiveUsers();
+  const updateOpp = useUpdateOpportunity();
+  const updateStage = useUpdateOpportunityStage();
+
   const opps = data ?? [];
 
-  const filtered = useMemo(
+  // Stage <select> options come from the distinct stage names actually
+  // present in the org. Avoids showing stages SF doesn't accept.
+  const stageOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const o of opps) {
+      if (o.StageName) seen.add(o.StageName);
+    }
+    return Array.from(seen)
+      .sort()
+      .map((s) => ({ value: s, label: s }));
+  }, [opps]);
+
+  const ownerOptions = useMemo(
     () =>
-      opps.filter(
-        (o) =>
-          inScope(o, scope) &&
-          (!q ||
-            (o.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
-            (o.Account?.Name ?? "").toLowerCase().includes(q.toLowerCase())),
-      ),
-    [opps, scope, q],
+      (usersQ.data ?? []).map((u) => ({
+        value: u.Id,
+        label: u.Name,
+      })),
+    [usersQ.data],
   );
 
-  // Summary counts shown above the toolbar
-  const total = filtered.reduce((s, o) => s + (o.Amount ?? 0), 0);
+  const filtered = useMemo(() => {
+    const filt = opps.filter(
+      (o) =>
+        inScope(o, scope) &&
+        (!q ||
+          (o.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
+          (o.Account?.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
+          (o.Owner?.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
+          (o.NextStep ?? "").toLowerCase().includes(q.toLowerCase())),
+    );
+    return sortBy(filt, sort, extractOpp);
+  }, [opps, scope, q, sort]);
+
+  const total = useMemo(
+    () => filtered.reduce((s, o) => s + (o.Amount ?? 0), 0),
+    [filtered],
+  );
+
+  const saveStage = useCallback(
+    async (id: string, stage: string) => {
+      await updateStage.mutateAsync({ id, newStage: stage });
+    },
+    [updateStage],
+  );
+
+  const saveAmount = useCallback(
+    async (id: string, raw: string) => {
+      const cleaned = raw.replace(/[$,\s]/g, "");
+      const parsed = cleaned === "" ? null : Number(cleaned);
+      if (parsed != null && !Number.isFinite(parsed)) {
+        throw new Error("Not a number");
+      }
+      await updateOpp.mutateAsync({ id, patch: { Amount: parsed } });
+    },
+    [updateOpp],
+  );
+
+  const saveProbability = useCallback(
+    async (id: string, raw: string) => {
+      const cleaned = raw.replace(/[%\s]/g, "");
+      const parsed = cleaned === "" ? null : Number.parseInt(cleaned, 10);
+      if (parsed != null) {
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+          throw new Error("0–100");
+        }
+      }
+      await updateOpp.mutateAsync({ id, patch: { Probability: parsed } });
+    },
+    [updateOpp],
+  );
+
+  const saveOwner = useCallback(
+    async (id: string, ownerId: string) => {
+      const ownerName =
+        (usersQ.data ?? []).find((u) => u.Id === ownerId)?.Name ?? null;
+      await updateOpp.mutateAsync({
+        id,
+        patch: { OwnerId: ownerId },
+        displayPatch: { Owner: { Name: ownerName } },
+      });
+    },
+    [updateOpp, usersQ.data],
+  );
+
+  const saveNextStep = useCallback(
+    async (id: string, next: string) => {
+      await updateOpp.mutateAsync({ id, patch: { NextStep: next } });
+    },
+    [updateOpp],
+  );
+
+  const savePaymentDate = useCallback(
+    async (id: string, next: string | null) => {
+      await updateOpp.mutateAsync({ id, patch: { PaymentDate__c: next } });
+    },
+    [updateOpp],
+  );
+
+  const tableMinWidth = totalWidth(widths);
+
+  // ── Virtualization ─────────────────────────────────────────────────
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+  const paddingTop = virtualItems[0]?.start ?? 0;
+  const paddingBottom =
+    totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
 
   return (
-    <div className="px-7 py-6 pb-20">
+    <div className="flex h-full flex-col px-7 py-6 pb-6">
       <PageHeader
         title="Pipeline"
         subtitle={
@@ -91,7 +274,6 @@ export function PipelinePage() {
         }
       />
 
-      {/* Funnel summary bar */}
       <FunnelStrip opps={opps} scope={scope} />
 
       <Toolbar className="mt-4">
@@ -111,43 +293,52 @@ export function PipelinePage() {
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
           />
           <input
-            placeholder="Search opps or accounts"
+            placeholder="Search opps, accounts, owner, next step"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-64 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
+            className="h-7 w-80 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
           />
         </div>
-        <FilterPill>
-          <Filter size={12} /> Owner <span className="text-ink-4">·</span> Any
-        </FilterPill>
         <span className="ml-auto text-[11.5px] text-ink-3">
           {filtered.length.toLocaleString()} of {opps.length.toLocaleString()}
         </span>
       </Toolbar>
 
-      <div className="overflow-hidden rounded-b-lg border border-border-strong bg-surface">
-        <table className="w-full border-collapse">
-          <thead>
+      {/*
+        Single scroll container. Header is sticky, body is virtualized via
+        spacer rows above + below the visible window. Row count in the DOM
+        stays bounded regardless of dataset size.
+      */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-auto rounded-b-lg border border-border-strong bg-surface"
+      >
+        <table
+          className="border-collapse"
+          style={{
+            tableLayout: "fixed",
+            width: "100%",
+            minWidth: tableMinWidth,
+          }}
+        >
+          <ColGroup order={COLUMN_ORDER} widths={widths} />
+          <thead className="sticky top-0 z-10">
             <tr>
-              {[
-                "Opportunity",
-                "Stage",
-                "Type",
-                "Amount",
-                "Probability",
-                "Close",
-                "Owner",
-                "Next step",
-              ].map((h, i) => (
-                <th
-                  key={h}
-                  className={cn(
-                    "border-b border-border-strong bg-surface-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3",
-                    i === 3 || i === 4 ? "text-right" : "text-left",
-                  )}
+              {COLUMN_ORDER.map((key, idx) => (
+                <ResizableTh
+                  key={key}
+                  width={widths[key]}
+                  onStartResize={(e) => startResize(key, e)}
+                  align="left"
+                  isLast={idx === COLUMN_ORDER.length - 1}
                 >
-                  {h}
-                </th>
+                  <SortableHeader
+                    label={COL_LABELS[key]}
+                    sortKey={key}
+                    sort={sort}
+                    onToggle={toggle}
+                  />
+                </ResizableTh>
               ))}
             </tr>
           </thead>
@@ -156,23 +347,75 @@ export function PipelinePage() {
               <SkeletonRows />
             ) : isError ? (
               <tr>
-                <td colSpan={8} className="px-7 py-10 text-center text-[13px] text-red">
+                <td
+                  colSpan={COLUMN_ORDER.length}
+                  className="px-7 py-10 text-center text-[13px] text-red"
+                >
                   Failed to load opportunities
                   {error instanceof Error ? `: ${error.message}` : ""}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-7 py-10 text-center text-[13px] text-ink-3">
+                <td
+                  colSpan={COLUMN_ORDER.length}
+                  className="px-7 py-10 text-center text-[13px] text-ink-3"
+                >
                   {opps.length === 0
                     ? "No opportunities. (Is Salesforce connected?)"
                     : "No opportunities match your filters."}
                 </td>
               </tr>
             ) : (
-              filtered.map((o) => <OpportunityRow key={o.Id} o={o} />)
+              <>
+                {paddingTop > 0 ? (
+                  <tr aria-hidden style={{ height: paddingTop }}>
+                    <td colSpan={COLUMN_ORDER.length} />
+                  </tr>
+                ) : null}
+                {virtualItems.map((vi) => {
+                  const o = filtered[vi.index];
+                  return (
+                    <OpportunityRow
+                      key={o.Id}
+                      o={o}
+                      stageOptions={stageOptions}
+                      ownerOptions={ownerOptions}
+                      onOpen={() => navigate(`/opportunities/${o.Id}`)}
+                      onSaveStage={(stage) => saveStage(o.Id, stage)}
+                      onSaveAmount={(raw) => saveAmount(o.Id, raw)}
+                      onSaveProbability={(raw) => saveProbability(o.Id, raw)}
+                      onSaveOwner={(ownerId) => saveOwner(o.Id, ownerId)}
+                      onSaveNextStep={(next) => saveNextStep(o.Id, next)}
+                      onSavePaymentDate={(next) => savePaymentDate(o.Id, next)}
+                    />
+                  );
+                })}
+                {paddingBottom > 0 ? (
+                  <tr aria-hidden style={{ height: paddingBottom }}>
+                    <td colSpan={COLUMN_ORDER.length} />
+                  </tr>
+                ) : null}
+              </>
             )}
           </tbody>
+          {filtered.length > 0 && !isLoading ? (
+            <tfoot className="sticky bottom-0 z-10">
+              <tr className="border-t border-border-strong bg-surface-2">
+                <td
+                  colSpan={3}
+                  className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
+                >
+                  Totals · {filtered.length.toLocaleString()} opp
+                  {filtered.length === 1 ? "" : "s"}
+                </td>
+                <td className="mono px-3 py-2 text-right text-[13px] font-semibold tabular-nums">
+                  {fmtMoney(total)}
+                </td>
+                <td colSpan={4} />
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
       </div>
     </div>
@@ -215,57 +458,145 @@ function FunnelStrip({ opps, scope }: { opps: SfOpportunity[]; scope: Scope }) {
   );
 }
 
-function OpportunityRow({ o }: { o: SfOpportunity }) {
+interface RowProps {
+  o: SfOpportunity;
+  stageOptions: { value: string; label: string }[];
+  ownerOptions: { value: string; label: string }[];
+  onOpen: () => void;
+  onSaveStage: (stage: string) => Promise<void>;
+  onSaveAmount: (raw: string) => Promise<void>;
+  onSaveProbability: (raw: string) => Promise<void>;
+  onSaveOwner: (ownerId: string) => Promise<void>;
+  onSaveNextStep: (next: string) => Promise<void>;
+  onSavePaymentDate: (next: string | null) => Promise<void>;
+}
+
+const OpportunityRow = memo(function OpportunityRow({
+  o,
+  stageOptions,
+  ownerOptions,
+  onOpen,
+  onSaveStage,
+  onSaveAmount,
+  onSaveProbability,
+  onSaveOwner,
+  onSaveNextStep,
+  onSavePaymentDate,
+}: RowProps) {
   const account = o.Account?.Name ?? "—";
-  const owner = o.Owner?.Name ?? "—";
-  const recordType = o.RecordType?.Name ?? null;
 
   return (
-    <tr className="cursor-pointer border-b border-border-strong hover:bg-surface-2">
-      <td className="px-3 py-2.5 text-[13px]">
+    <tr
+      className="group/row border-b border-border-strong hover:bg-surface-2"
+      style={{ height: ROW_HEIGHT }}
+    >
+      {/* Opportunity (name + account) */}
+      <td
+        className="cursor-pointer overflow-hidden px-3 py-1 text-[13px]"
+        onClick={onOpen}
+      >
         <div className="flex min-w-0 items-center gap-2">
           <div className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded bg-surface-2 text-[9px] font-semibold text-ink-2">
             {initials(account)}
           </div>
           <div className="flex min-w-0 flex-1 flex-col leading-tight">
-            <span className="truncate font-medium">{o.Name}</span>
-            <span className="truncate text-[11px] text-ink-3">{account}</span>
+            <span className="truncate font-medium hover:underline" title={o.Name}>
+              {o.Name}
+            </span>
+            <span className="truncate text-[11px] text-ink-3" title={account}>
+              {account}
+            </span>
           </div>
         </div>
       </td>
-      <td className="px-3 py-2.5 text-[13px]">
-        <StageChip stage={o.StageName} />
+
+      {/* Owner */}
+      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-2">
+        <InlineSelect
+          value={o.OwnerId}
+          options={ownerOptions}
+          onSave={onSaveOwner}
+          renderValue={(v) => (
+            <span className="truncate text-[12.5px] text-ink-2">
+              {o.Owner?.Name ??
+                ownerOptions.find((opt) => opt.value === v)?.label ??
+                "—"}
+            </span>
+          )}
+        />
       </td>
-      <td className="px-3 py-2.5 text-[13px]">
-        {recordType ? (
-          <Tag>{recordType}</Tag>
-        ) : (
-          <span className="text-ink-4">—</span>
-        )}
+
+      {/* Stage */}
+      <td className="overflow-hidden px-3 py-1 text-[13px]">
+        <InlineSelect
+          value={o.StageName}
+          options={stageOptions}
+          onSave={onSaveStage}
+          renderValue={(v) =>
+            v ? <StageChip stage={v} /> : <span className="text-ink-4">—</span>
+          }
+        />
       </td>
-      <td className="mono px-3 py-2.5 text-right text-[13px] font-medium tabular-nums">
-        {o.Amount ? fmtMoney(o.Amount) : <span className="text-ink-4">—</span>}
+
+      {/* Amount */}
+      <td className={cn(numCell, o.Amount && o.Amount > 0 && "font-semibold")}>
+        <InlineText
+          value={o.Amount != null ? String(o.Amount) : ""}
+          onSave={onSaveAmount}
+          placeholder="—"
+          className="justify-end text-right"
+        />
       </td>
-      <td className="mono px-3 py-2.5 text-right text-[13px] tabular-nums text-ink-2">
-        {o.Probability != null ? `${o.Probability}%` : "—"}
+
+      {/* Probability */}
+      <td className={cn(numCell)}>
+        <InlineText
+          value={o.Probability != null ? `${o.Probability}%` : ""}
+          onSave={onSaveProbability}
+          placeholder="—"
+          className="justify-end text-right"
+        />
       </td>
-      <td className="mono px-3 py-2.5 text-[11.5px] text-ink-3">
+
+      {/* Close (display only for now) */}
+      <td
+        className="mono cursor-pointer overflow-hidden truncate px-3 py-1 text-right text-[11.5px] tabular-nums text-ink-3"
+        onClick={onOpen}
+      >
         {fmtDate(o.CloseDate)}
       </td>
-      <td className="px-3 py-2.5 text-[12.5px] text-ink-2">{owner}</td>
-      <td className="px-3 py-2.5 text-[12.5px] text-ink-3">
-        <span className="line-clamp-1">{o.NextStep ?? "—"}</span>
+
+      {/* 1st Payment Date — editable */}
+      <td className="overflow-hidden px-3 py-1">
+        <InlineDate
+          value={o.PaymentDate__c}
+          onSave={onSavePaymentDate}
+          align="right"
+          placeholder="—"
+        />
+      </td>
+
+      {/* Next step */}
+      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-3">
+        <InlineText
+          value={o.NextStep}
+          onSave={onSaveNextStep}
+          placeholder="Add next step…"
+        />
       </td>
     </tr>
   );
-}
+});
+
+const numCell =
+  "mono px-3 py-1 text-right text-[13px] tabular-nums overflow-hidden";
 
 function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border-strong">
-          <td colSpan={8} className="px-3 py-2.5">
+          <td colSpan={COLUMN_ORDER.length} className="px-3 py-2.5">
             <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
           </td>
         </tr>

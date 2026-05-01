@@ -4,11 +4,14 @@ import { AppShell } from "./components/AppShell";
 import { AuthGate } from "./components/AuthGate";
 import { DashboardPage } from "./pages/Dashboard";
 import { AccountsPage } from "./pages/Accounts";
+import { AccountDetailPage } from "./pages/AccountDetail";
 import { PipelinePage } from "./pages/Pipeline";
+import { OpportunityDetailPage } from "./pages/OpportunityDetail";
 import { AwardsPage } from "./pages/Awards";
 import { ProjectsPage } from "./pages/Projects";
 import { TasksPage } from "./pages/Tasks";
 import { ContactsPage } from "./pages/Contacts";
+import { ContactDetailPage } from "./pages/ContactDetail";
 import { LoginPage } from "./pages/Login";
 import { SettingsPage } from "./pages/Settings";
 
@@ -29,11 +32,14 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
+        <Route path="/accounts/:id" element={<AccountDetailPage />} />
         <Route path="/pipeline" element={<PipelinePage />} />
+        <Route path="/opportunities/:id" element={<OpportunityDetailPage />} />
         <Route path="/awards" element={<AwardsPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/contacts/:id" element={<ContactDetailPage />} />
         <Route path="/settings" element={<SettingsPage />} />
 
         {/* Backend redirects to /priorities after Google OAuth — alias it */}
