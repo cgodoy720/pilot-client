@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
@@ -84,6 +84,84 @@ export function useProjectDetail(id: string | undefined) {
     queryFn: () => fetchProjectDetail(id!),
     enabled: !!id,
     staleTime: 60_000,
+  });
+}
+
+// ── Mutation hooks ────────────────────────────────────────────────────────────
+
+export interface ActiveUser {
+  id: string;
+  email: string;
+  display_name: string;
+  is_in_sf: boolean;
+}
+
+export interface TaskPatch {
+  title?: string;
+  status?: string;
+  owner?: string;
+  owner_ids?: string[];
+  deadline?: string | null;
+}
+
+export function useActiveUsers() {
+  return useQuery({
+    queryKey: ["active-users"],
+    queryFn: async () => {
+      const { data } = await api.get<{ success: boolean; data: ActiveUser[] }>("/api/users/active");
+      return data.data ?? [];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCreateTask(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ milestoneId, title }: { milestoneId: string; title: string }) => {
+      await api.post(`/api/milestones/${milestoneId}/tasks`, { title });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["project-detail", projectId] }),
+  });
+}
+
+export function useUpdateTask(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, patch }: { taskId: string; patch: TaskPatch }) => {
+      await api.put(`/api/project-tasks/${taskId}`, patch);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["project-detail", projectId] }),
+  });
+}
+
+export function useDeleteTask(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      await api.delete(`/api/project-tasks/${taskId}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["project-detail", projectId] }),
+  });
+}
+
+export function useCreateMilestone(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ workstreamId, title }: { workstreamId: string; title: string }) => {
+      await api.post(`/api/workstreams/${workstreamId}/milestones`, { title });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["project-detail", projectId] }),
+  });
+}
+
+export function useCreateWorkstream(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      await api.post(`/api/projects/${projectId}/workstreams`, { name });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["project-detail", projectId] }),
   });
 }
 
