@@ -456,21 +456,23 @@ function AddTaskRow({
 
   if (!active) {
     return (
-      <button
-        type="button"
-        onClick={() => setActive(true)}
-        className="grid grid-cols-[36px_1fr_160px_110px_32px] w-full border-b border-border-strong px-0 py-1.5 text-left last:border-b-0 hover:bg-surface-2/40"
-      >
+      <div className="grid grid-cols-[36px_1fr_160px_110px_32px] border-b border-border-strong hover:bg-surface-2/40 last:border-b-0">
         <div />
-        <span className="text-[12px] text-ink-4 hover:text-ink-3">+ Add a task</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => setActive(true)}
+          className="py-1.5 text-left text-[12px] text-ink-4 hover:text-ink-3"
+        >
+          + Add a task
+        </button>
+      </div>
     );
   }
 
   return (
     <div className="grid grid-cols-[36px_1fr_160px_110px_32px] items-center border-b border-border-strong last:border-b-0">
       <div />
-      <div className="py-1.5 pr-2 col-span-3">
+      <div className="col-span-3 py-1.5 pr-2">
         <input
           autoFocus
           type="text"
@@ -492,6 +494,16 @@ function AddTaskRow({
 
 // ── MilestoneBlock ─────────────────────────────────────────────────────────────
 
+function milestoneStatusCls(s: string) {
+  const l = s.toLowerCase();
+  if (l === "on track") return "bg-green-100 text-green-700";
+  if (l === "at risk" || l === "needs attention") return "bg-amber-100 text-amber-700";
+  if (l === "blocked") return "bg-red-100 text-red-700";
+  if (l === "done" || l === "complete" || l === "completed") return "bg-surface-2 text-ink-4";
+  if (l === "in_progress" || l === "in progress") return "bg-accent/10 text-accent-ink";
+  return "bg-surface-2 text-ink-3";
+}
+
 function MilestoneBlock({
   milestone,
   canEdit,
@@ -501,46 +513,35 @@ function MilestoneBlock({
   canEdit: boolean;
   projectId: string;
 }) {
-  const s = (milestone.status ?? "").toLowerCase();
-
   return (
     <div className="border-b border-border-strong last:border-b-0">
-      {/* Milestone header */}
-      <div className="grid grid-cols-[36px_1fr_160px_110px_32px] items-center bg-surface-2/40 pl-4 pr-0 py-1.5">
-        <div />
-        <div className="flex min-w-0 items-center gap-2 pr-2">
-          <span className="min-w-0 truncate text-[12.5px] font-medium text-ink-2">
-            {milestone.title}
-          </span>
+      {/* Milestone header — full-width flex, not aligned to task grid */}
+      <div className="flex items-center gap-2 border-b border-border-strong bg-surface-2/50 px-4 py-1.5">
+        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-ink-2">
+          {milestone.title}
+        </span>
+        {milestone.status ? (
           <span
             className={cn(
               "flex-shrink-0 rounded px-1.5 py-px text-[10.5px] font-medium",
-              s === "in_progress" || s === "in progress"
-                ? "bg-accent/10 text-accent-ink"
-                : s === "blocked"
-                  ? "bg-amber-100 text-amber-700"
-                  : s === "done" || s === "complete" || s === "completed"
-                    ? "bg-surface-2 text-ink-4"
-                    : "bg-surface-2 text-ink-3",
+              milestoneStatusCls(milestone.status),
             )}
           >
-            {milestone.status || "Open"}
+            {milestone.status}
           </span>
-        </div>
-        <div className="text-[11px] text-ink-4">
+        ) : null}
+        <span className="flex-shrink-0 text-[11px] text-ink-4">
           {milestone.tasks.length} task{milestone.tasks.length === 1 ? "" : "s"}
-        </div>
+        </span>
       </div>
 
-      {/* Tasks */}
-      <div className="pl-4">
-        {milestone.tasks.map((t) => (
-          <TaskRow key={t.id} task={t} canEdit={canEdit} projectId={projectId} />
-        ))}
-        {canEdit && (
-          <AddTaskRow milestoneId={milestone.id} projectId={projectId} />
-        )}
-      </div>
+      {/* Tasks — no extra indent so columns align with global header */}
+      {milestone.tasks.map((t) => (
+        <TaskRow key={t.id} task={t} canEdit={canEdit} projectId={projectId} />
+      ))}
+      {canEdit && (
+        <AddTaskRow milestoneId={milestone.id} projectId={projectId} />
+      )}
     </div>
   );
 }
@@ -550,12 +551,15 @@ function MilestoneBlock({
 function AddMilestoneRow({
   workstreamId,
   projectId,
+  active,
+  onSetActive,
 }: {
   workstreamId: string;
   projectId: string;
+  active: boolean;
+  onSetActive: (v: boolean) => void;
 }) {
   const createMilestone = useCreateMilestone(projectId);
-  const [active, setActive] = useState(false);
   const [val, setVal] = useState("");
 
   function commit() {
@@ -564,14 +568,14 @@ function AddMilestoneRow({
       createMilestone.mutate({ workstreamId, title: trimmed });
     }
     setVal("");
-    setActive(false);
+    onSetActive(false);
   }
 
   if (!active) {
     return (
       <button
         type="button"
-        onClick={() => setActive(true)}
+        onClick={() => onSetActive(true)}
         className="block w-full px-4 py-2 text-left text-[12px] text-ink-4 hover:text-ink-3 hover:bg-surface-2/40"
       >
         + Add milestone
@@ -590,7 +594,7 @@ function AddMilestoneRow({
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") commit();
-          if (e.key === "Escape") { setVal(""); setActive(false); }
+          if (e.key === "Escape") { setVal(""); onSetActive(false); }
         }}
         className="w-full rounded bg-surface-2 px-2 py-1 text-[13px] outline-none ring-1 ring-accent"
       />
@@ -610,9 +614,15 @@ function WorkstreamSection({
   projectId: string;
 }) {
   const [open, setOpen] = useState(true);
+  const [addingMilestone, setAddingMilestone] = useState(false);
 
   const milestoneCount = ws.milestones.length;
   const taskCount = ws.milestones.reduce((s, ms) => s + ms.tasks.length, 0);
+
+  function handleAddMilestone() {
+    setOpen(true);
+    setAddingMilestone(true);
+  }
 
   return (
     <div className="border-l-4 border-accent overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm mt-3 first:mt-0">
@@ -621,7 +631,7 @@ function WorkstreamSection({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex flex-1 items-center gap-2 px-4 py-2.5 text-left hover:bg-surface-2/80"
+          className="flex flex-1 items-center gap-2 px-4 py-2.5 text-left hover:bg-black/[0.02]"
         >
           {open ? (
             <ChevronDown size={13} className="flex-shrink-0 text-ink-3" />
@@ -638,8 +648,8 @@ function WorkstreamSection({
         {canEdit && (
           <button
             type="button"
-            className="flex-shrink-0 px-3 py-2.5 text-[12px] text-ink-3 hover:text-ink"
-            onClick={() => setOpen(true)}
+            className="flex-shrink-0 border-l border-border-strong px-3 py-2.5 text-[12px] text-ink-3 hover:bg-black/[0.02] hover:text-ink"
+            onClick={handleAddMilestone}
           >
             + Milestone
           </button>
@@ -648,24 +658,26 @@ function WorkstreamSection({
 
       {open && (
         <>
-          {milestoneCount === 0 ? (
-            <div className="px-5 py-6 text-center text-[12.5px] text-ink-3">
+          {ws.milestones.map((ms) => (
+            <MilestoneBlock
+              key={ms.id}
+              milestone={ms}
+              canEdit={canEdit}
+              projectId={projectId}
+            />
+          ))}
+          {milestoneCount === 0 && !addingMilestone ? (
+            <div className="px-5 py-5 text-center text-[12.5px] text-ink-3">
               No milestones yet.
             </div>
-          ) : (
-            <div>
-              {ws.milestones.map((ms) => (
-                <MilestoneBlock
-                  key={ms.id}
-                  milestone={ms}
-                  canEdit={canEdit}
-                  projectId={projectId}
-                />
-              ))}
-            </div>
-          )}
+          ) : null}
           {canEdit && (
-            <AddMilestoneRow workstreamId={ws.id} projectId={projectId} />
+            <AddMilestoneRow
+              workstreamId={ws.id}
+              projectId={projectId}
+              active={addingMilestone}
+              onSetActive={setAddingMilestone}
+            />
           )}
         </>
       )}
@@ -677,9 +689,9 @@ function WorkstreamSection({
 
 function BoardColumnHeaders() {
   return (
-    <div className="grid grid-cols-[36px_1fr_160px_110px_32px] border-b border-border-strong bg-surface-2/60 px-0 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-4 sticky top-0 z-10">
+    <div className="grid grid-cols-[36px_1fr_160px_110px_32px] mb-1 px-0 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-4">
       <div />
-      <div className="pl-0">Task name</div>
+      <div>Task name</div>
       <div>Owner</div>
       <div>Due</div>
       <div />
@@ -985,25 +997,21 @@ export function ProjectDetailPage() {
 
       {/* Board */}
       <section className="mt-6">
-        <div className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
-          <BoardColumnHeaders />
-          {workstreams.length === 0 ? (
-            <div className="px-5 py-10 text-center text-[12.5px] text-ink-3">
-              No workstreams on this project yet.
-            </div>
-          ) : (
-            <div className="divide-y divide-border-strong">
-              {workstreams.map((ws) => (
-                <WorkstreamSection
-                  key={ws.id}
-                  ws={ws}
-                  canEdit={canEdit}
-                  projectId={id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <BoardColumnHeaders />
+        {workstreams.length === 0 ? (
+          <div className="mt-2 rounded-lg border border-border-strong bg-surface px-5 py-10 text-center text-[12.5px] text-ink-3 shadow-sm">
+            No workstreams on this project yet.
+          </div>
+        ) : (
+          workstreams.map((ws) => (
+            <WorkstreamSection
+              key={ws.id}
+              ws={ws}
+              canEdit={canEdit}
+              projectId={id}
+            />
+          ))
+        )}
         {canEdit && <AddWorkstreamRow projectId={id} />}
       </section>
 
