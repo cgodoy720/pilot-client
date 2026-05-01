@@ -33,6 +33,7 @@ export interface ProjectMilestone {
   priority: string;
   owner: string | null;
   owner_ids: string[];
+  due_date: string | null;
   description: string;
   sourceLinks: string[];
   tasks: ProjectTask[];
@@ -187,4 +188,24 @@ export function useAllProjectDetails() {
     projects: list.data ?? [],
     details: queries.map((q) => q.data).filter((d): d is ProjectDetail => !!d),
   };
+}
+
+export function useUpdateMilestone(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ milestoneId, patch }: { milestoneId: string; patch: { due_date?: string | null; status?: string; title?: string } }) => {
+      await api.put(`/api/milestones/${milestoneId}`, patch);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-detail", projectId] }); },
+  });
+}
+
+export function useUpdateProject(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: { name?: string; description?: string }) => {
+      await api.put(`/api/projects/${projectId}`, patch);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-detail", projectId] }); },
+  });
 }

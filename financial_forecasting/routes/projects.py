@@ -38,6 +38,7 @@ class MilestoneCreate(BaseModel):
     priority: str = "Now"
     owner: str = ""
     owner_ids: List[str] = []
+    due_date: Optional[str] = None
     description: str = ""
     source_links: List[str] = []
     sort_order: int = 0
@@ -49,6 +50,7 @@ class MilestoneUpdate(BaseModel):
     priority: Optional[str] = None
     owner: Optional[str] = None
     owner_ids: Optional[List[str]] = None
+    due_date: Optional[str] = None
     description: Optional[str] = None
     source_links: Optional[List[str]] = None
     sort_order: Optional[int] = None
@@ -261,7 +263,7 @@ async def get_project(project_id: str, user=Depends(check_permission("view_proje
         SELECT
             w.id AS w_id, w.name AS w_name, w.description AS w_desc, w.sort_order AS w_sort,
             m.id AS m_id, m.title AS m_title, m.status AS m_status, m.priority AS m_priority,
-            m.owner AS m_owner, m.owner_ids AS m_owner_ids,
+            m.owner AS m_owner, m.owner_ids AS m_owner_ids, m.due_date AS m_due_date,
             m.description AS m_desc, m.source_links AS m_links, m.sort_order AS m_sort,
             t.id AS t_id, t.title AS t_title, t.status AS t_status, t.owner AS t_owner,
             t.owner_ids AS t_owner_ids,
@@ -300,6 +302,7 @@ async def get_project(project_id: str, user=Depends(check_permission("view_proje
                 "priority": r["m_priority"],
                 "owner": r["m_owner"],
                 "owner_ids": [str(u) for u in (r["m_owner_ids"] or [])],
+                "due_date": r["m_due_date"].isoformat() if r["m_due_date"] else None,
                 "description": r["m_desc"],
                 "sourceLinks": r["m_links"] or [],
                 "sort_order": r["m_sort"],
@@ -860,12 +863,14 @@ async def delete_workstream(workstream_id: str, user=Depends(check_permission("e
 
 @router.post("/workstreams/{workstream_id}/milestones")
 async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
+    from datetime import date as d
     wid = uuid.UUID(workstream_id)
     owner_ids = [uuid.UUID(x) for x in body.owner_ids]
+    due_date_val = d.fromisoformat(body.due_date) if body.due_date else None
     row = await conn.fetchrow(
-        """INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, owner_ids, description, source_links, sort_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id""",
-        wid, body.title, body.status, body.priority, body.owner, owner_ids,
+        """INSERT INTO bedrock.milestone (workstream_id, title, status, priority, owner, owner_ids, due_date, description, source_links, sort_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
+        wid, body.title, body.status, body.priority, body.owner, owner_ids, due_date_val,
         body.description, body.source_links, body.sort_order,
     )
     return {"success": True, "data": {"id": str(row["id"])}}
@@ -873,6 +878,7 @@ async def create_milestone(workstream_id: str, body: MilestoneCreate, user=Depen
 
 @router.put("/milestones/{milestone_id}")
 async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
+    from datetime import date as d
     mid = uuid.UUID(milestone_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -880,6 +886,8 @@ async def update_milestone(milestone_id: str, body: MilestoneUpdate, user=Depend
 
     if "owner_ids" in fields:
         fields["owner_ids"] = [uuid.UUID(x) for x in fields["owner_ids"]]
+    if "due_date" in fields:
+        fields["due_date"] = d.fromisoformat(fields["due_date"]) if fields["due_date"] else None
 
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [mid] + list(fields.values())

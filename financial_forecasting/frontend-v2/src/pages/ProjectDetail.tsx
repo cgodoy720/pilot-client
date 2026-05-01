@@ -23,6 +23,8 @@ import {
   useCreateWorkstream,
   useDeleteTask,
   useProjectDetail,
+  useUpdateMilestone,
+  useUpdateProject,
   useUpdateTask,
   type ActiveUser,
   type ProjectMilestone,
@@ -513,9 +515,16 @@ function MilestoneBlock({
   canEdit: boolean;
   projectId: string;
 }) {
+  const updateMilestone = useUpdateMilestone(projectId);
+  const [editingDate, setEditingDate] = useState(false);
+  const overdue =
+    !editingDate &&
+    milestone.due_date &&
+    new Date(milestone.due_date).getTime() < Date.now();
+
   return (
     <div className="border-b border-border-strong last:border-b-0">
-      {/* Milestone header — full-width flex, not aligned to task grid */}
+      {/* Milestone header — full-width flex */}
       <div className="flex items-center gap-2 border-b border-border-strong bg-surface-2/50 px-4 py-1.5">
         <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-ink-2">
           {milestone.title}
@@ -530,12 +539,37 @@ function MilestoneBlock({
             {milestone.status}
           </span>
         ) : null}
+        {/* Due date — click to edit */}
+        {editingDate && canEdit ? (
+          <input
+            autoFocus
+            type="date"
+            defaultValue={milestone.due_date ?? ""}
+            onBlur={(e) => {
+              updateMilestone.mutate({ milestoneId: milestone.id, patch: { due_date: e.target.value || null } });
+              setEditingDate(false);
+            }}
+            onKeyDown={(e) => { if (e.key === "Escape") setEditingDate(false); }}
+            className="mono h-6 rounded border border-accent bg-surface px-1.5 text-[11.5px] outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => canEdit && setEditingDate(true)}
+            className={cn(
+              "mono flex-shrink-0 text-[11px]",
+              overdue ? "font-semibold text-red-600" : milestone.due_date ? "text-ink-3" : "text-ink-4",
+              canEdit && "hover:text-ink",
+            )}
+          >
+            {milestone.due_date ? fmtDate(milestone.due_date) : canEdit ? "Set due date" : "—"}
+          </button>
+        )}
         <span className="flex-shrink-0 text-[11px] text-ink-4">
           {milestone.tasks.length} task{milestone.tasks.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      {/* Tasks — no extra indent so columns align with global header */}
       {milestone.tasks.map((t) => (
         <TaskRow key={t.id} task={t} canEdit={canEdit} projectId={projectId} />
       ))}
@@ -681,20 +715,6 @@ function WorkstreamSection({
           )}
         </>
       )}
-    </div>
-  );
-}
-
-// ── Column header ─────────────────────────────────────────────────────────────
-
-function BoardColumnHeaders() {
-  return (
-    <div className="grid grid-cols-[36px_1fr_160px_110px_32px] mb-1 px-0 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-4">
-      <div />
-      <div>Task name</div>
-      <div>Owner</div>
-      <div>Due</div>
-      <div />
     </div>
   );
 }
@@ -912,6 +932,60 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+// ── Editable project name ─────────────────────────────────────────────────────
+
+function EditableProjectName({
+  name,
+  projectId,
+  canEdit,
+}: {
+  name: string;
+  projectId: string;
+  canEdit: boolean;
+}) {
+  const updateProject = useUpdateProject(projectId);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  function save() {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== name) {
+      updateProject.mutate({ name: trimmed });
+    } else {
+      setDraft(name);
+    }
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") { setDraft(name); setEditing(false); }
+        }}
+        className="w-full rounded bg-transparent text-[26px] font-bold leading-tight tracking-tight text-ink outline-none ring-1 ring-accent"
+      />
+    );
+  }
+
+  return (
+    <h1
+      className={cn(
+        "text-[26px] font-bold leading-tight tracking-tight text-ink",
+        canEdit && "cursor-text rounded hover:bg-surface-2/60",
+      )}
+      onClick={() => canEdit && setEditing(true)}
+    >
+      {name}
+    </h1>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ProjectDetailPage() {
@@ -975,9 +1049,7 @@ export function ProjectDetailPage() {
 
       {/* Header */}
       <div className="mt-4">
-        <h1 className="text-[26px] font-bold leading-tight tracking-tight text-ink">
-          {detail.name}
-        </h1>
+        <EditableProjectName name={detail.name} projectId={id} canEdit={canEdit} />
         {subtitle ? (
           <p className="mt-1 text-[12.5px] text-ink-3">{subtitle}</p>
         ) : null}
@@ -997,7 +1069,6 @@ export function ProjectDetailPage() {
 
       {/* Board */}
       <section className="mt-6">
-        <BoardColumnHeaders />
         {workstreams.length === 0 ? (
           <div className="mt-2 rounded-lg border border-border-strong bg-surface px-5 py-10 text-center text-[12.5px] text-ink-3 shadow-sm">
             No workstreams on this project yet.
