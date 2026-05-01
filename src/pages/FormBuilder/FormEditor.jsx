@@ -23,7 +23,11 @@ const FormEditor = () => {
       thank_you_message: 'Thank you for your submission!',
       redirect_url: null,
       email_notifications: false,
-      notification_emails: []
+      notification_emails: [],
+      confirmation_email_enabled: false,
+      confirmation_email_subject: '',
+      confirmation_email_body: '',
+      confirmation_email_from_name: ''
     }
   });
 
