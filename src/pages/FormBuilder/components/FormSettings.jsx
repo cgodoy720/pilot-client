@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { X, Plus } from 'lucide-react';
 
-const FormSettings = ({ settings, onUpdate }) => {
+const FormSettings = ({ settings, questions = [], onUpdate }) => {
   const [emailInput, setEmailInput] = useState('');
+
+  const emailQuestion = questions.find(
+    (q) =>
+      q.type === 'email' ||
+      ((q.type === 'text' || q.type === 'long_text') &&
+        typeof q.text === 'string' &&
+        /\bemail\b/i.test(q.text))
+  );
 
   const handleChange = (field, value) => {
     onUpdate({ ...settings, [field]: value });
@@ -216,9 +224,15 @@ const FormSettings = ({ settings, onUpdate }) => {
 
         {settings.confirmation_email_enabled && (
           <div className="space-y-4">
-            {!settings.require_email && (
+            {!settings.require_email && emailQuestion && (
+              <div className="px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                We'll send the confirmation to the answer of{' '}
+                <strong>"{emailQuestion.text}"</strong>. Enable <strong>Require Email Address</strong> above to also collect an email up front.
+              </div>
+            )}
+            {!settings.require_email && !emailQuestion && (
               <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                Enable <strong>Require Email Address</strong> above so we have somewhere to send the confirmation. Without it, no email will be sent.
+                Enable <strong>Require Email Address</strong> above, or add a question whose label contains "email", so we have somewhere to send the confirmation. Without either, no email will be sent.
               </div>
             )}
 

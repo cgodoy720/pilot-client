@@ -386,6 +386,7 @@ const FormEditor = () => {
         {activeTab === 'settings' && (
           <FormSettings
             settings={formData.settings}
+            questions={formData.questions}
             onUpdate={handleUpdateSettings}
           />
         )}
