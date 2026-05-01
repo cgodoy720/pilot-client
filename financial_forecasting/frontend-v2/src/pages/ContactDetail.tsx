@@ -17,7 +17,7 @@ export function ContactDetailPage() {
     [contacts, id],
   );
 
-  const { data: activities = [] } = useActivities({ contactId: id, limit: 30 });
+  const { data: activities = [] } = useActivities({ contactId: id, limit: 100 });
 
   if (!contact) {
     return (
@@ -123,7 +123,7 @@ export function ContactDetailPage() {
       ) : null}
 
       {/* Activity timeline */}
-      <ActivityTimeline activities={activities} />
+      <ActivityTimeline activities={activities} grouped />
 
       <p className="mt-6 text-[11px] text-ink-4">
         SF Id: <span className="mono">{contact.Id}</span>

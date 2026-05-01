@@ -12,16 +12,24 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { PageHeader } from "@/components/PageHeader";
 import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
+import { ColumnChooser } from "@/components/ui/ColumnChooser";
+import { SavedViewsPicker } from "@/components/ui/SavedViewsPicker";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
+import { useColumnVisibility } from "@/lib/columnVisibility";
 import { fmtDateShort, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { cn } from "@/lib/utils";
 import { useContacts, useUpdateContact } from "@/services/contacts";
+import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfContact } from "@/types/salesforce";
+
+interface ContactFilter {
+  philOnly: boolean;
+}
 
 type ColKey =
   | "name"
@@ -84,9 +92,15 @@ export function ContactsPage() {
   const contactsQ = useContacts();
   const usersQ = useActiveUsers();
   const updateContact = useUpdateContact();
+  const canEdit = usePerm("edit_contacts");
 
   const [q, setQ] = useState("");
-  const [philOnly, setPhilOnly] = useState(false);
+  const [filter, setFilter] = useState<ContactFilter>({ philOnly: false });
+  const { philOnly } = filter;
+  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
+    "bedrock-v2:vis:contacts",
+    COLUMN_ORDER,
+  );
 
   const { sort, toggle } = useSort<ColKey>({ key: "name", direction: "asc" });
   const { widths, startResize } = useColumnWidths<ColKey>(
@@ -113,7 +127,7 @@ export function ContactsPage() {
       );
     });
     return sortBy(f, sort, extractContact);
-  }, [contacts, q, philOnly, sort]);
+  }, [contacts, q, filter, sort]);
 
   const ownerOptions = useMemo(
     () =>
@@ -200,7 +214,7 @@ export function ContactsPage() {
           />
         </div>
         <button
-          onClick={() => setPhilOnly((v) => !v)}
+          onClick={() => setFilter((f) => ({ ...f, philOnly: !f.philOnly }))}
           className={cn(
             "h-7 rounded border px-3 text-[12.5px] font-medium",
             philOnly
@@ -210,6 +224,18 @@ export function ContactsPage() {
         >
           Philanthropic only
         </button>
+        <SavedViewsPicker
+          storageKey="bedrock-v2:views:contacts"
+          currentFilters={filter}
+          onLoad={(v) => setFilter(v)}
+        />
+        <ColumnChooser
+          allColumns={COLUMN_ORDER}
+          labels={COL_LABELS}
+          visible={visibleCols}
+          required={["name"]}
+          onToggle={toggleCol}
+        />
         <span className="ml-auto text-[11.5px] text-ink-3">
           {filtered.length.toLocaleString()} of{" "}
           {contacts.length.toLocaleString()}
@@ -228,16 +254,16 @@ export function ContactsPage() {
             minWidth: tableMinWidth,
           }}
         >
-          <ColGroup order={COLUMN_ORDER} widths={widths} />
+          <ColGroup order={visibleCols} widths={widths} />
           <thead className="sticky top-0 z-10">
             <tr>
-              {COLUMN_ORDER.map((key, idx) => (
+              {visibleCols.map((key, idx) => (
                 <ResizableTh
                   key={key}
                   width={widths[key]}
                   onStartResize={(e) => startResize(key, e)}
                   align="left"
-                  isLast={idx === COLUMN_ORDER.length - 1}
+                  isLast={idx === visibleCols.length - 1}
                 >
                   <SortableHeader
                     label={COL_LABELS[key]}
@@ -251,11 +277,11 @@ export function ContactsPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <SkeletonRows />
+              <SkeletonRows colCount={visibleCols.length} />
             ) : isError ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-10 text-center text-[13px] text-red"
                 >
                   Failed to load contacts
@@ -265,7 +291,7 @@ export function ContactsPage() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={visibleCols.length}
                   className="px-7 py-10 text-center text-[13px] text-ink-3"
                 >
                   {contacts.length === 0
@@ -277,7 +303,7 @@ export function ContactsPage() {
               <>
                 {paddingTop > 0 ? (
                   <tr aria-hidden style={{ height: paddingTop }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
                 {virtualItems.map((vi) => {
@@ -287,6 +313,8 @@ export function ContactsPage() {
                       key={c.Id}
                       c={c}
                       ownerOptions={ownerOptions}
+                      visibleCols={visibleCols}
+                      canEdit={canEdit}
                       onOpen={() => navigate(`/contacts/${c.Id}`)}
                       onSaveTitle={(title) => saveTitle(c.Id, title)}
                       onSaveEmail={(email) => saveEmail(c.Id, email)}
@@ -297,7 +325,7 @@ export function ContactsPage() {
                 })}
                 {paddingBottom > 0 ? (
                   <tr aria-hidden style={{ height: paddingBottom }}>
-                    <td colSpan={COLUMN_ORDER.length} />
+                    <td colSpan={visibleCols.length} />
                   </tr>
                 ) : null}
               </>
@@ -312,6 +340,8 @@ export function ContactsPage() {
 interface RowProps {
   c: SfContact;
   ownerOptions: { value: string; label: string }[];
+  visibleCols: ColKey[];
+  canEdit: boolean;
   onOpen: () => void;
   onSaveTitle: (title: string) => Promise<void>;
   onSaveEmail: (email: string) => Promise<void>;
@@ -322,6 +352,8 @@ interface RowProps {
 const ContactRow = memo(function ContactRow({
   c,
   ownerOptions,
+  visibleCols,
+  canEdit,
   onOpen,
   onSaveTitle,
   onSaveEmail,
@@ -331,89 +363,117 @@ const ContactRow = memo(function ContactRow({
   const fullName =
     [c.FirstName, c.LastName].filter(Boolean).join(" ") || c.Name || "—";
 
-  return (
-    <tr
-      className="group/row border-b border-border-strong hover:bg-surface-2"
-      style={{ height: ROW_HEIGHT }}
-    >
-      {/* Contact: avatar + name (click to open drawer) + inline-editable title */}
-      <td className="overflow-hidden px-3 py-1 text-[13px]">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="grid h-[22px] w-[22px] flex-shrink-0 place-items-center rounded-full bg-surface-2 text-[9px] font-semibold text-ink-2">
-            {initials(fullName === "—" ? "?" : fullName)}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col leading-tight">
-            <button
-              type="button"
-              onClick={onOpen}
-              className="truncate text-left font-medium hover:underline"
-              title={fullName}
-            >
-              {fullName}
-            </button>
+  const cells: Record<ColKey, React.ReactNode> = {
+    name: (
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="grid h-[22px] w-[22px] flex-shrink-0 place-items-center rounded-full bg-surface-2 text-[9px] font-semibold text-ink-2">
+          {initials(fullName === "—" ? "?" : fullName)}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col leading-tight">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="truncate text-left font-medium hover:underline"
+            title={fullName}
+          >
+            {fullName}
+          </button>
+          {canEdit ? (
             <InlineText
               value={c.Title}
               onSave={onSaveTitle}
               placeholder="Add title…"
               className="px-1 py-0.5 text-[11px] text-ink-3"
             />
-          </div>
-        </div>
-      </td>
-
-      {/* Account → drill */}
-      <td className="overflow-hidden px-3 py-1 text-[12.5px]">
-        {c.AccountId ? (
-          <Link
-            to={`/accounts/${c.AccountId}`}
-            className="block truncate text-ink-2 hover:underline"
-            title={c.Account?.Name ?? ""}
-          >
-            {c.Account?.Name ?? "—"}
-          </Link>
-        ) : (
-          <span className="text-ink-4">—</span>
-        )}
-      </td>
-
-      {/* Email — mailto link when idle, inline editor on click */}
-      <td className="overflow-hidden px-3 py-1 text-[12.5px]">
-        <MailtoEditableCell value={c.Email} onSave={onSaveEmail} />
-      </td>
-
-      {/* Phone — inline edit */}
-      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-3">
-        <InlineText
-          value={c.Phone || c.MobilePhone}
-          onSave={onSavePhone}
-          placeholder="Add phone…"
-          className="px-1 py-0.5"
-        />
-      </td>
-
-      {/* Owner — inline select */}
-      <td className="overflow-hidden px-3 py-1 text-[12.5px] text-ink-2">
-        <InlineSelect
-          value={c.OwnerId}
-          options={ownerOptions}
-          onSave={onSaveOwner}
-          renderValue={(v) => (
-            <span className="truncate text-[12.5px] text-ink-2">
-              {c.Owner?.Name ??
-                ownerOptions.find((o) => o.value === v)?.label ??
-                "—"}
+          ) : (
+            <span className="truncate px-1 text-[11px] text-ink-3">
+              {c.Title ?? ""}
             </span>
           )}
-        />
-      </td>
-
-      {/* Last activity — display only */}
-      <td
-        className="mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[11.5px] text-ink-3"
+        </div>
+      </div>
+    ),
+    account: c.AccountId ? (
+      <Link
+        to={`/accounts/${c.AccountId}`}
+        className="block truncate text-ink-2 hover:underline"
+        title={c.Account?.Name ?? ""}
+      >
+        {c.Account?.Name ?? "—"}
+      </Link>
+    ) : (
+      <span className="text-ink-4">—</span>
+    ),
+    email: canEdit ? (
+      <MailtoEditableCell value={c.Email} onSave={onSaveEmail} />
+    ) : (
+      c.Email ? (
+        <a
+          href={`mailto:${c.Email}`}
+          className="inline-flex min-w-0 items-center gap-1 truncate text-ink-2 hover:text-accent-ink"
+        >
+          <Mail size={11} className="flex-shrink-0" />
+          <span className="truncate">{c.Email}</span>
+        </a>
+      ) : (
+        <span className="text-ink-4">—</span>
+      )
+    ),
+    phone: canEdit ? (
+      <InlineText
+        value={c.Phone || c.MobilePhone}
+        onSave={onSavePhone}
+        placeholder="Add phone…"
+        className="px-1 py-0.5"
+      />
+    ) : (
+      <span className="text-ink-3">{c.Phone || c.MobilePhone || "—"}</span>
+    ),
+    owner: canEdit ? (
+      <InlineSelect
+        value={c.OwnerId}
+        options={ownerOptions}
+        onSave={onSaveOwner}
+        renderValue={(v) => (
+          <span className="truncate text-[12.5px] text-ink-2">
+            {c.Owner?.Name ??
+              ownerOptions.find((o) => o.value === v)?.label ??
+              "—"}
+          </span>
+        )}
+      />
+    ) : (
+      <span className="text-ink-2">{c.Owner?.Name ?? "—"}</span>
+    ),
+    lastActivity: (
+      <span
+        className="mono cursor-pointer truncate text-[11.5px] text-ink-3"
         onClick={onOpen}
       >
         {fmtDateShort(c.Last_Activity_Date__c ?? c.LastActivityDate)}
-      </td>
+      </span>
+    ),
+  };
+
+  const cellCls: Record<ColKey, string> = {
+    name: "overflow-hidden px-3 py-1 text-[13px]",
+    account: "overflow-hidden px-3 py-1 text-[12.5px]",
+    email: "overflow-hidden px-3 py-1 text-[12.5px]",
+    phone: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-3",
+    owner: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-2",
+    lastActivity: "overflow-hidden px-3 py-1 text-[12.5px]",
+  };
+
+  return (
+    <tr
+      className="group/row border-b border-border-strong hover:bg-surface-2"
+      style={{ height: ROW_HEIGHT }}
+    >
+      {visibleCols.map((key) => (
+        <td key={key} className={cellCls[key]}>
+          {cells[key]}
+        </td>
+      ))}
     </tr>
   );
 });
@@ -546,12 +606,12 @@ function MailtoEditableCell({
   );
 }
 
-function SkeletonRows() {
+function SkeletonRows({ colCount }: { colCount: number }) {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border-strong">
-          <td colSpan={COLUMN_ORDER.length} className="px-3 py-2.5">
+          <td colSpan={colCount} className="px-3 py-2.5">
             <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
           </td>
         </tr>
