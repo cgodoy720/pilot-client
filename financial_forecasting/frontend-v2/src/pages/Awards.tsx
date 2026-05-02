@@ -56,73 +56,54 @@ type ColKey =
   | "name"
   | "funder"
   | "status"
+  | "amount"
   | "paymentBar"
   | "paid"
   | "pending"
   | "reporting"
-  | "amount"
-  | "awardDate"
-  | "periodEnd"
-  | "notes";
+  | "awardDate";
 
 const COLUMN_ORDER: ColKey[] = [
   "name",
   "funder",
   "status",
+  "amount",
   "paymentBar",
   "paid",
   "pending",
   "reporting",
-  "amount",
   "awardDate",
-  "periodEnd",
-  "notes",
 ];
 
 const DEFAULT_WIDTHS: Record<ColKey, number> = {
   name: 280,
   funder: 180,
   status: 120,
+  amount: 120,
   paymentBar: 140,
   paid: 110,
   pending: 110,
-  reporting: 200,
-  amount: 120,
+  reporting: 140,
   awardDate: 120,
-  periodEnd: 120,
-  notes: 300,
 };
 
 const COL_LABELS: Record<ColKey, string> = {
   name: "Award",
   funder: "Funder",
   status: "Status",
-  paymentBar: "Payment status",
+  amount: "Total",
+  paymentBar: "Progress",
   paid: "Paid",
   pending: "Pending",
-  reporting: "Reporting",
-  amount: "Total",
+  reporting: "Next report",
   awardDate: "Awarded",
-  periodEnd: "Period ends",
-  notes: "Notes",
 };
 
-// Default visible columns matching the screenshot layout
 const DEFAULT_VISIBLE: ColKey[] = [
-  "name", "funder", "status", "paymentBar", "paid", "pending", "reporting",
+  "name", "funder", "status", "amount", "paymentBar", "paid", "pending", "reporting",
 ];
 
 const ROW_HEIGHT = 44;
-
-const REPORTING_FREQ_OPTIONS = [
-  { value: "Annual", label: "Annual" },
-  { value: "Semi-Annual", label: "Semi-Annual" },
-  { value: "Quarterly", label: "Quarterly" },
-  { value: "Monthly", label: "Monthly" },
-  { value: "Interim + Final", label: "Interim + Final" },
-  { value: "Final Only", label: "Final Only" },
-  { value: "None", label: "None" },
-];
 
 function pendingAmount(opp: SfOpportunity | undefined): number {
   const total = opp?.Amount ?? 0;
@@ -144,9 +125,8 @@ function extractAward(
     case "pending": return pendingAmount(opp);
     case "paymentBar": return opp?.npe01__Payments_Made__c ?? 0;
     case "awardDate": return a.award_date;
-    case "periodEnd": return a.period_end_date;
-    case "reporting": return a.next_report_due ?? a.reporting_frequency ?? "";
-    case "notes": return a.notes;
+    case "reporting":
+      return a.next_report_due ?? opp?.npsp__Next_Grant_Deadline_Due_Date__c ?? "";
   }
 }
 
@@ -415,59 +395,35 @@ const AwardRow = memo(function AwardRow({ a, opp, visibleCols, canEdit, onOpen, 
     pending: pending > 0
       ? <span className="mono text-[12px] font-medium text-amber-700 tabular-nums">{fmtMoney(pending)}</span>
       : <span className="text-ink-4">—</span>,
-    reporting: (
-      <div className="flex min-w-0 flex-col leading-tight">
-        {canEdit ? (
-          <InlineSelect
-            value={a.reporting_frequency ?? ""}
-            options={REPORTING_FREQ_OPTIONS}
-            onSave={(v) => onSave({ reporting_frequency: v || null })}
-            renderValue={(v) => (
-              <span className={cn("text-[12px]", v ? "text-ink" : "text-ink-4")}>
-                {v || "Set frequency…"}
-              </span>
-            )}
-          />
-        ) : (
-          <span className="text-[12px] text-ink">{a.reporting_frequency ?? "—"}</span>
-        )}
-        {a.next_report_due ? (
-          <span className="mono text-[10.5px] text-ink-3">
-            next: {fmtDate(a.next_report_due)}
-          </span>
-        ) : opp?.npsp__Next_Grant_Deadline_Due_Date__c ? (
-          <span className="mono text-[10.5px] text-ink-3">
-            next: {fmtDate(opp.npsp__Next_Grant_Deadline_Due_Date__c)}
-          </span>
-        ) : null}
-      </div>
+    reporting: canEdit ? (
+      <InlineText
+        value={a.next_report_due}
+        onSave={(v) => onSave({ next_report_due: v })}
+        placeholder={
+          opp?.npsp__Next_Grant_Deadline_Due_Date__c
+            ? fmtDate(opp.npsp__Next_Grant_Deadline_Due_Date__c) + " (SF)"
+            : "YYYY-MM-DD"
+        }
+      />
+    ) : (
+      <span className="mono text-[11.5px] text-ink-3">
+        {fmtDate(a.next_report_due ?? opp?.npsp__Next_Grant_Deadline_Due_Date__c ?? null)}
+      </span>
     ),
     amount: total > 0 ? <span className="mono tabular-nums">{fmtMoney(total)}</span> : <span className="text-ink-4">—</span>,
     awardDate: <span className="mono text-[11.5px] text-ink-3">{fmtDate(a.award_date)}</span>,
-    periodEnd: canEdit ? (
-      <InlineText value={a.period_end_date} onSave={(v) => onSave({ period_end_date: v })} placeholder="YYYY-MM-DD" />
-    ) : (
-      <span className="mono text-[11.5px] text-ink-3">{fmtDate(a.period_end_date)}</span>
-    ),
-    notes: canEdit ? (
-      <InlineText value={a.notes} onSave={(v) => onSave({ notes: v })} placeholder="Add notes…" />
-    ) : (
-      <span className="text-[12.5px] text-ink-3">{a.notes ?? "—"}</span>
-    ),
   };
 
   const cellCls: Record<ColKey, string> = {
     name: "cursor-pointer overflow-hidden px-3 py-1 text-[13px]",
     funder: "overflow-hidden px-3 py-1 text-[12.5px]",
     status: "overflow-hidden px-3 py-1",
+    amount: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[12px] tabular-nums",
     paymentBar: "overflow-hidden px-3 py-1",
     paid: "mono overflow-hidden px-3 py-1 text-[12px]",
     pending: "mono overflow-hidden px-3 py-1 text-[12px]",
-    reporting: "overflow-hidden px-3 py-1",
-    amount: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[12px] tabular-nums",
+    reporting: "mono overflow-hidden px-3 py-1 text-[11.5px] text-ink-3",
     awardDate: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[11.5px] text-ink-3",
-    periodEnd: "mono overflow-hidden px-3 py-1 text-[11.5px] text-ink-3",
-    notes: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-3",
   };
 
   const clickable = new Set<ColKey>(["name", "amount", "awardDate"]);
