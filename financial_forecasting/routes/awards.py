@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -27,11 +28,44 @@ from security import validate_salesforce_id
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/awards", tags=["awards"])
 
+# Award row + per-award report aggregates (so the table doesn't N+1).
 _SELECT = """
-    SELECT id, opportunity_id, award_status, award_date,
-           period_end_date, notes, reporting_frequency, next_report_due,
-           created_at, updated_at
-    FROM bedrock.award
+    SELECT
+        a.id, a.opportunity_id, a.award_status, a.award_date,
+        a.period_end_date, a.notes, a.reporting_frequency, a.next_report_due,
+        a.created_at, a.updated_at,
+        COALESCE(rs.report_total, 0)    AS report_total,
+        COALESCE(rs.report_done, 0)     AS report_done,
+        COALESCE(rs.report_overdue, 0)  AS report_overdue,
+        rs.next_report_date,
+        rs.next_report_status
+    FROM bedrock.award a
+    LEFT JOIN LATERAL (
+        SELECT
+            COUNT(*) FILTER (WHERE r.deleted_at IS NULL)
+                AS report_total,
+            COUNT(*) FILTER (WHERE r.deleted_at IS NULL
+                                AND r.status IN ('Submitted', 'Approved'))
+                AS report_done,
+            COUNT(*) FILTER (WHERE r.deleted_at IS NULL
+                                AND r.status = 'Pending'
+                                AND r.due_date < CURRENT_DATE)
+                AS report_overdue,
+            (SELECT r2.due_date
+               FROM bedrock.award_report r2
+              WHERE r2.award_id = a.id
+                AND r2.deleted_at IS NULL
+                AND r2.status = 'Pending'
+              ORDER BY r2.due_date ASC LIMIT 1) AS next_report_date,
+            (SELECT r2.status
+               FROM bedrock.award_report r2
+              WHERE r2.award_id = a.id
+                AND r2.deleted_at IS NULL
+                AND r2.status = 'Pending'
+              ORDER BY r2.due_date ASC LIMIT 1) AS next_report_status
+        FROM bedrock.award_report r
+        WHERE r.award_id = a.id
+    ) rs ON TRUE
 """
 
 _ALLOWED_STATUS = frozenset({"Active", "Closing", "Closed", "Did Not Fulfill"})
@@ -61,11 +95,51 @@ class AwardUpdate(BaseModel):
 def _serialize(row: Dict[str, Any]) -> Dict[str, Any]:
     out = dict(row)
     out["id"] = str(out["id"])
-    for k in ("award_date", "period_end_date", "next_report_due", "created_at", "updated_at"):
+    for k in (
+        "award_date", "period_end_date", "next_report_due",
+        "next_report_date", "created_at", "updated_at",
+    ):
         v = out.get(k)
         if v is not None:
             out[k] = v.isoformat()
     return out
+
+
+def _serialize_report(row: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(row)
+    out["id"] = str(out["id"])
+    out["award_id"] = str(out["award_id"])
+    for k in ("due_date", "submitted_at", "created_at", "updated_at"):
+        v = out.get(k)
+        if v is not None:
+            out[k] = v.isoformat()
+    return out
+
+
+_ALLOWED_REPORT_STATUS = frozenset({"Pending", "Submitted", "Approved", "Skipped"})
+
+
+class AwardReportCreate(BaseModel):
+    due_date: str
+    status: str = "Pending"
+    notes: str = ""
+    sort_order: int = 0
+
+
+class AwardReportUpdate(BaseModel):
+    due_date: Optional[str] = None
+    status: Optional[str] = None
+    submitted_at: Optional[str] = None
+    notes: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+_FREQUENCY_TO_MONTHS: Dict[str, int] = {
+    "Monthly": 1,
+    "Quarterly": 3,
+    "Semi-Annual": 6,
+    "Annual": 12,
+}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────
@@ -84,14 +158,14 @@ async def list_awards(
         )
     if status:
         rows = await conn.fetch(
-            _SELECT + "WHERE deleted_at IS NULL AND award_status = $1 "
-            "ORDER BY award_date DESC NULLS LAST, created_at DESC",
+            _SELECT + "WHERE a.deleted_at IS NULL AND a.award_status = $1 "
+            "ORDER BY a.award_date DESC NULLS LAST, a.created_at DESC",
             status,
         )
     else:
         rows = await conn.fetch(
-            _SELECT + "WHERE deleted_at IS NULL "
-            "ORDER BY award_date DESC NULLS LAST, created_at DESC"
+            _SELECT + "WHERE a.deleted_at IS NULL "
+            "ORDER BY a.award_date DESC NULLS LAST, a.created_at DESC"
         )
     return [_serialize(r) for r in rows]
 
@@ -104,7 +178,7 @@ async def get_award_by_opp(
 ) -> Dict[str, Any]:
     validate_salesforce_id(opp_id, "opportunity_id")
     row = await conn.fetchrow(
-        _SELECT + "WHERE opportunity_id = $1 AND deleted_at IS NULL",
+        _SELECT + "WHERE a.opportunity_id = $1 AND a.deleted_at IS NULL",
         opp_id,
     )
     if not row:
@@ -123,7 +197,7 @@ async def get_award(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid award_id")
     row = await conn.fetchrow(
-        _SELECT + "WHERE id = $1 AND deleted_at IS NULL",
+        _SELECT + "WHERE a.id = $1 AND a.deleted_at IS NULL",
         aid,
     )
     if not row:
@@ -169,12 +243,241 @@ async def update_award(
 
     sql = (
         f"UPDATE bedrock.award SET {', '.join(sets)}, updated_at = now() "
-        f"WHERE id = $1 AND deleted_at IS NULL "
-        f"RETURNING id, opportunity_id, award_status, award_date, "
-        f"period_end_date, notes, reporting_frequency, next_report_due, "
-        f"created_at, updated_at"
+        f"WHERE id = $1 AND deleted_at IS NULL RETURNING id"
     )
-    row = await conn.fetchrow(sql, aid, *vals)
-    if not row:
+    updated = await conn.fetchrow(sql, aid, *vals)
+    if not updated:
         raise HTTPException(status_code=404, detail="Award not found")
+    row = await conn.fetchrow(
+        _SELECT + "WHERE a.id = $1 AND a.deleted_at IS NULL",
+        aid,
+    )
     return _serialize(row)
+
+
+# ── Reports endpoints ─────────────────────────────────────────────────────
+
+
+@router.get("/{award_id}/reports")
+async def list_reports(
+    award_id: str,
+    conn=Depends(get_db),
+    user=Depends(require_auth),
+) -> List[Dict[str, Any]]:
+    try:
+        aid = uuid.UUID(award_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid award_id")
+    rows = await conn.fetch(
+        """
+        SELECT id, award_id, due_date, status, submitted_at, submitted_by_email,
+               notes, sort_order, created_at, updated_at
+        FROM bedrock.award_report
+        WHERE award_id = $1 AND deleted_at IS NULL
+        ORDER BY due_date ASC, sort_order ASC
+        """,
+        aid,
+    )
+    return [_serialize_report(r) for r in rows]
+
+
+@router.post("/{award_id}/reports")
+async def create_report(
+    award_id: str,
+    payload: AwardReportCreate,
+    conn=Depends(get_db),
+    user=Depends(require_auth),
+) -> Dict[str, Any]:
+    try:
+        aid = uuid.UUID(award_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid award_id")
+    if payload.status not in _ALLOWED_REPORT_STATUS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {sorted(_ALLOWED_REPORT_STATUS)}",
+        )
+    try:
+        due = date.fromisoformat(payload.due_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="due_date must be YYYY-MM-DD")
+    row = await conn.fetchrow(
+        """
+        INSERT INTO bedrock.award_report (award_id, due_date, status, notes, sort_order)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, award_id, due_date, status, submitted_at, submitted_by_email,
+                  notes, sort_order, created_at, updated_at
+        """,
+        aid, due, payload.status, payload.notes, payload.sort_order,
+    )
+    return _serialize_report(row)
+
+
+@router.patch("/reports/{report_id}")
+async def update_report(
+    report_id: str,
+    payload: AwardReportUpdate,
+    conn=Depends(get_db),
+    user=Depends(require_auth),
+) -> Dict[str, Any]:
+    try:
+        rid = uuid.UUID(report_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid report_id")
+
+    if payload.status is not None and payload.status not in _ALLOWED_REPORT_STATUS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {sorted(_ALLOWED_REPORT_STATUS)}",
+        )
+
+    sets: List[str] = []
+    vals: List[Any] = []
+
+    for field in ("due_date", "status", "submitted_at", "notes", "sort_order"):
+        v = getattr(payload, field)
+        if v is None:
+            continue
+        if field == "due_date":
+            try:
+                v = date.fromisoformat(v)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="due_date must be YYYY-MM-DD")
+        if field == "submitted_at":
+            try:
+                v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="submitted_at must be ISO datetime")
+        sets.append(f"{field} = ${len(vals) + 2}")
+        vals.append(v)
+
+    # Auto-stamp submitted_at when status flips to Submitted/Approved without one provided
+    if payload.status in ("Submitted", "Approved") and payload.submitted_at is None:
+        sets.append(f"submitted_at = COALESCE(submitted_at, now())")
+
+    if not sets:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    sql = (
+        f"UPDATE bedrock.award_report SET {', '.join(sets)}, updated_at = now() "
+        f"WHERE id = $1 AND deleted_at IS NULL "
+        f"RETURNING id, award_id, due_date, status, submitted_at, submitted_by_email, "
+        f"notes, sort_order, created_at, updated_at"
+    )
+    row = await conn.fetchrow(sql, rid, *vals)
+    if not row:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return _serialize_report(row)
+
+
+@router.delete("/reports/{report_id}")
+async def delete_report(
+    report_id: str,
+    conn=Depends(get_db),
+    user=Depends(require_auth),
+) -> Dict[str, Any]:
+    try:
+        rid = uuid.UUID(report_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid report_id")
+    row = await conn.fetchrow(
+        "UPDATE bedrock.award_report SET deleted_at = now() "
+        "WHERE id = $1 AND deleted_at IS NULL RETURNING id",
+        rid,
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return {"ok": True, "id": str(row["id"])}
+
+
+@router.post("/{award_id}/reports/generate")
+async def generate_schedule(
+    award_id: str,
+    conn=Depends(get_db),
+    user=Depends(require_auth),
+) -> List[Dict[str, Any]]:
+    """Stamp out a schedule of Pending reports from frequency + period_end_date.
+
+    Replaces any existing **Pending** reports for the award (keeps Submitted /
+    Approved / Skipped rows untouched). If the award already has Pending rows
+    that aren't in the generated set, they're hard-deleted so the schedule
+    reflects the current frequency choice.
+    """
+    try:
+        aid = uuid.UUID(award_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid award_id")
+
+    award = await conn.fetchrow(
+        "SELECT award_date, period_end_date, reporting_frequency "
+        "FROM bedrock.award WHERE id = $1 AND deleted_at IS NULL",
+        aid,
+    )
+    if not award:
+        raise HTTPException(status_code=404, detail="Award not found")
+
+    freq = award["reporting_frequency"]
+    period_end = award["period_end_date"]
+    award_date = award["award_date"]
+
+    if freq == "Final Only" or freq is None or freq == "None":
+        if period_end is None:
+            raise HTTPException(status_code=400, detail="period_end_date required to generate Final Only schedule")
+        dates = [period_end]
+    elif freq == "Interim + Final":
+        if period_end is None or award_date is None:
+            raise HTTPException(status_code=400, detail="award_date and period_end_date required")
+        midpoint = award_date + (period_end - award_date) / 2
+        dates = [midpoint, period_end]
+    else:
+        months = _FREQUENCY_TO_MONTHS.get(freq)
+        if months is None:
+            raise HTTPException(status_code=400, detail=f"Unsupported frequency: {freq}")
+        if award_date is None or period_end is None:
+            raise HTTPException(status_code=400, detail="award_date and period_end_date required")
+        dates = []
+        cur = award_date
+        # Step forward; first report is one period after the award_date.
+        cur = _add_months(cur, months)
+        while cur <= period_end:
+            dates.append(cur)
+            cur = _add_months(cur, months)
+        # Always include the period end as the final report if not already there
+        if not dates or dates[-1] != period_end:
+            dates.append(period_end)
+
+    async with conn.transaction():
+        await conn.execute(
+            "DELETE FROM bedrock.award_report "
+            "WHERE award_id = $1 AND status = 'Pending'",
+            aid,
+        )
+        for i, d in enumerate(dates):
+            await conn.execute(
+                "INSERT INTO bedrock.award_report (award_id, due_date, status, sort_order) "
+                "VALUES ($1, $2, 'Pending', $3)",
+                aid, d, i,
+            )
+        rows = await conn.fetch(
+            "SELECT id, award_id, due_date, status, submitted_at, submitted_by_email, "
+            "notes, sort_order, created_at, updated_at "
+            "FROM bedrock.award_report "
+            "WHERE award_id = $1 AND deleted_at IS NULL "
+            "ORDER BY due_date ASC, sort_order ASC",
+            aid,
+        )
+    return [_serialize_report(r) for r in rows]
+
+
+def _add_months(d: date, months: int) -> date:
+    """Add `months` to a date, clamping the day to the new month's last day."""
+    month = d.month - 1 + months
+    year = d.year + month // 12
+    month = month % 12 + 1
+    # Find the last valid day of the resulting month
+    if month == 12:
+        next_first = date(year + 1, 1, 1)
+    else:
+        next_first = date(year, month + 1, 1)
+    last_day = (next_first - timedelta(days=1)).day
+    return date(year, month, min(d.day, last_day))

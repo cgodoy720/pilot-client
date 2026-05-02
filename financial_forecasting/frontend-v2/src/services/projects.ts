@@ -7,6 +7,7 @@ export interface BedrockProject {
   name: string;
   description: string;
   owner_email: string | null;
+  opportunity_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -203,9 +204,36 @@ export function useUpdateMilestone(projectId: string) {
 export function useUpdateProject(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: { name?: string; description?: string }) => {
+    mutationFn: async (patch: { name?: string; description?: string; opportunity_id?: string }) => {
       await api.put(`/api/projects/${projectId}`, patch);
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-detail", projectId] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project-detail", projectId] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}
+
+export function useCreateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; description?: string; opportunity_id?: string }) => {
+      const { data } = await api.post<{ success: boolean; data: BedrockProject }>(
+        "/api/projects",
+        { name: body.name, description: body.description ?? "", opportunity_id: body.opportunity_id },
+      );
+      return data.data;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["projects"] }); },
+  });
+}
+
+export function useLinkProjectToOpportunity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, opportunityId }: { projectId: string; opportunityId: string }) => {
+      await api.put(`/api/projects/${projectId}`, { opportunity_id: opportunityId });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["projects"] }); },
   });
 }

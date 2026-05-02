@@ -1,11 +1,11 @@
-import { memo, useMemo, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import { AwardDrawer } from "@/components/AwardDrawer";
+import { AwardExpandPanel, AWARD_PANEL_HEIGHT } from "@/components/AwardExpandPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
-import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
+import { InlineSelect } from "@/components/ui/InlineEdit";
 import { SavedViewsPicker } from "@/components/ui/SavedViewsPicker";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
 import { SortableHeader } from "@/components/ui/SortableHeader";
@@ -22,7 +22,9 @@ import {
   type Award,
   type AwardStatus,
 } from "@/services/awards";
-import { useOpportunities } from "@/services/opportunities";
+import { useOpportunities, useUpdateOpportunity } from "@/services/opportunities";
+import { useProjects } from "@/services/projects";
+import { useActiveUsers } from "@/services/users";
 import { usePerm } from "@/services/permissions";
 import type { SfOpportunity } from "@/types/salesforce";
 
@@ -54,56 +56,60 @@ function statusVariant(s: AwardStatus): "green" | "amber" | "default" | "red" {
 
 type ColKey =
   | "name"
-  | "funder"
+  | "owner"
   | "status"
   | "amount"
   | "paymentBar"
   | "paid"
   | "pending"
   | "reporting"
+  | "projects"
   | "awardDate";
 
 const COLUMN_ORDER: ColKey[] = [
   "name",
-  "funder",
+  "owner",
   "status",
   "amount",
   "paymentBar",
   "paid",
   "pending",
   "reporting",
+  "projects",
   "awardDate",
 ];
 
 const DEFAULT_WIDTHS: Record<ColKey, number> = {
-  name: 280,
-  funder: 180,
+  name: 300,
+  owner: 150,
   status: 120,
   amount: 120,
   paymentBar: 140,
   paid: 110,
   pending: 110,
-  reporting: 140,
+  reporting: 180,
+  projects: 150,
   awardDate: 120,
 };
 
 const COL_LABELS: Record<ColKey, string> = {
   name: "Award",
-  funder: "Funder",
+  owner: "Owner",
   status: "Status",
   amount: "Total",
   paymentBar: "Progress",
   paid: "Paid",
   pending: "Pending",
-  reporting: "Next report",
+  reporting: "Reports",
+  projects: "Projects",
   awardDate: "Awarded",
 };
 
 const DEFAULT_VISIBLE: ColKey[] = [
-  "name", "funder", "status", "amount", "paymentBar", "paid", "pending", "reporting",
+  "name", "owner", "status", "amount", "paymentBar", "paid", "pending", "reporting", "projects",
 ];
 
-const ROW_HEIGHT = 44;
+const ROW_HEIGHT = 52; // taller — name now has account on a second line
 
 function pendingAmount(opp: SfOpportunity | undefined): number {
   const total = opp?.Amount ?? 0;
@@ -118,7 +124,7 @@ function extractAward(
 ): unknown {
   switch (key) {
     case "name": return opp?.Name ?? a.opportunity_id;
-    case "funder": return opp?.Account?.Name ?? "";
+    case "owner": return opp?.Owner?.Name ?? "";
     case "status": return a.award_status;
     case "amount": return opp?.Amount ?? 0;
     case "paid": return opp?.npe01__Payments_Made__c ?? 0;
@@ -126,7 +132,9 @@ function extractAward(
     case "paymentBar": return opp?.npe01__Payments_Made__c ?? 0;
     case "awardDate": return a.award_date;
     case "reporting":
-      return a.next_report_due ?? opp?.npsp__Next_Grant_Deadline_Due_Date__c ?? "";
+      // Sort by next due date (if any), falling back to "no reports" (empty)
+      return a.next_report_date ?? a.next_report_due ?? "";
+    case "projects": return ""; // sort handled separately via projectsByOpp
   }
 }
 
@@ -153,10 +161,77 @@ function PaymentBar({ paid, total }: { paid: number; total: number }) {
   );
 }
 
+// ── Reports progress cell ─────────────────────────────────────────────────
+//
+// Compact, dense visual: ●●●○ 3/4 · Aug 15 (color = next-due urgency).
+// For 1–6 reports we draw individual dots; ≥7 we fall back to a fraction badge.
+
+function ReportsProgress({ award }: { award: Award }) {
+  const total = award.report_total;
+  const done = award.report_done;
+  const overdue = award.report_overdue > 0;
+  const next = award.next_report_date;
+
+  if (total === 0) {
+    // Surface SF's npsp__Next_Grant_Deadline_Due_Date__c if no schedule yet.
+    return (
+      <span className="text-[11.5px] text-ink-4">
+        No schedule
+      </span>
+    );
+  }
+
+  const allDone = done === total;
+  const dueColor = allDone
+    ? "text-green-700"
+    : overdue
+      ? "text-red"
+      : isWithinDays(next, 30)
+        ? "text-amber-700"
+        : "text-ink-3";
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 leading-tight">
+      {total <= 6 ? (
+        <div className="flex flex-shrink-0 items-center gap-0.5">
+          {Array.from({ length: total }).map((_, i) => (
+            <span
+              key={i}
+              className={cn(
+                "inline-block h-2 w-2 rounded-full",
+                i < done
+                  ? "bg-green-500"
+                  : overdue && i === done
+                    ? "bg-red"
+                    : "bg-surface-2 ring-1 ring-border-strong",
+              )}
+            />
+          ))}
+        </div>
+      ) : (
+        <span className={cn("mono flex-shrink-0 text-[11px] font-medium", dueColor)}>
+          {done}/{total}
+        </span>
+      )}
+      <span className={cn("mono truncate text-[11px]", dueColor)}>
+        {allDone ? "Complete" : next ? `· ${fmtDate(next)}` : ""}
+      </span>
+    </div>
+  );
+}
+
+function isWithinDays(iso: string | null, days: number): boolean {
+  if (!iso) return false;
+  const ts = new Date(iso).getTime();
+  return ts - Date.now() <= days * 86_400_000 && ts >= Date.now();
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+
 export function AwardsPage() {
   const [filter, setFilter] = useState<AwardFilter>({ status: "All" });
   const [q, setQ] = useState("");
-  const [drawerAward, setDrawerAward] = useState<Award | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const canEdit = usePerm("edit_awards");
   const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility<ColKey>(
@@ -170,15 +245,33 @@ export function AwardsPage() {
 
   const { data: awardsData, isLoading: awardsLoading, isError, error } =
     useAwards(filter.status === "All" ? undefined : filter.status);
-  // Fetch all record types — awards now span Philanthropy, PBC, Debt/Equity, etc.
   const { data: oppsData } = useOpportunities({});
+  const usersQ = useActiveUsers();
+  const projectsQ = useProjects();
   const updateAward = useUpdateAward();
+  const updateOpp = useUpdateOpportunity();
+
+  const ownerOptions = useMemo(
+    () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
+    [usersQ.data],
+  );
 
   const oppById = useMemo(() => {
     const m = new Map<string, SfOpportunity>();
     for (const o of oppsData ?? []) m.set(o.Id, o);
     return m;
   }, [oppsData]);
+
+  const projectsByOpp = useMemo(() => {
+    const m = new Map<string, { id: string; name: string }[]>();
+    for (const p of projectsQ.data ?? []) {
+      if (!p.opportunity_id) continue;
+      const arr = m.get(p.opportunity_id) ?? [];
+      arr.push({ id: p.id, name: p.name });
+      m.set(p.opportunity_id, arr);
+    }
+    return m;
+  }, [projectsQ.data]);
 
   const awards = awardsData ?? [];
   const filtered = useMemo(() => {
@@ -189,6 +282,7 @@ export function AwardsPage() {
           return (
             (opp?.Name ?? "").toLowerCase().includes(needle) ||
             (opp?.Account?.Name ?? "").toLowerCase().includes(needle) ||
+            (opp?.Owner?.Name ?? "").toLowerCase().includes(needle) ||
             (a.notes ?? "").toLowerCase().includes(needle)
           );
         })
@@ -208,13 +302,19 @@ export function AwardsPage() {
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: (i) =>
+      filtered[i]?.id === expandedId ? ROW_HEIGHT + AWARD_PANEL_HEIGHT : ROW_HEIGHT,
     overscan: 8,
   });
+  useEffect(() => { virtualizer.measure(); }, [expandedId, virtualizer]);
   const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const paddingTop = virtualItems[0]?.start ?? 0;
   const paddingBottom = totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
+
+  const saveAward = (id: string) => async (patch: Record<string, unknown>) => {
+    await updateAward.mutateAsync({ id, patch });
+  };
 
   return (
     <div className="flex h-full flex-col px-7 py-6 pb-6">
@@ -236,7 +336,7 @@ export function AwardsPage() {
         <div className="relative">
           <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
           <input
-            placeholder="Search by opp, funder, notes"
+            placeholder="Search by opp, funder, owner, notes"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
@@ -304,18 +404,39 @@ export function AwardsPage() {
                 {virtualItems.map((vi) => {
                   const a = filtered[vi.index];
                   const opp = oppById.get(a.opportunity_id);
+                  const isExpanded = a.id === expandedId;
+                  const projects = projectsByOpp.get(a.opportunity_id) ?? [];
                   return (
-                    <AwardRow
-                      key={a.id}
-                      a={a}
-                      opp={opp}
-                      visibleCols={visibleCols}
-                      canEdit={canEdit}
-                      onOpen={() => setDrawerAward(a)}
-                      onSave={async (patch) => {
-                        await updateAward.mutateAsync({ id: a.id, patch });
-                      }}
-                    />
+                    <Fragment key={a.id}>
+                      <AwardRow
+                        a={a}
+                        opp={opp}
+                        ownerOptions={ownerOptions}
+                        projects={projects}
+                        visibleCols={visibleCols}
+                        canEdit={canEdit}
+                        isExpanded={isExpanded}
+                        onToggleExpand={() => setExpandedId(isExpanded ? null : a.id)}
+                        onSave={saveAward(a.id)}
+                        onSaveOwner={async (ownerId) => {
+                          if (!opp) return;
+                          const ownerName =
+                            ownerOptions.find((o) => o.value === ownerId)?.label ?? null;
+                          await updateOpp.mutateAsync({
+                            id: opp.Id,
+                            patch: { OwnerId: ownerId },
+                            displayPatch: { Owner: ownerName ? { Name: ownerName } : null } as Record<string, unknown>,
+                          });
+                        }}
+                      />
+                      {isExpanded ? (
+                        <tr>
+                          <td colSpan={visibleCols.length} className="p-0">
+                            <AwardExpandPanel award={a} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
                 {paddingBottom > 0 && <tr aria-hidden style={{ height: paddingBottom }}><td colSpan={visibleCols.length} /></tr>}
@@ -337,45 +458,82 @@ export function AwardsPage() {
           )}
         </table>
       </div>
-
-      <AwardDrawer
-        award={drawerAward}
-        opp={drawerAward ? oppById.get(drawerAward.opportunity_id) : undefined}
-        onClose={() => setDrawerAward(null)}
-      />
     </div>
   );
 }
 
+// ── Row ───────────────────────────────────────────────────────────────────
+
 interface RowProps {
   a: Award;
   opp: SfOpportunity | undefined;
+  ownerOptions: { value: string; label: string }[];
+  projects: { id: string; name: string }[];
   visibleCols: ColKey[];
   canEdit: boolean;
-  onOpen: () => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onSave: (patch: Record<string, unknown>) => Promise<void>;
+  onSaveOwner: (ownerId: string) => Promise<void>;
 }
 
-const AwardRow = memo(function AwardRow({ a, opp, visibleCols, canEdit, onOpen, onSave }: RowProps) {
+const AwardRow = memo(function AwardRow({
+  a,
+  opp,
+  ownerOptions,
+  projects,
+  visibleCols,
+  canEdit,
+  isExpanded,
+  onToggleExpand,
+  onSave,
+  onSaveOwner,
+}: RowProps) {
   const account = opp?.Account?.Name ?? "—";
   const oppName = opp?.Name ?? a.opportunity_id;
+  const ownerName = opp?.Owner?.Name ?? "—";
   const total = opp?.Amount ?? 0;
   const paid = opp?.npe01__Payments_Made__c ?? 0;
   const pending = pendingAmount(opp);
 
   const cells: Record<ColKey, React.ReactNode> = {
     name: (
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+          className="flex-shrink-0 text-ink-4 transition-colors hover:text-ink-2"
+          aria-label={isExpanded ? "Collapse details" : "Expand details"}
+        >
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </button>
         <div
           className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded text-[9px] font-semibold text-surface"
           style={{ background: "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))" }}
         >
           {initials(account === "—" ? oppName : account)}
         </div>
-        <span className="truncate font-medium" title={oppName}>{oppName}</span>
+        <div className="flex min-w-0 flex-1 flex-col leading-tight">
+          <span className="truncate font-medium" title={oppName}>{oppName}</span>
+          <span className="truncate text-[11px] text-ink-3" title={account}>{account}</span>
+        </div>
       </div>
     ),
-    funder: <span className="truncate text-[12.5px] text-ink-2">{account}</span>,
+    owner: canEdit && opp ? (
+      <InlineSelect
+        value={opp.OwnerId ?? ""}
+        options={ownerOptions}
+        onSave={onSaveOwner}
+        renderValue={(v) => (
+          <span className="truncate text-[12.5px] text-ink-2">
+            {opp.Owner?.Name ?? ownerOptions.find((o) => o.value === v)?.label ?? "—"}
+          </span>
+        )}
+      />
+    ) : (
+      <span className="truncate text-[12.5px] text-ink-2" title={ownerName}>
+        {ownerName}
+      </span>
+    ),
     status: canEdit ? (
       <InlineSelect
         value={a.award_status}
@@ -395,19 +553,19 @@ const AwardRow = memo(function AwardRow({ a, opp, visibleCols, canEdit, onOpen, 
     pending: pending > 0
       ? <span className="mono text-[12px] font-medium text-amber-700 tabular-nums">{fmtMoney(pending)}</span>
       : <span className="text-ink-4">—</span>,
-    reporting: canEdit ? (
-      <InlineText
-        value={a.next_report_due}
-        onSave={(v) => onSave({ next_report_due: v })}
-        placeholder={
-          opp?.npsp__Next_Grant_Deadline_Due_Date__c
-            ? fmtDate(opp.npsp__Next_Grant_Deadline_Due_Date__c) + " (SF)"
-            : "YYYY-MM-DD"
-        }
-      />
+    reporting: <ReportsProgress award={a} />,
+    projects: projects.length === 0 ? (
+      <span className="text-[11.5px] text-ink-4">—</span>
+    ) : projects.length === 1 ? (
+      <span className="truncate text-[12px] text-ink" title={projects[0].name}>
+        {projects[0].name}
+      </span>
     ) : (
-      <span className="mono text-[11.5px] text-ink-3">
-        {fmtDate(a.next_report_due ?? opp?.npsp__Next_Grant_Deadline_Due_Date__c ?? null)}
+      <span className="truncate text-[12px] text-ink" title={projects.map((p) => p.name).join(", ")}>
+        {projects[0].name}
+        <span className="ml-1 rounded bg-surface-2 px-1 text-[10.5px] text-ink-2">
+          +{projects.length - 1}
+        </span>
       </span>
     ),
     amount: total > 0 ? <span className="mono tabular-nums">{fmtMoney(total)}</span> : <span className="text-ink-4">—</span>,
@@ -415,23 +573,31 @@ const AwardRow = memo(function AwardRow({ a, opp, visibleCols, canEdit, onOpen, 
   };
 
   const cellCls: Record<ColKey, string> = {
-    name: "cursor-pointer overflow-hidden px-3 py-1 text-[13px]",
-    funder: "overflow-hidden px-3 py-1 text-[12.5px]",
+    name: "overflow-hidden px-3 py-1 text-[13px]",
+    owner: "overflow-hidden px-3 py-1",
     status: "overflow-hidden px-3 py-1",
     amount: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[12px] tabular-nums",
-    paymentBar: "overflow-hidden px-3 py-1",
-    paid: "mono overflow-hidden px-3 py-1 text-[12px]",
-    pending: "mono overflow-hidden px-3 py-1 text-[12px]",
-    reporting: "mono overflow-hidden px-3 py-1 text-[11.5px] text-ink-3",
+    paymentBar: "cursor-pointer overflow-hidden px-3 py-1",
+    paid: "mono cursor-pointer overflow-hidden px-3 py-1 text-[12px]",
+    pending: "mono cursor-pointer overflow-hidden px-3 py-1 text-[12px]",
+    reporting: "cursor-pointer overflow-hidden px-3 py-1",
+    projects: "cursor-pointer overflow-hidden px-3 py-1",
     awardDate: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[11.5px] text-ink-3",
   };
 
-  const clickable = new Set<ColKey>(["name", "amount", "awardDate"]);
+  // Clicking these cells expands the row (the row's full detail is the expansion).
+  const expandsOnClick = new Set<ColKey>([
+    "amount", "paymentBar", "paid", "pending", "reporting", "projects", "awardDate",
+  ]);
 
   return (
     <tr className="group/row border-b border-border-strong hover:bg-surface-2" style={{ height: ROW_HEIGHT }}>
       {visibleCols.map((key) => (
-        <td key={key} className={cellCls[key]} onClick={clickable.has(key) ? onOpen : undefined}>
+        <td
+          key={key}
+          className={cellCls[key]}
+          onClick={expandsOnClick.has(key) ? onToggleExpand : undefined}
+        >
           {cells[key]}
         </td>
       ))}

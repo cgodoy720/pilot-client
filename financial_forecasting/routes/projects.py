@@ -87,11 +87,13 @@ class ProjectTaskUpdate(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     description: str = ""
+    opportunity_id: Optional[str] = None
 
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    opportunity_id: Optional[str] = None
 
 
 class ContributorAdd(BaseModel):
@@ -189,9 +191,11 @@ async def _check_project_role(
 
 @router.get("/projects")
 async def list_projects(user=Depends(check_permission("view_projects")), conn=Depends(get_db)):
-    """List all projects."""
+    """List all projects (includes the primary opportunity_id so the awards
+    page can group projects without an N+1 fetch)."""
     rows = await conn.fetch(
-        "SELECT id, name, description, owner_email, created_at, updated_at "
+        "SELECT id, name, description, owner_email, opportunity_id, "
+        "created_at, updated_at "
         "FROM bedrock.project WHERE deleted_at IS NULL ORDER BY created_at"
     )
     return {"success": True, "data": [dict(r) for r in rows]}
@@ -360,12 +364,19 @@ async def get_project(project_id: str, user=Depends(check_permission("view_proje
 
 @router.post("/projects")
 async def create_project(body: ProjectCreate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
-    """Create a new project. The creating user becomes the owner."""
+    """Create a new project. The creating user becomes the owner.
+
+    Optional `opportunity_id` lets the awards page create-from-award flow
+    seed the primary opportunity link in one round-trip.
+    """
     creator_email = user.get("email", "")
+    if body.opportunity_id is not None:
+        validate_salesforce_id(body.opportunity_id, "opportunity_id")
     row = await conn.fetchrow(
-        "INSERT INTO bedrock.project (name, description, owner_email, created_by) "
-        "VALUES ($1, $2, $3, $3) RETURNING id, name, description, owner_email, created_by, created_at",
-        body.name, body.description, creator_email,
+        "INSERT INTO bedrock.project (name, description, owner_email, created_by, opportunity_id) "
+        "VALUES ($1, $2, $3, $3, $4) "
+        "RETURNING id, name, description, owner_email, created_by, opportunity_id, created_at",
+        body.name, body.description, creator_email, body.opportunity_id,
     )
     return {"success": True, "data": {
         "id": str(row["id"]),
@@ -373,17 +384,20 @@ async def create_project(body: ProjectCreate, user=Depends(check_permission("edi
         "description": row["description"],
         "owner_email": row["owner_email"],
         "created_by": row["created_by"],
+        "opportunity_id": row["opportunity_id"],
         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
     }}
 
 
 @router.put("/projects/{project_id}")
 async def update_project(project_id: str, body: ProjectUpdate, user=Depends(check_permission("edit_projects")), conn=Depends(get_db)):
-    """Update a project (name/description)."""
+    """Update a project (name/description/opportunity_id)."""
     pid = uuid.UUID(project_id)
     fields = body.model_dump(exclude_none=True)
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
+    if "opportunity_id" in fields:
+        validate_salesforce_id(fields["opportunity_id"], "opportunity_id")
     sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
     vals = [pid] + list(fields.values())
     await conn.execute(f"UPDATE bedrock.project SET {sets} WHERE id = $1 AND deleted_at IS NULL", *vals)
