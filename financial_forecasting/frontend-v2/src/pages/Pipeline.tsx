@@ -17,11 +17,11 @@ import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import {
-  bucketForStage,
-  CLOSED_BUCKETS,
-  OPEN_BUCKETS,
+  isLost,
+  isOpen,
+  isWon,
   SF_STAGE_OPTIONS,
-  type StageBucket,
+  stageStatus,
 } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/services/accounts";
@@ -51,22 +51,11 @@ const RECORD_TYPES = [
 type RecordType = (typeof RECORD_TYPES)[number]["value"];
 
 function inScope(o: SfOpportunity, scope: Scope): boolean {
-  const b = bucketForStage(o.StageName);
   if (scope === "all") return true;
-  if (scope === "open") return OPEN_BUCKETS.includes(b);
-  if (scope === "won") return b === "won";
-  if (scope === "lost") return b === "lost";
+  if (scope === "open") return isOpen(o);
+  if (scope === "won") return isWon(o);
+  if (scope === "lost") return isLost(o);
   return true;
-}
-
-function bucketCount(opps: SfOpportunity[], bucket: StageBucket): number {
-  return opps.filter((o) => bucketForStage(o.StageName) === bucket).length;
-}
-
-function bucketAmount(opps: SfOpportunity[], bucket: StageBucket): number {
-  return opps
-    .filter((o) => bucketForStage(o.StageName) === bucket)
-    .reduce((s, o) => s + (o.Amount ?? 0), 0);
 }
 
 type ColKey =
@@ -671,37 +660,41 @@ function ModalField({ label, children }: { label: string; children: React.ReactN
 }
 
 function FunnelStrip({ opps, scope }: { opps: SfOpportunity[]; scope: Scope }) {
-  const buckets =
-    scope === "open"
-      ? OPEN_BUCKETS
-      : scope === "won"
-        ? (["won"] as StageBucket[])
-        : scope === "lost"
-          ? (["lost"] as StageBucket[])
-          : [...OPEN_BUCKETS, ...CLOSED_BUCKETS];
+  // Group by the literal SF StageName — no mapping. Show every stage that
+  // actually appears in the filtered data, ordered by count desc.
+  const groups = useMemo(() => {
+    const m = new Map<string, { stage: string; status: "open" | "won" | "lost"; count: number; amount: number }>();
+    for (const o of opps) {
+      if (!inScope(o, scope)) continue;
+      const stage = o.StageName || "—";
+      const cur = m.get(stage) ?? { stage, status: stageStatus(o), count: 0, amount: 0 };
+      cur.count += 1;
+      cur.amount += o.Amount ?? 0;
+      m.set(stage, cur);
+    }
+    return Array.from(m.values()).sort((a, b) => b.count - a.count);
+  }, [opps, scope]);
+
+  if (groups.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
-      {buckets.map((b) => {
-        const count = bucketCount(opps, b);
-        const amt = bucketAmount(opps, b);
-        return (
-          <div
-            key={b}
-            className="flex flex-col rounded-md border border-border-strong bg-surface px-3 py-2.5 shadow-sm"
-          >
-            <div className="flex items-center gap-2">
-              <StageChip stage={b} />
-              <span className="text-[11.5px] uppercase tracking-wide text-ink-3">
-                {count}
-              </span>
-            </div>
-            <span className="mono mt-1 text-[15px] font-semibold tabular-nums">
-              {fmtMoney(amt)}
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
+      {groups.map((g) => (
+        <div
+          key={g.stage}
+          className="flex flex-col rounded-md border border-border-strong bg-surface px-3 py-2.5 shadow-sm"
+        >
+          <div className="flex items-center gap-2">
+            <StageChip stage={g.stage} status={g.status} />
+            <span className="text-[11.5px] uppercase tracking-wide text-ink-3">
+              {g.count}
             </span>
           </div>
-        );
-      })}
+          <span className="mono mt-1 text-[15px] font-semibold tabular-nums">
+            {fmtMoney(g.amount)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -779,10 +772,20 @@ const OpportunityRow = memo(function OpportunityRow({
         value={o.StageName}
         options={stageOptions}
         onSave={onSaveStage}
-        renderValue={(v) => v ? <StageChip stage={v} /> : <span className="text-ink-4">—</span>}
+        renderValue={(v) =>
+          v ? (
+            <StageChip stage={v} status={stageStatus(o)} />
+          ) : (
+            <span className="text-ink-4">—</span>
+          )
+        }
       />
     ) : (
-      o.StageName ? <StageChip stage={o.StageName} /> : <span className="text-ink-4">—</span>
+      o.StageName ? (
+        <StageChip stage={o.StageName} status={stageStatus(o)} />
+      ) : (
+        <span className="text-ink-4">—</span>
+      )
     ),
     amount: canEdit ? (
       <InlineText

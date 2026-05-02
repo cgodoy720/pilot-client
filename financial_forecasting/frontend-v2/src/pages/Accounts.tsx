@@ -15,7 +15,7 @@ import { useColumnVisibility } from "@/lib/columnVisibility";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
-import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
+import { isOpen, isWon } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useCreateAccount, useUpdateAccount } from "@/services/accounts";
 import { useOpportunities } from "@/services/opportunities";
@@ -60,11 +60,10 @@ function buildMetricsMap(opps: SfOpportunity[]): Map<string, AccountMetrics> {
       cur = { ...ZERO_METRICS };
       m.set(accountId, cur);
     }
-    const bucket = bucketForStage(o.StageName);
     const amount = o.Amount ?? 0;
-    if (OPEN_BUCKETS.includes(bucket)) {
+    if (isOpen(o)) {
       cur.openPipeline += amount;
-    } else if (bucket === "won") {
+    } else if (isWon(o)) {
       cur.amountWon += amount;
       cur.received += o.npe01__Payments_Made__c ?? 0;
     }

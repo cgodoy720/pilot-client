@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { StageChip } from "@/components/ui/StageChip";
 import { fmtDate, fmtMoney } from "@/lib/format";
-import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
+import { isOpen, isWon, stageStatus } from "@/lib/stages";
 import { useAccounts } from "@/services/accounts";
 import { useAwards } from "@/services/awards";
 import { useCurrentUser } from "@/services/auth";
@@ -20,14 +20,8 @@ export function DashboardPage() {
   const { data: ownerGoals = [] } = useOwnerGoals();
   const { data: activeUsers = [] } = useActiveUsers();
 
-  const openOpps = useMemo(
-    () => opps.filter((o) => OPEN_BUCKETS.includes(bucketForStage(o.StageName))),
-    [opps],
-  );
-  const wonOpps = useMemo(
-    () => opps.filter((o) => bucketForStage(o.StageName) === "won"),
-    [opps],
-  );
+  const openOpps = useMemo(() => opps.filter(isOpen), [opps]);
+  const wonOpps = useMemo(() => opps.filter(isWon), [opps]);
 
   const openValue = openOpps.reduce((s, o) => s + (o.Amount ?? 0), 0);
   const weightedValue = openOpps.reduce(
@@ -66,15 +60,13 @@ export function DashboardPage() {
 
         const closedWon = ownerOpps
           .filter((o) => {
-            if (bucketForStage(o.StageName) !== "won") return false;
+            if (!isWon(o)) return false;
             if (!o.CloseDate) return false;
             return new Date(o.CloseDate).getUTCFullYear() === thisYear;
           })
           .reduce((s, o) => s + (o.Amount ?? 0), 0);
 
-        const openOppsOwner = ownerOpps.filter((o) =>
-          OPEN_BUCKETS.includes(bucketForStage(o.StageName)),
-        );
+        const openOppsOwner = ownerOpps.filter(isOpen);
         const openPipeline = openOppsOwner.reduce((s, o) => s + (o.Amount ?? 0), 0);
         const weighted = openOppsOwner.reduce(
           (s, o) => s + ((o.Amount ?? 0) * (o.Probability ?? 0)) / 100,
@@ -143,7 +135,7 @@ export function DashboardPage() {
                   key={o.Id}
                   className="flex items-center gap-3 border-b border-border-strong px-5 py-2.5 last:border-b-0"
                 >
-                  <StageChip stage={o.StageName} />
+                  <StageChip stage={o.StageName} status={stageStatus(o)} />
                   <div className="min-w-0 flex-1">
                     <Link
                       to={`/opportunities/${o.Id}`}

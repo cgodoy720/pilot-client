@@ -333,7 +333,8 @@ async def get_opportunities(
         # label "Primary Contact"). Relationship fields pull the contact's
         # Name + Email for display without a second query.
         query = """
-        SELECT Id, AccountId, Account.Name, Name, StageName, Amount, Probability,
+        SELECT Id, AccountId, Account.Name, Name, StageName, IsClosed, IsWon,
+               Amount, Probability,
                CloseDate, ForecastCategory, LeadSource, NextStep,
                Description, OwnerId, Owner.Name, CreatedDate, LastModifiedDate,
                npe01__Payments_Made__c, Outstanding_Payments__c,

@@ -8,7 +8,7 @@ import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
-import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
+import { isOpen, isWon, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useUpdateAccount } from "@/services/accounts";
 import { useAccountFullActivities } from "@/services/activities";
@@ -90,8 +90,8 @@ export function AccountDetailPage() {
   const closedCount = account.npo02__NumberOfClosedOpps__c ?? 0;
   const lastActivity = account.Last_Activity_Date__c ?? account.LastActivityDate ?? null;
 
-  const openOpps = opps.filter((o) => OPEN_BUCKETS.includes(bucketForStage(o.StageName)));
-  const wonOpps = opps.filter((o) => bucketForStage(o.StageName) === "won");
+  const openOpps = opps.filter(isOpen);
+  const wonOpps = opps.filter(isWon);
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
@@ -550,7 +550,7 @@ function OppTable({ opps }: { opps: SfOpportunity[] }) {
               ) : null}
             </td>
             <td className="px-3 py-2.5">
-              <StageChip stage={o.StageName} />
+              <StageChip stage={o.StageName} status={stageStatus(o)} />
             </td>
             <td className="mono px-3 py-2.5 text-right text-[13px] font-medium tabular-nums">
               {o.Amount ? fmtMoney(o.Amount) : <span className="text-ink-4">—</span>}

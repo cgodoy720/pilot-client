@@ -6,7 +6,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
-import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
+import { isOpen, stageStatus } from "@/lib/stages";
 import { useActivities } from "@/services/activities";
 import { useContacts } from "@/services/contacts";
 import { useOpportunities } from "@/services/opportunities";
@@ -93,9 +93,7 @@ function ContactDrawerBody({ contact }: { contact: SfContact }) {
   const primaryOpenOpps = useMemo(
     () =>
       opps.filter(
-        (o) =>
-          o.npsp__Primary_Contact__c === contact.Id &&
-          OPEN_BUCKETS.includes(bucketForStage(o.StageName)),
+        (o) => o.npsp__Primary_Contact__c === contact.Id && isOpen(o),
       ),
     [opps, contact.Id],
   );
@@ -199,7 +197,7 @@ function ContactDrawerBody({ contact }: { contact: SfContact }) {
                 key={o.Id}
                 className="flex items-center gap-3 border-b border-border-strong px-4 py-2.5 last:border-b-0"
               >
-                <StageChip stage={o.StageName} />
+                <StageChip stage={o.StageName} status={stageStatus(o)} />
                 <Link
                   to={`/opportunities/${o.Id}`}
                   className="min-w-0 flex-1 truncate text-[13px] font-medium hover:underline"

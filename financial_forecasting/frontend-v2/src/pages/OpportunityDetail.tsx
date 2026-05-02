@@ -6,9 +6,9 @@ import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { OppTasksSection } from "@/components/OppTasksSection";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
+import { SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoneyFull, initials } from "@/lib/format";
-import { SF_STAGE_OPTIONS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useActivities } from "@/services/activities";
 import {
@@ -100,7 +100,7 @@ export function OpportunityDetailPage() {
               value={opp.StageName}
               options={SF_STAGE_OPTIONS}
               onSave={(v) => updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)}
-              renderValue={() => <StageChip stage={opp.StageName} />}
+              renderValue={() => <StageChip stage={opp.StageName} status={stageStatus(opp)} />}
             />
             {opp.RecordType?.Name ? <Tag>{opp.RecordType.Name}</Tag> : null}
             {opp.AccountId ? (

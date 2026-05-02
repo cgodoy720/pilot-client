@@ -83,6 +83,8 @@ export interface SfOpportunity {
   Account?: SfReference | null;
 
   StageName: string;
+  IsClosed?: boolean | null;
+  IsWon?: boolean | null;
   Probability?: number | null;
   ForecastCategory?: string | null;
 

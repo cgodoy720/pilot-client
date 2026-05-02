@@ -5,7 +5,7 @@ import { Drawer } from "@/components/ui/Drawer";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, fmtMoneyFull } from "@/lib/format";
-import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
+import { isOpen, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useActivities } from "@/services/activities";
 import { useContacts } from "@/services/contacts";
@@ -56,9 +56,7 @@ function AccountDrawerBody({ account }: { account: SfAccount }) {
     [opps, accountId],
   );
 
-  const openOpps = oppsForAccount.filter((o) =>
-    OPEN_BUCKETS.includes(bucketForStage(o.StageName)),
-  );
+  const openOpps = oppsForAccount.filter(isOpen);
 
   // Build aggregates
   const lifetime = account.npo02__TotalOppAmount__c ?? 0;
@@ -84,7 +82,7 @@ function AccountDrawerBody({ account }: { account: SfAccount }) {
                 key={o.Id}
                 className="flex items-center gap-3 border-b border-border-strong px-4 py-2.5 last:border-b-0"
               >
-                <StageChip stage={o.StageName} />
+                <StageChip stage={o.StageName} status={stageStatus(o)} />
                 <Link
                   to={`/opportunities/${o.Id}`}
                   className="min-w-0 flex-1 truncate text-[13px] font-medium hover:underline"

@@ -1,5 +1,6 @@
 import { Drawer } from "@/components/ui/Drawer";
 import { StageChip } from "@/components/ui/StageChip";
+import { stageStatus } from "@/lib/stages";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ function OpportunityDrawerBody({ opp }: { opp: SfOpportunity }) {
       <div className="grid grid-cols-3 gap-2">
         <Stat
           label="Stage"
-          value={<StageChip stage={opp.StageName} />}
+          value={<StageChip stage={opp.StageName} status={stageStatus(opp)} />}
         />
         <Stat
           label="Amount"
