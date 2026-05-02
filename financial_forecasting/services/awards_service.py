@@ -1,9 +1,10 @@
 """Awards service — manages bedrock.award rows.
 
-Award is a thin lifecycle entity layered over closed-won Philanthropy
-Opportunities. Salesforce stays SoT for the Opportunity itself; this service
-owns only the post-award lifecycle bits (status, period, notes) that don't
-belong on the Opportunity record.
+Award is a thin lifecycle entity layered over closed Opportunities across
+Philanthropy, PBC, Debt/Equity, and Other Fee For Service record types.
+Salesforce stays SoT for the Opportunity itself; this service owns only the
+post-award lifecycle bits (status, period, notes) that don't belong on the
+Opportunity record.
 
 See `tasks/bedrock-redesign-data-model.md` for the full plan.
 
@@ -21,48 +22,70 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Stage allowlist — Philanthropy record type only.
+# Eligible record types and their stage allowlists.
 #
-# These are the SF StageName values that, for a Philanthropy opportunity,
-# represent "the money has been awarded and post-award management applies".
+# Verified against the joinpursuit SF org via backfill_awards --verify-stages
+# on 2026-05-02.
 #
-# Sourced from product/crm-architecture/canonical-definitions.md §1 (the
-# 22-stage drift table, 2026-04-16 update). PENDING verification SOQL run:
-#
-#     SELECT StageName, COUNT(Id) FROM Opportunity
-#     WHERE RecordType.Name = 'Philanthropy' GROUP BY StageName
-#
-# Update this set after the verification run; do not silently expand.
+# award_status mapping:
+#   'Active'         — money in flight / ongoing
+#   'Closing'        — wrapping up
+#   'Closed'         — fully paid out and reported
+#   'Did Not Fulfill'— award was made but not fulfilled
 # ---------------------------------------------------------------------------
+
 PHILANTHROPY_RECORD_TYPE_NAME = "Philanthropy"
 
-WON_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
-    # Canonical 7-stage value (used by Bedrock-originated writes)
-    "closed-won",
-    # Live SF stage values verified against the joinpursuit org via
-    # `python -m scripts.backfill_awards --verify-stages` on 2026-04-30:
-    "Closed Won",                # 575 rows — current "won" label
-    "Closed / Completed",        # 1,751 rows — legacy "won" label
-    "Closed / Fulfilled",        # 0 rows in joinpursuit but kept for safety
-    "Collecting / In Effect",    # 28 rows — money in flight, post-award
-    # Variants split out historically (kept for safety against canonicalization):
-    "Collecting",
-    "In Effect",
+# Stages eligible for an award row, per record type.
+ELIGIBLE_STAGES_BY_RECORD_TYPE: Dict[str, frozenset] = {
+    "Philanthropy": frozenset({
+        "closed-won",
+        "Closed Won",
+        "Closed / Completed",
+        "Closed / Fulfilled",
+        "Collecting / In Effect",
+        "Collecting",
+        "In Effect",
+        "Closed / Did not Fulfill",
+    }),
+    "PBC": frozenset({
+        "Closed / Completed",
+        "Collecting / In Effect",
+        "Closed / Full-Time or Successful Conversion",
+        "Closed / Temporary Hire",
+        "Closed / Fulfilled",
+        "Closed / Contract or Agreement But No Fellows Hired",
+        "Closed / Did not Fulfill",
+        "Closed / Sourcing",
+    }),
+    "Debt / Equity": frozenset({
+        "Closed / Completed",
+    }),
+    "Other Fee For Service": frozenset({
+        "Closed / Completed",
+    }),
+}
+
+# Convenience flat set for fast lookups when record type is already known eligible.
+WON_PHILANTHROPY_STAGES: frozenset[str] = ELIGIBLE_STAGES_BY_RECORD_TYPE["Philanthropy"]
+
+# Stage → award_status mapping (applies across all record types).
+_DID_NOT_FULFILL_STAGES: frozenset[str] = frozenset({
+    "Closed / Did not Fulfill",
+    "Closed / Contract or Agreement But No Fellows Hired",
 })
 
-# Stages that mean "this award is wrapping up" — used to default award_status
-# to 'Closing' instead of 'Active'.
-CLOSING_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
+_CLOSING_STAGES: frozenset[str] = frozenset({
     "Closed / Fulfilled",
 })
 
-# Stages that mean "this award is fully closed out (paid + reported)" — used
-# to default award_status to 'Closed' instead of 'Active'. Backfilled awards
-# from these stages should not appear in the active-management surface.
-CLOSED_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
+_CLOSED_STAGES: frozenset[str] = frozenset({
     "Closed / Completed",
     "Closed Won",
     "closed-won",
+    "Closed / Full-Time or Successful Conversion",
+    "Closed / Temporary Hire",
+    "Closed / Sourcing",
 })
 
 
@@ -70,15 +93,18 @@ def is_award_eligible(stage_name: Optional[str], record_type_name: Optional[str]
     """Pure predicate: should this opp have a Bedrock award row?"""
     if not stage_name or not record_type_name:
         return False
-    if record_type_name != PHILANTHROPY_RECORD_TYPE_NAME:
+    eligible = ELIGIBLE_STAGES_BY_RECORD_TYPE.get(record_type_name)
+    if eligible is None:
         return False
-    return stage_name in WON_PHILANTHROPY_STAGES
+    return stage_name in eligible
 
 
 def initial_award_status(stage_name: str) -> str:
-    if stage_name in CLOSED_PHILANTHROPY_STAGES:
+    if stage_name in _DID_NOT_FULFILL_STAGES:
+        return "Did Not Fulfill"
+    if stage_name in _CLOSED_STAGES:
         return "Closed"
-    if stage_name in CLOSING_PHILANTHROPY_STAGES:
+    if stage_name in _CLOSING_STAGES:
         return "Closing"
     return "Active"
 

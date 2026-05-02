@@ -28,6 +28,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional
 
 import asyncpg
@@ -37,8 +38,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.awards_service import (  # noqa: E402
-    WON_PHILANTHROPY_STAGES,
-    PHILANTHROPY_RECORD_TYPE_NAME,
+    ELIGIBLE_STAGES_BY_RECORD_TYPE,
     is_award_eligible,
     initial_award_status,
 )
@@ -95,34 +95,45 @@ def _build_sf_client():
 
 
 def _verify_stages(sf) -> None:
-    soql = (
-        "SELECT StageName, COUNT(Id) total "
-        "FROM Opportunity "
-        f"WHERE RecordType.Name = '{PHILANTHROPY_RECORD_TYPE_NAME}' "
-        "  AND IsDeleted = false "
-        "GROUP BY StageName "
-        "ORDER BY COUNT(Id) DESC"
+    rt_result = sf.query_all("SELECT Id, Name FROM RecordType WHERE SObjectType = 'Opportunity' ORDER BY Name")
+    record_types = {r["Id"]: r["Name"] for r in rt_result.get("records", [])}
+
+    stage_result = sf.query_all(
+        "SELECT RecordTypeId, StageName, COUNT(Id) total "
+        "FROM Opportunity WHERE IsDeleted = false "
+        "GROUP BY RecordTypeId, StageName ORDER BY RecordTypeId, COUNT(Id) DESC"
     )
-    result = sf.query_all(soql)
-    print(f"\n  Philanthropy stage distribution ({result.get('totalSize', 0)} groups):\n")
-    print(f"    {'StageName':<55} {'Count':>8}   {'Eligible?'}")
-    print(f"    {'-' * 55} {'-' * 8}   {'-' * 9}")
-    for r in result.get("records", []):
-        stage = r.get("StageName") or "(null)"
-        count = r.get("total", 0)
-        eligible = "yes" if stage in WON_PHILANTHROPY_STAGES else "no"
-        print(f"    {stage:<55} {count:>8}   {eligible}")
+
+    from collections import defaultdict
+    by_rt: Dict[str, List] = defaultdict(list)
+    for r in stage_result.get("records", []):
+        rt_name = record_types.get(r.get("RecordTypeId"), "(none)")
+        by_rt[rt_name].append((r.get("StageName") or "(null)", r.get("total", 0)))
+
+    eligible_rts = set(ELIGIBLE_STAGES_BY_RECORD_TYPE.keys())
+    for rt_name in sorted(by_rt.keys()):
+        marker = "✅" if rt_name in eligible_rts else "  "
+        print(f"\n  {marker} {rt_name}")
+        print(f"    {'StageName':<55} {'Count':>8}   {'Backfilled?'}")
+        print(f"    {'-'*55} {'-'*8}   {'-'*11}")
+        for stage, count in by_rt[rt_name]:
+            eligible_stages = ELIGIBLE_STAGES_BY_RECORD_TYPE.get(rt_name, frozenset())
+            flag = "✅ yes" if stage in eligible_stages else "❌ no"
+            print(f"    {stage:<55} {count:>8}   {flag}")
     print()
-    print("  If 'eligible? no' rows look like they should be backfilled,")
-    print("  update services/awards_service.WON_PHILANTHROPY_STAGES.\n")
 
 
 def _query_eligible_opps(sf) -> List[Dict[str, Any]]:
-    stage_clause = ", ".join(f"'{s}'" for s in sorted(WON_PHILANTHROPY_STAGES))
+    all_stages: set = set()
+    for stages in ELIGIBLE_STAGES_BY_RECORD_TYPE.values():
+        all_stages.update(stages)
+    rt_names = sorted(ELIGIBLE_STAGES_BY_RECORD_TYPE.keys())
+    stage_clause = ", ".join(f"'{s}'" for s in sorted(all_stages))
+    rt_clause = ", ".join(f"'{rt}'" for rt in rt_names)
     soql = (
         "SELECT Id, Name, StageName, CloseDate, RecordType.Name "
         "FROM Opportunity "
-        f"WHERE RecordType.Name = '{PHILANTHROPY_RECORD_TYPE_NAME}' "
+        f"WHERE RecordType.Name IN ({rt_clause}) "
         f"  AND StageName IN ({stage_clause}) "
         "  AND IsDeleted = false"
     )
