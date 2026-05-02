@@ -61,6 +61,8 @@ CLOSING_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
 # from these stages should not appear in the active-management surface.
 CLOSED_PHILANTHROPY_STAGES: frozenset[str] = frozenset({
     "Closed / Completed",
+    "Closed Won",
+    "closed-won",
 })
 
 

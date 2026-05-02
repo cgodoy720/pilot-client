@@ -3,21 +3,21 @@
 One-shot, idempotent. Re-running creates no duplicates (relies on the
 partial UNIQUE INDEX on opportunity_id WHERE deleted_at IS NULL).
 
-Plan: tasks/bedrock-redesign-data-model.md §5.
+Authenticates to Salesforce using credentials in .env — no browser token needed.
 
 Usage (from financial_forecasting/):
 
-    # Dry-run — counts only, no writes
-    python -m scripts.backfill_awards --dry-run
-
-    # Verification (recommended before any backfill): check what stages
-    # actually exist for Philanthropy opps in this SF org
+    # Verify which Philanthropy stages exist and which are eligible
     python -m scripts.backfill_awards --verify-stages
 
-    # Real run (writes)
+    # Dry-run — counts only, no DB writes
+    python -m scripts.backfill_awards --dry-run
+
+    # Real run
     python -m scripts.backfill_awards --yes
 
-Requires DATABASE_URL and a valid SF session (same auth path as the API).
+Requires DATABASE_URL and Salesforce credentials in .env:
+    SALESFORCE_USERNAME, SALESFORCE_PASSWORD, SALESFORCE_DOMAIN
 """
 
 from __future__ import annotations
@@ -31,13 +31,14 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 import asyncpg
+from datetime import date
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.awards_service import (  # noqa: E402
-    PHILANTHROPY_RECORD_TYPE_NAME,
     WON_PHILANTHROPY_STAGES,
+    PHILANTHROPY_RECORD_TYPE_NAME,
     is_award_eligible,
     initial_award_status,
 )
@@ -46,21 +47,10 @@ load_dotenv(override=False)
 logger = logging.getLogger("backfill_awards")
 
 
-# Stages we *might* see on Philanthropy that count as award-eligible.
-# Keep in sync with services/awards_service.WON_PHILANTHROPY_STAGES.
-_BACKFILL_STAGES: List[str] = sorted(WON_PHILANTHROPY_STAGES)
-
-
 # ── SF helpers ────────────────────────────────────────────────────────────
 
 
 def _build_sf_client():
-    """Minimal SF client for one-shot scripts.
-
-    Uses simple_salesforce with env-provided creds. The API runtime uses
-    UnifiedMCPClient via dependencies.get_mcp_client; this script bypasses
-    that since we don't need MCP transport semantics.
-    """
     from simple_salesforce import Salesforce
 
     instance = os.getenv("SF_INSTANCE_URL")
@@ -70,24 +60,41 @@ def _build_sf_client():
 
     username = os.getenv("SALESFORCE_USERNAME")
     password = os.getenv("SALESFORCE_PASSWORD")
-    token = os.getenv("SALESFORCE_SECURITY_TOKEN")
     domain = os.getenv("SALESFORCE_DOMAIN", "login")
-    if not (username and password and token):
+    client_id = os.getenv("SALESFORCE_CLIENT_ID")
+    client_secret = os.getenv("SALESFORCE_CLIENT_SECRET")
+    token = os.getenv("SALESFORCE_SECURITY_TOKEN", "")
+
+    if not (username and password):
         raise SystemExit(
-            "No SF credentials. Set SF_INSTANCE_URL+SF_SESSION_ID, or "
-            "SALESFORCE_USERNAME+PASSWORD+SECURITY_TOKEN."
+            "No SF credentials found. Set SALESFORCE_USERNAME + SALESFORCE_PASSWORD in .env"
         )
+
+    # Try username+password with connected app credentials (no security token
+    # needed when org has trusted IP ranges)
+    if client_id and client_secret:
+        try:
+            return Salesforce(
+                username=username,
+                password=password,
+                security_token=token,
+                consumer_key=client_id,
+                consumer_secret=client_secret,
+                domain=domain,
+            )
+        except Exception:
+            pass
+
+    # Fallback: plain username+password+security_token
     return Salesforce(
-        username=username, password=password, security_token=token, domain=domain
+        username=username,
+        password=password,
+        security_token=token,
+        domain=domain,
     )
 
 
 def _verify_stages(sf) -> None:
-    """Print a count of Philanthropy opps grouped by StageName.
-
-    Maps to plan doc §14.1 — "Open items needing JP confirmation". Run this
-    before any real backfill to confirm the stage allowlist is complete.
-    """
     soql = (
         "SELECT StageName, COUNT(Id) total "
         "FROM Opportunity "
@@ -111,8 +118,7 @@ def _verify_stages(sf) -> None:
 
 
 def _query_eligible_opps(sf) -> List[Dict[str, Any]]:
-    """Pull all award-eligible Philanthropy opps from SF."""
-    stage_clause = ", ".join(f"'{s}'" for s in _BACKFILL_STAGES)
+    stage_clause = ", ".join(f"'{s}'" for s in sorted(WON_PHILANTHROPY_STAGES))
     soql = (
         "SELECT Id, Name, StageName, CloseDate, RecordType.Name "
         "FROM Opportunity "
@@ -121,7 +127,6 @@ def _query_eligible_opps(sf) -> List[Dict[str, Any]]:
         "  AND IsDeleted = false"
     )
     result = sf.query_all(soql)
-    records = result.get("records", [])
     return [
         {
             "Id": r.get("Id"),
@@ -130,7 +135,7 @@ def _query_eligible_opps(sf) -> List[Dict[str, Any]]:
             "CloseDate": r.get("CloseDate"),
             "RecordTypeName": (r.get("RecordType") or {}).get("Name"),
         }
-        for r in records
+        for r in result.get("records", [])
     ]
 
 
@@ -150,7 +155,7 @@ async def _insert_awards(
     *,
     dry_run: bool,
 ) -> Dict[str, int]:
-    counts = {"eligible": 0, "inserted": 0, "skipped_existing": 0}
+    counts: Dict[str, int] = {"eligible": 0, "inserted": 0, "skipped_existing": 0}
     for opp in opps:
         if not is_award_eligible(opp["StageName"], opp["RecordTypeName"]):
             continue
@@ -177,8 +182,8 @@ async def _insert_awards(
             """,
             opp["Id"],
             initial_award_status(opp["StageName"]),
-            opp["CloseDate"],
-            f"Backfilled 2026-04-30 from SF stage={opp['StageName']}",
+            date.fromisoformat(opp["CloseDate"]) if opp.get("CloseDate") else None,
+            f"Backfilled 2026-05-02 from SF stage={opp['StageName']}",
         )
         counts["inserted"] += 1
     return counts
@@ -188,9 +193,10 @@ async def _insert_awards(
 
 
 async def _main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--dry-run", action="store_true",
-                        help="Count only, no writes.")
+                        help="Count only, no DB writes.")
     parser.add_argument("--verify-stages", action="store_true",
                         help="Print Philanthropy stage distribution and exit.")
     parser.add_argument("--yes", action="store_true",
@@ -202,17 +208,17 @@ async def _main(argv: Optional[List[str]] = None) -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
+    print("  Connecting to Salesforce…")
     sf = _build_sf_client()
+    print(f"  Connected as {sf.sf_type} — {sf.base_url}\n")
 
     if args.verify_stages:
         _verify_stages(sf)
         return 0
 
-    print(f"\n  Backfill mode: {'DRY-RUN' if args.dry_run else 'WRITE'}")
-    print(f"  Eligible stages: {_BACKFILL_STAGES}\n")
-
+    print(f"  Backfill mode: {'DRY-RUN' if args.dry_run else 'WRITE'}")
     opps = _query_eligible_opps(sf)
-    print(f"  SF returned {len(opps)} candidate opps.\n")
+    print(f"  SF returned {len(opps)} eligible opps.\n")
 
     conn = await _connect_db()
     try:
