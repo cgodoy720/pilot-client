@@ -300,6 +300,20 @@ export function AwardsPage() {
   const tableMinWidth = totalWidth(widths);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Track the scroll container's visible width so the expand panel can be
+  // capped to it (sticky-left keeps it pinned even when the table is wider
+  // than the viewport, so the user never has to scroll horizontally to read
+  // reporting / payment / task content).
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setContainerWidth(el.clientWidth);
+    const ro = new ResizeObserver(() => setContainerWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
@@ -433,7 +447,12 @@ export function AwardsPage() {
                       {isExpanded ? (
                         <tr>
                           <td colSpan={visibleCols.length} className="p-0">
-                            <AwardExpandPanel award={a} />
+                            <div
+                              className="sticky left-0"
+                              style={containerWidth ? { width: containerWidth } : undefined}
+                            >
+                              <AwardExpandPanel award={a} />
+                            </div>
                           </td>
                         </tr>
                       ) : null}
