@@ -118,6 +118,10 @@ export interface SfOpportunity {
     Name?: string | null;
     Email?: string | null;
   } | null;
+
+  // Reporting
+  Reporting_Method__c?: string | null;
+  npsp__Next_Grant_Deadline_Due_Date__c?: string | null;
 }
 
 /**

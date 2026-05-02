@@ -2,11 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-export type AwardStatus = "Active" | "Closing" | "Closed";
+export type AwardStatus = "Active" | "Closing" | "Closed" | "Did Not Fulfill";
 
-/**
- * Bedrock-side award shape — matches `routes/awards.py` AwardOut.
- */
 export interface Award {
   id: string;
   opportunity_id: string;
@@ -14,6 +11,8 @@ export interface Award {
   award_date: string | null;
   period_end_date: string | null;
   notes: string;
+  reporting_frequency: string | null;
+  next_report_due: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,8 +35,10 @@ export function useAwards(status?: AwardStatus) {
 
 export interface AwardPatch {
   award_status?: AwardStatus;
-  period_end_date?: string;
+  period_end_date?: string | null;
   notes?: string;
+  reporting_frequency?: string | null;
+  next_report_due?: string | null;
 }
 
 export function useUpdateAward() {

@@ -3,6 +3,7 @@ import { useState } from "react";
 export function useColumnVisibility<K extends string>(
   storageKey: string,
   allColumns: K[],
+  defaultVisible?: K[],
 ) {
   const [visible, setVisible] = useState<K[]>(() => {
     try {
@@ -13,7 +14,7 @@ export function useColumnVisibility<K extends string>(
         if (valid.length > 0) return valid;
       }
     } catch {}
-    return [...allColumns];
+    return defaultVisible ? [...defaultVisible] : [...allColumns];
   });
 
   const toggle = (col: K) => {

@@ -1,19 +1,14 @@
 """Awards API — read endpoints over bedrock.award.
 
-Award is a thin lifecycle entity layered over closed-won Philanthropy
-Opportunities. See `tasks/bedrock-redesign-data-model.md` for the model.
-
-This router intentionally does **not** expose POST /awards — awards are
-auto-created by `services.awards_service.ensure_for_opp` when an opp
-transitions into a closed/active-grant Philanthropy stage. Manual award
-creation is not part of the workflow today.
+Award is a thin lifecycle entity layered over closed Opportunities across
+Philanthropy, PBC, Debt/Equity, and Other Fee For Service record types.
+Salesforce stays SoT for the Opportunity itself.
 
 Endpoints:
-    GET    /api/awards                    — list (filterable)
+    GET    /api/awards                    — list (filterable by status)
     GET    /api/awards/{award_id}         — single award by Bedrock id
     GET    /api/awards/by-opp/{opp_id}    — single award by SF opportunity id
     PATCH  /api/awards/{award_id}         — update mutable fields
-                                            (status, period_end_date, notes)
 """
 
 from __future__ import annotations
@@ -32,8 +27,14 @@ from security import validate_salesforce_id
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/awards", tags=["awards"])
 
+_SELECT = """
+    SELECT id, opportunity_id, award_status, award_date,
+           period_end_date, notes, reporting_frequency, next_report_due,
+           created_at, updated_at
+    FROM bedrock.award
+"""
 
-# ── Pydantic ──────────────────────────────────────────────────────────────
+_ALLOWED_STATUS = frozenset({"Active", "Closing", "Closed", "Did Not Fulfill"})
 
 
 class AwardOut(BaseModel):
@@ -43,27 +44,24 @@ class AwardOut(BaseModel):
     award_date: Optional[str] = None
     period_end_date: Optional[str] = None
     notes: str
+    reporting_frequency: Optional[str] = None
+    next_report_due: Optional[str] = None
     created_at: str
     updated_at: str
 
 
 class AwardUpdate(BaseModel):
-    award_status: Optional[str] = Field(
-        default=None,
-        description="Active | Closing | Closed",
-    )
-    period_end_date: Optional[str] = None  # YYYY-MM-DD
+    award_status: Optional[str] = Field(default=None)
+    period_end_date: Optional[str] = None
     notes: Optional[str] = None
-
-
-_ALLOWED_STATUS = frozenset({"Active", "Closing", "Closed"})
+    reporting_frequency: Optional[str] = None
+    next_report_due: Optional[str] = None
 
 
 def _serialize(row: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert asyncpg row to JSON-friendly dict."""
     out = dict(row)
     out["id"] = str(out["id"])
-    for k in ("award_date", "period_end_date", "created_at", "updated_at"):
+    for k in ("award_date", "period_end_date", "next_report_due", "created_at", "updated_at"):
         v = out.get(k)
         if v is not None:
             out[k] = v.isoformat()
@@ -79,37 +77,21 @@ async def list_awards(
     conn=Depends(get_db),
     user=Depends(require_auth),
 ) -> List[Dict[str, Any]]:
-    """List awards. Filter by status if provided.
-
-    No pagination yet — total award count is small (~hundreds at most after
-    backfill). Add pagination if list size exceeds 500.
-    """
     if status is not None and status not in _ALLOWED_STATUS:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status. Must be one of: {sorted(_ALLOWED_STATUS)}",
         )
-
     if status:
         rows = await conn.fetch(
-            """
-            SELECT id, opportunity_id, award_status, award_date,
-                   period_end_date, notes, created_at, updated_at
-            FROM bedrock.award
-            WHERE deleted_at IS NULL AND award_status = $1
-            ORDER BY award_date DESC NULLS LAST, created_at DESC
-            """,
+            _SELECT + "WHERE deleted_at IS NULL AND award_status = $1 "
+            "ORDER BY award_date DESC NULLS LAST, created_at DESC",
             status,
         )
     else:
         rows = await conn.fetch(
-            """
-            SELECT id, opportunity_id, award_status, award_date,
-                   period_end_date, notes, created_at, updated_at
-            FROM bedrock.award
-            WHERE deleted_at IS NULL
-            ORDER BY award_date DESC NULLS LAST, created_at DESC
-            """
+            _SELECT + "WHERE deleted_at IS NULL "
+            "ORDER BY award_date DESC NULLS LAST, created_at DESC"
         )
     return [_serialize(r) for r in rows]
 
@@ -122,12 +104,7 @@ async def get_award_by_opp(
 ) -> Dict[str, Any]:
     validate_salesforce_id(opp_id, "opportunity_id")
     row = await conn.fetchrow(
-        """
-        SELECT id, opportunity_id, award_status, award_date,
-               period_end_date, notes, created_at, updated_at
-        FROM bedrock.award
-        WHERE opportunity_id = $1 AND deleted_at IS NULL
-        """,
+        _SELECT + "WHERE opportunity_id = $1 AND deleted_at IS NULL",
         opp_id,
     )
     if not row:
@@ -146,12 +123,7 @@ async def get_award(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid award_id")
     row = await conn.fetchrow(
-        """
-        SELECT id, opportunity_id, award_status, award_date,
-               period_end_date, notes, created_at, updated_at
-        FROM bedrock.award
-        WHERE id = $1 AND deleted_at IS NULL
-        """,
+        _SELECT + "WHERE id = $1 AND deleted_at IS NULL",
         aid,
     )
     if not row:
@@ -171,7 +143,6 @@ async def update_award(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid award_id")
 
-    # Validate status enum if provided
     if payload.award_status is not None and payload.award_status not in _ALLOWED_STATUS:
         raise HTTPException(
             status_code=400,
@@ -180,24 +151,28 @@ async def update_award(
 
     sets: List[str] = []
     vals: List[Any] = []
-    if payload.award_status is not None:
-        sets.append(f"award_status = ${len(vals) + 2}")
-        vals.append(payload.award_status)
-    if payload.period_end_date is not None:
-        sets.append(f"period_end_date = ${len(vals) + 2}")
-        vals.append(payload.period_end_date)
-    if payload.notes is not None:
-        sets.append(f"notes = ${len(vals) + 2}")
-        vals.append(payload.notes)
+
+    for field, col in [
+        ("award_status", "award_status"),
+        ("period_end_date", "period_end_date"),
+        ("notes", "notes"),
+        ("reporting_frequency", "reporting_frequency"),
+        ("next_report_due", "next_report_due"),
+    ]:
+        v = getattr(payload, field)
+        if v is not None:
+            sets.append(f"{col} = ${len(vals) + 2}")
+            vals.append(v)
 
     if not sets:
         raise HTTPException(status_code=400, detail="No fields to update")
 
     sql = (
-        f"UPDATE bedrock.award SET {', '.join(sets)} "
+        f"UPDATE bedrock.award SET {', '.join(sets)}, updated_at = now() "
         f"WHERE id = $1 AND deleted_at IS NULL "
         f"RETURNING id, opportunity_id, award_status, award_date, "
-        f"period_end_date, notes, created_at, updated_at"
+        f"period_end_date, notes, reporting_frequency, next_report_due, "
+        f"created_at, updated_at"
     )
     row = await conn.fetchrow(sql, aid, *vals)
     if not row:

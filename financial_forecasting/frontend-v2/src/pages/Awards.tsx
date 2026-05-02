@@ -14,6 +14,7 @@ import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { useColumnVisibility } from "@/lib/columnVisibility";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { sortBy, useSort } from "@/lib/sort";
 import {
   useAwards,
@@ -34,23 +35,31 @@ const STATUS_FILTERS: { value: "All" | AwardStatus; label: string }[] = [
   { value: "Active", label: "Active" },
   { value: "Closing", label: "Closing" },
   { value: "Closed", label: "Closed" },
+  { value: "Did Not Fulfill", label: "Did Not Fulfill" },
 ];
 
 const STATUS_OPTIONS: { value: AwardStatus; label: string }[] = [
   { value: "Active", label: "Active" },
   { value: "Closing", label: "Closing" },
   { value: "Closed", label: "Closed" },
+  { value: "Did Not Fulfill", label: "Did Not Fulfill" },
 ];
 
-function statusVariant(s: AwardStatus): "green" | "amber" | "default" {
+function statusVariant(s: AwardStatus): "green" | "amber" | "default" | "red" {
   if (s === "Active") return "green";
   if (s === "Closing") return "amber";
+  if (s === "Did Not Fulfill") return "red";
   return "default";
 }
 
 type ColKey =
   | "name"
+  | "funder"
   | "status"
+  | "paymentBar"
+  | "paid"
+  | "pending"
+  | "reporting"
   | "amount"
   | "awardDate"
   | "periodEnd"
@@ -58,7 +67,12 @@ type ColKey =
 
 const COLUMN_ORDER: ColKey[] = [
   "name",
+  "funder",
   "status",
+  "paymentBar",
+  "paid",
+  "pending",
+  "reporting",
   "amount",
   "awardDate",
   "periodEnd",
@@ -66,24 +80,49 @@ const COLUMN_ORDER: ColKey[] = [
 ];
 
 const DEFAULT_WIDTHS: Record<ColKey, number> = {
-  name: 320,
-  status: 110,
-  amount: 130,
-  awardDate: 130,
-  periodEnd: 130,
-  notes: 360,
+  name: 280,
+  funder: 180,
+  status: 120,
+  paymentBar: 140,
+  paid: 110,
+  pending: 110,
+  reporting: 200,
+  amount: 120,
+  awardDate: 120,
+  periodEnd: 120,
+  notes: 300,
 };
 
 const COL_LABELS: Record<ColKey, string> = {
   name: "Award",
+  funder: "Funder",
   status: "Status",
-  amount: "Amount",
+  paymentBar: "Payment status",
+  paid: "Paid",
+  pending: "Pending",
+  reporting: "Reporting",
+  amount: "Total",
   awardDate: "Awarded",
   periodEnd: "Period ends",
   notes: "Notes",
 };
 
+// Default visible columns matching the screenshot layout
+const DEFAULT_VISIBLE: ColKey[] = [
+  "name", "funder", "status", "paymentBar", "paid", "pending", "reporting",
+];
+
 const ROW_HEIGHT = 44;
+
+const REPORTING_FREQ_OPTIONS = [
+  { value: "Annual", label: "Annual" },
+  { value: "Semi-Annual", label: "Semi-Annual" },
+  { value: "Quarterly", label: "Quarterly" },
+  { value: "Monthly", label: "Monthly" },
+  { value: "Interim + Final", label: "Interim + Final" },
+  { value: "Final Only", label: "Final Only" },
+  { value: "None", label: "None" },
+];
 
 function extractAward(
   a: Award,
@@ -91,19 +130,41 @@ function extractAward(
   key: ColKey,
 ): unknown {
   switch (key) {
-    case "name":
-      return opp?.Name ?? a.opportunity_id;
-    case "status":
-      return a.award_status;
-    case "amount":
-      return opp?.Amount ?? 0;
-    case "awardDate":
-      return a.award_date;
-    case "periodEnd":
-      return a.period_end_date;
-    case "notes":
-      return a.notes;
+    case "name": return opp?.Name ?? a.opportunity_id;
+    case "funder": return opp?.Account?.Name ?? "";
+    case "status": return a.award_status;
+    case "amount": return opp?.Amount ?? 0;
+    case "paid": return opp?.npe01__Payments_Made__c ?? 0;
+    case "pending": return opp?.Outstanding_Payments__c ?? 0;
+    case "paymentBar": return opp?.npe01__Payments_Made__c ?? 0;
+    case "awardDate": return a.award_date;
+    case "periodEnd": return a.period_end_date;
+    case "reporting": return a.next_report_due ?? a.reporting_frequency ?? "";
+    case "notes": return a.notes;
   }
+}
+
+// ── Payment bar ───────────────────────────────────────────────────────────
+
+function PaymentBar({ paid, total }: { paid: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, (paid / total) * 100) : 0;
+  const allPaid = pct >= 99.9;
+  return (
+    <div className="flex w-full items-center gap-1.5">
+      <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-2">
+        <div
+          className={cn(
+            "absolute left-0 top-0 h-full rounded-full transition-all",
+            allPaid ? "bg-green-500" : "bg-accent",
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="mono flex-shrink-0 text-[11px] text-ink-3">
+        {Math.round(pct)}%
+      </span>
+    </div>
+  );
 }
 
 export function AwardsPage() {
@@ -115,24 +176,16 @@ export function AwardsPage() {
   const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility<ColKey>(
     "bedrock-v2:vis:awards",
     COLUMN_ORDER,
+    DEFAULT_VISIBLE,
   );
 
-  const { sort, toggle } = useSort<ColKey>({
-    key: "awardDate",
-    direction: "desc",
-  });
-  const { widths, startResize } = useColumnWidths<ColKey>(
-    "bedrock-v2:cols:awards",
-    DEFAULT_WIDTHS,
-  );
+  const { sort, toggle } = useSort<ColKey>({ key: "awardDate", direction: "desc" });
+  const { widths, startResize } = useColumnWidths<ColKey>("bedrock-v2:cols:awards", DEFAULT_WIDTHS);
 
-  const {
-    data: awardsData,
-    isLoading: awardsLoading,
-    isError,
-    error,
-  } = useAwards(filter.status === "All" ? undefined : filter.status);
-  const { data: oppsData } = useOpportunities({ recordType: "Philanthropy" });
+  const { data: awardsData, isLoading: awardsLoading, isError, error } =
+    useAwards(filter.status === "All" ? undefined : filter.status);
+  // Fetch all record types — awards now span Philanthropy, PBC, Debt/Equity, etc.
+  const { data: oppsData } = useOpportunities({});
   const updateAward = useUpdateAward();
 
   const oppById = useMemo(() => {
@@ -146,14 +199,11 @@ export function AwardsPage() {
     const filt = q
       ? awards.filter((a) => {
           const opp = oppById.get(a.opportunity_id);
-          const oppName = (opp?.Name ?? "").toLowerCase();
-          const account = (opp?.Account?.Name ?? "").toLowerCase();
-          const notes = (a.notes ?? "").toLowerCase();
           const needle = q.toLowerCase();
           return (
-            oppName.includes(needle) ||
-            account.includes(needle) ||
-            notes.includes(needle)
+            (opp?.Name ?? "").toLowerCase().includes(needle) ||
+            (opp?.Account?.Name ?? "").toLowerCase().includes(needle) ||
+            (a.notes ?? "").toLowerCase().includes(needle)
           );
         })
       : awards;
@@ -162,14 +212,12 @@ export function AwardsPage() {
     );
   }, [awards, oppById, q, sort]);
 
-  const totalAmount = filtered.reduce(
-    (s, a) => s + (oppById.get(a.opportunity_id)?.Amount ?? 0),
-    0,
-  );
+  const totalAmount = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.Amount ?? 0), 0);
+  const totalPaid = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.npe01__Payments_Made__c ?? 0), 0);
+  const totalPending = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.Outstanding_Payments__c ?? 0), 0);
 
   const tableMinWidth = totalWidth(widths);
 
-  // ── Virtualization ─────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: filtered.length,
@@ -180,8 +228,7 @@ export function AwardsPage() {
   const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const paddingTop = virtualItems[0]?.start ?? 0;
-  const paddingBottom =
-    totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
+  const paddingBottom = totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
 
   return (
     <div className="flex h-full flex-col px-7 py-6 pb-6">
@@ -197,16 +244,11 @@ export function AwardsPage() {
       <Toolbar>
         <ButtonGroup
           value={filter.status}
-          onChange={(v) =>
-            setFilter((f) => ({ ...f, status: v as "All" | AwardStatus }))
-          }
+          onChange={(v) => setFilter((f) => ({ ...f, status: v as "All" | AwardStatus }))}
           options={STATUS_FILTERS}
         />
         <div className="relative">
-          <Search
-            size={13}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
-          />
+          <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
           <input
             placeholder="Search by opp, funder, notes"
             value={q}
@@ -237,11 +279,7 @@ export function AwardsPage() {
       >
         <table
           className="border-collapse"
-          style={{
-            tableLayout: "fixed",
-            width: "100%",
-            minWidth: tableMinWidth,
-          }}
+          style={{ tableLayout: "fixed", width: "100%", minWidth: tableMinWidth }}
         >
           <ColGroup order={visibleCols} widths={widths} />
           <thead className="sticky top-0 z-10">
@@ -254,12 +292,7 @@ export function AwardsPage() {
                   align="left"
                   isLast={idx === visibleCols.length - 1}
                 >
-                  <SortableHeader
-                    label={COL_LABELS[key]}
-                    sortKey={key}
-                    sort={sort}
-                    onToggle={toggle}
-                  />
+                  <SortableHeader label={COL_LABELS[key]} sortKey={key} sort={sort} onToggle={toggle} />
                 </ResizableTh>
               ))}
             </tr>
@@ -269,47 +302,19 @@ export function AwardsPage() {
               <SkeletonRows colCount={visibleCols.length} />
             ) : isError ? (
               <tr>
-                <td
-                  colSpan={visibleCols.length}
-                  className="px-7 py-10 text-center text-[13px] text-red"
-                >
-                  Failed to load awards
-                  {error instanceof Error ? `: ${error.message}` : ""}
+                <td colSpan={visibleCols.length} className="px-7 py-10 text-center text-[13px] text-red">
+                  Failed to load awards{error instanceof Error ? `: ${error.message}` : ""}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td
-                  colSpan={visibleCols.length}
-                  className="px-7 py-12 text-center text-[13px] text-ink-3"
-                >
-                  {awards.length === 0 ? (
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-ink">No awards yet</span>
-                      <span>
-                        Run{" "}
-                        <code className="mono rounded border border-border-strong bg-surface-2 px-1.5 py-0.5 text-[11.5px]">
-                          python -m scripts.backfill_awards --verify-stages
-                        </code>{" "}
-                        then{" "}
-                        <code className="mono rounded border border-border-strong bg-surface-2 px-1.5 py-0.5 text-[11.5px]">
-                          --yes
-                        </code>{" "}
-                        to backfill from Salesforce.
-                      </span>
-                    </div>
-                  ) : (
-                    "No awards match your filters."
-                  )}
+                <td colSpan={visibleCols.length} className="px-7 py-12 text-center text-[13px] text-ink-3">
+                  {awards.length === 0 ? "No awards yet." : "No awards match your filters."}
                 </td>
               </tr>
             ) : (
               <>
-                {paddingTop > 0 ? (
-                  <tr aria-hidden style={{ height: paddingTop }}>
-                    <td colSpan={visibleCols.length} />
-                  </tr>
-                ) : null}
+                {paddingTop > 0 && <tr aria-hidden style={{ height: paddingTop }}><td colSpan={visibleCols.length} /></tr>}
                 {virtualItems.map((vi) => {
                   const a = filtered[vi.index];
                   const opp = oppById.get(a.opportunity_id);
@@ -321,62 +326,29 @@ export function AwardsPage() {
                       visibleCols={visibleCols}
                       canEdit={canEdit}
                       onOpen={() => setDrawerAward(a)}
-                      onSaveStatus={async (status) => {
-                        await updateAward.mutateAsync({
-                          id: a.id,
-                          patch: { award_status: status as AwardStatus },
-                        });
-                      }}
-                      onSavePeriodEnd={async (period_end_date) => {
-                        await updateAward.mutateAsync({
-                          id: a.id,
-                          patch: { period_end_date },
-                        });
-                      }}
-                      onSaveNotes={async (notes) => {
-                        await updateAward.mutateAsync({
-                          id: a.id,
-                          patch: { notes },
-                        });
+                      onSave={async (patch) => {
+                        await updateAward.mutateAsync({ id: a.id, patch });
                       }}
                     />
                   );
                 })}
-                {paddingBottom > 0 ? (
-                  <tr aria-hidden style={{ height: paddingBottom }}>
-                    <td colSpan={visibleCols.length} />
-                  </tr>
-                ) : null}
+                {paddingBottom > 0 && <tr aria-hidden style={{ height: paddingBottom }}><td colSpan={visibleCols.length} /></tr>}
               </>
             )}
           </tbody>
-          {filtered.length > 0 && !awardsLoading ? (
+          {filtered.length > 0 && !awardsLoading && (
             <tfoot className="sticky bottom-0 z-10">
               <tr className="border-t border-border-strong bg-surface-2">
-                {visibleCols.map((key: ColKey, idx: number) => {
-                  if (idx === 0)
-                    return (
-                      <td
-                        key={key}
-                        className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
-                      >
-                        Totals
-                      </td>
-                    );
-                  if (key === "amount")
-                    return (
-                      <td
-                        key={key}
-                        className="mono px-3 py-2 text-[13px] font-semibold tabular-nums"
-                      >
-                        {fmtMoney(totalAmount)}
-                      </td>
-                    );
+                {visibleCols.map((key, idx) => {
+                  if (idx === 0) return <td key={key} className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3">Totals</td>;
+                  if (key === "amount") return <td key={key} className="mono px-3 py-2 text-[13px] font-semibold tabular-nums">{fmtMoney(totalAmount)}</td>;
+                  if (key === "paid") return <td key={key} className="mono px-3 py-2 text-[13px] font-semibold tabular-nums text-green-700">{fmtMoney(totalPaid)}</td>;
+                  if (key === "pending") return <td key={key} className="mono px-3 py-2 text-[13px] font-semibold tabular-nums text-amber-700">{fmtMoney(totalPending)}</td>;
                   return <td key={key} />;
                 })}
               </tr>
             </tfoot>
-          ) : null}
+          )}
         </table>
       </div>
 
@@ -395,79 +367,84 @@ interface RowProps {
   visibleCols: ColKey[];
   canEdit: boolean;
   onOpen: () => void;
-  onSaveStatus: (status: string) => Promise<void>;
-  onSavePeriodEnd: (date: string) => Promise<void>;
-  onSaveNotes: (notes: string) => Promise<void>;
+  onSave: (patch: Record<string, unknown>) => Promise<void>;
 }
 
-const AwardRow = memo(function AwardRow({
-  a,
-  opp,
-  visibleCols,
-  canEdit,
-  onOpen,
-  onSaveStatus,
-  onSavePeriodEnd,
-  onSaveNotes,
-}: RowProps) {
+const AwardRow = memo(function AwardRow({ a, opp, visibleCols, canEdit, onOpen, onSave }: RowProps) {
   const account = opp?.Account?.Name ?? "—";
   const oppName = opp?.Name ?? a.opportunity_id;
+  const total = opp?.Amount ?? 0;
+  const paid = opp?.npe01__Payments_Made__c ?? 0;
+  const pending = opp?.Outstanding_Payments__c ?? 0;
 
   const cells: Record<ColKey, React.ReactNode> = {
     name: (
       <div className="flex min-w-0 items-center gap-2">
         <div
           className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded text-[9px] font-semibold text-surface"
-          style={{
-            background:
-              "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))",
-          }}
+          style={{ background: "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))" }}
         >
           {initials(account === "—" ? oppName : account)}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="truncate font-medium hover:underline" title={oppName}>
-            {oppName}
-          </span>
-          <span className="truncate text-[11px] text-ink-3">{account}</span>
-        </div>
+        <span className="truncate font-medium" title={oppName}>{oppName}</span>
       </div>
     ),
+    funder: <span className="truncate text-[12.5px] text-ink-2">{account}</span>,
     status: canEdit ? (
       <InlineSelect
         value={a.award_status}
         options={STATUS_OPTIONS}
-        onSave={(v) => onSaveStatus(v)}
-        renderValue={(v) =>
-          v ? (
-            <Tag variant={statusVariant(v as AwardStatus)}>{v}</Tag>
-          ) : (
-            <Tag>—</Tag>
-          )
-        }
+        onSave={(v) => onSave({ award_status: v })}
+        renderValue={(v) => v ? <Tag variant={statusVariant(v as AwardStatus)}>{v}</Tag> : <Tag>—</Tag>}
       />
-    ) : a.award_status ? (
+    ) : (
       <Tag variant={statusVariant(a.award_status)}>{a.award_status}</Tag>
-    ) : (
-      <Tag>—</Tag>
     ),
-    amount: opp?.Amount ? (
-      fmtMoney(opp.Amount)
-    ) : (
-      <span className="text-ink-4">—</span>
+    paymentBar: total > 0
+      ? <PaymentBar paid={paid} total={total} />
+      : <span className="text-[11px] text-ink-4">—</span>,
+    paid: paid > 0
+      ? <span className="mono text-[12px] font-medium text-green-700 tabular-nums">{fmtMoney(paid)}</span>
+      : <span className="text-ink-4">—</span>,
+    pending: pending > 0
+      ? <span className="mono text-[12px] font-medium text-amber-700 tabular-nums">{fmtMoney(pending)}</span>
+      : <span className="text-ink-4">—</span>,
+    reporting: (
+      <div className="flex min-w-0 flex-col leading-tight">
+        {canEdit ? (
+          <InlineSelect
+            value={a.reporting_frequency ?? ""}
+            options={REPORTING_FREQ_OPTIONS}
+            onSave={(v) => onSave({ reporting_frequency: v || null })}
+            renderValue={(v) => (
+              <span className={cn("text-[12px]", v ? "text-ink" : "text-ink-4")}>
+                {v || "Set frequency…"}
+              </span>
+            )}
+          />
+        ) : (
+          <span className="text-[12px] text-ink">{a.reporting_frequency ?? "—"}</span>
+        )}
+        {a.next_report_due ? (
+          <span className="mono text-[10.5px] text-ink-3">
+            next: {fmtDate(a.next_report_due)}
+          </span>
+        ) : opp?.npsp__Next_Grant_Deadline_Due_Date__c ? (
+          <span className="mono text-[10.5px] text-ink-3">
+            next: {fmtDate(opp.npsp__Next_Grant_Deadline_Due_Date__c)}
+          </span>
+        ) : null}
+      </div>
     ),
-    awardDate: fmtDate(a.award_date),
+    amount: total > 0 ? <span className="mono tabular-nums">{fmtMoney(total)}</span> : <span className="text-ink-4">—</span>,
+    awardDate: <span className="mono text-[11.5px] text-ink-3">{fmtDate(a.award_date)}</span>,
     periodEnd: canEdit ? (
-      <InlineText
-        value={a.period_end_date}
-        onSave={onSavePeriodEnd}
-        placeholder="YYYY-MM-DD"
-      />
+      <InlineText value={a.period_end_date} onSave={(v) => onSave({ period_end_date: v })} placeholder="YYYY-MM-DD" />
     ) : (
       <span className="mono text-[11.5px] text-ink-3">{fmtDate(a.period_end_date)}</span>
     ),
     notes: canEdit ? (
-      <InlineText value={a.notes} onSave={onSaveNotes} placeholder="Add notes…" />
+      <InlineText value={a.notes} onSave={(v) => onSave({ notes: v })} placeholder="Add notes…" />
     ) : (
       <span className="text-[12.5px] text-ink-3">{a.notes ?? "—"}</span>
     ),
@@ -475,8 +452,13 @@ const AwardRow = memo(function AwardRow({
 
   const cellCls: Record<ColKey, string> = {
     name: "cursor-pointer overflow-hidden px-3 py-1 text-[13px]",
-    status: "overflow-hidden px-3 py-1 text-[13px]",
-    amount: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[13px] font-medium tabular-nums",
+    funder: "overflow-hidden px-3 py-1 text-[12.5px]",
+    status: "overflow-hidden px-3 py-1",
+    paymentBar: "overflow-hidden px-3 py-1",
+    paid: "mono overflow-hidden px-3 py-1 text-[12px]",
+    pending: "mono overflow-hidden px-3 py-1 text-[12px]",
+    reporting: "overflow-hidden px-3 py-1",
+    amount: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[12px] tabular-nums",
     awardDate: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-[11.5px] text-ink-3",
     periodEnd: "mono overflow-hidden px-3 py-1 text-[11.5px] text-ink-3",
     notes: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-3",
@@ -485,16 +467,9 @@ const AwardRow = memo(function AwardRow({
   const clickable = new Set<ColKey>(["name", "amount", "awardDate"]);
 
   return (
-    <tr
-      className="group/row border-b border-border-strong hover:bg-surface-2"
-      style={{ height: ROW_HEIGHT }}
-    >
-      {visibleCols.map((key: ColKey) => (
-        <td
-          key={key}
-          className={cellCls[key]}
-          onClick={clickable.has(key) ? onOpen : undefined}
-        >
+    <tr className="group/row border-b border-border-strong hover:bg-surface-2" style={{ height: ROW_HEIGHT }}>
+      {visibleCols.map((key) => (
+        <td key={key} className={cellCls[key]} onClick={clickable.has(key) ? onOpen : undefined}>
           {cells[key]}
         </td>
       ))}
