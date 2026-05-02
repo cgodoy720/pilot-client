@@ -4,7 +4,7 @@ import { ArrowLeft, Check, ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-
 
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { fmtDate, fmtMoneyFull, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   useAward,
@@ -171,9 +171,9 @@ function Loaded({ award, opp }: { award: Award; opp: SfOpportunity | undefined }
 
       {/* Stats row */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Total" value={total > 0 ? fmtMoney(total) : "—"} />
-        <Stat label="Paid" value={paid > 0 ? fmtMoney(paid) : "—"} accent="green" />
-        <Stat label="Pending" value={pending > 0 ? fmtMoney(pending) : "—"} accent="amber" />
+        <Stat label="Total" value={total > 0 ? fmtMoneyFull(total) : "—"} />
+        <Stat label="Paid" value={paid > 0 ? fmtMoneyFull(paid) : "—"} accent="green" />
+        <Stat label="Pending" value={pending > 0 ? fmtMoneyFull(pending) : "—"} accent="amber" />
         <Stat
           label="Awarded"
           value={award.award_date ? fmtDate(award.award_date) : "—"}
@@ -528,9 +528,9 @@ function PaymentsDetail({
       <div className="mb-3 flex items-center justify-between text-[12px] text-ink-3">
         <span>{payments.length} payment{payments.length === 1 ? "" : "s"}</span>
         <span className="mono">
-          <span className="text-green-700">{fmtMoney(totalPaid)} paid</span>
+          <span className="text-green-700">{fmtMoneyFull(totalPaid)} paid</span>
           {" · "}
-          <span className="text-amber-700">{fmtMoney(totalScheduled - totalPaid)} pending</span>
+          <span className="text-amber-700">{fmtMoneyFull(totalScheduled - totalPaid)} pending</span>
         </span>
       </div>
 
@@ -652,7 +652,7 @@ function PaymentRow({
             className="justify-end text-right"
           />
         ) : (
-          fmtMoney(p.npe01__Payment_Amount__c ?? 0)
+          fmtMoneyFull(p.npe01__Payment_Amount__c ?? 0, true)
         )}
       </td>
     </tr>

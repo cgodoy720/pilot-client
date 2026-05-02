@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { Drawer } from "@/components/ui/Drawer";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
@@ -117,11 +117,11 @@ function AwardDrawerBody({
     <div className="flex flex-col gap-5 px-5 py-5">
       {/* Stats */}
       <div className="grid grid-cols-4 gap-2">
-        <Stat label="Amount" value={amount > 0 ? fmtMoney(amount) : "—"} />
-        <Stat label="Paid" value={paid > 0 ? fmtMoney(paid) : "—"} />
+        <Stat label="Amount" value={amount > 0 ? fmtMoneyFull(amount) : "—"} />
+        <Stat label="Paid" value={paid > 0 ? fmtMoneyFull(paid) : "—"} />
         <Stat
           label="Outstanding"
-          value={outstanding > 0 ? fmtMoney(outstanding) : "—"}
+          value={outstanding > 0 ? fmtMoneyFull(outstanding) : "—"}
         />
         <Stat label="Period ends" value={fmtDate(award.period_end_date)} />
       </div>
@@ -232,7 +232,7 @@ function PaymentRow({ p }: { p: SfPayment }) {
       </span>
       <span className="mono flex-1 text-right text-[13px] font-medium tabular-nums">
         {p.npe01__Payment_Amount__c
-          ? fmtMoney(p.npe01__Payment_Amount__c)
+          ? fmtMoneyFull(p.npe01__Payment_Amount__c, true)
           : "—"}
       </span>
       <Tag variant={status.variant}>{status.label}</Tag>

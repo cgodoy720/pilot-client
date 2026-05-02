@@ -7,7 +7,7 @@ import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
 import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useUpdateAccount } from "@/services/accounts";
@@ -144,7 +144,7 @@ export function AccountDetailPage() {
 
       {/* Stats row */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Lifetime" value={lifetime > 0 ? fmtMoney(lifetime) : "—"} />
+        <Stat label="Lifetime" value={lifetime > 0 ? fmtMoneyFull(lifetime) : "—"} />
         <Stat label="Closed opps" value={closedCount > 0 ? String(closedCount) : "—"} />
         <Stat label="Open opps" value={String(openOpps.length)} />
         <Stat label="Last activity" value={fmtDate(lastActivity)} />

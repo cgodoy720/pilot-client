@@ -22,7 +22,7 @@ import {
   useProjects,
 } from "@/services/projects";
 import { useActiveUsers } from "@/services/users";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { SfTask } from "@/types/salesforce";
 
@@ -273,7 +273,7 @@ function PaymentsTab({ opportunityId }: { opportunityId: string }) {
       <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-ink-3">
         <span>{payments.length} payment{payments.length === 1 ? "" : "s"}</span>
         <span className="mono">
-          {fmtMoney(totalPaid)} paid · {fmtMoney(totalScheduled - totalPaid)} pending
+          {fmtMoneyFull(totalPaid)} paid · {fmtMoneyFull(totalScheduled - totalPaid)} pending
         </span>
       </div>
 
@@ -320,7 +320,7 @@ function PaymentsTab({ opportunityId }: { opportunityId: string }) {
                       {p.npe01__Payment_Method__c || "—"}
                     </td>
                     <td className="mono px-3 py-1.5 text-right font-medium tabular-nums">
-                      {fmtMoney(p.npe01__Payment_Amount__c ?? 0)}
+                      {fmtMoneyFull(p.npe01__Payment_Amount__c ?? 0, true)}
                     </td>
                   </tr>
                 );

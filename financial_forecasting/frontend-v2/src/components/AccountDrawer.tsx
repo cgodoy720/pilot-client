@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Drawer } from "@/components/ui/Drawer";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtMoneyFull } from "@/lib/format";
 import { bucketForStage, OPEN_BUCKETS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useActivities } from "@/services/activities";
@@ -70,7 +70,7 @@ function AccountDrawerBody({ account }: { account: SfAccount }) {
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Open opps" value={String(openOpps.length)} />
         <Stat label="Closed opps" value={closedCount > 0 ? String(closedCount) : "—"} />
-        <Stat label="Lifetime" value={lifetime > 0 ? fmtMoney(lifetime) : "—"} />
+        <Stat label="Lifetime" value={lifetime > 0 ? fmtMoneyFull(lifetime) : "—"} />
       </div>
 
       {/* Open opportunities */}

@@ -7,7 +7,7 @@ import { OppTasksSection } from "@/components/OppTasksSection";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { fmtDate, fmtMoneyFull, initials } from "@/lib/format";
 import { SF_STAGE_OPTIONS } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useActivities } from "@/services/activities";
@@ -117,9 +117,9 @@ export function OpportunityDetailPage() {
 
       {/* Stats row */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Amount" value={opp.Amount ? fmtMoney(opp.Amount) : "—"} />
-        <Stat label="Paid" value={fmtMoney(totalPaid)} />
-        <Stat label="Scheduled" value={fmtMoney(totalScheduled)} />
+        <Stat label="Amount" value={opp.Amount ? fmtMoneyFull(opp.Amount) : "—"} />
+        <Stat label="Paid" value={fmtMoneyFull(totalPaid)} />
+        <Stat label="Scheduled" value={fmtMoneyFull(totalScheduled)} />
         <Stat label="Close" value={fmtDate(opp.CloseDate)} />
       </div>
 
@@ -256,7 +256,7 @@ export function OpportunityDetailPage() {
                       {fmtDate(p.npe01__Scheduled_Date__c)}
                     </td>
                     <td className="mono px-5 py-2.5 text-right text-[13px] font-medium tabular-nums">
-                      {p.npe01__Payment_Amount__c ? fmtMoney(p.npe01__Payment_Amount__c) : "—"}
+                      {p.npe01__Payment_Amount__c ? fmtMoneyFull(p.npe01__Payment_Amount__c, true) : "—"}
                     </td>
                     <td className="px-5 py-2.5">
                       <Tag variant={status.variant}>{status.label}</Tag>

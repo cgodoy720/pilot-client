@@ -1,7 +1,7 @@
 import { Drawer } from "@/components/ui/Drawer";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useActivities } from "@/services/activities";
 import {
@@ -67,7 +67,7 @@ function OpportunityDrawerBody({ opp }: { opp: SfOpportunity }) {
           label="Amount"
           value={
             <span className="mono text-[15px] font-semibold tabular-nums">
-              {opp.Amount ? fmtMoney(opp.Amount) : "—"}
+              {opp.Amount ? fmtMoneyFull(opp.Amount) : "—"}
             </span>
           }
         />
@@ -218,7 +218,7 @@ function PaymentRow({ p }: { p: SfPayment }) {
       </span>
       <span className="mono min-w-0 flex-1 truncate text-[12.5px] tabular-nums">
         {p.npe01__Payment_Amount__c
-          ? fmtMoney(p.npe01__Payment_Amount__c)
+          ? fmtMoneyFull(p.npe01__Payment_Amount__c, true)
           : "—"}
       </span>
       <span className="mono w-28 flex-shrink-0 text-right text-[11px] text-ink-3">
