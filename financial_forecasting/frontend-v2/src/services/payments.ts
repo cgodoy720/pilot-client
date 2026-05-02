@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 export interface SfPayment {
@@ -39,5 +39,29 @@ export function useOpportunityPayments(opportunityId: string | null) {
     },
     enabled: !!opportunityId,
     staleTime: 60_000,
+  });
+}
+
+export interface PaymentPatch {
+  npe01__Payment_Amount__c?: number;
+  npe01__Scheduled_Date__c?: string | null;
+  npe01__Payment_Date__c?: string | null;
+  npe01__Paid__c?: boolean;
+  npe01__Payment_Method__c?: string | null;
+  npe01__Written_Off__c?: boolean;
+}
+
+export function useUpdatePayment(opportunityId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: PaymentPatch }) => {
+      const { data } = await api.put(`/api/salesforce/payments/${id}`, { updates: patch });
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["opp-payments", opportunityId] });
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
+      qc.invalidateQueries({ queryKey: ["awards"] });
+    },
   });
 }

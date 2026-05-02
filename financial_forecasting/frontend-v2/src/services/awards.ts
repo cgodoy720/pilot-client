@@ -55,6 +55,18 @@ export function useAwards(status?: AwardStatus) {
   });
 }
 
+export function useAward(awardId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["award", awardId],
+    queryFn: async () => {
+      const { data } = await api.get<Award>(`/api/awards/${awardId}`);
+      return data;
+    },
+    enabled: !!awardId,
+    staleTime: 30_000,
+  });
+}
+
 export interface AwardPatch {
   award_status?: AwardStatus;
   period_end_date?: string | null;

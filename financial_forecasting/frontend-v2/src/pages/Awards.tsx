@@ -1,4 +1,5 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -512,10 +513,14 @@ const AwardRow = memo(function AwardRow({
         >
           {initials(account === "—" ? oppName : account)}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="truncate font-medium" title={oppName}>{oppName}</span>
+        <Link
+          to={`/awards/${a.id}`}
+          className="flex min-w-0 flex-1 flex-col leading-tight"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="truncate font-medium hover:underline" title={oppName}>{oppName}</span>
           <span className="truncate text-[11px] text-ink-3" title={account}>{account}</span>
-        </div>
+        </Link>
       </div>
     ),
     owner: canEdit && opp ? (
