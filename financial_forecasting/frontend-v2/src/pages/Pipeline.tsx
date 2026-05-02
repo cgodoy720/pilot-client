@@ -37,8 +37,8 @@ import type { SfOpportunity } from "@/types/salesforce";
 
 const SCOPES = [
   { value: "open", label: "Open" },
-  { value: "won", label: "Closed / Won" },
-  { value: "lost", label: "Closed / Lost" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
   { value: "all", label: "All" },
 ] as const;
 type Scope = (typeof SCOPES)[number]["value"];

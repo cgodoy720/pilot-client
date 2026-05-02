@@ -1,33 +1,66 @@
 /**
- * Stage helpers — no mapping. Show the real SF StageName everywhere; for
- * functional categorization (open / won / lost) defer to SF's own
- * IsClosed + IsWon flags rather than guessing from the stage string.
+ * Stage helpers — no display mapping (StageChip shows the literal SF
+ * StageName). For categorization, "won" is defined as **stages that
+ * produce a bedrock.award row**. That's the same predicate used in
+ * services/awards_service.py (ELIGIBLE_STAGES_BY_RECORD_TYPE), unioned
+ * across all eligible record types so we can run the check in the
+ * frontend without a per-row API call.
  *
- * (Per JP 2026-05-02: "no stage mapping; we'll clean up the SF picklist
- * itself later." This file is intentionally thin.)
+ * Why not just `IsClosed && IsWon`? Pursuit's SF picklist has stages
+ * like "Collecting / In Effect" and "Closed / Did not Fulfill" that
+ * **do** produce awards but don't necessarily flip SF's `IsWon` flag
+ * (or are even closed yet). The award-eligibility set is the single
+ * source of truth for "this opp counts as won."
  */
 
 import type { SfOpportunity } from "@/types/salesforce";
 
-export function isOpen(o: Pick<SfOpportunity, "IsClosed">): boolean {
-  // IsClosed === false means open. If the API didn't return the flag
-  // (defensive: legacy callers), fall back to a string check.
-  return o.IsClosed === false || o.IsClosed == null;
+/**
+ * Stages that produce a bedrock.award row (from
+ * `services/awards_service.py:ELIGIBLE_STAGES_BY_RECORD_TYPE`, unioned).
+ * Keep in sync if the backend list changes.
+ */
+export const AWARD_ELIGIBLE_STAGES: ReadonlySet<string> = new Set([
+  // Philanthropy
+  "closed-won",
+  "Closed Won",
+  "Closed / Completed",
+  "Closed / Fulfilled",
+  "Collecting / In Effect",
+  "Collecting",
+  "In Effect",
+  "Closed / Did not Fulfill",
+  // PBC
+  "Closed / Full-Time or Successful Conversion",
+  "Closed / Temporary Hire",
+  "Closed / Contract or Agreement But No Fellows Hired",
+  "Closed / Sourcing",
+  // Debt / Equity, Other Fee For Service — already covered above
+]);
+
+export function isWon(o: Pick<SfOpportunity, "StageName">): boolean {
+  return !!o.StageName && AWARD_ELIGIBLE_STAGES.has(o.StageName);
 }
 
-export function isWon(o: Pick<SfOpportunity, "IsClosed" | "IsWon">): boolean {
-  return o.IsClosed === true && o.IsWon === true;
+export function isLost(o: Pick<SfOpportunity, "StageName" | "IsClosed">): boolean {
+  // Closed in SF, but didn't produce an award.
+  return o.IsClosed === true && !isWon(o);
 }
 
-export function isLost(o: Pick<SfOpportunity, "IsClosed" | "IsWon">): boolean {
-  return o.IsClosed === true && o.IsWon === false;
+export function isOpen(
+  o: Pick<SfOpportunity, "StageName" | "IsClosed">,
+): boolean {
+  return !isWon(o) && !isLost(o);
 }
 
 export type StageStatus = "open" | "won" | "lost";
 
-export function stageStatus(o: Pick<SfOpportunity, "IsClosed" | "IsWon">): StageStatus {
-  if (!o.IsClosed) return "open";
-  return o.IsWon ? "won" : "lost";
+export function stageStatus(
+  o: Pick<SfOpportunity, "StageName" | "IsClosed">,
+): StageStatus {
+  if (isWon(o)) return "won";
+  if (isLost(o)) return "lost";
+  return "open";
 }
 
 /**
