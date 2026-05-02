@@ -123,6 +123,8 @@ export function PipelinePage() {
   const navigate = useNavigate();
   const [scope, setScope] = useState<Scope>("open");
   const [recordType, setRecordType] = useState<RecordType>("All");
+  // Stage card click on the funnel strip → narrow the table to one stage.
+  const [stageFilter, setStageFilter] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -183,6 +185,7 @@ export function PipelinePage() {
     const filt = opps.filter(
       (o) =>
         inScope(o, scope) &&
+        (!stageFilter || o.StageName === stageFilter) &&
         (!q ||
           (o.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
           (o.Account?.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
@@ -190,7 +193,7 @@ export function PipelinePage() {
           (o.NextStep ?? "").toLowerCase().includes(q.toLowerCase())),
     );
     return sortBy(filt, sort, extractOpp);
-  }, [opps, scope, q, sort]);
+  }, [opps, scope, stageFilter, q, sort]);
 
   const total = useMemo(
     () => filtered.reduce((s, o) => s + (o.Amount ?? 0), 0),
@@ -294,19 +297,35 @@ export function PipelinePage() {
         }
       />
 
-      <FunnelStrip opps={opps} scope={scope} />
+      <FunnelStrip
+        opps={opps}
+        scope={scope}
+        activeStage={stageFilter}
+        onStageClick={(s) => setStageFilter((cur) => (cur === s ? null : s))}
+      />
 
       <Toolbar className="mt-4">
         <ButtonGroup
           value={scope}
-          onChange={(v) => setScope(v as Scope)}
+          onChange={(v) => { setScope(v as Scope); setStageFilter(null); }}
           options={SCOPES.map((s) => ({ value: s.value, label: s.label }))}
         />
         <ButtonGroup
           value={recordType}
-          onChange={(v) => setRecordType(v as RecordType)}
+          onChange={(v) => { setRecordType(v as RecordType); setStageFilter(null); }}
           options={RECORD_TYPES.map((r) => ({ value: r.value, label: r.label }))}
         />
+        {stageFilter ? (
+          <button
+            type="button"
+            onClick={() => setStageFilter(null)}
+            className="inline-flex items-center gap-1 rounded border border-accent bg-accent/10 px-2 py-0.5 text-[11.5px] text-ink hover:bg-accent/20"
+            title="Clear stage filter"
+          >
+            Stage: {stageFilter}
+            <X size={11} />
+          </button>
+        ) : null}
         <div className="relative">
           <Search
             size={13}
@@ -659,7 +678,17 @@ function ModalField({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function FunnelStrip({ opps, scope }: { opps: SfOpportunity[]; scope: Scope }) {
+function FunnelStrip({
+  opps,
+  scope,
+  activeStage,
+  onStageClick,
+}: {
+  opps: SfOpportunity[];
+  scope: Scope;
+  activeStage: string | null;
+  onStageClick: (stage: string) => void;
+}) {
   // Group by the literal SF StageName — no mapping. Show every stage that
   // actually appears in the filtered data, ordered by count desc.
   const groups = useMemo(() => {
@@ -679,22 +708,35 @@ function FunnelStrip({ opps, scope }: { opps: SfOpportunity[]; scope: Scope }) {
 
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
-      {groups.map((g) => (
-        <div
-          key={g.stage}
-          className="flex flex-col rounded-md border border-border-strong bg-surface px-3 py-2.5 shadow-sm"
-        >
-          <div className="flex items-center gap-2">
-            <StageChip stage={g.stage} status={g.status} />
-            <span className="text-[11.5px] uppercase tracking-wide text-ink-3">
-              {g.count}
+      {groups.map((g) => {
+        const isActive = activeStage === g.stage;
+        const isDimmed = activeStage != null && !isActive;
+        return (
+          <button
+            key={g.stage}
+            type="button"
+            onClick={() => onStageClick(g.stage)}
+            className={cn(
+              "flex flex-col rounded-md border bg-surface px-3 py-2.5 text-left shadow-sm transition-all hover:border-accent",
+              isActive && "border-accent ring-2 ring-accent/30",
+              !isActive && "border-border-strong",
+              isDimmed && "opacity-50 hover:opacity-100",
+            )}
+            aria-pressed={isActive}
+            title={isActive ? `Clear filter (${g.stage})` : `Filter to ${g.stage}`}
+          >
+            <div className="flex items-center gap-2">
+              <StageChip stage={g.stage} status={g.status} />
+              <span className="text-[11.5px] uppercase tracking-wide text-ink-3">
+                {g.count}
+              </span>
+            </div>
+            <span className="mono mt-1 text-[15px] font-semibold tabular-nums">
+              {fmtMoney(g.amount)}
             </span>
-          </div>
-          <span className="mono mt-1 text-[15px] font-semibold tabular-nums">
-            {fmtMoney(g.amount)}
-          </span>
-        </div>
-      ))}
+          </button>
+        );
+      })}
     </div>
   );
 }
