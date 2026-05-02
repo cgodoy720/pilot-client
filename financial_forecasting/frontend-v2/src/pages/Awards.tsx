@@ -124,6 +124,12 @@ const REPORTING_FREQ_OPTIONS = [
   { value: "None", label: "None" },
 ];
 
+function pendingAmount(opp: SfOpportunity | undefined): number {
+  const total = opp?.Amount ?? 0;
+  const paid = opp?.npe01__Payments_Made__c ?? 0;
+  return Math.max(0, total - paid);
+}
+
 function extractAward(
   a: Award,
   opp: SfOpportunity | undefined,
@@ -135,7 +141,7 @@ function extractAward(
     case "status": return a.award_status;
     case "amount": return opp?.Amount ?? 0;
     case "paid": return opp?.npe01__Payments_Made__c ?? 0;
-    case "pending": return opp?.Outstanding_Payments__c ?? 0;
+    case "pending": return pendingAmount(opp);
     case "paymentBar": return opp?.npe01__Payments_Made__c ?? 0;
     case "awardDate": return a.award_date;
     case "periodEnd": return a.period_end_date;
@@ -214,7 +220,7 @@ export function AwardsPage() {
 
   const totalAmount = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.Amount ?? 0), 0);
   const totalPaid = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.npe01__Payments_Made__c ?? 0), 0);
-  const totalPending = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.Outstanding_Payments__c ?? 0), 0);
+  const totalPending = filtered.reduce((s, a) => s + pendingAmount(oppById.get(a.opportunity_id)), 0);
 
   const tableMinWidth = totalWidth(widths);
 
@@ -375,7 +381,7 @@ const AwardRow = memo(function AwardRow({ a, opp, visibleCols, canEdit, onOpen, 
   const oppName = opp?.Name ?? a.opportunity_id;
   const total = opp?.Amount ?? 0;
   const paid = opp?.npe01__Payments_Made__c ?? 0;
-  const pending = opp?.Outstanding_Payments__c ?? 0;
+  const pending = pendingAmount(opp);
 
   const cells: Record<ColKey, React.ReactNode> = {
     name: (
