@@ -34,7 +34,7 @@ import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { useColumnVisibility } from "@/lib/columnVisibility";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
-import { isOpen, SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
+import { isOpen, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import {
   useOpportunities,
@@ -243,26 +243,23 @@ export function CleanupPage() {
     [oppsData],
   );
 
-  // Stages available for bulk-rewriting include closed ones (e.g. moving
-  // an open opp to "Withdrawn" or "Closed Lost"), so this list spans the
-  // full picklist + any stage actually present in the org's data.
-  const allStageOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { value: string; label: string }[] = [];
-    for (const o of oppsData ?? []) {
-      if (o.StageName && !seen.has(o.StageName)) {
-        seen.add(o.StageName);
-        out.push({ value: o.StageName, label: o.StageName });
-      }
-    }
-    for (const opt of SF_STAGE_OPTIONS) {
-      if (!seen.has(opt.value)) {
-        seen.add(opt.value);
-        out.push(opt);
-      }
-    }
-    return out.sort((a, b) => a.label.localeCompare(b.label));
-  }, [oppsData]);
+  // Curated bulk-action stage targets — only stages that make sense as
+  // the *destination* of a cleanup rewrite. Ordered to match the funnel
+  // (open stages first, then closed). If you need to set something else,
+  // do it on the opp detail page where the full picklist is available.
+  const bulkStageOptions = useMemo(
+    () => [
+      { value: "New Lead", label: "New Lead" },
+      { value: "Qualifying", label: "Qualifying" },
+      { value: "Design / Proposal Creation", label: "Design / Proposal Creation" },
+      { value: "Proposal Negotiation", label: "Proposal Negotiation" },
+      { value: "Contract Creation", label: "Contract Creation" },
+      { value: "Closed Won", label: "Closed Won" },
+      { value: "Closed Lost", label: "Closed Lost" },
+      { value: "Withdrawn", label: "Withdrawn" },
+    ],
+    [],
+  );
 
   const [rules, setRules] = useState<FilterRule[]>([]);
   const [q, setQ] = useState("");
@@ -656,7 +653,7 @@ export function CleanupPage() {
           mode={bulkMode}
           value={bulkValue}
           onValueChange={setBulkValue}
-          stageOptions={allStageOptions}
+          stageOptions={bulkStageOptions}
           ownerOptions={ownerBulkOptions}
           selectedOpps={selectedOpps}
           progress={progress}
