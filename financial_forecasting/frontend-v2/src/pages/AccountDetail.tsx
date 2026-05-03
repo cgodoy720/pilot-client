@@ -84,16 +84,19 @@ export function AccountDetailPage() {
     });
   };
 
-  const lifetime =
-    account.npo02__TotalOppAmount__c ??
-    account.Total_Revenue_Generated__c ??
-    0;
   const closedCount = account.npo02__NumberOfClosedOpps__c ?? 0;
   const lastActivity = account.Last_Activity_Date__c ?? account.LastActivityDate ?? null;
 
   const openOpps = opps.filter(isOpen);
   const wonOpps = opps.filter(isWon);
   const lostOpps = opps.filter(isLost);
+
+  // Lifetime is computed from wonOpps so it matches the History chart
+  // and "Awarded" section line-by-line. (NPSP's roll-up
+  // npo02__TotalOppAmount__c uses SF's strict "IsWon" picklist values,
+  // which differs from our award-eligibility set — using NPSP here led
+  // to the headline disagreeing with the chart.)
+  const lifetime = wonOpps.reduce((s, o) => s + (o.Amount ?? 0), 0);
 
   // Fetch the prior StageName for each lost opp so account owners can
   // see at what funnel position the opp was withdrawn / lost.
