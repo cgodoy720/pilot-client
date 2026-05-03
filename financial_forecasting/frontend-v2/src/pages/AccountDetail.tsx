@@ -183,74 +183,74 @@ export function AccountDetailPage() {
         <Stat label="Last activity" value={fmtDate(lastActivity)} />
       </div>
 
-      {/* Two-column layout for context blocks:
-            Left:  Details (top) → Tasks (under Details)
-            Right: History (top) → Activity (under History)
-          Each column is a flex column so its sections stack and the two
-          columns can run to different heights independently. Falls back
-          to single column on screens narrower than lg. */}
-      <div className="grid gap-x-4 lg:grid-cols-2">
-        <div className="flex flex-col">
-          <SectionCard title="Details" collapsible={false}>
-            <div className="flex flex-col gap-2 px-5 py-3">
-              <DetailRow label="Account owner">
-                <InlineSelect
-                  value={account.OwnerId ?? null}
-                  options={ownerOptions}
-                  onSave={saveOwner}
-                  renderValue={() => (
-                    <span className="text-[13px] text-ink-2">
-                      {account.Owner?.Name ?? ownerOptions.find((o) => o.value === account.OwnerId)?.label ?? "—"}
-                    </span>
-                  )}
-                />
-              </DetailRow>
-              <DetailRow label="Engagement types">
-                {engagementTypes.length === 0 ? (
-                  <span className="text-[12.5px] text-ink-4">—</span>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {engagementTypes.map((t) => (
-                      <Tag
-                        key={t.name}
-                        variant={
-                          t.status === "won"
-                            ? "green"
-                            : t.status === "lost"
-                              ? "red"
-                              : "default"
-                        }
-                      >
-                        {t.name}
-                      </Tag>
-                    ))}
-                  </div>
+      {/* Details + History — half width each on lg+, single column below. */}
+      <div
+        className={cn(
+          "grid gap-x-4",
+          wonOpps.length + lostOpps.length > 0
+            ? "lg:grid-cols-2"
+            : "grid-cols-1",
+        )}
+      >
+        <SectionCard title="Details" collapsible={false}>
+          <div className="flex flex-col gap-2 px-5 py-3">
+            <DetailRow label="Account owner">
+              <InlineSelect
+                value={account.OwnerId ?? null}
+                options={ownerOptions}
+                onSave={saveOwner}
+                renderValue={() => (
+                  <span className="text-[13px] text-ink-2">
+                    {account.Owner?.Name ?? ownerOptions.find((o) => o.value === account.OwnerId)?.label ?? "—"}
+                  </span>
                 )}
-              </DetailRow>
-              <DetailRow label="Primary contact">
-                <PrimaryContactPicker
-                  accountId={account.Id}
-                  accountName={account.Name}
-                  accountContacts={contacts}
-                  primary={primaryContact}
-                />
-              </DetailRow>
-            </div>
+              />
+            </DetailRow>
+            <DetailRow label="Engagement types">
+              {engagementTypes.length === 0 ? (
+                <span className="text-[12.5px] text-ink-4">—</span>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {engagementTypes.map((t) => (
+                    <Tag
+                      key={t.name}
+                      variant={
+                        t.status === "won"
+                          ? "green"
+                          : t.status === "lost"
+                            ? "red"
+                            : "default"
+                      }
+                    >
+                      {t.name}
+                    </Tag>
+                  ))}
+                </div>
+              )}
+            </DetailRow>
+            <DetailRow label="Primary contact">
+              <PrimaryContactPicker
+                accountId={account.Id}
+                accountName={account.Name}
+                accountContacts={contacts}
+                primary={primaryContact}
+              />
+            </DetailRow>
+          </div>
+        </SectionCard>
+
+        {wonOpps.length + lostOpps.length > 0 ? (
+          <SectionCard title="History">
+            <HistoryChart wonOpps={wonOpps} lostOpps={lostOpps} />
           </SectionCard>
-
-          <AccountTasksSection accountId={account.Id} />
-        </div>
-
-        <div className="flex flex-col">
-          {wonOpps.length + lostOpps.length > 0 ? (
-            <SectionCard title="History">
-              <HistoryChart wonOpps={wonOpps} lostOpps={lostOpps} />
-            </SectionCard>
-          ) : null}
-
-          <ActivityTimeline activities={activities} grouped />
-        </div>
+        ) : null}
       </div>
+
+      {/* Tasks — full width */}
+      <AccountTasksSection accountId={account.Id} />
+
+      {/* Activity timeline — full width */}
+      <ActivityTimeline activities={activities} grouped />
 
       {/* Open opportunities */}
       {openOpps.length > 0 ? (
