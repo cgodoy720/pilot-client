@@ -31,48 +31,6 @@ function activityTimestamp(a: BedrockActivity): string | null {
   return a.activity_date ?? a.occurred_at ?? a.created_at ?? null;
 }
 
-// ── Time grouping ──────────────────────────────────────────────────────────
-
-function timeGroup(dateStr: string | null | undefined): string {
-  if (!dateStr) return "Older";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "Older";
-  const now = new Date();
-  const dayMs = 86_400_000;
-  const diffMs = now.getTime() - d.getTime();
-  if (diffMs < dayMs) return "Today";
-  if (diffMs < 7 * dayMs) return "This week";
-  if (
-    d.getMonth() === now.getMonth() &&
-    d.getFullYear() === now.getFullYear()
-  ) {
-    return "This month";
-  }
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  if (
-    d.getMonth() === prevMonth.getMonth() &&
-    d.getFullYear() === prevMonth.getFullYear()
-  ) {
-    return "Last month";
-  }
-  return d.toLocaleString("en-US", { month: "long", year: "numeric" });
-}
-
-function groupOrder(group: string): number {
-  const fixed: Record<string, number> = {
-    Today: 0,
-    "This week": 1,
-    "This month": 2,
-    "Last month": 3,
-  };
-  if (group in fixed) return fixed[group];
-  try {
-    const d = new Date(`1 ${group}`);
-    if (!isNaN(d.getTime())) return 1000 - d.getFullYear() * 12 - d.getMonth();
-  } catch {}
-  return 9999;
-}
-
 // ── Quick filter chips ─────────────────────────────────────────────────────
 
 type Quick = "all" | "7d" | "30d" | "by-me" | "mentions-me";
@@ -127,13 +85,11 @@ export function ActivityTimeline({
   activities,
   title,
   maxHeight = DEFAULT_MAX_H,
-  grouped = false,
   scopeKey = "shared",
 }: {
   activities: BedrockActivity[];
   title?: string;
   maxHeight?: number;
-  grouped?: boolean;
   scopeKey?: string;
 }) {
   const { open, toggle } = useCollapsible(
@@ -238,21 +194,6 @@ export function ActivityTimeline({
     () => filtered.filter((a) => !pinned.has(a.id)),
     [filtered, pinned],
   );
-
-  // Time grouping.
-  const timeGroups = useMemo(() => {
-    if (!grouped) return null;
-    const map = new Map<string, BedrockActivity[]>();
-    for (const a of unpinnedRows) {
-      const key = timeGroup(activityTimestamp(a));
-      const arr = map.get(key);
-      if (arr) arr.push(a);
-      else map.set(key, [a]);
-    }
-    return Array.from(map.entries()).sort(
-      ([a], [b]) => groupOrder(a) - groupOrder(b),
-    );
-  }, [unpinnedRows, grouped]);
 
   // Person grouping — by owner_email primarily, since contact_ids
   // doesn't carry display names.
@@ -451,55 +392,39 @@ export function ActivityTimeline({
                 </div>
               ) : null}
 
-              {groupMode === "contact" && personGroups
-                ? personGroups.map(([person, rows]) => (
-                    <div key={person}>
-                      <GroupHeader label={`${person} · ${rows.length}`} />
-                      <ul className="flex flex-col">
-                        {rows.map((a) => (
-                          <ActivityRow
-                            key={a.id}
-                            a={a}
-                            showContext
-                            needle={needle}
-                            pinned={false}
-                            onTogglePin={() => togglePin(a.id)}
-                          />
-                        ))}
-                      </ul>
-                    </div>
-                  ))
-                : grouped && timeGroups
-                  ? timeGroups.map(([group, rows]) => (
-                      <div key={group}>
-                        <GroupHeader label={`${group} · ${rows.length}`} />
-                        <ul className="flex flex-col">
-                          {rows.map((a) => (
-                            <ActivityRow
-                              key={a.id}
-                              a={a}
-                              showContext
-                              needle={needle}
-                              pinned={false}
-                              onTogglePin={() => togglePin(a.id)}
-                            />
-                          ))}
-                        </ul>
-                      </div>
-                    ))
-                  : (
+              {groupMode === "contact" && personGroups ? (
+                personGroups.map(([person, rows]) => (
+                  <div key={person}>
+                    <GroupHeader label={`${person} · ${rows.length}`} />
                     <ul className="flex flex-col">
-                      {unpinnedRows.map((a) => (
+                      {rows.map((a) => (
                         <ActivityRow
                           key={a.id}
                           a={a}
+                          showContext
                           needle={needle}
                           pinned={false}
                           onTogglePin={() => togglePin(a.id)}
                         />
                       ))}
                     </ul>
-                  )}
+                  </div>
+                ))
+              ) : (
+                /* Time mode: flat list, sorted desc — no period dividers. */
+                <ul className="flex flex-col">
+                  {unpinnedRows.map((a) => (
+                    <ActivityRow
+                      key={a.id}
+                      a={a}
+                      showContext
+                      needle={needle}
+                      pinned={false}
+                      onTogglePin={() => togglePin(a.id)}
+                    />
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </>

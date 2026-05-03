@@ -197,7 +197,7 @@ function AwardDrawerBody({
       ) : null}
 
       {/* Activity timeline */}
-      <ActivityTimeline activities={activities} grouped title={`Activity (${activities.length})`} />
+      <ActivityTimeline activities={activities} title={`Activity (${activities.length})`} />
     </div>
   );
 }

@@ -123,7 +123,7 @@ export function ContactDetailPage() {
       ) : null}
 
       {/* Activity timeline */}
-      <ActivityTimeline activities={activities} grouped />
+      <ActivityTimeline activities={activities} />
 
       <p className="mt-6 text-[11px] text-ink-4">
         SF Id: <span className="mono">{contact.Id}</span>

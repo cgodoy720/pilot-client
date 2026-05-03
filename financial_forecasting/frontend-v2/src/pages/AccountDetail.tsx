@@ -252,7 +252,6 @@ export function AccountDetailPage() {
       {/* Activity timeline — full width */}
       <ActivityTimeline
         activities={activities}
-        grouped
         scopeKey={`account:${account.Id}`}
       />
 
