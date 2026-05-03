@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
@@ -7,6 +8,21 @@ export interface OpportunityFilters {
   recordType?: "Philanthropy" | "PBC" | string;
   activeOnly?: boolean;
   limit?: number;
+}
+
+/**
+ * RecordType.Name values that should be hidden everywhere in the UI.
+ * Per JP 2026-05-03: ISA / Pursuit Bond is 2019–2020 legacy, tracked
+ * in a separate enforcement system, and shouldn't appear in any of the
+ * pipeline/awards/cleanup/account views.
+ */
+const EXCLUDED_RECORD_TYPES: ReadonlySet<string> = new Set([
+  "Pursuit Bond / Income Share Agreement",
+]);
+
+export function isExcludedOpp(o: SfOpportunity): boolean {
+  const rt = o.RecordType?.Name ?? "";
+  return EXCLUDED_RECORD_TYPES.has(rt);
 }
 
 async function fetchOpportunities(
@@ -21,7 +37,10 @@ async function fetchOpportunities(
     ? `/api/salesforce/opportunities?${qs}`
     : "/api/salesforce/opportunities";
   const { data } = await api.get<SfOpportunity[]>(path);
-  return data;
+  // Strip the excluded record types at the data boundary so every UI
+  // consumer (Pipeline, Awards, Cleanup, Account detail, Dashboard…)
+  // gets a clean list without each having to remember.
+  return data.filter((o) => !isExcludedOpp(o));
 }
 
 export function useOpportunities(filters: OpportunityFilters = {}) {
@@ -29,6 +48,28 @@ export function useOpportunities(filters: OpportunityFilters = {}) {
     queryKey: ["opportunities", filters],
     queryFn: () => fetchOpportunities(filters),
     staleTime: 60_000,
+  });
+}
+
+export interface PriorStage {
+  prior_stage: string | null;
+  transitioned_at: string | null;
+}
+
+export function useOpportunityPriorStages(ids: string[]) {
+  // Sort the id list so the cache key is stable regardless of input order.
+  const stableKey = useMemo(() => [...ids].sort(), [ids]);
+  return useQuery({
+    queryKey: ["opp-prior-stages", stableKey],
+    queryFn: async (): Promise<Record<string, PriorStage>> => {
+      if (stableKey.length === 0) return {};
+      const { data } = await api.get<Record<string, PriorStage>>(
+        `/api/salesforce/opportunities/prior-stages?ids=${stableKey.join(",")}`,
+      );
+      return data;
+    },
+    enabled: stableKey.length > 0,
+    staleTime: 5 * 60_000,
   });
 }
 

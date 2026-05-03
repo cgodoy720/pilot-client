@@ -23,6 +23,84 @@ router = APIRouter(tags=["opportunities-extra"])
 
 
 # ---------------------------------------------------------------------------
+# Prior-stage lookup (used by the AccountDetail "Closed lost / withdrawn"
+# section so account owners can see at what stage each opp was lost).
+# ---------------------------------------------------------------------------
+
+
+@router.get("/api/salesforce/opportunities/prior-stages")
+async def get_prior_stages(
+    ids: str = Query(
+        ...,
+        description=(
+            "Comma-separated opportunity Ids. Capped at 200 per request "
+            "to stay well below SOQL IN-clause limits."
+        ),
+    ),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """For each opp Id, return the StageName the opp was in just before
+    its most recent transition (i.e. the OldValue of the most recent
+    OpportunityFieldHistory row for the StageName field).
+
+    Use case: an account owner viewing a closed-lost / withdrawn opp
+    wants to know "where in the funnel did this die?".
+
+    Response shape:
+        {
+          "0061U000004ABCD": {
+              "prior_stage": "Proposal Negotiation",
+              "transitioned_at": "2026-04-12T14:33:01.000+0000"
+          },
+          ...
+        }
+
+    Opps with no history rows (e.g. created directly into a closed
+    stage) are omitted from the response — the frontend renders "—".
+    """
+    raw_ids = [s.strip() for s in ids.split(",") if s.strip()]
+    valid_ids: List[str] = []
+    for i in raw_ids[:200]:
+        try:
+            validate_salesforce_id(i, "id")
+            valid_ids.append(i)
+        except HTTPException:
+            continue
+    if not valid_ids:
+        return {}
+
+    salesforce = client.salesforce
+    quoted = ", ".join(f"'{i}'" for i in valid_ids)
+    query = f"""
+    SELECT OpportunityId, OldValue, NewValue, CreatedDate
+    FROM OpportunityFieldHistory
+    WHERE Field = 'StageName'
+      AND OpportunityId IN ({quoted})
+    ORDER BY OpportunityId, CreatedDate ASC
+    """
+    try:
+        result = await salesforce.query_all(query)
+    except Exception as e:
+        logger.warning("prior-stages query failed: %s", e)
+        raise HTTPException(status_code=500, detail="Stage history query failed")
+
+    rows = result.get("records", [])
+    # Take the *last* (most recent) history row per opp; its OldValue is
+    # the stage the opp was in immediately before its current StageName.
+    by_opp: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        opp_id = r.get("OpportunityId")
+        if not opp_id:
+            continue
+        by_opp[opp_id] = {
+            "prior_stage": str(r.get("OldValue") or "") or None,
+            "transitioned_at": r.get("CreatedDate"),
+        }
+    return by_opp
+
+
+# ---------------------------------------------------------------------------
 # Stage history
 # ---------------------------------------------------------------------------
 

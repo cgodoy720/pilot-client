@@ -8,12 +8,12 @@ import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
-import { isOpen, isWon, stageStatus } from "@/lib/stages";
+import { isLost, isOpen, isWon, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useUpdateAccount } from "@/services/accounts";
 import { useAccountFullActivities } from "@/services/activities";
 import { useContacts, useCreateContact } from "@/services/contacts";
-import { useOpportunities } from "@/services/opportunities";
+import { useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
 
@@ -92,6 +92,13 @@ export function AccountDetailPage() {
 
   const openOpps = opps.filter(isOpen);
   const wonOpps = opps.filter(isWon);
+  const lostOpps = opps.filter(isLost);
+
+  // Fetch the prior StageName for each lost opp so account owners can
+  // see at what funnel position the opp was withdrawn / lost.
+  const lostOppIds = useMemo(() => lostOpps.map((o) => o.Id), [lostOpps]);
+  const priorStagesQ = useOpportunityPriorStages(lostOppIds);
+  const priorStages = priorStagesQ.data ?? {};
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
@@ -244,6 +251,13 @@ export function AccountDetailPage() {
       {wonOpps.length > 0 ? (
         <SectionCard title={`Awarded / closed-won (${wonOpps.length})`}>
           <OppTable opps={wonOpps} />
+        </SectionCard>
+      ) : null}
+
+      {/* Closed-lost / withdrawn opportunities */}
+      {lostOpps.length > 0 ? (
+        <SectionCard title={`Closed lost / withdrawn (${lostOpps.length})`}>
+          <OppTable opps={lostOpps} priorStages={priorStages} showPriorStage />
         </SectionCard>
       ) : null}
 
@@ -525,44 +539,62 @@ function Empty({ children }: { children: React.ReactNode }) {
   );
 }
 
-function OppTable({ opps }: { opps: SfOpportunity[] }) {
+function OppTable({
+  opps,
+  priorStages,
+  showPriorStage,
+}: {
+  opps: SfOpportunity[];
+  priorStages?: Record<string, PriorStage>;
+  showPriorStage?: boolean;
+}) {
   return (
     <table className="w-full border-collapse">
       <tbody>
-        {opps.map((o) => (
-          <tr
-            key={o.Id}
-            className="border-b border-border-strong last:border-b-0"
-          >
-            <td className="px-5 py-2.5">
-              <Link
-                to={`/opportunities/${o.Id}`}
-                className={cn(
-                  "block min-w-0 text-[13px] font-medium hover:underline",
-                )}
-              >
-                {o.Name}
-              </Link>
-              {o.NextStep ? (
-                <div className="mt-0.5 line-clamp-1 text-[11.5px] text-ink-3">
-                  {o.NextStep}
+        {opps.map((o) => {
+          const prior = showPriorStage ? priorStages?.[o.Id] : undefined;
+          return (
+            <tr
+              key={o.Id}
+              className="border-b border-border-strong last:border-b-0"
+            >
+              <td className="px-5 py-2.5">
+                <Link
+                  to={`/opportunities/${o.Id}`}
+                  className={cn(
+                    "block min-w-0 text-[13px] font-medium hover:underline",
+                  )}
+                >
+                  {o.Name}
+                </Link>
+                {o.NextStep ? (
+                  <div className="mt-0.5 line-clamp-1 text-[11.5px] text-ink-3">
+                    {o.NextStep}
+                  </div>
+                ) : null}
+              </td>
+              <td className="px-3 py-2.5">
+                <div className="flex flex-col gap-0.5 leading-tight">
+                  <StageChip stage={o.StageName} status={stageStatus(o)} />
+                  {showPriorStage && prior?.prior_stage ? (
+                    <span className="text-[10.5px] text-ink-3" title="Stage just before close">
+                      from {prior.prior_stage}
+                    </span>
+                  ) : null}
                 </div>
-              ) : null}
-            </td>
-            <td className="px-3 py-2.5">
-              <StageChip stage={o.StageName} status={stageStatus(o)} />
-            </td>
-            <td className="mono px-3 py-2.5 text-right text-[13px] font-medium tabular-nums">
-              {o.Amount ? fmtMoney(o.Amount) : <span className="text-ink-4">—</span>}
-            </td>
-            <td className="mono px-3 py-2.5 text-[11.5px] text-ink-3">
-              {fmtDate(o.CloseDate)}
-            </td>
-            <td className="px-3 py-2.5 text-[12px] text-ink-2">
-              {o.Owner?.Name ?? "—"}
-            </td>
-          </tr>
-        ))}
+              </td>
+              <td className="mono px-3 py-2.5 text-right text-[13px] font-medium tabular-nums">
+                {o.Amount ? fmtMoney(o.Amount) : <span className="text-ink-4">—</span>}
+              </td>
+              <td className="mono px-3 py-2.5 text-[11.5px] text-ink-3">
+                {fmtDate(o.CloseDate)}
+              </td>
+              <td className="px-3 py-2.5 text-[12px] text-ink-2">
+                {o.Owner?.Name ?? "—"}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
