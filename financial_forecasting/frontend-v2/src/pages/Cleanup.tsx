@@ -34,7 +34,7 @@ import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { useColumnVisibility } from "@/lib/columnVisibility";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
-import { SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
+import { isOpen, SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import {
   useOpportunities,
@@ -236,7 +236,12 @@ export function CleanupPage() {
   const { data: oppsData, isLoading } = useOpportunities();
   const usersQ = useActiveUsers();
 
-  const opps = useMemo(() => oppsData ?? [], [oppsData]);
+  // Cleanup is for fixing in-flight pipeline data — closed opps are
+  // historical and shouldn't be re-touched here.
+  const opps = useMemo(
+    () => (oppsData ?? []).filter(isOpen),
+    [oppsData],
+  );
 
   const [rules, setRules] = useState<FilterRule[]>([]);
   const [q, setQ] = useState("");
