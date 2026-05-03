@@ -52,7 +52,7 @@ class DataSyncService:
         """Check if Salesforce service is connected."""
         return "salesforce" in self.mcp_client.connected_services
 
-    async def sync_activities(self):
+    async def sync_activities(self, *, force_full: bool = False):
         """Sync SF Tasks + Events into bedrock.activity table."""
         if self.db_pool is None:
             logger.debug("Skipping activity sync — no database pool")
@@ -68,16 +68,21 @@ class DataSyncService:
         errors = 0
 
         async with self.db_pool.acquire() as conn:
-            # Get watermark for incremental sync
-            watermark = await conn.fetchval(
-                "SELECT MAX(sf_last_modified) FROM bedrock.activity WHERE source = 'salesforce'"
-            )
+            # Get watermark for incremental sync. force_full=True ignores
+            # the watermark and re-fetches everything — used after a
+            # classifier change to re-stamp existing rows.
             watermark_clause = ""
-            if watermark:
-                # Format for SOQL: YYYY-MM-DDTHH:MM:SSZ (Salesforce canonical format)
-                utc_wm = watermark.astimezone(timezone.utc)
-                watermark_str = utc_wm.strftime("%Y-%m-%dT%H:%M:%SZ")
-                watermark_clause = f" WHERE LastModifiedDate > {watermark_str}"
+            if not force_full:
+                watermark = await conn.fetchval(
+                    "SELECT MAX(sf_last_modified) FROM bedrock.activity WHERE source = 'salesforce'"
+                )
+                if watermark:
+                    # Format for SOQL: YYYY-MM-DDTHH:MM:SSZ (Salesforce canonical format)
+                    utc_wm = watermark.astimezone(timezone.utc)
+                    watermark_str = utc_wm.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    watermark_clause = f" WHERE LastModifiedDate > {watermark_str}"
+            else:
+                logger.info("Activity sync: force_full=True — ignoring watermark")
 
             # SOQL: SF Tasks
             task_soql = f"""
@@ -194,8 +199,20 @@ class DataSyncService:
             return None
 
     def _map_sf_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Map a Salesforce Task record to activity column values."""
-        # Determine activity type from TaskSubtype and Type
+        """Map a Salesforce Task record to activity column values.
+
+        Type detection order (most specific wins):
+          1. TaskSubtype = "Email"            → email
+          2. TaskSubtype = "Call" or Type = "Call"  → call
+          3. TaskSubtype includes "meeting" / Type matches a meeting label
+                                              → meeting
+          4. anything else                    → note
+
+        Pursuit logs many meetings as Tasks (not Events), with
+        Type = "Meeting" and a free-form Subject. Without this
+        classification rule those rows came through as "note", so
+        meetings effectively disappeared from the activity timeline.
+        """
         subtype = (task.get("TaskSubtype") or "").lower()
         sf_type_field = (task.get("Type") or "").lower()
 
@@ -203,6 +220,18 @@ class DataSyncService:
             activity_type = "email"
         elif subtype == "call" or sf_type_field == "call":
             activity_type = "call"
+        elif (
+            "meeting" in subtype
+            or sf_type_field in {
+                "meeting",
+                "in-person meeting",
+                "in person meeting",
+                "virtual meeting",
+                "zoom meeting",
+                "site visit",
+            }
+        ):
+            activity_type = "meeting"
         else:
             activity_type = "note"
 
