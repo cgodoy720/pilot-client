@@ -77,7 +77,10 @@ interface FilterRule {
   id: string;
   field: FieldKey;
   op: Operator;
-  value: string;
+  // Multi-value capable. For select-type fields with op="equals", any
+  // listed value matches (OR within the rule). For text / number / date
+  // ops only values[0] is consulted.
+  values: string[];
 }
 
 const OPS_BY_TYPE: Record<"select" | "text" | "number" | "date", { value: Operator; label: string }[]> = {
@@ -113,17 +116,27 @@ function ruleApplies(o: SfOpportunity, r: FilterRule): boolean {
   if (r.op === "is_empty") return v == null || v === "";
   if (r.op === "is_not_empty") return v != null && v !== "";
 
-  if (meta.type === "text" || meta.type === "select") {
+  // Single-value ops read values[0]; select supports OR across values.
+  const first = r.values[0] ?? "";
+
+  if (meta.type === "select") {
+    if (r.op === "equals") {
+      if (r.values.length === 0) return true; // no values picked = match all
+      const s = String(v ?? "");
+      return r.values.includes(s);
+    }
+  }
+
+  if (meta.type === "text") {
     const s = String(v ?? "").toLowerCase();
-    const needle = r.value.toLowerCase();
-    if (r.op === "contains") return s.includes(needle);
-    if (r.op === "equals") return s === needle;
+    if (r.op === "contains") return s.includes(first.toLowerCase());
+    if (r.op === "equals") return s === first.toLowerCase();
   }
 
   if (meta.type === "number") {
-    if (v == null || r.value === "") return false;
+    if (v == null || first === "") return false;
     const n = Number(v);
-    const target = Number(r.value);
+    const target = Number(first);
     if (!Number.isFinite(target)) return false;
     if (r.op === "gt") return n > target;
     if (r.op === "lt") return n < target;
@@ -131,13 +144,13 @@ function ruleApplies(o: SfOpportunity, r: FilterRule): boolean {
   }
 
   if (meta.type === "date") {
-    if (v == null || r.value === "") return false;
+    if (v == null || first === "") return false;
     const ms = new Date(String(v)).getTime();
-    const target = new Date(r.value).getTime();
+    const target = new Date(first).getTime();
     if (!Number.isFinite(ms) || !Number.isFinite(target)) return false;
     if (r.op === "before") return ms < target;
     if (r.op === "after") return ms > target;
-    if (r.op === "equals") return String(v).slice(0, 10) === r.value;
+    if (r.op === "equals") return String(v).slice(0, 10) === first;
   }
 
   return true;
@@ -150,9 +163,17 @@ function describeRule(r: FilterRule, opts: {
   if (r.op === "is_empty") return `${meta.label} is empty`;
   if (r.op === "is_not_empty") return `${meta.label} has any value`;
   const opLabel = OPS_BY_TYPE[meta.type].find((o) => o.value === r.op)?.label ?? r.op;
-  // Owner rule shows the user name not the SF Id.
-  const valLabel =
-    r.field === "owner" && r.value ? opts.ownerLabel(r.value) : r.value;
+  // Multi-value: render up to 2 names, then "+N more". Owner gets a name lookup.
+  const renderValue = (v: string) =>
+    r.field === "owner" && v ? opts.ownerLabel(v) : v;
+  let valLabel: string;
+  if (r.values.length <= 1) {
+    valLabel = renderValue(r.values[0] ?? "");
+  } else if (r.values.length === 2) {
+    valLabel = `${renderValue(r.values[0])}, ${renderValue(r.values[1])}`;
+  } else {
+    valLabel = `${renderValue(r.values[0])}, ${renderValue(r.values[1])} +${r.values.length - 2} more`;
+  }
   return `${meta.label} ${opLabel} ${valLabel}`;
 }
 
@@ -756,11 +777,17 @@ function AddFilterButton({
   const [open, setOpen] = useState(false);
   const [field, setField] = useState<FieldKey>("stage");
   const [op, setOp] = useState<Operator>("equals");
-  const [value, setValue] = useState("");
+  const [singleValue, setSingleValue] = useState("");
+  // For select-type fields with op="equals" the user can pick many values
+  // (OR within the rule). Tracked separately so switching field/op doesn't
+  // wipe a single text/number/date entry.
+  const [multiValues, setMultiValues] = useState<string[]>([]);
+  const [pickerQ, setPickerQ] = useState("");
 
   const meta = FILTERABLE[field];
   const ops = OPS_BY_TYPE[meta.type];
   const needsValue = op !== "is_empty" && op !== "is_not_empty";
+  const isMultiSelect = meta.type === "select" && op === "equals";
 
   const valueOptions = useMemo(() => {
     if (field === "stage") return stageOptions;
@@ -769,22 +796,39 @@ function AddFilterButton({
     return null;
   }, [field, stageOptions, recordTypeOptions, ownerOptions]);
 
+  const filteredOptions = useMemo(() => {
+    if (!valueOptions) return null;
+    if (!pickerQ.trim()) return valueOptions;
+    const needle = pickerQ.toLowerCase();
+    return valueOptions.filter((o) => o.label.toLowerCase().includes(needle));
+  }, [valueOptions, pickerQ]);
+
   const reset = () => {
     setField("stage");
     setOp("equals");
-    setValue("");
+    setSingleValue("");
+    setMultiValues([]);
+    setPickerQ("");
   };
 
   const handleAdd = () => {
-    if (needsValue && !value) return;
-    onAdd({
-      id: `${field}-${Date.now()}`,
-      field,
-      op,
-      value: needsValue ? value : "",
-    });
+    if (!needsValue) {
+      onAdd({ id: `${field}-${Date.now()}`, field, op, values: [] });
+    } else if (isMultiSelect) {
+      if (multiValues.length === 0) return;
+      onAdd({ id: `${field}-${Date.now()}`, field, op, values: multiValues });
+    } else {
+      if (!singleValue) return;
+      onAdd({ id: `${field}-${Date.now()}`, field, op, values: [singleValue] });
+    }
     reset();
     setOpen(false);
+  };
+
+  const toggleMulti = (v: string) => {
+    setMultiValues((prev) =>
+      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
+    );
   };
 
   return (
@@ -800,89 +844,169 @@ function AddFilterButton({
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-full z-20 mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2 py-2 shadow-md">
-          <select
-            value={field}
-            onChange={(e) => {
-              const next = e.target.value as FieldKey;
-              setField(next);
-              const firstOp = OPS_BY_TYPE[FILTERABLE[next].type][0].value;
-              setOp(firstOp);
-              setValue("");
-            }}
-            className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
-          >
-            {(Object.keys(FILTERABLE) as FieldKey[]).map((k) => (
-              <option key={k} value={k}>
-                {FILTERABLE[k].label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={op}
-            onChange={(e) => setOp(e.target.value as Operator)}
-            className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
-          >
-            {ops.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {needsValue ? (
-            valueOptions ? (
-              <select
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="h-7 min-w-[140px] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
-              >
-                <option value="">—</option>
-                {valueOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            ) : meta.type === "date" ? (
-              <input
-                type="date"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
-              />
-            ) : meta.type === "number" ? (
-              <input
-                type="number"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder="0"
-                className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
-              />
-            ) : (
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder="value"
-                className="h-7 w-40 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
-              />
-            )
+        <div className="absolute left-0 top-full z-20 mt-1 w-[420px] rounded-md border border-border-strong bg-surface p-2 shadow-md">
+          <div className="flex items-center gap-1.5">
+            <select
+              value={field}
+              onChange={(e) => {
+                const next = e.target.value as FieldKey;
+                setField(next);
+                const firstOp = OPS_BY_TYPE[FILTERABLE[next].type][0].value;
+                setOp(firstOp);
+                setSingleValue("");
+                setMultiValues([]);
+                setPickerQ("");
+              }}
+              className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+            >
+              {(Object.keys(FILTERABLE) as FieldKey[]).map((k) => (
+                <option key={k} value={k}>
+                  {FILTERABLE[k].label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={op}
+              onChange={(e) => {
+                setOp(e.target.value as Operator);
+                setSingleValue("");
+                setMultiValues([]);
+              }}
+              className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+            >
+              {ops.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            {needsValue && !isMultiSelect ? (
+              valueOptions ? (
+                <select
+                  value={singleValue}
+                  onChange={(e) => setSingleValue(e.target.value)}
+                  className="h-7 min-w-[140px] flex-1 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+                >
+                  <option value="">—</option>
+                  {valueOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              ) : meta.type === "date" ? (
+                <input
+                  type="date"
+                  value={singleValue}
+                  onChange={(e) => setSingleValue(e.target.value)}
+                  className="h-7 flex-1 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+                />
+              ) : meta.type === "number" ? (
+                <input
+                  type="number"
+                  value={singleValue}
+                  onChange={(e) => setSingleValue(e.target.value)}
+                  placeholder="0"
+                  className="h-7 flex-1 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={singleValue}
+                  onChange={(e) => setSingleValue(e.target.value)}
+                  placeholder="value"
+                  className="h-7 flex-1 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+                />
+              )
+            ) : null}
+          </div>
+
+          {isMultiSelect && valueOptions ? (
+            <div className="mt-2 rounded border border-border-strong">
+              <div className="flex items-center justify-between border-b border-border-strong px-2 py-1.5">
+                <input
+                  autoFocus
+                  type="text"
+                  value={pickerQ}
+                  onChange={(e) => setPickerQ(e.target.value)}
+                  placeholder={`Search ${meta.label.toLowerCase()}…`}
+                  className="h-6 flex-1 bg-transparent text-[12px] text-ink outline-none"
+                />
+                <span className="text-[11px] text-ink-3">
+                  {multiValues.length} selected
+                </span>
+              </div>
+              <div className="max-h-[220px] overflow-y-auto">
+                {filteredOptions && filteredOptions.length > 0 ? (
+                  filteredOptions.map((o) => {
+                    const checked = multiValues.includes(o.value);
+                    return (
+                      <label
+                        key={o.value}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-2 px-2 py-1 text-[12.5px] hover:bg-surface-2",
+                          checked && "bg-accent/5",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleMulti(o.value)}
+                          className="h-3.5 w-3.5 cursor-pointer accent-accent"
+                        />
+                        <span className="truncate text-ink" title={o.label}>
+                          {o.label}
+                        </span>
+                      </label>
+                    );
+                  })
+                ) : (
+                  <div className="px-2 py-2 text-center text-[11.5px] text-ink-3">
+                    No matches
+                  </div>
+                )}
+              </div>
+              {multiValues.length > 0 ? (
+                <div className="flex items-center justify-between border-t border-border-strong px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => setMultiValues([])}
+                    className="text-[11.5px] text-ink-3 hover:text-ink-2"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => filteredOptions && setMultiValues(filteredOptions.map((o) => o.value))}
+                    className="text-[11.5px] text-ink-3 hover:text-ink-2"
+                  >
+                    Select all{pickerQ ? " filtered" : ""}
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={needsValue && !value}
-            className="inline-flex h-7 items-center gap-1 rounded bg-ink px-2 text-[12px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Plus size={11} /> Add
-          </button>
-          <button
-            type="button"
-            onClick={() => { reset(); setOpen(false); }}
-            className="text-[11.5px] text-ink-3 hover:text-ink-2"
-          >
-            Cancel
-          </button>
+
+          <div className="mt-2 flex items-center justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => { reset(); setOpen(false); }}
+              className="text-[11.5px] text-ink-3 hover:text-ink-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={
+                needsValue &&
+                (isMultiSelect ? multiValues.length === 0 : !singleValue)
+              }
+              className="inline-flex h-7 items-center gap-1 rounded bg-ink px-2.5 text-[12px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Plus size={11} /> Add filter
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
