@@ -254,8 +254,6 @@ export function AccountDetailPage() {
         activities={activities}
         grouped
         scopeKey={`account:${account.Id}`}
-        accountName={account.Name}
-        accountOwner={account.Owner?.Name ?? null}
       />
 
       {/* Open opportunities */}

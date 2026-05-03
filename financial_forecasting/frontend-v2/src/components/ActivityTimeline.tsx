@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
   Pin,
   PinOff,
-  RefreshCw,
   Search,
-  Sparkles,
   X,
 } from "lucide-react";
 
@@ -15,7 +12,6 @@ import { ActivitySourceIcon } from "@/components/ActivitySourceIcon";
 import { useCollapsible } from "@/lib/collapsible";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
 import { useCurrentUser } from "@/services/auth";
 import type { BedrockActivity } from "@/types/salesforce";
 
@@ -115,42 +111,6 @@ function savePins(scopeKey: string, ids: Set<string>) {
   } catch {}
 }
 
-// ── AI summary ─────────────────────────────────────────────────────────────
-
-interface SummaryResponse {
-  summary: string;
-  generated_at: string;
-  activity_count?: number;
-}
-
-function useActivitySummary(
-  scopeKey: string,
-  activities: BedrockActivity[],
-  context: { account_name?: string | null; owner_name?: string | null },
-) {
-  return useMutation({
-    mutationFn: async (): Promise<SummaryResponse> => {
-      const payload = {
-        account_name: context.account_name ?? null,
-        owner_name: context.owner_name ?? null,
-        activities: activities.slice(0, 60).map((a) => ({
-          date: activityTimestamp(a),
-          type: a.type,
-          subject: a.subject,
-          snippet: a.email_snippet ?? a.description ?? null,
-          owner: a.owner_email,
-        })),
-      };
-      const { data } = await api.post<SummaryResponse>(
-        "/api/ai/account-activity-summary",
-        payload,
-      );
-      return data;
-    },
-    mutationKey: ["activity-summary", scopeKey],
-  });
-}
-
 // ── Component ──────────────────────────────────────────────────────────────
 
 const DEFAULT_MAX_H = 600;
@@ -169,16 +129,12 @@ export function ActivityTimeline({
   maxHeight = DEFAULT_MAX_H,
   grouped = false,
   scopeKey = "shared",
-  accountName,
-  accountOwner,
 }: {
   activities: BedrockActivity[];
   title?: string;
   maxHeight?: number;
   grouped?: boolean;
   scopeKey?: string;
-  accountName?: string | null;
-  accountOwner?: string | null;
 }) {
   const { open, toggle } = useCollapsible(
     "bedrock-v2:section:activity-timeline",
@@ -301,12 +257,6 @@ export function ActivityTimeline({
     return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
   }, [unpinnedRows, groupMode]);
 
-  // AI summary.
-  const summary = useActivitySummary(scopeKey, filtered, {
-    account_name: accountName,
-    owner_name: accountOwner,
-  });
-
   const heading =
     title ??
     `Activity${
@@ -342,17 +292,6 @@ export function ActivityTimeline({
 
       {!open ? null : (
         <>
-          {/* AI summary card */}
-          {activities.length > 0 ? (
-            <SummaryCard
-              summary={summary.data?.summary}
-              isPending={summary.isPending}
-              error={summary.error instanceof Error ? summary.error.message : null}
-              onGenerate={() => summary.mutate()}
-              activityCount={filtered.length}
-            />
-          ) : null}
-
           {/* Quick filter chips */}
           {activities.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5 border-b border-border-strong bg-surface px-4 py-2">
@@ -569,62 +508,6 @@ function GroupHeader({ label, accent }: { label: string; accent?: boolean }) {
       )}
     >
       {label}
-    </div>
-  );
-}
-
-function SummaryCard({
-  summary,
-  isPending,
-  error,
-  onGenerate,
-  activityCount,
-}: {
-  summary: string | undefined;
-  isPending: boolean;
-  error: string | null;
-  onGenerate: () => void;
-  activityCount: number;
-}) {
-  return (
-    <div className="border-b border-border-strong bg-gradient-to-br from-accent/5 to-transparent px-4 py-3">
-      <div className="flex items-start gap-2.5">
-        <div className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
-          <Sparkles size={12} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-              AI summary
-            </span>
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={isPending || activityCount === 0}
-              className="inline-flex items-center gap-1 text-[11px] text-ink-3 hover:text-ink-2 disabled:cursor-not-allowed disabled:opacity-50"
-              title="Regenerate summary"
-            >
-              <RefreshCw size={10} className={cn(isPending && "animate-spin")} />
-              {summary ? "Refresh" : "Generate"}
-            </button>
-          </div>
-          {summary ? (
-            <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
-              {summary}
-            </p>
-          ) : isPending ? (
-            <p className="mt-1 text-[12px] italic text-ink-4">Reading the timeline…</p>
-          ) : error ? (
-            <p className="mt-1 text-[12px] text-red">
-              Couldn't generate summary: {error}
-            </p>
-          ) : (
-            <p className="mt-1 text-[12px] text-ink-4">
-              Click <span className="font-medium">Generate</span> for a 2-3 sentence read of recent activity.
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
