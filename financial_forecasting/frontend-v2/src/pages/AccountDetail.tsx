@@ -250,7 +250,13 @@ export function AccountDetailPage() {
       <AccountTasksSection accountId={account.Id} />
 
       {/* Activity timeline — full width */}
-      <ActivityTimeline activities={activities} grouped />
+      <ActivityTimeline
+        activities={activities}
+        grouped
+        scopeKey={`account:${account.Id}`}
+        accountName={account.Name}
+        accountOwner={account.Owner?.Name ?? null}
+      />
 
       {/* Open opportunities */}
       {openOpps.length > 0 ? (

@@ -1,18 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import {
+  ChevronDown,
+  ChevronRight,
+  Pin,
+  PinOff,
+  RefreshCw,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 import { ActivitySourceIcon } from "@/components/ActivitySourceIcon";
 import { useCollapsible } from "@/lib/collapsible";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { useCurrentUser } from "@/services/auth";
 import type { BedrockActivity } from "@/types/salesforce";
 
-/**
- * Email snippets and SF descriptions arrive with lots of dead whitespace
- * — leading spaces on every line from quoted-reply chevrons, runs of
- * blank lines from signature blocks, and trailing junk. Trim per line
- * and collapse 3+ consecutive blank lines into one paragraph break.
- */
+// ── Body normalization ─────────────────────────────────────────────────────
+
 function normalizeBody(raw: string): string {
   return raw
     .replace(/\r\n/g, "\n")
@@ -27,10 +35,8 @@ function activityTimestamp(a: BedrockActivity): string | null {
   return a.activity_date ?? a.occurred_at ?? a.created_at ?? null;
 }
 
-/**
- * Returns a human-readable time bucket for grouping.
- * Buckets: Today, This week, This month, Month Year (e.g. "March 2025"), Older
- */
+// ── Time grouping ──────────────────────────────────────────────────────────
+
 function timeGroup(dateStr: string | null | undefined): string {
   if (!dateStr) return "Older";
   const d = new Date(dateStr);
@@ -71,44 +77,136 @@ function groupOrder(group: string): number {
   return 9999;
 }
 
-const DEFAULT_MAX_H = 520;
+// ── Quick filter chips ─────────────────────────────────────────────────────
+
+type Quick = "all" | "7d" | "30d" | "by-me" | "mentions-me";
+
+const QUICK_OPTS: { value: Quick; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "by-me", label: "By me" },
+  { value: "mentions-me", label: "Mentions me" },
+];
 
 const ALL_TYPE = "__all_types__";
 const ALL_SOURCE = "__all_sources__";
 
+// ── Pin persistence ────────────────────────────────────────────────────────
+
+const PIN_STORAGE_PREFIX = "bedrock-v2:activity-pinned:";
+
+function loadPins(scopeKey: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(PIN_STORAGE_PREFIX + scopeKey);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function savePins(scopeKey: string, ids: Set<string>) {
+  try {
+    localStorage.setItem(
+      PIN_STORAGE_PREFIX + scopeKey,
+      JSON.stringify(Array.from(ids)),
+    );
+  } catch {}
+}
+
+// ── AI summary ─────────────────────────────────────────────────────────────
+
+interface SummaryResponse {
+  summary: string;
+  generated_at: string;
+  activity_count?: number;
+}
+
+function useActivitySummary(
+  scopeKey: string,
+  activities: BedrockActivity[],
+  context: { account_name?: string | null; owner_name?: string | null },
+) {
+  return useMutation({
+    mutationFn: async (): Promise<SummaryResponse> => {
+      const payload = {
+        account_name: context.account_name ?? null,
+        owner_name: context.owner_name ?? null,
+        activities: activities.slice(0, 60).map((a) => ({
+          date: activityTimestamp(a),
+          type: a.type,
+          subject: a.subject,
+          snippet: a.email_snippet ?? a.description ?? null,
+          owner: a.owner_email,
+        })),
+      };
+      const { data } = await api.post<SummaryResponse>(
+        "/api/ai/account-activity-summary",
+        payload,
+      );
+      return data;
+    },
+    mutationKey: ["activity-summary", scopeKey],
+  });
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
+const DEFAULT_MAX_H = 600;
+
 /**
- * Full-text searchable activity timeline. Searches across subject,
- * body, and owner email. Type and source filters dropdown-style
- * (chips would scale poorly when there are 8+ types). Match terms
- * are highlighted in both the row preview and the expanded body.
+ * Searchable, AI-summarizable activity timeline with quick filters,
+ * pinning, and contact/time grouping toggle.
  *
- * The list virtualizes-by-grouping rather than per-row — typical
- * accounts have <500 activities so a virtualizer is overkill, but the
- * scroll container is height-capped (520px default) so even a
- * thousand-row list stays usable.
+ * `scopeKey` namespaces persisted state (pins) — pass the account id
+ * so different accounts don't share each other's pins. Defaults to
+ * "shared" if not provided.
  */
 export function ActivityTimeline({
   activities,
   title,
   maxHeight = DEFAULT_MAX_H,
   grouped = false,
+  scopeKey = "shared",
+  accountName,
+  accountOwner,
 }: {
   activities: BedrockActivity[];
   title?: string;
   maxHeight?: number;
   grouped?: boolean;
+  scopeKey?: string;
+  accountName?: string | null;
+  accountOwner?: string | null;
 }) {
   const { open, toggle } = useCollapsible(
     "bedrock-v2:section:activity-timeline",
     true,
   );
+  const meQ = useCurrentUser();
+  const myEmail = (meQ.data?.email ?? "").toLowerCase();
 
-  // Search + filter state — all client-side since the data is already
-  // loaded for the page.
+  // Search + filter state.
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>(ALL_TYPE);
   const [sourceFilter, setSourceFilter] = useState<string>(ALL_SOURCE);
+  const [quick, setQuick] = useState<Quick>("all");
+  const [groupMode, setGroupMode] = useState<"time" | "contact">("time");
 
+  // Pin state — persisted per scope.
+  const [pinned, setPinned] = useState<Set<string>>(() => loadPins(scopeKey));
+  useEffect(() => { savePins(scopeKey, pinned); }, [scopeKey, pinned]);
+  const togglePin = (id: string) => {
+    setPinned((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Facets.
   const facets = useMemo(() => {
     const types = new Map<string, number>();
     const sources = new Map<string, number>();
@@ -125,12 +223,30 @@ export function ActivityTimeline({
   const needle = q.trim().toLowerCase();
 
   const filtered = useMemo(() => {
-    if (!needle && typeFilter === ALL_TYPE && sourceFilter === ALL_SOURCE) {
-      return activities;
-    }
+    const now = Date.now();
+    const dayMs = 86_400_000;
     return activities.filter((a) => {
       if (typeFilter !== ALL_TYPE && a.type !== typeFilter) return false;
       if (sourceFilter !== ALL_SOURCE && a.source !== sourceFilter) return false;
+      if (quick !== "all") {
+        const ts = activityTimestamp(a);
+        const tsMs = ts ? new Date(ts).getTime() : 0;
+        if (quick === "7d" && (!ts || now - tsMs > 7 * dayMs)) return false;
+        if (quick === "30d" && (!ts || now - tsMs > 30 * dayMs)) return false;
+        if (quick === "by-me") {
+          if (!myEmail) return false;
+          if ((a.owner_email ?? "").toLowerCase() !== myEmail) return false;
+        }
+        if (quick === "mentions-me") {
+          if (!myEmail) return false;
+          const hay = (
+            (a.subject ?? "") +
+            "\n" + (a.description ?? "") +
+            "\n" + (a.email_snippet ?? "")
+          ).toLowerCase();
+          if (!hay.includes(myEmail)) return false;
+        }
+      }
       if (!needle) return true;
       const hay = [
         a.subject,
@@ -144,12 +260,23 @@ export function ActivityTimeline({
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [activities, needle, typeFilter, sourceFilter]);
+  }, [activities, typeFilter, sourceFilter, quick, needle, myEmail]);
 
-  const groups = useMemo(() => {
+  // Pinned + non-pinned split.
+  const pinnedRows = useMemo(
+    () => filtered.filter((a) => pinned.has(a.id)),
+    [filtered, pinned],
+  );
+  const unpinnedRows = useMemo(
+    () => filtered.filter((a) => !pinned.has(a.id)),
+    [filtered, pinned],
+  );
+
+  // Time grouping.
+  const timeGroups = useMemo(() => {
     if (!grouped) return null;
     const map = new Map<string, BedrockActivity[]>();
-    for (const a of filtered) {
+    for (const a of unpinnedRows) {
       const key = timeGroup(activityTimestamp(a));
       const arr = map.get(key);
       if (arr) arr.push(a);
@@ -158,7 +285,27 @@ export function ActivityTimeline({
     return Array.from(map.entries()).sort(
       ([a], [b]) => groupOrder(a) - groupOrder(b),
     );
-  }, [filtered, grouped]);
+  }, [unpinnedRows, grouped]);
+
+  // Person grouping — by owner_email primarily, since contact_ids
+  // doesn't carry display names.
+  const personGroups = useMemo(() => {
+    if (groupMode !== "contact") return null;
+    const map = new Map<string, BedrockActivity[]>();
+    for (const a of unpinnedRows) {
+      const key = a.owner_email ?? "(no owner)";
+      const arr = map.get(key);
+      if (arr) arr.push(a);
+      else map.set(key, [a]);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
+  }, [unpinnedRows, groupMode]);
+
+  // AI summary.
+  const summary = useActivitySummary(scopeKey, filtered, {
+    account_name: accountName,
+    owner_name: accountOwner,
+  });
 
   const heading =
     title ??
@@ -171,12 +318,14 @@ export function ActivityTimeline({
   const filtersActive =
     needle.length > 0 ||
     typeFilter !== ALL_TYPE ||
-    sourceFilter !== ALL_SOURCE;
+    sourceFilter !== ALL_SOURCE ||
+    quick !== "all";
 
   const clearFilters = () => {
     setQ("");
     setTypeFilter(ALL_TYPE);
     setSourceFilter(ALL_SOURCE);
+    setQuick("all");
   };
 
   return (
@@ -193,7 +342,60 @@ export function ActivityTimeline({
 
       {!open ? null : (
         <>
-          {/* Search + filter bar */}
+          {/* AI summary card */}
+          {activities.length > 0 ? (
+            <SummaryCard
+              summary={summary.data?.summary}
+              isPending={summary.isPending}
+              error={summary.error instanceof Error ? summary.error.message : null}
+              onGenerate={() => summary.mutate()}
+              activityCount={filtered.length}
+            />
+          ) : null}
+
+          {/* Quick filter chips */}
+          {activities.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-border-strong bg-surface px-4 py-2">
+              {QUICK_OPTS.map((q) => (
+                <button
+                  key={q.value}
+                  type="button"
+                  onClick={() => setQuick(q.value)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium transition-colors",
+                    quick === q.value
+                      ? "border-accent bg-accent/10 text-ink"
+                      : "border-border-strong bg-surface text-ink-3 hover:bg-surface-2",
+                    q.value === "by-me" && !myEmail && "opacity-40",
+                    q.value === "mentions-me" && !myEmail && "opacity-40",
+                  )}
+                  disabled={
+                    (q.value === "by-me" || q.value === "mentions-me") && !myEmail
+                  }
+                  title={
+                    (q.value === "by-me" || q.value === "mentions-me") && !myEmail
+                      ? "Sign in to use this filter"
+                      : undefined
+                  }
+                >
+                  {q.label}
+                </button>
+              ))}
+
+              <span className="mx-1 h-4 w-px bg-border-strong" />
+
+              <button
+                type="button"
+                onClick={() => setGroupMode((m) => (m === "time" ? "contact" : "time"))}
+                className="rounded-full border border-border-strong bg-surface px-2.5 py-0.5 text-[11.5px] font-medium text-ink-3 hover:bg-surface-2"
+                title={`Switch to ${groupMode === "time" ? "person" : "time"} grouping`}
+              >
+                Group: {groupMode === "time" ? "Time" : "Person"}
+              </button>
+            </div>
+          ) : null}
+
+          {/* Search + dropdown filters */}
           {activities.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 border-b border-border-strong bg-surface px-4 py-2">
               <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded border border-border-strong bg-surface-2 px-2.5 focus-within:border-accent">
@@ -260,57 +462,170 @@ export function ActivityTimeline({
             </div>
           ) : null}
 
+          {/* Body */}
           {activities.length === 0 ? (
             <div className="px-5 py-10 text-center text-[12.5px] text-ink-3">
               No activities logged.
             </div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-10 text-center text-[12.5px] text-ink-3">
-              No activities match this search.
+              No activities match.{" "}
               <button
                 type="button"
                 onClick={clearFilters}
-                className="ml-2 text-accent underline-offset-4 hover:underline"
+                className="text-accent underline-offset-4 hover:underline"
               >
                 Clear filters
               </button>
             </div>
-          ) : grouped && groups ? (
-            <div className="overflow-auto" style={{ maxHeight: `${maxHeight}px` }}>
-              {groups.map(([group, rows]) => (
-                <div key={group}>
-                  <div className="sticky top-0 z-10 border-b border-border-strong bg-surface-2/90 px-5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3 backdrop-blur-sm">
-                    {group}
-                    <span className="ml-1.5 font-normal normal-case tracking-normal text-ink-4">
-                      · {rows.length}
-                    </span>
-                  </div>
+          ) : (
+            <div
+              className="overflow-auto"
+              style={{ maxHeight: `${maxHeight}px` }}
+            >
+              {pinnedRows.length > 0 ? (
+                <div>
+                  <GroupHeader label={`Pinned · ${pinnedRows.length}`} accent />
                   <ul className="flex flex-col">
-                    {rows.map((a) => (
+                    {pinnedRows.map((a) => (
                       <ActivityRow
                         key={a.id}
                         a={a}
                         showContext
                         needle={needle}
+                        pinned
+                        onTogglePin={() => togglePin(a.id)}
                       />
                     ))}
                   </ul>
                 </div>
-              ))}
+              ) : null}
+
+              {groupMode === "contact" && personGroups
+                ? personGroups.map(([person, rows]) => (
+                    <div key={person}>
+                      <GroupHeader label={`${person} · ${rows.length}`} />
+                      <ul className="flex flex-col">
+                        {rows.map((a) => (
+                          <ActivityRow
+                            key={a.id}
+                            a={a}
+                            showContext
+                            needle={needle}
+                            pinned={false}
+                            onTogglePin={() => togglePin(a.id)}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                : grouped && timeGroups
+                  ? timeGroups.map(([group, rows]) => (
+                      <div key={group}>
+                        <GroupHeader label={`${group} · ${rows.length}`} />
+                        <ul className="flex flex-col">
+                          {rows.map((a) => (
+                            <ActivityRow
+                              key={a.id}
+                              a={a}
+                              showContext
+                              needle={needle}
+                              pinned={false}
+                              onTogglePin={() => togglePin(a.id)}
+                            />
+                          ))}
+                        </ul>
+                      </div>
+                    ))
+                  : (
+                    <ul className="flex flex-col">
+                      {unpinnedRows.map((a) => (
+                        <ActivityRow
+                          key={a.id}
+                          a={a}
+                          needle={needle}
+                          pinned={false}
+                          onTogglePin={() => togglePin(a.id)}
+                        />
+                      ))}
+                    </ul>
+                  )}
             </div>
-          ) : (
-            <ul
-              className="flex flex-col overflow-auto"
-              style={{ maxHeight: `${maxHeight}px` }}
-            >
-              {filtered.map((a) => (
-                <ActivityRow key={a.id} a={a} needle={needle} />
-              ))}
-            </ul>
           )}
         </>
       )}
     </section>
+  );
+}
+
+// ── Section bits ───────────────────────────────────────────────────────────
+
+function GroupHeader({ label, accent }: { label: string; accent?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "sticky top-0 z-10 border-b border-border-strong px-5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3 backdrop-blur-sm",
+        accent ? "bg-accent/10 text-accent" : "bg-surface-2/90",
+      )}
+    >
+      {label}
+    </div>
+  );
+}
+
+function SummaryCard({
+  summary,
+  isPending,
+  error,
+  onGenerate,
+  activityCount,
+}: {
+  summary: string | undefined;
+  isPending: boolean;
+  error: string | null;
+  onGenerate: () => void;
+  activityCount: number;
+}) {
+  return (
+    <div className="border-b border-border-strong bg-gradient-to-br from-accent/5 to-transparent px-4 py-3">
+      <div className="flex items-start gap-2.5">
+        <div className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+          <Sparkles size={12} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+              AI summary
+            </span>
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={isPending || activityCount === 0}
+              className="inline-flex items-center gap-1 text-[11px] text-ink-3 hover:text-ink-2 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Regenerate summary"
+            >
+              <RefreshCw size={10} className={cn(isPending && "animate-spin")} />
+              {summary ? "Refresh" : "Generate"}
+            </button>
+          </div>
+          {summary ? (
+            <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
+              {summary}
+            </p>
+          ) : isPending ? (
+            <p className="mt-1 text-[12px] italic text-ink-4">Reading the timeline…</p>
+          ) : error ? (
+            <p className="mt-1 text-[12px] text-red">
+              Couldn't generate summary: {error}
+            </p>
+          ) : (
+            <p className="mt-1 text-[12px] text-ink-4">
+              Click <span className="font-medium">Generate</span> for a 2-3 sentence read of recent activity.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -326,8 +641,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 function prettyType(t: string): string {
-  const k = t.toLowerCase();
-  return TYPE_LABELS[k] ?? capitalize(t);
+  return TYPE_LABELS[t.toLowerCase()] ?? capitalize(t);
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -339,8 +653,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 function prettySource(s: string): string {
-  const k = s.toLowerCase();
-  return SOURCE_LABELS[k] ?? capitalize(s);
+  return SOURCE_LABELS[s.toLowerCase()] ?? capitalize(s);
 }
 
 function capitalize(s: string): string {
@@ -384,10 +697,6 @@ function ContextChip({
 
 // ── Match highlighting ─────────────────────────────────────────────────────
 
-/**
- * Returns the text with all occurrences of `needle` wrapped in <mark>.
- * Case-insensitive. Falls back to plain text if no needle.
- */
 function highlightMatches(text: string, needle: string): React.ReactNode {
   if (!needle || !text) return text;
   const lower = text.toLowerCase();
@@ -416,85 +725,87 @@ function ActivityRow({
   a,
   showContext = false,
   needle = "",
+  pinned,
+  onTogglePin,
 }: {
   a: BedrockActivity;
   showContext?: boolean;
   needle?: string;
+  pinned: boolean;
+  onTogglePin: () => void;
 }) {
-  // Auto-expand rows when a search match lives in the body — so users
-  // see why their search hit. Closes again when they clear.
-  const matchInBody = useMemo(() => {
-    if (!needle) return false;
-    const body = (a.email_snippet ?? a.description ?? "").toLowerCase();
-    if (!body) return false;
-    const subject = (a.subject ?? "").toLowerCase();
-    return body.includes(needle) && !subject.includes(needle);
-  }, [a, needle]);
+  // Manual expand only — search no longer auto-opens rows. Highlighting
+  // covers the common case ("did this term hit?"); users can still click
+  // a row to read the full body.
   const [expanded, setExpanded] = useState(false);
-  const expandedNow = expanded || matchInBody;
-
-  // Reset manual-expand state when the search changes — so closing a row
-  // and then changing the search auto-collapses it correctly.
-  const prevNeedleRef = useRef(needle);
-  useEffect(() => {
-    if (prevNeedleRef.current !== needle) {
-      setExpanded(false);
-      prevNeedleRef.current = needle;
-    }
-  }, [needle]);
-
   const rawBody = a.email_snippet ?? a.description ?? "";
   const hasBody = rawBody.trim().length > 0;
   const body = hasBody ? normalizeBody(rawBody) : "";
   const date = fmtDate(activityTimestamp(a));
 
   return (
-    <li className="border-b border-border-strong last:border-b-0">
-      <button
-        type="button"
-        onClick={() => hasBody && setExpanded((v) => !v)}
-        disabled={!hasBody}
-        className={cn(
-          "flex w-full items-center gap-3 px-5 py-2.5 text-left",
-          hasBody ? "hover:bg-surface-2" : "cursor-default",
-        )}
-        aria-expanded={hasBody ? expandedNow : undefined}
-      >
-        <span className="flex-shrink-0 text-ink-3">
-          {hasBody ? (
-            expandedNow ? (
-              <ChevronDown size={14} />
-            ) : (
-              <ChevronRight size={14} />
-            )
-          ) : (
-            <span className="block h-[14px] w-[14px]" />
+    <li className="group/row border-b border-border-strong last:border-b-0">
+      <div className="flex items-center">
+        <button
+          type="button"
+          onClick={() => hasBody && setExpanded((v) => !v)}
+          disabled={!hasBody}
+          className={cn(
+            "flex flex-1 items-center gap-3 px-5 py-2.5 text-left",
+            hasBody ? "hover:bg-surface-2" : "cursor-default",
           )}
-        </span>
-        <span className="flex-shrink-0">
-          <ActivitySourceIcon source={a.source} type={a.type} size={16} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-medium text-ink">
-            {highlightMatches(a.subject ?? "(no subject)", needle)}
+          aria-expanded={hasBody ? expanded : undefined}
+        >
+          <span className="flex-shrink-0 text-ink-3">
+            {hasBody ? (
+              expanded ? (
+                <ChevronDown size={14} />
+              ) : (
+                <ChevronRight size={14} />
+              )
+            ) : (
+              <span className="block h-[14px] w-[14px]" />
+            )}
+          </span>
+          <span className="flex-shrink-0">
+            <ActivitySourceIcon source={a.source} type={a.type} size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium text-ink">
+              {highlightMatches(a.subject ?? "(no subject)", needle)}
+            </div>
+            {hasBody && !expanded ? (
+              <div className="line-clamp-1 text-[12px] text-ink-3">
+                {highlightMatches(body, needle)}
+              </div>
+            ) : null}
+            {a.owner_email ? (
+              <div className="truncate text-[10.5px] text-ink-4">
+                {highlightMatches(a.owner_email, needle)}
+              </div>
+            ) : null}
           </div>
-          {hasBody && !expandedNow ? (
-            <div className="line-clamp-1 text-[12px] text-ink-3">
-              {highlightMatches(body, needle)}
-            </div>
-          ) : null}
-          {a.owner_email ? (
-            <div className="truncate text-[10.5px] text-ink-4">
-              {highlightMatches(a.owner_email, needle)}
-            </div>
-          ) : null}
-        </div>
-        {showContext && a._context_type && a._context_type !== "account" && (
-          <ContextChip type={a._context_type} name={a._context_name} />
-        )}
-        <div className="mono flex-shrink-0 text-[11px] text-ink-3">{date}</div>
-      </button>
-      {expandedNow && hasBody ? (
+          {showContext && a._context_type && a._context_type !== "account" && (
+            <ContextChip type={a._context_type} name={a._context_name} />
+          )}
+          <div className="mono flex-shrink-0 text-[11px] text-ink-3">{date}</div>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+          className={cn(
+            "flex-shrink-0 rounded p-1.5 transition-opacity",
+            pinned
+              ? "text-accent opacity-100"
+              : "text-ink-4 opacity-0 hover:text-ink-2 group-hover/row:opacity-100",
+          )}
+          aria-label={pinned ? "Unpin activity" : "Pin activity"}
+          title={pinned ? "Unpin" : "Pin"}
+        >
+          {pinned ? <Pin size={12} fill="currentColor" /> : <PinOff size={12} />}
+        </button>
+      </div>
+      {expanded && hasBody ? (
         <div className="border-t border-border-strong bg-surface-2/40 px-5 py-3 pl-[58px] text-[12.5px] leading-relaxed text-ink-2">
           <div className="whitespace-pre-wrap break-words">
             {highlightMatches(body, needle)}
