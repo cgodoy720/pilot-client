@@ -35,18 +35,31 @@ export function useAccountEnrichment(sfAccountId: string | null | undefined) {
 }
 
 /** Batch enrichment lookup. Returns `{sf_account_id: enrichment | null}`
- *  for every requested id (cap 200 ids per call). Stable cache key
- *  via sorted ids so two callers with the same set share a fetch. */
+ *  for every requested id. Chunks into 200-id GETs (URL gets too long
+ *  past ~400 ids; Pursuit has 20k+ SF Accounts) and merges. Stable
+ *  cache key via sorted ids so two callers with the same set share. */
+const ENRICH_CHUNK = 200;
+
 export function useAccountsEnrichment(sfAccountIds: string[]) {
   const stableKey = useMemo(() => [...sfAccountIds].sort(), [sfAccountIds]);
   return useQuery({
     queryKey: ["accounts-enrichment", stableKey],
     queryFn: async (): Promise<Record<string, AccountEnrichment | null>> => {
       if (stableKey.length === 0) return {};
-      const { data } = await api.get<Record<string, AccountEnrichment | null>>(
-        `/api/accounts/enrichment?ids=${stableKey.join(",")}`,
+      const chunks: string[][] = [];
+      for (let i = 0; i < stableKey.length; i += ENRICH_CHUNK) {
+        chunks.push(stableKey.slice(i, i + ENRICH_CHUNK));
+      }
+      const results = await Promise.all(
+        chunks.map((c) =>
+          api
+            .get<Record<string, AccountEnrichment | null>>(
+              `/api/accounts/enrichment?ids=${c.join(",")}`,
+            )
+            .then((r) => r.data),
+        ),
       );
-      return data;
+      return Object.assign({}, ...results);
     },
     enabled: stableKey.length > 0,
     staleTime: 5 * 60_000,
