@@ -135,6 +135,7 @@ export function AccountDetailPage() {
     const oppIds = new Set(opps.map((o) => o.Id));
     return (awardsQ.data ?? []).filter((a) => oppIds.has(a.opportunity_id));
   }, [awardsQ.data, opps]);
+  const hasActiveAwards = accountAwards.some((a) => a.award_status === "Active");
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
@@ -251,7 +252,10 @@ export function AccountDetailPage() {
 
       {/* Opportunities — single section, pill toggles Open / Lost / All. */}
       {openOpps.length + lostOpps.length > 0 ? (
-        <SectionCard title={`Opportunities (${openOpps.length + lostOpps.length})`}>
+        <SectionCard
+          title={`Opportunities (${openOpps.length + lostOpps.length})`}
+          defaultOpen={openOpps.length > 0}
+        >
           <OpportunitiesForAccount
             openOpps={openOpps}
             lostOpps={lostOpps}
@@ -264,7 +268,10 @@ export function AccountDetailPage() {
           shows payment progress + status + reporting in the same compact
           format as the global Awards page. */}
       {accountAwards.length > 0 ? (
-        <SectionCard title={`Awards (${accountAwards.length})`}>
+        <SectionCard
+          title={`Awards (${accountAwards.length})`}
+          defaultOpen={hasActiveAwards}
+        >
           <AwardsForAccountTable awards={accountAwards} opps={opps} />
         </SectionCard>
       ) : null}

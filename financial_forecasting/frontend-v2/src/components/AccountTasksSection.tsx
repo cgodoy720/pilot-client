@@ -148,7 +148,7 @@ export function AccountTasksSection({
           </button>
         </div>
       ) : null}
-      <SectionShell title="Tasks">
+      <SectionShell title="Tasks" defaultOpen={open.length > 0}>
         <div className="flex items-center gap-1.5 border-b border-border-strong bg-surface-2/40 px-5 py-2">
           {(["open", "completed", "all"] as const).map((s) => {
             const label =
@@ -224,14 +224,16 @@ function SectionShell({
   title,
   children,
   dim,
+  defaultOpen = true,
 }: {
   title: string;
   children: React.ReactNode;
   dim?: boolean;
+  defaultOpen?: boolean;
 }) {
   const { open, toggle } = useCollapsible(
     `bedrock-v2:section:account-tasks${dim ? "-closed" : ""}`,
-    true,
+    defaultOpen,
   );
   return (
     <section
