@@ -1462,7 +1462,7 @@ function ReportsCell({ award }: { award: Award }) {
 
 // ── Opportunities (pill toggle) ───────────────────────────────────────────
 
-type OppScope = "open" | "lost" | "all";
+type OppScope = "open" | "lost";
 
 function OpportunitiesForAccount({
   openOpps,
@@ -1475,28 +1475,17 @@ function OpportunitiesForAccount({
 }) {
   const [scope, setScope] = useState<OppScope>("open");
 
-  const visible = useMemo(() => {
-    if (scope === "open") return openOpps;
-    if (scope === "lost") return lostOpps;
-    return [...openOpps, ...lostOpps];
-  }, [scope, openOpps, lostOpps]);
-
-  const counts = {
-    open: openOpps.length,
-    lost: lostOpps.length,
-    all: openOpps.length + lostOpps.length,
-  };
-
+  const visible = scope === "open" ? openOpps : lostOpps;
+  const counts = { open: openOpps.length, lost: lostOpps.length };
   const labels: Record<OppScope, string> = {
     open: "Open",
-    lost: "Lost",
-    all: "All",
+    lost: "Lost / Withdrawn",
   };
 
   return (
     <div>
       <div className="flex items-center gap-1.5 border-b border-border-strong bg-surface-2/40 px-5 py-2">
-        {(["open", "lost", "all"] as const).map((s) => {
+        {(["open", "lost"] as const).map((s) => {
           const active = scope === s;
           return (
             <button
@@ -1517,13 +1506,13 @@ function OpportunitiesForAccount({
       </div>
       {visible.length === 0 ? (
         <div className="px-5 py-6 text-center text-[12.5px] text-ink-3">
-          No {scope === "open" ? "open" : scope === "lost" ? "lost / withdrawn" : ""} opportunities.
+          No {scope === "open" ? "open" : "lost / withdrawn"} opportunities.
         </div>
       ) : (
         <OppTable
           opps={visible}
-          priorStages={scope !== "open" ? priorStages : undefined}
-          showPriorStage={scope !== "open"}
+          priorStages={scope === "lost" ? priorStages : undefined}
+          showPriorStage={scope === "lost"}
         />
       )}
     </div>
