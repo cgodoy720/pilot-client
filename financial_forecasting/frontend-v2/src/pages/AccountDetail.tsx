@@ -249,18 +249,12 @@ export function AccountDetailPage() {
       {/* Tasks — full width */}
       <AccountTasksSection accountId={account.Id} />
 
-      {/* Open opportunities — full width, above activity */}
+      {/* Open opportunities — full width */}
       {openOpps.length > 0 ? (
         <SectionCard title={`Open opportunities (${openOpps.length})`}>
           <OppTable opps={openOpps} />
         </SectionCard>
       ) : null}
-
-      {/* Activity timeline — full width */}
-      <ActivityTimeline
-        activities={activities}
-        scopeKey={`account:${account.Id}`}
-      />
 
       {/* Awards — pulled from bedrock.award (not opp.IsWon). Each row
           shows payment progress + status + reporting in the same compact
@@ -270,6 +264,12 @@ export function AccountDetailPage() {
           <AwardsForAccountTable awards={accountAwards} opps={opps} />
         </SectionCard>
       ) : null}
+
+      {/* Activity timeline — full width, below awards */}
+      <ActivityTimeline
+        activities={activities}
+        scopeKey={`account:${account.Id}`}
+      />
 
       {/* Closed-lost / withdrawn opportunities */}
       {lostOpps.length > 0 ? (

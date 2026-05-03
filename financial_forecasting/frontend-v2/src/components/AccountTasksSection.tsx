@@ -27,8 +27,9 @@ const PRIORITY_OPTIONS = [
   { value: "High", label: "High" },
 ];
 
-const OPEN_LIST_MAX_H = 320;
-const CLOSED_LIST_MAX_H = 240;
+const OPEN_LIST_MAX_H = 360;
+
+type TaskScope = "open" | "completed" | "all";
 
 function isTaskClosed(t: SfTask): boolean {
   if (t.IsClosed != null) return !!t.IsClosed;
@@ -64,7 +65,7 @@ export function AccountTasksSection({
     [usersQ.data],
   );
 
-  const [showClosed, setShowClosed] = useState(false);
+  const [scope, setScope] = useState<TaskScope>("open");
   const [clobberWarning, setClobberWarning] = useState<{
     intended: string;
     saved: string | null;
@@ -82,6 +83,8 @@ export function AccountTasksSection({
   };
   const open = tasks.filter((t) => !isTaskClosed(t)).sort(sortByCreated);
   const closed = tasks.filter((t) => isTaskClosed(t)).sort(sortByCreated);
+  const visibleTasks =
+    scope === "open" ? open : scope === "completed" ? closed : [...open, ...closed];
 
   const saveStatus = (id: string, status: string) =>
     updateTask.mutateAsync({ id, patch: { Status: status } }).then(() => undefined);
@@ -145,14 +148,40 @@ export function AccountTasksSection({
           </button>
         </div>
       ) : null}
-      <SectionShell title={`Tasks · Open (${open.length})`}>
+      <SectionShell title="Tasks">
+        <div className="flex items-center gap-1.5 border-b border-border-strong bg-surface-2/40 px-5 py-2">
+          {(["open", "completed", "all"] as const).map((s) => {
+            const label =
+              s === "open" ? "Open" : s === "completed" ? "Completed" : "All";
+            const n =
+              s === "open" ? open.length : s === "completed" ? closed.length : tasks.length;
+            const active = scope === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScope(s)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium transition-colors",
+                  active
+                    ? "border-accent bg-accent/10 text-ink"
+                    : "border-border-strong bg-surface text-ink-3 hover:bg-surface-2",
+                )}
+              >
+                {label} · {n}
+              </button>
+            );
+          })}
+        </div>
         {isLoading ? (
           <Loading />
-        ) : open.length === 0 ? (
-          <Empty>No open tasks.</Empty>
+        ) : visibleTasks.length === 0 ? (
+          <Empty>
+            No {scope === "open" ? "open" : scope === "completed" ? "completed" : ""} tasks.
+          </Empty>
         ) : (
           <ScrollList maxH={OPEN_LIST_MAX_H}>
-            {open.map((t) => (
+            {visibleTasks.map((t) => (
               <TaskRow
                 key={t.Id}
                 t={t}
@@ -187,38 +216,6 @@ export function AccountTasksSection({
           }}
         />
       </SectionShell>
-
-      {closed.length > 0 ? (
-        <section className="overflow-hidden rounded-lg border border-border-strong bg-surface-2/50 shadow-sm">
-          <button
-            onClick={() => setShowClosed((v) => !v)}
-            className="flex w-full items-center gap-1.5 border-b border-border-strong bg-surface-2/70 px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider text-ink-4 hover:text-ink-3"
-          >
-            {showClosed ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            Tasks · Completed ({closed.length})
-          </button>
-          {showClosed && (
-            <ScrollList maxH={CLOSED_LIST_MAX_H}>
-              {closed.map((t) => (
-                <TaskRow
-                  key={t.Id}
-                  t={t}
-                  accountId={accountId}
-                  ownerOptions={ownerOptions}
-                  onToggleComplete={() => toggleComplete(t)}
-                  onSaveStatus={(s) => saveStatus(t.Id, s)}
-                  onSavePriority={(p) => savePriority(t.Id, p)}
-                  onSaveDate={(d) => saveDate(t.Id, d)}
-                  onSaveOwner={(o) => saveOwner(t.Id, o)}
-                  onSaveSubject={(s) => saveSubject(t.Id, s)}
-                  onSaveDescription={(d) => saveDescription(t.Id, d)}
-                  onDelete={() => removeTask(t.Id)}
-                />
-              ))}
-            </ScrollList>
-          )}
-        </section>
-      ) : null}
     </div>
   );
 }
