@@ -67,7 +67,8 @@ export function ActivitySourceIcon({
  * ──────────────────────────────────────────────────────────────────── */
 
 function GmailIcon({ size }: { size: number }) {
-  // Multicolor "M" envelope. Source: Simple Icons.
+  // Classic red envelope-with-M (Simple Icons single-path version) —
+  // recognizable at small sizes, no overlap artifacts.
   return (
     <svg
       width={size}
@@ -78,35 +79,17 @@ function GmailIcon({ size }: { size: number }) {
     >
       <title>Gmail</title>
       <path
-        fill="#4285F4"
-        d="M22.288 21.001H19.27V11.73L24 8.183v11.181c0 .904-.732 1.637-1.636 1.637z"
-      />
-      <path
-        fill="#34A853"
-        d="M1.638 21.001H4.73V11.73L0 8.183v11.181c0 .904.732 1.637 1.636 1.637z"
-      />
-      <path
-        fill="#FBBC04"
-        d="M19.27 11.73 24 8.183V5.457a3.27 3.27 0 0 0-3.27-3.27c-.578 0-1.123.155-1.594.426l-1.5 1.05L12 8.55 19.27 11.73z"
-      />
-      <path
         fill="#EA4335"
-        d="M4.73 11.73V3.663l1.5-1.05a3.272 3.272 0 0 0-1.594-.426A3.27 3.27 0 0 0 1.366 5.457v2.726l3.364 3.547z"
-      />
-      <path
-        fill="#C5221F"
-        d="M4.73 11.73 12 8.55l7.27 3.18-7.27 4.91-7.27-4.91z"
-      />
-      <path
-        fill="#EA4335"
-        d="m12 8.55-7.27-4.887v8.067l7.27 4.91 7.27-4.91V3.663L12 8.55z"
+        d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"
       />
     </svg>
   );
 }
 
 function GoogleCalendarIcon({ size }: { size: number }) {
-  // Multicolor square with "31". Source: Simple Icons.
+  // Stylized "31" calendar in Google blue — reads as a calendar at
+  // 16px without trying to recreate the multi-color tile pattern that
+  // breaks at small sizes.
   return (
     <svg
       width={size}
@@ -116,25 +99,24 @@ function GoogleCalendarIcon({ size }: { size: number }) {
       aria-label="Meeting"
     >
       <title>Meeting</title>
-      <path fill="#FFFFFF" d="M19.5 4.5h-15v15h15v-15z" />
-      <path fill="#EA4335" d="M16.04 16.04H7.96V7.96h8.08v8.08z" />
-      <path
-        fill="#1A73E8"
-        d="M19.5 4.5v3.46h-3.46V4.5h3.46zm-3.46 11.54h3.46v3.46h-3.46v-3.46zM7.96 19.5H4.5v-3.46h3.46v3.46zM4.5 7.96V4.5h3.46v3.46H4.5z"
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="17"
+        rx="2"
+        fill="#FFFFFF"
+        stroke="#1A73E8"
+        strokeWidth="1.6"
       />
-      <path
-        fill="#34A853"
-        d="M19.5 19.5v-3.46h-3.46v3.46h3.46zm0-15v3.46h-3.46V4.5h3.46zM4.5 4.5v3.46h3.46V4.5H4.5zm0 15h3.46v-3.46H4.5v3.46z"
-      />
-      <path
-        fill="#4285F4"
-        d="M16.04 7.96V4.5H7.96v3.46h8.08zm0 8.08v3.46H7.96v-3.46h8.08z"
-      />
+      <line x1="3" y1="9" x2="21" y2="9" stroke="#1A73E8" strokeWidth="1.6" />
+      <line x1="8" y1="2.5" x2="8" y2="6" stroke="#1A73E8" strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="16" y1="2.5" x2="16" y2="6" stroke="#1A73E8" strokeWidth="1.6" strokeLinecap="round" />
       <text
         x="12"
-        y="14"
+        y="17.5"
         textAnchor="middle"
-        fontSize="6"
+        fontSize="7"
         fontWeight="700"
         fill="#1A73E8"
         fontFamily="-apple-system, BlinkMacSystemFont, sans-serif"
