@@ -57,16 +57,34 @@ export function fmtMoneyFull(
     : _moneyFullFormatter.format(value);
 }
 
+/**
+ * SF returns date-only fields like ActivityDate / CloseDate as bare
+ * "YYYY-MM-DD" strings. `new Date("2026-05-30")` parses those as UTC
+ * midnight, which in any timezone west of UTC renders as the prior
+ * day (May 29 in ET). Detect the date-only shape and construct a
+ * local Date instead so the displayed day always matches what was
+ * stored. Datetime strings (with a "T") still go through the normal
+ * Date parser, since for those the time-of-day matters.
+ */
+function parseDateForDisplay(iso: string): Date {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (dateOnly) {
+    const [, y, m, d] = dateOnly;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+  return new Date(iso);
+}
+
 export function fmtDateShort(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
+  const d = parseDateForDisplay(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
+  const d = parseDateForDisplay(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-US", {
     month: "short",

@@ -65,8 +65,18 @@ export function AccountTasksSection({
   );
 
   const [showClosed, setShowClosed] = useState(false);
-  const open = tasks.filter((t) => !isTaskClosed(t));
-  const closed = tasks.filter((t) => isTaskClosed(t));
+  // SF returns ORDER BY ActivityDate DESC NULLS LAST, which sinks any
+  // task without a due date to the bottom — including the one the user
+  // just created. Re-sort by CreatedDate DESC so newly-added tasks
+  // always appear at the top of the open list. Falls back to
+  // ActivityDate if CreatedDate is missing for some reason.
+  const sortByCreated = (a: SfTask, b: SfTask) => {
+    const ad = a.CreatedDate ?? a.ActivityDate ?? "";
+    const bd = b.CreatedDate ?? b.ActivityDate ?? "";
+    return bd.localeCompare(ad);
+  };
+  const open = tasks.filter((t) => !isTaskClosed(t)).sort(sortByCreated);
+  const closed = tasks.filter((t) => isTaskClosed(t)).sort(sortByCreated);
 
   const saveStatus = (id: string, status: string) =>
     updateTask.mutateAsync({ id, patch: { Status: status } }).then(() => undefined);
