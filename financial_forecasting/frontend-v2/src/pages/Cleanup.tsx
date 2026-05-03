@@ -158,11 +158,11 @@ function describeRule(r: FilterRule, opts: {
 
 // ── Columns ───────────────────────────────────────────────────────────────
 
-type ColKey = "name" | "account" | "stage" | "owner" | "recordType" | "amount" | "probability" | "closeDate";
+type ColKey = "name" | "account" | "stage" | "owner" | "recordType" | "amount" | "probability" | "closeDate" | "lastModified";
 
 const COLUMN_ORDER: ColKey[] = [
   "name", "account", "stage", "owner", "recordType",
-  "amount", "probability", "closeDate",
+  "amount", "probability", "closeDate", "lastModified",
 ];
 
 const DEFAULT_WIDTHS: Record<ColKey, number> = {
@@ -174,6 +174,7 @@ const DEFAULT_WIDTHS: Record<ColKey, number> = {
   amount: 110,
   probability: 80,
   closeDate: 110,
+  lastModified: 120,
 };
 
 const COL_LABELS: Record<ColKey, string> = {
@@ -185,6 +186,7 @@ const COL_LABELS: Record<ColKey, string> = {
   amount: "Amount",
   probability: "Prob.",
   closeDate: "Close",
+  lastModified: "Last modified",
 };
 
 const ROW_HEIGHT = 44;
@@ -199,6 +201,7 @@ function extractOpp(o: SfOpportunity, key: ColKey): unknown {
     case "amount": return o.Amount ?? 0;
     case "probability": return o.Probability ?? 0;
     case "closeDate": return o.CloseDate;
+    case "lastModified": return o.LastModifiedDate;
   }
 }
 
@@ -218,31 +221,55 @@ export function CleanupPage() {
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const ownerOptions = useMemo(
+  // Bulk-action picker (re-assigning ownership) — active users only.
+  // Don't let users hand opps off to someone who left.
+  const ownerBulkOptions = useMemo(
     () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
     [usersQ.data],
   );
 
-  // Stage / record-type / account / owner option lists — pulled from the
-  // actual data so users can only filter by values that exist.
+  // Stage / record-type / owner filter options — pulled from the actual
+  // opportunity data so users can filter by every value that appears,
+  // including owners who are no longer active SF users.
   const facets = useMemo(() => {
     const stages = new Set<string>();
     const recordTypes = new Set<string>();
+    const ownerNames = new Map<string, string>();
+    const activeIds = new Set((usersQ.data ?? []).map((u) => u.Id));
     for (const o of opps) {
       if (o.StageName) stages.add(o.StageName);
       if (o.RecordType?.Name) recordTypes.add(o.RecordType.Name);
+      if (o.OwnerId) {
+        // Prefer active-user name; fall back to whatever SOQL gave us
+        // on the Opportunity record.
+        const existing = ownerNames.get(o.OwnerId);
+        if (!existing && o.Owner?.Name) ownerNames.set(o.OwnerId, o.Owner.Name);
+      }
     }
+    const owners = Array.from(ownerNames.entries())
+      .map(([id, name]) => ({
+        value: id,
+        label: activeIds.has(id) ? name : `${name} (inactive)`,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
     return {
       stages: Array.from(stages).sort().map((v) => ({ value: v, label: v })),
       recordTypes: Array.from(recordTypes).sort().map((v) => ({ value: v, label: v })),
+      owners,
     };
-  }, [opps]);
+  }, [opps, usersQ.data]);
 
   const ownerLabel = useMemo(() => {
     const m = new Map<string, string>();
     for (const u of usersQ.data ?? []) m.set(u.Id, u.Name);
+    // Fall back to whatever's on the opp record if the user isn't active.
+    for (const o of opps) {
+      if (o.OwnerId && !m.has(o.OwnerId) && o.Owner?.Name) {
+        m.set(o.OwnerId, o.Owner.Name);
+      }
+    }
     return (id: string) => m.get(id) ?? id;
-  }, [usersQ.data]);
+  }, [usersQ.data, opps]);
 
   const filtered = useMemo(() => {
     return opps.filter((o) => {
@@ -426,7 +453,7 @@ export function CleanupPage() {
           existingRules={rules}
           stageOptions={facets.stages}
           recordTypeOptions={facets.recordTypes}
-          ownerOptions={ownerOptions}
+          ownerOptions={facets.owners}
           onAdd={(r) => setRules((prev) => [...prev, r])}
         />
         <ColumnChooser
@@ -583,7 +610,7 @@ export function CleanupPage() {
           value={bulkValue}
           onValueChange={setBulkValue}
           stageOptions={facets.stages.length > 0 ? facets.stages : SF_STAGE_OPTIONS}
-          ownerOptions={ownerOptions}
+          ownerOptions={ownerBulkOptions}
           selectedOpps={selectedOpps}
           progress={progress}
           onRun={runBulk}
@@ -653,6 +680,7 @@ const CleanupRow = memo(function CleanupRow({ o, visibleCols, checked, onToggle 
       <span className="text-ink-4">—</span>
     ),
     closeDate: <span className="mono text-[11.5px] text-ink-3">{fmtDate(o.CloseDate)}</span>,
+    lastModified: <span className="mono text-[11.5px] text-ink-3">{fmtDate(o.LastModifiedDate)}</span>,
   };
 
   const cellCls: Record<ColKey, string> = {
@@ -664,6 +692,7 @@ const CleanupRow = memo(function CleanupRow({ o, visibleCols, checked, onToggle 
     amount: "mono px-3 py-1 text-[12px] tabular-nums",
     probability: "mono px-3 py-1 text-[12px] tabular-nums",
     closeDate: "mono px-3 py-1 text-[11.5px] text-ink-3",
+    lastModified: "mono px-3 py-1 text-[11.5px] text-ink-3",
   };
 
   return (
