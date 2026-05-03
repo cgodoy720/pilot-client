@@ -161,81 +161,92 @@ export function AccountDetailPage() {
         <Stat label="Last activity" value={fmtDate(lastActivity)} />
       </div>
 
-      {/* Outcomes over time */}
-      {wonOpps.length + lostOpps.length > 0 ? (
-        <SectionCard title="History">
-          <HistoryChart wonOpps={wonOpps} lostOpps={lostOpps} />
+      {/* Details + History side-by-side. Details compressed to a 2-col
+          inner grid so it fits in half-width; History takes the other
+          half. SectionCard's own mt-6 on each child is fine because
+          siblings in a grid align to the row top regardless. */}
+      <div
+        className={cn(
+          "grid gap-x-4",
+          wonOpps.length + lostOpps.length > 0
+            ? "lg:grid-cols-2"
+            : "grid-cols-1",
+        )}
+      >
+        <SectionCard title="Details">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 px-5 py-4">
+            <EditField label="Owner">
+              <InlineSelect
+                value={account.OwnerId ?? null}
+                options={ownerOptions}
+                onSave={saveOwner}
+                renderValue={() => (
+                  <span className="text-[13px] text-ink-2">
+                    {account.Owner?.Name ?? ownerOptions.find((o) => o.value === account.OwnerId)?.label ?? "—"}
+                  </span>
+                )}
+              />
+            </EditField>
+            <EditField label="Type">
+              <InlineSelect
+                value={account.Type ?? null}
+                options={ACCOUNT_TYPE_OPTIONS}
+                onSave={(v) => patch("Type", v)}
+                emptyLabel="—"
+              />
+            </EditField>
+            <EditField label="Account tier">
+              <InlineSelect
+                value={account.Account_Tier__c ?? null}
+                options={ACCOUNT_TIER_OPTIONS}
+                onSave={(v) => patch("Account_Tier__c", v)}
+                emptyLabel="—"
+              />
+            </EditField>
+            <EditField label="Industry">
+              <InlineText
+                value={account.Industry ?? ""}
+                onSave={(v) => patch("Industry", v)}
+                placeholder="—"
+              />
+            </EditField>
+            <EditField label="Website">
+              <InlineText
+                value={account.Website ?? ""}
+                onSave={(v) => patch("Website", v)}
+                placeholder="—"
+              />
+            </EditField>
+            <EditField label="Phone">
+              <InlineText
+                value={account.Phone ?? ""}
+                onSave={(v) => patch("Phone", v)}
+                placeholder="—"
+              />
+            </EditField>
+            <EditField label="City">
+              <InlineText
+                value={account.BillingCity ?? ""}
+                onSave={(v) => patch("BillingCity", v)}
+                placeholder="—"
+              />
+            </EditField>
+            <EditField label="State">
+              <InlineText
+                value={account.BillingState ?? ""}
+                onSave={(v) => patch("BillingState", v)}
+                placeholder="—"
+              />
+            </EditField>
+          </div>
         </SectionCard>
-      ) : null}
 
-      {/* Editable details */}
-      <SectionCard title="Details">
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-5 py-4 md:grid-cols-3">
-          <EditField label="Owner">
-            <InlineSelect
-              value={account.OwnerId ?? null}
-              options={ownerOptions}
-              onSave={saveOwner}
-              renderValue={() => (
-                <span className="text-[13px] text-ink-2">
-                  {account.Owner?.Name ?? ownerOptions.find((o) => o.value === account.OwnerId)?.label ?? "—"}
-                </span>
-              )}
-            />
-          </EditField>
-          <EditField label="Type">
-            <InlineSelect
-              value={account.Type ?? null}
-              options={ACCOUNT_TYPE_OPTIONS}
-              onSave={(v) => patch("Type", v)}
-              emptyLabel="—"
-            />
-          </EditField>
-          <EditField label="Account tier">
-            <InlineSelect
-              value={account.Account_Tier__c ?? null}
-              options={ACCOUNT_TIER_OPTIONS}
-              onSave={(v) => patch("Account_Tier__c", v)}
-              emptyLabel="—"
-            />
-          </EditField>
-          <EditField label="Industry">
-            <InlineText
-              value={account.Industry ?? ""}
-              onSave={(v) => patch("Industry", v)}
-              placeholder="—"
-            />
-          </EditField>
-          <EditField label="Website">
-            <InlineText
-              value={account.Website ?? ""}
-              onSave={(v) => patch("Website", v)}
-              placeholder="—"
-            />
-          </EditField>
-          <EditField label="Phone">
-            <InlineText
-              value={account.Phone ?? ""}
-              onSave={(v) => patch("Phone", v)}
-              placeholder="—"
-            />
-          </EditField>
-          <EditField label="City">
-            <InlineText
-              value={account.BillingCity ?? ""}
-              onSave={(v) => patch("BillingCity", v)}
-              placeholder="—"
-            />
-          </EditField>
-          <EditField label="State">
-            <InlineText
-              value={account.BillingState ?? ""}
-              onSave={(v) => patch("BillingState", v)}
-              placeholder="—"
-            />
-          </EditField>
-        </div>
-      </SectionCard>
+        {wonOpps.length + lostOpps.length > 0 ? (
+          <SectionCard title="History">
+            <HistoryChart wonOpps={wonOpps} lostOpps={lostOpps} />
+          </SectionCard>
+        ) : null}
+      </div>
 
       {/* Description */}
       <SectionCard title="About">
