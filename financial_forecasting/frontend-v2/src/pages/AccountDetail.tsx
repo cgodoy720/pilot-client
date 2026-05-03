@@ -1213,6 +1213,8 @@ function Empty({ children }: { children: React.ReactNode }) {
  * server-aggregated report_done / report_total / next_report_date fields
  * that ride along on the award row.
  */
+type AwardScope = "active" | "closed" | "all";
+
 function AwardsForAccountTable({
   awards,
   opps,
@@ -1226,11 +1228,31 @@ function AwardsForAccountTable({
     return m;
   }, [opps]);
 
-  const totalAmount = awards.reduce(
+  // Default to "Active" — that's what an account owner is currently
+  // managing. "Closed" bundles Closing + Closed + Did Not Fulfill so
+  // there's no fourth bucket users have to remember.
+  const [scope, setScope] = useState<AwardScope>("active");
+
+  const visible = useMemo(() => {
+    if (scope === "all") return awards;
+    if (scope === "active") return awards.filter((a) => a.award_status === "Active");
+    return awards.filter((a) => a.award_status !== "Active");
+  }, [awards, scope]);
+
+  const counts = useMemo(() => {
+    let active = 0, closed = 0;
+    for (const a of awards) {
+      if (a.award_status === "Active") active += 1;
+      else closed += 1;
+    }
+    return { active, closed, all: awards.length };
+  }, [awards]);
+
+  const totalAmount = visible.reduce(
     (s, a) => s + (oppById.get(a.opportunity_id)?.Amount ?? 0),
     0,
   );
-  const totalPaid = awards.reduce(
+  const totalPaid = visible.reduce(
     (s, a) => s + (oppById.get(a.opportunity_id)?.npe01__Payments_Made__c ?? 0),
     0,
   );
@@ -1238,6 +1260,28 @@ function AwardsForAccountTable({
 
   return (
     <div>
+      <div className="flex items-center gap-1.5 border-b border-border-strong bg-surface-2/40 px-5 py-2">
+        {(["active", "closed", "all"] as const).map((s) => {
+          const label = s === "active" ? "Active" : s === "closed" ? "Closed" : "All";
+          const n = counts[s];
+          const active = scope === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setScope(s)}
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium transition-colors",
+                active
+                  ? "border-accent bg-accent/10 text-ink"
+                  : "border-border-strong bg-surface text-ink-3 hover:bg-surface-2",
+              )}
+            >
+              {label} · {n}
+            </button>
+          );
+        })}
+      </div>
       <table className="w-full border-collapse text-[12.5px]">
         <thead className="border-b border-border-strong bg-surface-2/60">
           <tr className="text-[10.5px] uppercase tracking-wider text-ink-3">
@@ -1252,7 +1296,14 @@ function AwardsForAccountTable({
           </tr>
         </thead>
         <tbody>
-          {awards.map((a) => {
+          {visible.length === 0 ? (
+            <tr>
+              <td colSpan={8} className="px-5 py-6 text-center text-[12.5px] text-ink-3">
+                No {scope === "active" ? "active" : scope === "closed" ? "closed" : ""} awards.
+              </td>
+            </tr>
+          ) : null}
+          {visible.map((a) => {
             const opp = oppById.get(a.opportunity_id);
             const total = opp?.Amount ?? 0;
             const paid = opp?.npe01__Payments_Made__c ?? 0;
