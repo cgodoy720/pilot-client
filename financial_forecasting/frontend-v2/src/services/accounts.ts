@@ -1,7 +1,57 @@
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import type { SfAccount } from "@/types/salesforce";
+
+export interface AccountEnrichment {
+  sf_account_id: string;
+  company_id: number;
+  name: string | null;
+  domain: string | null;
+  logo_url: string | null;
+  industry: string | null;
+  size_bucket: string | null;
+  enrichment_source: string | null;
+  enriched_at: string | null;
+  confidence: string | null;
+  matched_by: string | null;
+}
+
+/** Single-account enrichment lookup. Returns null if no match yet. */
+export function useAccountEnrichment(sfAccountId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["account-enrichment", sfAccountId],
+    queryFn: async (): Promise<AccountEnrichment | null> => {
+      if (!sfAccountId) return null;
+      const { data } = await api.get<AccountEnrichment | null>(
+        `/api/accounts/${encodeURIComponent(sfAccountId)}/enrichment`,
+      );
+      return data;
+    },
+    enabled: !!sfAccountId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Batch enrichment lookup. Returns `{sf_account_id: enrichment | null}`
+ *  for every requested id (cap 200 ids per call). Stable cache key
+ *  via sorted ids so two callers with the same set share a fetch. */
+export function useAccountsEnrichment(sfAccountIds: string[]) {
+  const stableKey = useMemo(() => [...sfAccountIds].sort(), [sfAccountIds]);
+  return useQuery({
+    queryKey: ["accounts-enrichment", stableKey],
+    queryFn: async (): Promise<Record<string, AccountEnrichment | null>> => {
+      if (stableKey.length === 0) return {};
+      const { data } = await api.get<Record<string, AccountEnrichment | null>>(
+        `/api/accounts/enrichment?ids=${stableKey.join(",")}`,
+      );
+      return data;
+    },
+    enabled: stableKey.length > 0,
+    staleTime: 5 * 60_000,
+  });
+}
 
 /**
  * Fetch all SF Accounts via the existing FastAPI endpoint.

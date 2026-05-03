@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Mail, Pencil, Phone, Plus, Search, UserPlus, X } from "lucide-react";
 
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { AccountTasksSection } from "@/components/AccountTasksSection";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
@@ -14,7 +15,7 @@ import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
 import { useCollapsible } from "@/lib/collapsible";
 import { isLost, isOpen, isWon, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccounts, useUpdateAccount } from "@/services/accounts";
+import { useAccountEnrichment, useAccounts, useUpdateAccount } from "@/services/accounts";
 import { useAccountFullActivities } from "@/services/activities";
 import { useContacts, useCreateContact, useUpdateContact } from "@/services/contacts";
 import { useAwards, type Award, type AwardStatus } from "@/services/awards";
@@ -137,21 +138,22 @@ export function AccountDetailPage() {
   }, [awardsQ.data, opps]);
   const hasActiveAwards = accountAwards.some((a) => a.award_status === "Active");
 
+  // Logo / domain / industry from public.companies via the
+  // sf_account_company_map bridge. Null if not yet matched.
+  const enrichmentQ = useAccountEnrichment(account.Id);
+  const enrichment = enrichmentQ.data ?? null;
+
   return (
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
       <BackLink />
 
       {/* Header */}
       <div className="mt-4 flex items-start gap-4">
-        <div
-          className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-md text-[16px] font-semibold text-surface"
-          style={{
-            background:
-              "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))",
-          }}
-        >
-          {initials(account.Name)}
-        </div>
+        <AccountAvatar
+          name={account.Name}
+          logoUrl={enrichment?.logo_url ?? null}
+          size={48}
+        />
         <div className="flex-1 min-w-0">
           <InlineText
             value={account.Name}

@@ -17,7 +17,13 @@ import { fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { isOpen, isWon } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccounts, useCreateAccount, useUpdateAccount } from "@/services/accounts";
+import { AccountAvatar } from "@/components/AccountAvatar";
+import {
+  useAccounts,
+  useAccountsEnrichment,
+  useCreateAccount,
+  useUpdateAccount,
+} from "@/services/accounts";
 import { useOpportunities } from "@/services/opportunities";
 import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
@@ -151,6 +157,12 @@ export function AccountsPage() {
   const opps = oppsQ.data ?? [];
 
   const metricsByAccount = useMemo(() => buildMetricsMap(opps), [opps]);
+
+  // Logos / domains from public.companies via the bridge map. Fetch once
+  // for every visible account in a single batched request (cap 1000).
+  const accountIds = useMemo(() => accounts.map((a) => a.Id), [accounts]);
+  const enrichmentQ = useAccountsEnrichment(accountIds);
+  const enrichment = enrichmentQ.data ?? {};
 
   const filtered = useMemo(() => {
     const f = accounts.filter(
@@ -365,6 +377,7 @@ export function AccountsPage() {
                       <AccountRow
                         a={a}
                         m={metricsByAccount.get(a.Id) ?? ZERO_METRICS}
+                        logoUrl={enrichment[a.Id]?.logo_url ?? null}
                         ownerOptions={ownerOptions}
                         onOpen={() => navigate(`/accounts/${a.Id}`)}
                         onSaveOwner={(id) => saveOwner(a.Id, id)}
@@ -579,6 +592,7 @@ function AcctField({ label, children }: { label: string; children: React.ReactNo
 interface RowProps {
   a: SfAccount;
   m: AccountMetrics;
+  logoUrl: string | null;
   ownerOptions: { value: string; label: string }[];
   onOpen: () => void;
   onSaveOwner: (ownerId: string) => Promise<void>;
@@ -591,6 +605,7 @@ interface RowProps {
 const AccountRow = memo(function AccountRow({
   a,
   m,
+  logoUrl,
   ownerOptions,
   onOpen,
   onSaveOwner,
@@ -603,7 +618,7 @@ const AccountRow = memo(function AccountRow({
 
   const cells: Partial<Record<ColKey, React.ReactNode>> = {
     name: (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         <button
           onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
           className="flex-shrink-0 text-ink-4 hover:text-ink-2 transition-colors"
@@ -611,6 +626,7 @@ const AccountRow = memo(function AccountRow({
         >
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
+        <AccountAvatar name={a.Name} logoUrl={logoUrl} size={22} />
         <div className="min-w-0 flex-1 cursor-pointer" onClick={onOpen}>
           <span className="block truncate font-medium hover:underline" title={a.Name}>
             {a.Name}
