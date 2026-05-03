@@ -36,13 +36,21 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       persistOptions={{
         persister,
         // Bump this when query shapes change so old caches don't poison new code.
-        buster: "v1",
-        // Don't persist auth-related queries — keep cookies/JWT auth fresh.
+        // v2 — 2026-05-03: Award / opp / contact schemas changed substantially
+        // (prior-stage map, IsClosed/IsWon, ISA exclusion, etc.). Older
+        // persisted caches were triggering "promise.then is not a function"
+        // during hydrate.
+        buster: "v2",
         dehydrateOptions: {
+          // Only persist queries that finished successfully — pending /
+          // error states carry a state.promise field that doesn't survive
+          // JSON.stringify, which causes "promise.then is not a function"
+          // during hydrate. Also skip auth-related queries so cookies/JWT
+          // stay fresh on reload.
           shouldDehydrateQuery: (q) => {
             const k = q.queryKey;
             if (Array.isArray(k) && k[0] === "auth") return false;
-            return true;
+            return q.state.status === "success" && q.state.data !== undefined;
           },
         },
         // Hide the splash if hydration is slow.
