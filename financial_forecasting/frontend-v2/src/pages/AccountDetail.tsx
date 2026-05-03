@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Mail, Phone, Plus, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Mail, Pencil, Phone, Plus, Search, UserPlus, X } from "lucide-react";
 
 import { AccountTasksSection } from "@/components/AccountTasksSection";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
@@ -13,10 +13,10 @@ import { isLost, isOpen, isWon, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useUpdateAccount } from "@/services/accounts";
 import { useAccountFullActivities } from "@/services/activities";
-import { useContacts, useCreateContact } from "@/services/contacts";
+import { useContacts, useCreateContact, useUpdateContact } from "@/services/contacts";
 import { useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
-import type { SfOpportunity } from "@/types/salesforce";
+import type { SfContact, SfOpportunity } from "@/types/salesforce";
 
 export function AccountDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -205,17 +205,12 @@ export function AccountDetailPage() {
               )}
             </DetailRow>
             <DetailRow label="Primary contact">
-              {primaryContact ? (
-                <Link
-                  to={`/contacts/${primaryContact.Id}`}
-                  className="truncate text-[13px] text-ink-2 hover:underline"
-                  title={primaryContact.Name ?? primaryContact.Id}
-                >
-                  {primaryContact.Name ?? "—"}
-                </Link>
-              ) : (
-                <span className="text-[12.5px] text-ink-4">—</span>
-              )}
+              <PrimaryContactPicker
+                accountId={account.Id}
+                accountName={account.Name}
+                accountContacts={contacts}
+                primary={primaryContact}
+              />
             </DetailRow>
           </div>
         </SectionCard>
@@ -347,11 +342,18 @@ export function AccountDetailPage() {
 function AddContactModal({
   accountId,
   onClose,
+  asPrimary,
+  previousPrimaryId,
 }: {
   accountId: string;
   onClose: () => void;
+  /** Mark the new contact as the account's primary on creation. */
+  asPrimary?: boolean;
+  /** Existing primary to demote (clear Philanthropic_Contact__c). */
+  previousPrimaryId?: string | null;
 }) {
   const createContact = useCreateContact();
+  const updateContact = useUpdateContact();
   const [form, setForm] = useState({
     FirstName: "",
     LastName: "",
@@ -369,6 +371,14 @@ function AddContactModal({
     if (!form.LastName.trim()) return;
     setError(null);
     try {
+      // Demote the previous primary first so we never have two flagged
+      // at once even momentarily.
+      if (asPrimary && previousPrimaryId) {
+        await updateContact.mutateAsync({
+          id: previousPrimaryId,
+          patch: { Philanthropic_Contact__c: false },
+        });
+      }
       await createContact.mutateAsync({
         AccountId: accountId,
         FirstName: form.FirstName.trim() || undefined,
@@ -376,6 +386,7 @@ function AddContactModal({
         Email: form.Email.trim() || undefined,
         Phone: form.Phone.trim() || undefined,
         Title: form.Title.trim() || undefined,
+        Philanthropic_Contact__c: asPrimary || undefined,
       });
       onClose();
     } catch (err) {
@@ -390,7 +401,9 @@ function AddContactModal({
     >
       <div className="w-full max-w-md rounded-lg border border-border-strong bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-border-strong px-5 py-3">
-          <span className="text-[14px] font-semibold">Add contact</span>
+          <span className="text-[14px] font-semibold">
+            {asPrimary ? "Add primary contact" : "Add contact"}
+          </span>
           <button onClick={onClose} className="text-ink-3 hover:text-ink">
             <X size={16} />
           </button>
@@ -649,6 +662,264 @@ function BarSegment({ pct, className }: { pct: number; className: string }) {
 
 function LegendDot({ color }: { color: string }) {
   return <span className={cn("inline-block h-2 w-2 rounded-full", color)} />;
+}
+
+// ── Primary contact picker ────────────────────────────────────────────────
+
+/**
+ * Read + edit affordance for the account's primary contact. Closed
+ * state: shows the current primary as a link (or "—") with a small
+ * Pencil button. Open state: a popover with three picking modes —
+ * (a) any contact already on this account, (b) anyone else in the
+ * org via search, (c) brand-new contact via the existing AddContactModal.
+ *
+ * Picking a contact from another account re-parents them (writes
+ * AccountId on the contact record). The popover surfaces the previous
+ * account name as a confirm so it isn't surprising. Org-wide search
+ * is only fetched once the user has typed ≥2 chars, to avoid loading
+ * thousands of contacts upfront.
+ */
+function PrimaryContactPicker({
+  accountId,
+  accountName,
+  accountContacts,
+  primary,
+}: {
+  accountId: string;
+  accountName: string;
+  accountContacts: SfContact[];
+  primary: SfContact | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [q, setQ] = useState("");
+  const updateContact = useUpdateContact();
+
+  // Fetch the org-wide list lazily — only once the user has typed
+  // something, since this can be a few thousand rows.
+  const orgWideQ = useContacts();
+  const orgWideContacts = orgWideQ.data ?? [];
+
+  const onAccount = useMemo(() => {
+    if (!q.trim()) return accountContacts;
+    const needle = q.trim().toLowerCase();
+    return accountContacts.filter((c) =>
+      ((c.Name ?? "") + " " + (c.Email ?? "") + " " + (c.Title ?? ""))
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [accountContacts, q]);
+
+  const offAccount = useMemo(() => {
+    if (q.trim().length < 2) return [];
+    const needle = q.trim().toLowerCase();
+    const onIds = new Set(accountContacts.map((c) => c.Id));
+    return orgWideContacts
+      .filter((c) => !onIds.has(c.Id))
+      .filter((c) =>
+        ((c.Name ?? "") + " " + (c.Email ?? "") + " " + (c.Title ?? ""))
+          .toLowerCase()
+          .includes(needle),
+      )
+      .slice(0, 25);
+  }, [orgWideContacts, accountContacts, q]);
+
+  const promote = async (c: SfContact, opts: { reparent?: boolean } = {}) => {
+    // Demote the previous primary first (if any and different).
+    if (primary && primary.Id !== c.Id) {
+      await updateContact.mutateAsync({
+        id: primary.Id,
+        patch: { Philanthropic_Contact__c: false },
+      });
+    }
+    const patch: Record<string, unknown> = {
+      Philanthropic_Contact__c: true,
+    };
+    if (opts.reparent) patch.AccountId = accountId;
+    await updateContact.mutateAsync({
+      id: c.Id,
+      patch,
+      displayPatch: opts.reparent
+        ? { AccountId: accountId, Philanthropic_Contact__c: true }
+        : { Philanthropic_Contact__c: true },
+    });
+    setOpen(false);
+    setQ("");
+  };
+
+  return (
+    <div className="relative">
+      <div className="flex min-w-0 items-center gap-2">
+        {primary ? (
+          <Link
+            to={`/contacts/${primary.Id}`}
+            className="truncate text-[13px] text-ink-2 hover:underline"
+            title={primary.Name ?? primary.Id}
+          >
+            {primary.Name ?? "—"}
+          </Link>
+        ) : (
+          <span className="text-[12.5px] text-ink-4">—</span>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex-shrink-0 rounded p-0.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
+          aria-label={primary ? "Change primary contact" : "Set primary contact"}
+        >
+          <Pencil size={11} />
+        </button>
+      </div>
+
+      {open ? (
+        <>
+          {/* Click-outside backdrop */}
+          <div
+            className="fixed inset-0 z-30"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute left-0 top-full z-40 mt-1 w-[360px] rounded-md border border-border-strong bg-surface shadow-md">
+            <div className="flex items-center gap-1.5 border-b border-border-strong px-2 py-1.5">
+              <Search size={12} className="flex-shrink-0 text-ink-3" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search contacts on this account or across the org…"
+                className="h-6 flex-1 bg-transparent text-[12px] text-ink outline-none"
+              />
+            </div>
+
+            <div className="max-h-[320px] overflow-y-auto">
+              {onAccount.length > 0 ? (
+                <ContactPickList
+                  heading="On this account"
+                  contacts={onAccount}
+                  primary={primary}
+                  onPick={(c) => promote(c)}
+                />
+              ) : !q ? (
+                <div className="px-3 py-3 text-[12px] text-ink-4">
+                  No contacts on this account yet. Search the org or create
+                  a new contact.
+                </div>
+              ) : null}
+
+              {offAccount.length > 0 ? (
+                <ContactPickList
+                  heading="Elsewhere in the org"
+                  contacts={offAccount}
+                  primary={null}
+                  onPick={(c) => promote(c, { reparent: true })}
+                  warnReparent={accountName}
+                />
+              ) : null}
+
+              {q.trim().length >= 2 &&
+              onAccount.length === 0 &&
+              offAccount.length === 0 &&
+              !orgWideQ.isLoading ? (
+                <div className="px-3 py-3 text-[12px] text-ink-4">
+                  No matches.
+                </div>
+              ) : null}
+
+              {q.trim().length >= 2 && orgWideQ.isLoading ? (
+                <div className="px-3 py-3 text-[12px] text-ink-4">
+                  Searching…
+                </div>
+              ) : null}
+            </div>
+
+            <div className="border-t border-border-strong px-2 py-1.5">
+              <button
+                type="button"
+                onClick={() => { setShowCreate(true); setOpen(false); }}
+                className="flex w-full items-center gap-2 rounded px-2 py-1 text-[12px] text-ink-2 hover:bg-surface-2"
+              >
+                <UserPlus size={12} className="text-ink-3" />
+                Create new contact (set as primary)
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {showCreate ? (
+        <AddContactModal
+          accountId={accountId}
+          asPrimary
+          previousPrimaryId={primary?.Id ?? null}
+          onClose={() => setShowCreate(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ContactPickList({
+  heading,
+  contacts,
+  primary,
+  onPick,
+  warnReparent,
+}: {
+  heading: string;
+  contacts: SfContact[];
+  primary: SfContact | null;
+  onPick: (c: SfContact) => void;
+  warnReparent?: string;
+}) {
+  return (
+    <div>
+      <div className="border-b border-border-strong bg-surface-2/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink-3">
+        {heading}
+      </div>
+      <ul>
+        {contacts.map((c) => {
+          const isCurrent = primary?.Id === c.Id;
+          return (
+            <li key={c.Id}>
+              <button
+                type="button"
+                onClick={() => onPick(c)}
+                disabled={isCurrent}
+                className={cn(
+                  "flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left text-[12.5px] hover:bg-surface-2",
+                  isCurrent && "opacity-60",
+                )}
+                title={
+                  isCurrent
+                    ? "Already the primary contact"
+                    : warnReparent
+                      ? `Will move ${c.Name ?? c.Id} to ${warnReparent}`
+                      : undefined
+                }
+              >
+                <span className="flex w-full items-center gap-2">
+                  <span className="truncate font-medium text-ink">
+                    {c.Name ?? "(no name)"}
+                  </span>
+                  {isCurrent ? (
+                    <span className="ml-auto text-[10.5px] text-accent">current</span>
+                  ) : null}
+                </span>
+                <span className="flex w-full items-center gap-2 text-[11px] text-ink-3">
+                  {c.Title ? <span className="truncate">{c.Title}</span> : null}
+                  {c.Email ? <span className="truncate">· {c.Email}</span> : null}
+                  {warnReparent && c.Account?.Name ? (
+                    <span className="ml-auto truncate text-[10.5px] text-amber-700">
+                      currently @ {c.Account.Name}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 function SectionCard({

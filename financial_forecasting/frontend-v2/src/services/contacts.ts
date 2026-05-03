@@ -10,6 +10,9 @@ export interface CreateContactBody {
   Email?: string;
   Phone?: string;
   Title?: string;
+  // Optional — set the new contact as the account's philanthropic
+  // primary in the same round-trip.
+  Philanthropic_Contact__c?: boolean;
 }
 
 async function fetchContacts(accountId?: string): Promise<SfContact[]> {
