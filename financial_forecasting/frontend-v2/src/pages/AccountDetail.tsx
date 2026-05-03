@@ -249,10 +249,14 @@ export function AccountDetailPage() {
       {/* Tasks — full width */}
       <AccountTasksSection accountId={account.Id} />
 
-      {/* Open opportunities — full width */}
-      {openOpps.length > 0 ? (
-        <SectionCard title={`Open opportunities (${openOpps.length})`}>
-          <OppTable opps={openOpps} />
+      {/* Opportunities — single section, pill toggles Open / Lost / All. */}
+      {openOpps.length + lostOpps.length > 0 ? (
+        <SectionCard title={`Opportunities (${openOpps.length + lostOpps.length})`}>
+          <OpportunitiesForAccount
+            openOpps={openOpps}
+            lostOpps={lostOpps}
+            priorStages={priorStages}
+          />
         </SectionCard>
       ) : null}
 
@@ -270,13 +274,6 @@ export function AccountDetailPage() {
         activities={activities}
         scopeKey={`account:${account.Id}`}
       />
-
-      {/* Closed-lost / withdrawn opportunities */}
-      {lostOpps.length > 0 ? (
-        <SectionCard title={`Closed lost / withdrawn (${lostOpps.length})`}>
-          <OppTable opps={lostOpps} priorStages={priorStages} showPriorStage />
-        </SectionCard>
-      ) : null}
 
       {/* Contacts */}
       <SectionCard
@@ -1459,6 +1456,76 @@ function ReportsCell({ award }: { award: Award }) {
       ) : allDone ? (
         <span className="text-[11px] text-green-700">Complete</span>
       ) : null}
+    </div>
+  );
+}
+
+// ── Opportunities (pill toggle) ───────────────────────────────────────────
+
+type OppScope = "open" | "lost" | "all";
+
+function OpportunitiesForAccount({
+  openOpps,
+  lostOpps,
+  priorStages,
+}: {
+  openOpps: SfOpportunity[];
+  lostOpps: SfOpportunity[];
+  priorStages: Record<string, PriorStage>;
+}) {
+  const [scope, setScope] = useState<OppScope>("open");
+
+  const visible = useMemo(() => {
+    if (scope === "open") return openOpps;
+    if (scope === "lost") return lostOpps;
+    return [...openOpps, ...lostOpps];
+  }, [scope, openOpps, lostOpps]);
+
+  const counts = {
+    open: openOpps.length,
+    lost: lostOpps.length,
+    all: openOpps.length + lostOpps.length,
+  };
+
+  const labels: Record<OppScope, string> = {
+    open: "Open",
+    lost: "Lost",
+    all: "All",
+  };
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 border-b border-border-strong bg-surface-2/40 px-5 py-2">
+        {(["open", "lost", "all"] as const).map((s) => {
+          const active = scope === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setScope(s)}
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium transition-colors",
+                active
+                  ? "border-accent bg-accent/10 text-ink"
+                  : "border-border-strong bg-surface text-ink-3 hover:bg-surface-2",
+              )}
+            >
+              {labels[s]} · {counts[s]}
+            </button>
+          );
+        })}
+      </div>
+      {visible.length === 0 ? (
+        <div className="px-5 py-6 text-center text-[12.5px] text-ink-3">
+          No {scope === "open" ? "open" : scope === "lost" ? "lost / withdrawn" : ""} opportunities.
+        </div>
+      ) : (
+        <OppTable
+          opps={visible}
+          priorStages={scope !== "open" ? priorStages : undefined}
+          showPriorStage={scope !== "open"}
+        />
+      )}
     </div>
   );
 }
