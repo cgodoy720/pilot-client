@@ -181,7 +181,18 @@ export function ActivityTimeline({
   const filtered = useMemo(() => {
     const now = Date.now();
     const dayMs = 86_400_000;
-    return activities.filter((a) => {
+    // Defensive sort: server already orders by activity_date DESC, but
+    // resort client-side so manual additions / cache merges can't put
+    // older rows on top.
+    const sorted = [...activities].sort((a, b) => {
+      const at = activityTimestamp(a);
+      const bt = activityTimestamp(b);
+      if (!at && !bt) return 0;
+      if (!at) return 1;
+      if (!bt) return -1;
+      return bt.localeCompare(at);
+    });
+    return sorted.filter((a) => {
       if (typeFilter !== ALL_TYPE && a.type !== typeFilter) return false;
       if (sourceFilter !== ALL_SOURCE && a.source !== sourceFilter) return false;
       if (quick !== "all") {

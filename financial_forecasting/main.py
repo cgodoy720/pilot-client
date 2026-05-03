@@ -2237,7 +2237,8 @@ async def generate_forecasting_report(
 @app.post("/api/sync/trigger")
 async def trigger_data_sync(
     background_tasks: BackgroundTasks,
-    sync_type: str = Query("all", regex="^(all|salesforce|intacct)$"),
+    sync_type: str = Query("all", regex="^(all|salesforce|intacct|activities)$"),
+    force_full: bool = Query(False, description="Ignore the watermark — re-fetch + re-classify all rows. Only meaningful for sync_type=activities."),
     user = Depends(check_permission("trigger_data_sync")),
     sync_service: DataSyncService = Depends(get_data_sync_service),
 ):
@@ -2251,12 +2252,18 @@ async def trigger_data_sync(
             async with _sync_lock:
                 await sync_fn()
 
+        async def _locked_activities():
+            async with _sync_lock:
+                await sync_service.sync_activities(force_full=force_full)
+
         if sync_type == "all":
             background_tasks.add_task(_locked_sync, sync_service.sync_all_data)
         elif sync_type == "salesforce":
             background_tasks.add_task(_locked_sync, sync_service.sync_salesforce_data)
         elif sync_type == "intacct":
             background_tasks.add_task(_locked_sync, sync_service.sync_intacct_data)
+        elif sync_type == "activities":
+            background_tasks.add_task(_locked_activities)
 
         return ApiResponse(
             success=True,
