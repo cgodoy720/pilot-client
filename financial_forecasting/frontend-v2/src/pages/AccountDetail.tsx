@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useAccounts, useUpdateAccount } from "@/services/accounts";
 import { useAccountFullActivities } from "@/services/activities";
 import { useContacts, useCreateContact, useUpdateContact } from "@/services/contacts";
+import { useAwards, type Award, type AwardStatus } from "@/services/awards";
 import { useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
 import type { SfContact, SfOpportunity } from "@/types/salesforce";
@@ -125,6 +126,15 @@ export function AccountDetailPage() {
   const lostOppIds = useMemo(() => lostOpps.map((o) => o.Id), [lostOpps]);
   const priorStagesQ = useOpportunityPriorStages(lostOppIds);
   const priorStages = priorStagesQ.data ?? {};
+
+  // Awards are the SoT for "what we've won" — they layer payment status
+  // and reporting lifecycle onto closed-won opps. Filter to awards
+  // whose opportunity_id is among this account's opps.
+  const awardsQ = useAwards();
+  const accountAwards = useMemo(() => {
+    const oppIds = new Set(opps.map((o) => o.Id));
+    return (awardsQ.data ?? []).filter((a) => oppIds.has(a.opportunity_id));
+  }, [awardsQ.data, opps]);
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
@@ -259,10 +269,12 @@ export function AccountDetailPage() {
         </SectionCard>
       ) : null}
 
-      {/* Closed-won opportunities */}
-      {wonOpps.length > 0 ? (
-        <SectionCard title={`Awarded / closed-won (${wonOpps.length})`}>
-          <OppTable opps={wonOpps} />
+      {/* Awards — pulled from bedrock.award (not opp.IsWon). Each row
+          shows payment progress + status + reporting in the same compact
+          format as the global Awards page. */}
+      {accountAwards.length > 0 ? (
+        <SectionCard title={`Awards (${accountAwards.length})`}>
+          <AwardsForAccountTable awards={accountAwards} opps={opps} />
         </SectionCard>
       ) : null}
 
@@ -1195,6 +1207,215 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 function Empty({ children }: { children: React.ReactNode }) {
   return (
     <div className="px-5 py-8 text-center text-[12.5px] text-ink-3">{children}</div>
+  );
+}
+
+// ── Awards table (account-scoped) ─────────────────────────────────────────
+
+/**
+ * Compact awards list for the AccountDetail page. Mirrors the Awards
+ * page columns minus "Funder" (every row is the same account here).
+ * Payment progress comes from the linked SF opp's npe01__Payments_Made__c
+ * and Amount roll-ups; status from bedrock.award; reports from the
+ * server-aggregated report_done / report_total / next_report_date fields
+ * that ride along on the award row.
+ */
+function AwardsForAccountTable({
+  awards,
+  opps,
+}: {
+  awards: Award[];
+  opps: SfOpportunity[];
+}) {
+  const oppById = useMemo(() => {
+    const m = new Map<string, SfOpportunity>();
+    for (const o of opps) m.set(o.Id, o);
+    return m;
+  }, [opps]);
+
+  const totalAmount = awards.reduce(
+    (s, a) => s + (oppById.get(a.opportunity_id)?.Amount ?? 0),
+    0,
+  );
+  const totalPaid = awards.reduce(
+    (s, a) => s + (oppById.get(a.opportunity_id)?.npe01__Payments_Made__c ?? 0),
+    0,
+  );
+  const totalPending = Math.max(0, totalAmount - totalPaid);
+
+  return (
+    <div>
+      <table className="w-full border-collapse text-[12.5px]">
+        <thead className="border-b border-border-strong bg-surface-2/60">
+          <tr className="text-[10.5px] uppercase tracking-wider text-ink-3">
+            <th className="px-5 py-1.5 text-left font-semibold">Award</th>
+            <th className="px-3 py-1.5 text-left font-semibold">Status</th>
+            <th className="px-3 py-1.5 text-right font-semibold">Total</th>
+            <th className="px-3 py-1.5 text-left font-semibold">Progress</th>
+            <th className="px-3 py-1.5 text-right font-semibold">Paid</th>
+            <th className="px-3 py-1.5 text-right font-semibold">Pending</th>
+            <th className="px-3 py-1.5 text-left font-semibold">Reports</th>
+            <th className="px-3 py-1.5 text-left font-semibold">Awarded</th>
+          </tr>
+        </thead>
+        <tbody>
+          {awards.map((a) => {
+            const opp = oppById.get(a.opportunity_id);
+            const total = opp?.Amount ?? 0;
+            const paid = opp?.npe01__Payments_Made__c ?? 0;
+            const pending = Math.max(0, total - paid);
+            return (
+              <tr
+                key={a.id}
+                className="border-b border-border-strong last:border-b-0"
+              >
+                <td className="px-5 py-2">
+                  <Link
+                    to={`/awards/${a.id}`}
+                    className="block min-w-0 text-[13px] font-medium hover:underline"
+                  >
+                    {opp?.Name ?? a.opportunity_id}
+                  </Link>
+                  {opp?.RecordType?.Name ? (
+                    <span className="text-[11px] text-ink-4">
+                      {opp.RecordType.Name}
+                    </span>
+                  ) : null}
+                </td>
+                <td className="px-3 py-2">
+                  <Tag variant={awardStatusVariant(a.award_status)}>
+                    {a.award_status}
+                  </Tag>
+                </td>
+                <td className="mono px-3 py-2 text-right font-medium tabular-nums">
+                  {total > 0 ? fmtMoney(total) : <span className="text-ink-4">—</span>}
+                </td>
+                <td className="px-3 py-2">
+                  {total > 0 ? (
+                    <PaymentProgressBar paid={paid} total={total} />
+                  ) : (
+                    <span className="text-[11px] text-ink-4">—</span>
+                  )}
+                </td>
+                <td className="mono px-3 py-2 text-right tabular-nums">
+                  {paid > 0 ? (
+                    <span className="text-green-700">{fmtMoney(paid)}</span>
+                  ) : (
+                    <span className="text-ink-4">—</span>
+                  )}
+                </td>
+                <td className="mono px-3 py-2 text-right tabular-nums">
+                  {pending > 0 ? (
+                    <span className="text-amber-700">{fmtMoney(pending)}</span>
+                  ) : (
+                    <span className="text-ink-4">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  <ReportsCell award={a} />
+                </td>
+                <td className="mono px-3 py-2 text-[11.5px] text-ink-3">
+                  {fmtDate(a.award_date)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-border-strong bg-surface-2/60 text-[11.5px] font-semibold uppercase tracking-wider text-ink-3">
+            <td className="px-5 py-2">Totals</td>
+            <td className="px-3 py-2" />
+            <td className="mono px-3 py-2 text-right tabular-nums text-ink">
+              {fmtMoney(totalAmount)}
+            </td>
+            <td className="px-3 py-2" />
+            <td className="mono px-3 py-2 text-right tabular-nums text-green-700">
+              {fmtMoney(totalPaid)}
+            </td>
+            <td className="mono px-3 py-2 text-right tabular-nums text-amber-700">
+              {fmtMoney(totalPending)}
+            </td>
+            <td className="px-3 py-2" colSpan={2} />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+function awardStatusVariant(s: AwardStatus): "green" | "amber" | "default" | "red" {
+  if (s === "Active") return "green";
+  if (s === "Closing") return "amber";
+  if (s === "Did Not Fulfill") return "red";
+  return "default";
+}
+
+function PaymentProgressBar({ paid, total }: { paid: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, (paid / total) * 100) : 0;
+  const allPaid = pct >= 99.9;
+  return (
+    <div className="flex w-full min-w-[120px] items-center gap-1.5">
+      <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-2">
+        <div
+          className={cn(
+            "absolute left-0 top-0 h-full rounded-full transition-all",
+            allPaid ? "bg-green-500" : "bg-accent",
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="mono flex-shrink-0 text-[11px] text-ink-3">
+        {Math.round(pct)}%
+      </span>
+    </div>
+  );
+}
+
+function ReportsCell({ award }: { award: Award }) {
+  const total = award.report_total;
+  const done = award.report_done;
+  const overdue = award.report_overdue > 0;
+  const next = award.next_report_date;
+  if (total === 0) {
+    return <span className="text-[11px] text-ink-4">No schedule</span>;
+  }
+  const allDone = done === total;
+  const dueColor = allDone
+    ? "text-green-700"
+    : overdue
+      ? "text-red"
+      : "text-ink-3";
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 leading-tight">
+      {total <= 6 ? (
+        <div className="flex flex-shrink-0 items-center gap-0.5">
+          {Array.from({ length: total }).map((_, i) => (
+            <span
+              key={i}
+              className={cn(
+                "inline-block h-2 w-2 rounded-full",
+                i < done
+                  ? "bg-green-500"
+                  : overdue && i === done
+                    ? "bg-red"
+                    : "bg-surface-2 ring-1 ring-border-strong",
+              )}
+            />
+          ))}
+        </div>
+      ) : (
+        <span className={cn("mono flex-shrink-0 text-[11px] font-medium", dueColor)}>
+          {done}/{total}
+        </span>
+      )}
+      {next ? (
+        <span className={cn("mono truncate text-[11px]", dueColor)}>
+          {fmtDate(next)}
+        </span>
+      ) : allDone ? (
+        <span className="text-[11px] text-green-700">Complete</span>
+      ) : null}
+    </div>
   );
 }
 
