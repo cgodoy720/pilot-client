@@ -1642,6 +1642,22 @@ def _date_to_iso(value: Any) -> Any:
     return value
 
 
+def _values_equivalent(intended: Any, saved: Any) -> bool:
+    """Tolerant equality for SF round-trip comparison.
+
+    Salesforce silently trims trailing whitespace on string field saves
+    (and sometimes leading too). It also normalizes empty values: "" or
+    "   " round-trip back as None on read. Treat those as no-ops, not
+    clobbers — otherwise we'd pester users about cosmetic differences
+    every time they hit return at the end of a description."""
+    saved = _date_to_iso(saved)
+    if isinstance(intended, str) or isinstance(saved, str):
+        a = (intended or "").strip() if intended is not None else ""
+        b = (saved or "").strip() if saved is not None else ""
+        return a == b
+    return intended == saved
+
+
 async def _verify_and_recover_task_fields(
     salesforce,
     task_id: str,
@@ -1683,7 +1699,7 @@ async def _verify_and_recover_task_fields(
     saved = await _read()
     diff: Dict[str, Any] = {}
     for f in fields_to_check:
-        if _date_to_iso(saved.get(f)) != intended[f]:
+        if not _values_equivalent(intended[f], saved.get(f)):
             diff[f] = saved.get(f)
 
     if diff:
@@ -1701,7 +1717,7 @@ async def _verify_and_recover_task_fields(
             diff = {
                 f: saved.get(f)
                 for f in fields_to_check
-                if _date_to_iso(saved.get(f)) != intended[f]
+                if not _values_equivalent(intended[f], saved.get(f))
             }
         except Exception as retry_err:
             logger.warning("Task %s clobber-retry failed: %s", task_id, retry_err)
