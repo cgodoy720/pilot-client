@@ -159,16 +159,6 @@ export function AccountDetailPage() {
           />
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-3">
             {account.Type ? <Tag>{account.Type}</Tag> : null}
-            {account.Account_Tier__c ? (
-              <Tag variant="accent">{account.Account_Tier__c}</Tag>
-            ) : null}
-            {account.Industry ? <span>· {account.Industry}</span> : null}
-            {account.BillingCity ? (
-              <span>
-                · {[account.BillingCity, account.BillingState].filter(Boolean).join(", ")}
-              </span>
-            ) : null}
-            {account.Owner?.Name ? <span>· Owner: {account.Owner.Name}</span> : null}
           </div>
         </div>
         {account.Website ? (
