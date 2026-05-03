@@ -588,16 +588,20 @@ function HistoryChart({
   const totalLostCount = buckets.reduce((s, b) => s + b.lostCount, 0);
 
   return (
-    <div className="px-5 py-4">
-      <div className="flex items-center justify-between text-[11.5px] text-ink-3">
-        <div className="flex items-center gap-3">
-          <LegendDot color="bg-green-500" /> Won {totalWonCount} · {fmtMoney(totalWon)}
-          <LegendDot color="bg-red" /> Lost {totalLostCount} · {fmtMoney(totalLost)}
+    <div className="px-5 py-2.5">
+      <div className="flex items-center justify-between text-[11px] text-ink-3">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex items-center gap-1">
+            <LegendDot color="bg-green-500" /> {totalWonCount} · {fmtMoney(totalWon)}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <LegendDot color="bg-red" /> {totalLostCount} · {fmtMoney(totalLost)}
+          </span>
         </div>
-        <span>{buckets[0].year}–{buckets[buckets.length - 1].year}</span>
+        <span className="text-ink-4">{buckets[0].year}–{buckets[buckets.length - 1].year}</span>
       </div>
 
-      <div className="mt-3 flex items-end gap-1.5 overflow-x-auto pb-1" style={{ minHeight: 140 }}>
+      <div className="mt-1.5 flex items-end gap-1 overflow-x-auto pb-0.5">
         {buckets.map((b) => {
           const wonPct = (b.wonAmount / maxAmount) * 100;
           const lostPct = (b.lostAmount / maxAmount) * 100;
@@ -614,27 +618,23 @@ function HistoryChart({
           return (
             <div
               key={b.year}
-              className="flex min-w-[28px] flex-1 flex-col items-center gap-1"
+              className="flex min-w-[22px] flex-1 flex-col items-center gap-0.5"
               title={tooltip}
             >
-              <div className="flex h-[110px] w-full items-end justify-center gap-0.5">
+              <div className="flex h-[56px] w-full items-end justify-center gap-px">
                 <BarSegment pct={wonPct} className="bg-green-500" />
                 <BarSegment pct={lostPct} className="bg-red" />
               </div>
               <span className={cn(
-                "mono text-[10px] tabular-nums",
+                "mono text-[9.5px] tabular-nums leading-none",
                 empty ? "text-ink-4" : "text-ink-2",
               )}>
-                {b.year % 100 < 10 ? `0${b.year % 100}` : `${b.year % 100}`}
+                {`'${b.year % 100 < 10 ? `0${b.year % 100}` : b.year % 100}`}
               </span>
             </div>
           );
         })}
       </div>
-
-      <p className="mt-2 text-[10.5px] text-ink-4">
-        Bars sized by total dollar amount per year. Hover for counts.
-      </p>
     </div>
   );
 }
@@ -646,7 +646,7 @@ function BarSegment({ pct, className }: { pct: number; className: string }) {
   return (
     <div
       className={cn(
-        "w-2 rounded-t transition-all",
+        "w-1.5 rounded-t transition-all",
         visible ? className : "bg-surface-2",
       )}
       style={{ height: visible ? `${pct}%` : "1px" }}
