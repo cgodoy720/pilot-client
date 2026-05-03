@@ -18,23 +18,6 @@ import { useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/
 import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
 
-const ACCOUNT_TYPE_OPTIONS = [
-  { value: "Prospect", label: "Prospect" },
-  { value: "Customer", label: "Customer" },
-  { value: "Partner", label: "Partner" },
-  { value: "Government", label: "Government" },
-  { value: "Foundation", label: "Foundation" },
-  { value: "Corporation", label: "Corporation" },
-  { value: "Other", label: "Other" },
-];
-
-const ACCOUNT_TIER_OPTIONS = [
-  { value: "Tier 1", label: "Tier 1" },
-  { value: "Tier 2", label: "Tier 2" },
-  { value: "Tier 3", label: "Tier 3" },
-  { value: "Tier 4", label: "Tier 4" },
-];
-
 export function AccountDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
 
@@ -97,6 +80,29 @@ export function AccountDetailPage() {
   // which differs from our award-eligibility set — using NPSP here led
   // to the headline disagreeing with the chart.)
   const lifetime = wonOpps.reduce((s, o) => s + (o.Amount ?? 0), 0);
+
+  // Engagement types — derived from RecordType.Name across the
+  // account's opportunity history. Captures the actual relationship
+  // shape (Philanthropy / PBC / Debt-Equity / etc.) rather than a
+  // user-set checkbox that often goes stale.
+  const engagementTypes = useMemo(() => {
+    const seen = new Set<string>();
+    for (const o of opps) {
+      const rt = o.RecordType?.Name;
+      if (rt) seen.add(rt);
+    }
+    return Array.from(seen).sort();
+  }, [opps]);
+
+  // Primary contact — first contact flagged Philanthropic_Contact__c,
+  // falling back to the first contact in the list if none are flagged.
+  const primaryContact = useMemo(() => {
+    return (
+      contacts.find((c) => c.Philanthropic_Contact__c) ??
+      contacts[0] ??
+      null
+    );
+  }, [contacts]);
 
   // Fetch the prior StageName for each lost opp so account owners can
   // see at what funnel position the opp was withdrawn / lost.
@@ -173,9 +179,9 @@ export function AccountDetailPage() {
             : "grid-cols-1",
         )}
       >
-        <SectionCard title="Details">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 px-5 py-4">
-            <EditField label="Owner">
+        <SectionCard title="Details" collapsible={false}>
+          <div className="flex flex-col gap-2 px-5 py-3">
+            <DetailRow label="Account owner">
               <InlineSelect
                 value={account.OwnerId ?? null}
                 options={ownerOptions}
@@ -186,58 +192,31 @@ export function AccountDetailPage() {
                   </span>
                 )}
               />
-            </EditField>
-            <EditField label="Type">
-              <InlineSelect
-                value={account.Type ?? null}
-                options={ACCOUNT_TYPE_OPTIONS}
-                onSave={(v) => patch("Type", v)}
-                emptyLabel="—"
-              />
-            </EditField>
-            <EditField label="Account tier">
-              <InlineSelect
-                value={account.Account_Tier__c ?? null}
-                options={ACCOUNT_TIER_OPTIONS}
-                onSave={(v) => patch("Account_Tier__c", v)}
-                emptyLabel="—"
-              />
-            </EditField>
-            <EditField label="Industry">
-              <InlineText
-                value={account.Industry ?? ""}
-                onSave={(v) => patch("Industry", v)}
-                placeholder="—"
-              />
-            </EditField>
-            <EditField label="Website">
-              <InlineText
-                value={account.Website ?? ""}
-                onSave={(v) => patch("Website", v)}
-                placeholder="—"
-              />
-            </EditField>
-            <EditField label="Phone">
-              <InlineText
-                value={account.Phone ?? ""}
-                onSave={(v) => patch("Phone", v)}
-                placeholder="—"
-              />
-            </EditField>
-            <EditField label="City">
-              <InlineText
-                value={account.BillingCity ?? ""}
-                onSave={(v) => patch("BillingCity", v)}
-                placeholder="—"
-              />
-            </EditField>
-            <EditField label="State">
-              <InlineText
-                value={account.BillingState ?? ""}
-                onSave={(v) => patch("BillingState", v)}
-                placeholder="—"
-              />
-            </EditField>
+            </DetailRow>
+            <DetailRow label="Engagement types">
+              {engagementTypes.length === 0 ? (
+                <span className="text-[12.5px] text-ink-4">—</span>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {engagementTypes.map((t) => (
+                    <Tag key={t}>{t}</Tag>
+                  ))}
+                </div>
+              )}
+            </DetailRow>
+            <DetailRow label="Primary contact">
+              {primaryContact ? (
+                <Link
+                  to={`/contacts/${primaryContact.Id}`}
+                  className="truncate text-[13px] text-ink-2 hover:underline"
+                  title={primaryContact.Name ?? primaryContact.Id}
+                >
+                  {primaryContact.Name ?? "—"}
+                </Link>
+              ) : (
+                <span className="text-[12.5px] text-ink-4">—</span>
+              )}
+            </DetailRow>
           </div>
         </SectionCard>
 
@@ -677,11 +656,13 @@ function SectionCard({
   action,
   children,
   defaultOpen = true,
+  collapsible = true,
 }: {
   title: string;
   action?: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  collapsible?: boolean;
 }) {
   // Persist collapse state per section title so the user's preference
   // carries across accounts. Key off title alone — same section name
@@ -690,38 +671,46 @@ function SectionCard({
     `bedrock-v2:account-section:${title}`,
     defaultOpen,
   );
+  const isOpen = collapsible ? open : true;
   return (
     <section className="mt-6 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-border-strong bg-surface-2 px-5 py-2.5">
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          className="flex flex-1 items-center gap-2 text-left"
-        >
-          {open ? (
-            <ChevronDown size={12} className="flex-shrink-0 text-ink-3" />
-          ) : (
-            <ChevronRight size={12} className="flex-shrink-0 text-ink-3" />
-          )}
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={isOpen}
+            className="flex flex-1 items-center gap-2 text-left"
+          >
+            {isOpen ? (
+              <ChevronDown size={12} className="flex-shrink-0 text-ink-3" />
+            ) : (
+              <ChevronRight size={12} className="flex-shrink-0 text-ink-3" />
+            )}
+            <span className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">
+              {title}
+            </span>
+          </button>
+        ) : (
           <span className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">
             {title}
           </span>
-        </button>
+        )}
         {action ?? null}
       </div>
-      {open ? children : null}
+      {isOpen ? children : null}
     </section>
   );
 }
 
-function EditField({ label, children }: { label: string; children: React.ReactNode }) {
+/** Compact one-line label/value row used by the slimmed-down Details panel. */
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+    <div className="flex items-start gap-3">
+      <span className="w-[120px] flex-shrink-0 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3 leading-[20px]">
         {label}
       </span>
-      {children}
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
