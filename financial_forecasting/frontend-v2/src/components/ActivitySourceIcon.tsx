@@ -67,20 +67,40 @@ export function ActivitySourceIcon({
  * ──────────────────────────────────────────────────────────────────── */
 
 function GmailIcon({ size }: { size: number }) {
-  // Classic red envelope-with-M (Simple Icons single-path version) —
-  // recognizable at small sizes, no overlap artifacts.
+  // Official Gmail 2020 mark from Wikipedia's Gmail_icon_(2020).svg —
+  // five color zones (blue / green / red / yellow / dark red) layered
+  // to form the iconic "M" with rounded corners. Aspect 4:3.
+  // Width is set so the rendered glyph sits in a square box; native
+  // 256:193 keeps the brand proportions correct.
   return (
     <svg
       width={size}
-      height={size}
-      viewBox="0 0 24 24"
+      height={Math.round((size * 193) / 256)}
+      viewBox="0 0 256 193"
       role="img"
       aria-label="Gmail"
+      style={{ verticalAlign: "middle" }}
     >
       <title>Gmail</title>
       <path
+        fill="#4285F4"
+        d="M58.182 192.05V93.14L27.507 65.077 0 49.504v125.091c0 9.658 7.825 17.455 17.455 17.455z"
+      />
+      <path
+        fill="#34A853"
+        d="M197.818 192.05h40.727c9.659 0 17.455-7.826 17.455-17.455V49.505l-31.156 17.837-27.026 25.798z"
+      />
+      <path
         fill="#EA4335"
-        d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"
+        d="M58.182 93.14V17.504L128 69.804l69.818-52.3v75.636L128 145.45z"
+      />
+      <path
+        fill="#FBBC04"
+        d="M197.818 17.504v75.638L256 49.505V26.231c0-21.585-24.64-33.89-41.89-20.945z"
+      />
+      <path
+        fill="#C5221F"
+        d="M0 49.505 17.45 36.494l40.732-18.99v75.636L0 49.505z"
       />
     </svg>
   );

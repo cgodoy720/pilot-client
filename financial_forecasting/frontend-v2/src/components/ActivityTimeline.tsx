@@ -553,30 +553,32 @@ function ActivityRow({
   pinned: boolean;
   onTogglePin: () => void;
 }) {
-  // Manual expand only — search no longer auto-opens rows. Highlighting
-  // covers the common case ("did this term hit?"); users can still click
-  // a row to read the full body.
+  // Manual expand only — search no longer auto-opens rows.
   const [expanded, setExpanded] = useState(false);
   const rawBody = a.email_snippet ?? a.description ?? "";
   const hasBody = rawBody.trim().length > 0;
   const body = hasBody ? normalizeBody(rawBody) : "";
   const date = fmtDate(activityTimestamp(a));
+  // Meetings often have no body but still carry useful detail (location,
+  // duration, Fireflies notes if logged on the SF Event description).
+  const hasMeetingMeta = !!(a.meeting_location || a.meeting_duration_minutes);
+  const isExpandable = hasBody || hasMeetingMeta;
 
   return (
     <li className="group/row border-b border-border-strong last:border-b-0">
       <div className="flex items-center">
         <button
           type="button"
-          onClick={() => hasBody && setExpanded((v) => !v)}
-          disabled={!hasBody}
+          onClick={() => isExpandable && setExpanded((v) => !v)}
+          disabled={!isExpandable}
           className={cn(
             "flex flex-1 items-center gap-3 px-5 py-2.5 text-left",
-            hasBody ? "hover:bg-surface-2" : "cursor-default",
+            isExpandable ? "hover:bg-surface-2" : "cursor-default",
           )}
-          aria-expanded={hasBody ? expanded : undefined}
+          aria-expanded={isExpandable ? expanded : undefined}
         >
           <span className="flex-shrink-0 text-ink-3">
-            {hasBody ? (
+            {isExpandable ? (
               expanded ? (
                 <ChevronDown size={14} />
               ) : (
@@ -624,11 +626,31 @@ function ActivityRow({
           {pinned ? <Pin size={12} fill="currentColor" /> : <PinOff size={12} />}
         </button>
       </div>
-      {expanded && hasBody ? (
+      {expanded && isExpandable ? (
         <div className="border-t border-border-strong bg-surface-2/40 px-5 py-3 pl-[58px] text-[12.5px] leading-relaxed text-ink-2">
-          <div className="whitespace-pre-wrap break-words">
-            {highlightMatches(body, needle)}
-          </div>
+          {hasMeetingMeta ? (
+            <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-3">
+              {a.meeting_location ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-ink-4">📍</span>
+                  <span>{a.meeting_location}</span>
+                </span>
+              ) : null}
+              {a.meeting_duration_minutes ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-ink-4">⏱</span>
+                  <span>{a.meeting_duration_minutes} min</span>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {hasBody ? (
+            <div className="whitespace-pre-wrap break-words">
+              {highlightMatches(body, needle)}
+            </div>
+          ) : (
+            <div className="text-ink-4 italic">No notes logged.</div>
+          )}
           {a.owner_email ? (
             <div className="mt-3 text-[11px] text-ink-3">{a.owner_email}</div>
           ) : null}

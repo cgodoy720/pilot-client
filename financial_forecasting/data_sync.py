@@ -212,6 +212,22 @@ class DataSyncService:
         Type = "Meeting" and a free-form Subject. Without this
         classification rule those rows came through as "note", so
         meetings effectively disappeared from the activity timeline.
+
+        Email-from-sync subject extraction: SF Tasks created by the
+        Salesforce Inbox / Outlook Connector come in with Subject="true"
+        and the actual email subject + body packed into Description as::
+
+            To: a@x.com; b@y.com
+            CC: c@z.com
+            BCC:
+            Attachment: --none--
+
+            Subject: <real subject>
+            Body:
+            <body>
+
+        We parse those out so the timeline shows the real subject + a
+        clean body instead of "true".
         """
         subtype = (task.get("TaskSubtype") or "").lower()
         sf_type_field = (task.get("Type") or "").lower()
@@ -234,6 +250,12 @@ class DataSyncService:
             activity_type = "meeting"
         else:
             activity_type = "note"
+
+        raw_subject = task.get("Subject") or ""
+        raw_desc = task.get("Description") or ""
+        subject, description = self._unpack_synced_email(
+            raw_subject, raw_desc, activity_type,
+        )
 
         # Route WhatId to opportunity or account
         opportunity_id = None
@@ -258,8 +280,8 @@ class DataSyncService:
             "sf_id": task["Id"],
             "sf_type": "Task",
             "type": activity_type,
-            "subject": task.get("Subject") or "(No subject)",
-            "description": task.get("Description"),
+            "subject": subject or "(No subject)",
+            "description": description,
             "activity_date": self._parse_sf_datetime(task.get("ActivityDate") or task.get("CreatedDate")),
             "opportunity_id": opportunity_id,
             "account_id": account_id,
@@ -270,6 +292,38 @@ class DataSyncService:
             "sf_last_modified": self._parse_sf_datetime(task.get("LastModifiedDate")),
             "meeting_duration_minutes": duration_min,
         }
+
+    @staticmethod
+    def _unpack_synced_email(
+        raw_subject: str, raw_desc: str, activity_type: str,
+    ) -> tuple[str, Optional[str]]:
+        """Pull the real Subject + Body out of a Salesforce-Inbox-synced
+        email Task, where Subject="true" and Description packs the whole
+        email payload as plain text. No-op for everything else.
+
+        Returns (subject, description) — falls back to the raw values
+        if the expected pattern isn't found, so non-email Tasks keep
+        their original Subject/Description verbatim.
+        """
+        is_synced_email = (
+            activity_type == "email"
+            and raw_subject.strip().lower() == "true"
+            and raw_desc
+        )
+        if not is_synced_email:
+            return raw_subject, raw_desc or None
+
+        # Find the embedded "Subject:" header — it always sits between the
+        # To/CC/BCC/Attachment block and the "Body:" marker.
+        import re as _re
+        subj_match = _re.search(
+            r"^Subject:\s*(.+?)\s*$", raw_desc, _re.MULTILINE,
+        )
+        body_match = _re.search(r"\nBody:\s*\n(.*)", raw_desc, _re.DOTALL)
+
+        new_subject = subj_match.group(1).strip() if subj_match else "(No subject)"
+        new_body = body_match.group(1).strip() if body_match else raw_desc
+        return new_subject, new_body or None
 
     def _map_sf_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """Map a Salesforce Event record to activity column values."""
