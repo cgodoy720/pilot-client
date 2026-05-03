@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 
 import { InlineDate, InlineSelect } from "@/components/ui/InlineEdit";
+import { useCollapsible } from "@/lib/collapsible";
 import {
   useAccountTasks,
   useCreateAccountTask,
@@ -158,6 +159,10 @@ function SectionShell({
   children: React.ReactNode;
   dim?: boolean;
 }) {
+  const { open, toggle } = useCollapsible(
+    `bedrock-v2:section:account-tasks${dim ? "-closed" : ""}`,
+    true,
+  );
   return (
     <section
       className={cn(
@@ -165,15 +170,19 @@ function SectionShell({
         dim ? "bg-surface-2/50" : "bg-surface",
       )}
     >
-      <div
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
         className={cn(
-          "border-b border-border-strong px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider",
+          "flex w-full items-center gap-2 border-b border-border-strong px-5 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wider",
           dim ? "bg-surface-2/70 text-ink-4" : "bg-surface-2 text-ink-3",
         )}
       >
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {title}
-      </div>
-      {children}
+      </button>
+      {open ? children : null}
     </section>
   );
 }

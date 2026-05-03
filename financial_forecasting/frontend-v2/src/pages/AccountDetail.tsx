@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Mail, Phone, Plus, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Mail, Phone, Plus, X } from "lucide-react";
 
 import { AccountTasksSection } from "@/components/AccountTasksSection";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
@@ -8,6 +8,7 @@ import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
+import { useCollapsible } from "@/lib/collapsible";
 import { isLost, isOpen, isWon, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccounts, useUpdateAccount } from "@/services/accounts";
@@ -156,6 +157,13 @@ export function AccountDetailPage() {
         <Stat label="Open opps" value={String(openOpps.length)} />
         <Stat label="Last activity" value={fmtDate(lastActivity)} />
       </div>
+
+      {/* Outcomes over time */}
+      {wonOpps.length + lostOpps.length > 0 ? (
+        <SectionCard title="History">
+          <HistoryChart wonOpps={wonOpps} lostOpps={lostOpps} />
+        </SectionCard>
+      ) : null}
 
       {/* Editable details */}
       <SectionCard title="Details">
@@ -500,24 +508,195 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+// ── History chart ─────────────────────────────────────────────────────────
+
+/**
+ * Year-by-year outcomes for an account: won (green) vs lost (red),
+ * sized by total $ amount per bucket. Years with zero activity render
+ * as empty columns so gaps in the relationship are visible at a
+ * glance (e.g. won 2018-2019, lost 2020-2025, won 2026 again).
+ */
+function HistoryChart({
+  wonOpps,
+  lostOpps,
+}: {
+  wonOpps: SfOpportunity[];
+  lostOpps: SfOpportunity[];
+}) {
+  type YearBucket = {
+    year: number;
+    wonAmount: number;
+    wonCount: number;
+    lostAmount: number;
+    lostCount: number;
+  };
+
+  const buckets = useMemo<YearBucket[]>(() => {
+    const m = new Map<number, YearBucket>();
+    const add = (y: number) => {
+      let b = m.get(y);
+      if (!b) {
+        b = { year: y, wonAmount: 0, wonCount: 0, lostAmount: 0, lostCount: 0 };
+        m.set(y, b);
+      }
+      return b;
+    };
+    for (const o of wonOpps) {
+      if (!o.CloseDate) continue;
+      const y = new Date(o.CloseDate).getUTCFullYear();
+      if (!Number.isFinite(y)) continue;
+      const b = add(y);
+      b.wonAmount += o.Amount ?? 0;
+      b.wonCount += 1;
+    }
+    for (const o of lostOpps) {
+      if (!o.CloseDate) continue;
+      const y = new Date(o.CloseDate).getUTCFullYear();
+      if (!Number.isFinite(y)) continue;
+      const b = add(y);
+      b.lostAmount += o.Amount ?? 0;
+      b.lostCount += 1;
+    }
+    if (m.size === 0) return [];
+    const minY = Math.min(...m.keys());
+    const maxY = Math.max(Math.max(...m.keys()), new Date().getUTCFullYear());
+    const out: YearBucket[] = [];
+    for (let y = minY; y <= maxY; y++) {
+      out.push(
+        m.get(y) ?? {
+          year: y,
+          wonAmount: 0,
+          wonCount: 0,
+          lostAmount: 0,
+          lostCount: 0,
+        },
+      );
+    }
+    return out;
+  }, [wonOpps, lostOpps]);
+
+  if (buckets.length === 0) return null;
+
+  const maxAmount = Math.max(
+    1,
+    ...buckets.map((b) => Math.max(b.wonAmount, b.lostAmount)),
+  );
+
+  const totalWon = buckets.reduce((s, b) => s + b.wonAmount, 0);
+  const totalLost = buckets.reduce((s, b) => s + b.lostAmount, 0);
+  const totalWonCount = buckets.reduce((s, b) => s + b.wonCount, 0);
+  const totalLostCount = buckets.reduce((s, b) => s + b.lostCount, 0);
+
+  return (
+    <div className="px-5 py-4">
+      <div className="flex items-center justify-between text-[11.5px] text-ink-3">
+        <div className="flex items-center gap-3">
+          <LegendDot color="bg-green-500" /> Won {totalWonCount} · {fmtMoney(totalWon)}
+          <LegendDot color="bg-red" /> Lost {totalLostCount} · {fmtMoney(totalLost)}
+        </div>
+        <span>{buckets[0].year}–{buckets[buckets.length - 1].year}</span>
+      </div>
+
+      <div className="mt-3 flex items-end gap-1.5 overflow-x-auto pb-1" style={{ minHeight: 140 }}>
+        {buckets.map((b) => {
+          const wonPct = (b.wonAmount / maxAmount) * 100;
+          const lostPct = (b.lostAmount / maxAmount) * 100;
+          const empty = b.wonCount === 0 && b.lostCount === 0;
+          const tooltip = empty
+            ? `${b.year}: no activity`
+            : [
+                `${b.year}`,
+                b.wonCount > 0 ? `Won: ${b.wonCount} · ${fmtMoneyFull(b.wonAmount)}` : null,
+                b.lostCount > 0 ? `Lost: ${b.lostCount} · ${fmtMoneyFull(b.lostAmount)}` : null,
+              ]
+                .filter(Boolean)
+                .join("\n");
+          return (
+            <div
+              key={b.year}
+              className="flex min-w-[28px] flex-1 flex-col items-center gap-1"
+              title={tooltip}
+            >
+              <div className="flex h-[110px] w-full items-end justify-center gap-0.5">
+                <BarSegment pct={wonPct} className="bg-green-500" />
+                <BarSegment pct={lostPct} className="bg-red" />
+              </div>
+              <span className={cn(
+                "mono text-[10px] tabular-nums",
+                empty ? "text-ink-4" : "text-ink-2",
+              )}>
+                {b.year % 100 < 10 ? `0${b.year % 100}` : `${b.year % 100}`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-2 text-[10.5px] text-ink-4">
+        Bars sized by total dollar amount per year. Hover for counts.
+      </p>
+    </div>
+  );
+}
+
+function BarSegment({ pct, className }: { pct: number; className: string }) {
+  // Empty bars render as a 1px line at the baseline so the year still
+  // has a visible column anchor.
+  const visible = pct > 0.5;
+  return (
+    <div
+      className={cn(
+        "w-2 rounded-t transition-all",
+        visible ? className : "bg-surface-2",
+      )}
+      style={{ height: visible ? `${pct}%` : "1px" }}
+    />
+  );
+}
+
+function LegendDot({ color }: { color: string }) {
+  return <span className={cn("inline-block h-2 w-2 rounded-full", color)} />;
+}
+
 function SectionCard({
   title,
   action,
   children,
+  defaultOpen = true,
 }: {
   title: string;
   action?: React.ReactNode;
   children: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
+  // Persist collapse state per section title so the user's preference
+  // carries across accounts. Key off title alone — same section name
+  // means same intent regardless of which account you're viewing.
+  const { open, toggle } = useCollapsible(
+    `bedrock-v2:account-section:${title}`,
+    defaultOpen,
+  );
   return (
     <section className="mt-6 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-border-strong bg-surface-2 px-5 py-2.5">
-        <span className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">
-          {title}
-        </span>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className="flex flex-1 items-center gap-2 text-left"
+        >
+          {open ? (
+            <ChevronDown size={12} className="flex-shrink-0 text-ink-3" />
+          ) : (
+            <ChevronRight size={12} className="flex-shrink-0 text-ink-3" />
+          )}
+          <span className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">
+            {title}
+          </span>
+        </button>
         {action ?? null}
       </div>
-      {children}
+      {open ? children : null}
     </section>
   );
 }

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { ActivitySourceIcon } from "@/components/ActivitySourceIcon";
+import { useCollapsible } from "@/lib/collapsible";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { BedrockActivity } from "@/types/salesforce";
@@ -93,6 +94,10 @@ export function ActivityTimeline({
   grouped?: boolean;
 }) {
   const heading = title ?? `Activity timeline (${activities.length})`;
+  const { open, toggle } = useCollapsible(
+    "bedrock-v2:section:activity-timeline",
+    true,
+  );
 
   const groups = useMemo(() => {
     if (!grouped) return null;
@@ -110,10 +115,16 @@ export function ActivityTimeline({
 
   return (
     <section className="mt-6 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
-      <div className="border-b border-border-strong bg-surface-2 px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider text-ink-3">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 border-b border-border-strong bg-surface-2 px-5 py-2.5 text-left text-[12px] font-semibold uppercase tracking-wider text-ink-3"
+      >
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {heading}
-      </div>
-      {activities.length === 0 ? (
+      </button>
+      {!open ? null : activities.length === 0 ? (
         <div className="px-5 py-8 text-center text-[12.5px] text-ink-3">
           No activities logged.
         </div>
