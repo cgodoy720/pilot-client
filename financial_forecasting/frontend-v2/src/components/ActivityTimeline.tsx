@@ -118,11 +118,18 @@ export function ActivityTimeline({
     });
   };
 
+  // Tasks live in their own section (AccountTasksSection / OppTasksSection).
+  // Drop them from the activity feed so we don't duplicate them here.
+  const visibleActivities = useMemo(
+    () => activities.filter((a) => (a.type ?? "").toLowerCase() !== "task"),
+    [activities],
+  );
+
   // Facets.
   const facets = useMemo(() => {
     const types = new Map<string, number>();
     const sources = new Map<string, number>();
-    for (const a of activities) {
+    for (const a of visibleActivities) {
       if (a.type) types.set(a.type, (types.get(a.type) ?? 0) + 1);
       if (a.source) sources.set(a.source, (sources.get(a.source) ?? 0) + 1);
     }
@@ -130,7 +137,7 @@ export function ActivityTimeline({
       types: Array.from(types.entries()).sort((a, b) => b[1] - a[1]),
       sources: Array.from(sources.entries()).sort((a, b) => b[1] - a[1]),
     };
-  }, [activities]);
+  }, [visibleActivities]);
 
   const needle = q.trim().toLowerCase();
 
@@ -140,7 +147,7 @@ export function ActivityTimeline({
     // Defensive sort: server already orders by activity_date DESC, but
     // resort client-side so manual additions / cache merges can't put
     // older rows on top.
-    const sorted = [...activities].sort((a, b) => {
+    const sorted = [...visibleActivities].sort((a, b) => {
       const at = activityTimestamp(a);
       const bt = activityTimestamp(b);
       if (!at && !bt) return 0;
@@ -183,7 +190,7 @@ export function ActivityTimeline({
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [activities, typeFilter, sourceFilter, quick, needle, myEmail]);
+  }, [visibleActivities, typeFilter, sourceFilter, quick, needle, myEmail]);
 
   // Pinned + non-pinned split.
   const pinnedRows = useMemo(
@@ -212,9 +219,9 @@ export function ActivityTimeline({
   const heading =
     title ??
     `Activity${
-      filtered.length === activities.length
-        ? ` · ${activities.length}`
-        : ` · ${filtered.length} of ${activities.length}`
+      filtered.length === visibleActivities.length
+        ? ` · ${visibleActivities.length}`
+        : ` · ${filtered.length} of ${visibleActivities.length}`
     }`;
 
   const filtersActive =
@@ -245,7 +252,7 @@ export function ActivityTimeline({
       {!open ? null : (
         <>
           {/* Quick filter chips */}
-          {activities.length > 0 ? (
+          {visibleActivities.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5 border-b border-border-strong bg-surface px-4 py-2">
               {QUICK_OPTS.map((q) => (
                 <button
@@ -287,7 +294,7 @@ export function ActivityTimeline({
           ) : null}
 
           {/* Search + dropdown filters */}
-          {activities.length > 0 ? (
+          {visibleActivities.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 border-b border-border-strong bg-surface px-4 py-2">
               <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded border border-border-strong bg-surface-2 px-2.5 focus-within:border-accent">
                 <Search size={13} className="flex-shrink-0 text-ink-3" />
@@ -354,7 +361,7 @@ export function ActivityTimeline({
           ) : null}
 
           {/* Body */}
-          {activities.length === 0 ? (
+          {visibleActivities.length === 0 ? (
             <div className="px-5 py-10 text-center text-[12.5px] text-ink-3">
               No activities logged.
             </div>

@@ -67,82 +67,52 @@ export function ActivitySourceIcon({
  * ──────────────────────────────────────────────────────────────────── */
 
 function GmailIcon({ size }: { size: number }) {
-  // Official Gmail 2020 mark from Wikipedia's Gmail_icon_(2020).svg —
-  // five color zones (blue / green / red / yellow / dark red) layered
-  // to form the iconic "M" with rounded corners. Aspect 4:3.
-  // Width is set so the rendered glyph sits in a square box; native
-  // 256:193 keeps the brand proportions correct.
+  // Verbatim from Wikipedia's Gmail_icon_(2020).svg — viewBox 52 42 88 66.
+  // Five color zones layered to form the iconic "M" with rounded peaks.
   return (
     <svg
       width={size}
-      height={Math.round((size * 193) / 256)}
-      viewBox="0 0 256 193"
+      height={Math.round((size * 66) / 88)}
+      viewBox="52 42 88 66"
       role="img"
       aria-label="Gmail"
       style={{ verticalAlign: "middle" }}
     >
       <title>Gmail</title>
-      <path
-        fill="#4285F4"
-        d="M58.182 192.05V93.14L27.507 65.077 0 49.504v125.091c0 9.658 7.825 17.455 17.455 17.455z"
-      />
-      <path
-        fill="#34A853"
-        d="M197.818 192.05h40.727c9.659 0 17.455-7.826 17.455-17.455V49.505l-31.156 17.837-27.026 25.798z"
-      />
-      <path
-        fill="#EA4335"
-        d="M58.182 93.14V17.504L128 69.804l69.818-52.3v75.636L128 145.45z"
-      />
-      <path
-        fill="#FBBC04"
-        d="M197.818 17.504v75.638L256 49.505V26.231c0-21.585-24.64-33.89-41.89-20.945z"
-      />
-      <path
-        fill="#C5221F"
-        d="M0 49.505 17.45 36.494l40.732-18.99v75.636L0 49.505z"
-      />
+      <path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6" />
+      <path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15" />
+      <path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2" />
+      <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92" />
+      <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2" />
     </svg>
   );
 }
 
 function GoogleCalendarIcon({ size }: { size: number }) {
-  // Stylized "31" calendar in Google blue — reads as a calendar at
-  // 16px without trying to recreate the multi-color tile pattern that
-  // breaks at small sizes.
+  // Verbatim from the Google_Calendar logo (Wikipedia file). viewBox
+  // -11.4 -19 98.8 114 includes the colored corner tabs that fall
+  // outside the central white square.
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="-11.4 -19 98.8 114"
       role="img"
       aria-label="Meeting"
+      style={{ verticalAlign: "middle" }}
     >
       <title>Meeting</title>
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="17"
-        rx="2"
-        fill="#FFFFFF"
-        stroke="#1A73E8"
-        strokeWidth="1.6"
+      <path fill="#fff" d="M58 18H18v40h40z" />
+      <path fill="#ea4335" d="M58 76l18-18H58z" />
+      <path fill="#fbbc04" d="M76 18H58v40h18z" />
+      <path fill="#34a853" d="M58 58H18v18h40z" />
+      <path fill="#188038" d="M0 58v12c0 3.315 2.685 6 6 6h12V58z" />
+      <path fill="#1967d2" d="M76 18V6c0-3.315-2.685-6-6-6H58v18z" />
+      <path fill="#4285f4" d="M58 0H6C2.685 0 0 2.685 0 6v52h18V18h40z" />
+      <path
+        fill="#4285f4"
+        d="M26.205 49.03c-1.495-1.01-2.53-2.485-3.095-4.435l3.47-1.43c.315 1.2.865 2.13 1.65 2.79.78.66 1.73.985 2.84.985 1.135 0 2.11-.345 2.925-1.035s1.225-1.57 1.225-2.635c0-1.09-.43-1.98-1.29-2.67-.86-.69-1.94-1.035-3.23-1.035h-2.005V36.13h1.8c1.11 0 2.045-.3 2.805-.9.76-.6 1.14-1.42 1.14-2.465 0-.93-.34-1.67-1.02-2.225-.68-.555-1.54-.835-2.585-.835-1.02 0-1.83.27-2.43.815a4.784 4.784 0 00-1.31 2.005l-3.435-1.43c.455-1.29 1.29-2.43 2.515-3.415 1.225-.985 2.79-1.48 4.69-1.48 1.405 0 2.67.27 3.79.815 1.12.545 2 1.3 2.635 2.26.635.965.95 2.045.95 3.245 0 1.225-.295 2.26-.885 3.11-.59.85-1.315 1.5-2.175 1.955v.205a6.605 6.605 0 012.79 2.175c.725.975 1.09 2.14 1.09 3.5 0 1.36-.345 2.575-1.035 3.64S36.38 49.01 35.17 49.62c-1.215.61-2.58.92-4.095.92-1.755.005-3.375-.5-4.87-1.51zM47.52 31.81l-3.81 2.755-1.905-2.89 6.835-4.93h2.62V50h-3.74z"
       />
-      <line x1="3" y1="9" x2="21" y2="9" stroke="#1A73E8" strokeWidth="1.6" />
-      <line x1="8" y1="2.5" x2="8" y2="6" stroke="#1A73E8" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="16" y1="2.5" x2="16" y2="6" stroke="#1A73E8" strokeWidth="1.6" strokeLinecap="round" />
-      <text
-        x="12"
-        y="17.5"
-        textAnchor="middle"
-        fontSize="7"
-        fontWeight="700"
-        fill="#1A73E8"
-        fontFamily="-apple-system, BlinkMacSystemFont, sans-serif"
-      >
-        31
-      </text>
     </svg>
   );
 }
