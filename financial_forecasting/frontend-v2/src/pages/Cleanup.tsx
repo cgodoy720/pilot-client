@@ -243,6 +243,27 @@ export function CleanupPage() {
     [oppsData],
   );
 
+  // Stages available for bulk-rewriting include closed ones (e.g. moving
+  // an open opp to "Withdrawn" or "Closed Lost"), so this list spans the
+  // full picklist + any stage actually present in the org's data.
+  const allStageOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { value: string; label: string }[] = [];
+    for (const o of oppsData ?? []) {
+      if (o.StageName && !seen.has(o.StageName)) {
+        seen.add(o.StageName);
+        out.push({ value: o.StageName, label: o.StageName });
+      }
+    }
+    for (const opt of SF_STAGE_OPTIONS) {
+      if (!seen.has(opt.value)) {
+        seen.add(opt.value);
+        out.push(opt);
+      }
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label));
+  }, [oppsData]);
+
   const [rules, setRules] = useState<FilterRule[]>([]);
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -635,7 +656,7 @@ export function CleanupPage() {
           mode={bulkMode}
           value={bulkValue}
           onValueChange={setBulkValue}
-          stageOptions={facets.stages.length > 0 ? facets.stages : SF_STAGE_OPTIONS}
+          stageOptions={allStageOptions}
           ownerOptions={ownerBulkOptions}
           selectedOpps={selectedOpps}
           progress={progress}
