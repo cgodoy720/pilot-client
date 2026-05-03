@@ -1,0 +1,1003 @@
+/**
+ * Cleanup tab — bulk-edit opportunities.
+ *
+ * Workflow:
+ *   1) Filter the table down (chip-based filters, combinable AND)
+ *   2) Select rows (checkbox per row + select-all in header)
+ *   3) Apply a bulk action (Stage or Owner — only two for now)
+ *   4) Confirm dialog shows N + first 5 names before the writes fire
+ *
+ * Hard cap: 500 selections per bulk apply, to keep the round-trip volume
+ * manageable and prevent footguns. Per-row writes go through the existing
+ * useUpdateOpportunityStage / useUpdateOpportunity hooks (one call per
+ * row, ran with bounded parallelism). Failures are reported per-row.
+ */
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  ChevronDown,
+  Filter as FilterIcon,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+
+import { PageHeader } from "@/components/PageHeader";
+import { ColumnChooser } from "@/components/ui/ColumnChooser";
+import { ResizableTh } from "@/components/ui/ResizableTable";
+import { SortableHeader } from "@/components/ui/SortableHeader";
+import { StageChip } from "@/components/ui/StageChip";
+import { Tag } from "@/components/ui/Tag";
+import { Toolbar } from "@/components/ui/Toolbar";
+import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
+import { useColumnVisibility } from "@/lib/columnVisibility";
+import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { sortBy, useSort } from "@/lib/sort";
+import { SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
+import { cn } from "@/lib/utils";
+import {
+  useOpportunities,
+  useUpdateOpportunity,
+  useUpdateOpportunityStage,
+} from "@/services/opportunities";
+import { usePerm } from "@/services/permissions";
+import { useActiveUsers } from "@/services/users";
+import type { SfOpportunity } from "@/types/salesforce";
+
+// ── Filter model ──────────────────────────────────────────────────────────
+
+const FILTERABLE = {
+  stage: { label: "Stage", type: "select" as const, getValue: (o: SfOpportunity) => o.StageName ?? "" },
+  owner: { label: "Owner", type: "select" as const, getValue: (o: SfOpportunity) => o.OwnerId ?? "" },
+  recordType: { label: "Record Type", type: "select" as const, getValue: (o: SfOpportunity) => o.RecordType?.Name ?? "" },
+  account: { label: "Account", type: "text" as const, getValue: (o: SfOpportunity) => o.Account?.Name ?? "" },
+  name: { label: "Name", type: "text" as const, getValue: (o: SfOpportunity) => o.Name ?? "" },
+  nextStep: { label: "Next step", type: "text" as const, getValue: (o: SfOpportunity) => o.NextStep ?? "" },
+  amount: { label: "Amount", type: "number" as const, getValue: (o: SfOpportunity) => o.Amount ?? null },
+  probability: { label: "Probability", type: "number" as const, getValue: (o: SfOpportunity) => o.Probability ?? null },
+  closeDate: { label: "Close date", type: "date" as const, getValue: (o: SfOpportunity) => o.CloseDate ?? null },
+  createdDate: { label: "Created", type: "date" as const, getValue: (o: SfOpportunity) => o.CreatedDate ?? null },
+  lastModified: { label: "Last modified", type: "date" as const, getValue: (o: SfOpportunity) => o.LastModifiedDate ?? null },
+} satisfies Record<string, { label: string; type: "select" | "text" | "number" | "date"; getValue: (o: SfOpportunity) => string | number | null }>;
+
+type FieldKey = keyof typeof FILTERABLE;
+
+type Operator =
+  | "equals"
+  | "is_empty"
+  | "is_not_empty"
+  | "contains"
+  | "gt"
+  | "lt"
+  | "before"
+  | "after";
+
+interface FilterRule {
+  id: string;
+  field: FieldKey;
+  op: Operator;
+  value: string;
+}
+
+const OPS_BY_TYPE: Record<"select" | "text" | "number" | "date", { value: Operator; label: string }[]> = {
+  select: [
+    { value: "equals", label: "is" },
+    { value: "is_empty", label: "is empty" },
+    { value: "is_not_empty", label: "has any value" },
+  ],
+  text: [
+    { value: "contains", label: "contains" },
+    { value: "equals", label: "is" },
+    { value: "is_empty", label: "is empty" },
+    { value: "is_not_empty", label: "has any value" },
+  ],
+  number: [
+    { value: "equals", label: "=" },
+    { value: "gt", label: ">" },
+    { value: "lt", label: "<" },
+    { value: "is_empty", label: "is empty" },
+  ],
+  date: [
+    { value: "before", label: "before" },
+    { value: "after", label: "after" },
+    { value: "equals", label: "is" },
+    { value: "is_empty", label: "is empty" },
+  ],
+};
+
+function ruleApplies(o: SfOpportunity, r: FilterRule): boolean {
+  const meta = FILTERABLE[r.field];
+  const v = meta.getValue(o);
+
+  if (r.op === "is_empty") return v == null || v === "";
+  if (r.op === "is_not_empty") return v != null && v !== "";
+
+  if (meta.type === "text" || meta.type === "select") {
+    const s = String(v ?? "").toLowerCase();
+    const needle = r.value.toLowerCase();
+    if (r.op === "contains") return s.includes(needle);
+    if (r.op === "equals") return s === needle;
+  }
+
+  if (meta.type === "number") {
+    if (v == null || r.value === "") return false;
+    const n = Number(v);
+    const target = Number(r.value);
+    if (!Number.isFinite(target)) return false;
+    if (r.op === "gt") return n > target;
+    if (r.op === "lt") return n < target;
+    if (r.op === "equals") return n === target;
+  }
+
+  if (meta.type === "date") {
+    if (v == null || r.value === "") return false;
+    const ms = new Date(String(v)).getTime();
+    const target = new Date(r.value).getTime();
+    if (!Number.isFinite(ms) || !Number.isFinite(target)) return false;
+    if (r.op === "before") return ms < target;
+    if (r.op === "after") return ms > target;
+    if (r.op === "equals") return String(v).slice(0, 10) === r.value;
+  }
+
+  return true;
+}
+
+function describeRule(r: FilterRule, opts: {
+  ownerLabel: (id: string) => string;
+}): string {
+  const meta = FILTERABLE[r.field];
+  if (r.op === "is_empty") return `${meta.label} is empty`;
+  if (r.op === "is_not_empty") return `${meta.label} has any value`;
+  const opLabel = OPS_BY_TYPE[meta.type].find((o) => o.value === r.op)?.label ?? r.op;
+  // Owner rule shows the user name not the SF Id.
+  const valLabel =
+    r.field === "owner" && r.value ? opts.ownerLabel(r.value) : r.value;
+  return `${meta.label} ${opLabel} ${valLabel}`;
+}
+
+// ── Columns ───────────────────────────────────────────────────────────────
+
+type ColKey = "name" | "account" | "stage" | "owner" | "recordType" | "amount" | "probability" | "closeDate";
+
+const COLUMN_ORDER: ColKey[] = [
+  "name", "account", "stage", "owner", "recordType",
+  "amount", "probability", "closeDate",
+];
+
+const DEFAULT_WIDTHS: Record<ColKey, number> = {
+  name: 280,
+  account: 180,
+  stage: 200,
+  owner: 150,
+  recordType: 130,
+  amount: 110,
+  probability: 80,
+  closeDate: 110,
+};
+
+const COL_LABELS: Record<ColKey, string> = {
+  name: "Opportunity",
+  account: "Account",
+  stage: "Stage",
+  owner: "Owner",
+  recordType: "Record Type",
+  amount: "Amount",
+  probability: "Prob.",
+  closeDate: "Close",
+};
+
+const ROW_HEIGHT = 44;
+
+function extractOpp(o: SfOpportunity, key: ColKey): unknown {
+  switch (key) {
+    case "name": return o.Name;
+    case "account": return o.Account?.Name ?? "";
+    case "stage": return o.StageName;
+    case "owner": return o.Owner?.Name ?? "";
+    case "recordType": return o.RecordType?.Name ?? "";
+    case "amount": return o.Amount ?? 0;
+    case "probability": return o.Probability ?? 0;
+    case "closeDate": return o.CloseDate;
+  }
+}
+
+const SELECTION_CAP = 500;
+const BULK_PARALLELISM = 4;
+
+// ── Page ──────────────────────────────────────────────────────────────────
+
+export function CleanupPage() {
+  const canEdit = usePerm("edit_all_opportunities");
+  const { data: oppsData, isLoading } = useOpportunities();
+  const usersQ = useActiveUsers();
+
+  const opps = useMemo(() => oppsData ?? [], [oppsData]);
+
+  const [rules, setRules] = useState<FilterRule[]>([]);
+  const [q, setQ] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const ownerOptions = useMemo(
+    () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
+    [usersQ.data],
+  );
+
+  // Stage / record-type / account / owner option lists — pulled from the
+  // actual data so users can only filter by values that exist.
+  const facets = useMemo(() => {
+    const stages = new Set<string>();
+    const recordTypes = new Set<string>();
+    for (const o of opps) {
+      if (o.StageName) stages.add(o.StageName);
+      if (o.RecordType?.Name) recordTypes.add(o.RecordType.Name);
+    }
+    return {
+      stages: Array.from(stages).sort().map((v) => ({ value: v, label: v })),
+      recordTypes: Array.from(recordTypes).sort().map((v) => ({ value: v, label: v })),
+    };
+  }, [opps]);
+
+  const ownerLabel = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of usersQ.data ?? []) m.set(u.Id, u.Name);
+    return (id: string) => m.get(id) ?? id;
+  }, [usersQ.data]);
+
+  const filtered = useMemo(() => {
+    return opps.filter((o) => {
+      // Free-text search across name/account/owner/next step.
+      if (q) {
+        const needle = q.toLowerCase();
+        const hay =
+          (o.Name ?? "") +
+          " " +
+          (o.Account?.Name ?? "") +
+          " " +
+          (o.Owner?.Name ?? "") +
+          " " +
+          (o.NextStep ?? "");
+        if (!hay.toLowerCase().includes(needle)) return false;
+      }
+      // All chip rules must pass (AND).
+      for (const r of rules) {
+        if (!ruleApplies(o, r)) return false;
+      }
+      return true;
+    });
+  }, [opps, q, rules]);
+
+  const { sort, toggle } = useSort<ColKey>({ key: "name", direction: "asc" });
+  const sorted = useMemo(() => sortBy(filtered, sort, extractOpp), [filtered, sort]);
+
+  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility<ColKey>(
+    "bedrock-v2:vis:cleanup",
+    COLUMN_ORDER,
+  );
+  const { widths, startResize } = useColumnWidths<ColKey>("bedrock-v2:cols:cleanup", DEFAULT_WIDTHS);
+
+  // Drop selections that disappear from the filtered set so the count
+  // shown to the user always reflects current state.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const visible = new Set(filtered.map((o) => o.Id));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [filtered]);
+
+  const allVisibleSelected =
+    sorted.length > 0 && sorted.every((o) => selectedIds.has(o.Id));
+  const someVisibleSelected =
+    sorted.some((o) => selectedIds.has(o.Id)) && !allVisibleSelected;
+
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        for (const o of sorted) next.delete(o.Id);
+        return next;
+      }
+      const next = new Set(prev);
+      for (const o of sorted) {
+        if (next.size >= SELECTION_CAP) break;
+        next.add(o.Id);
+      }
+      return next;
+    });
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < SELECTION_CAP) next.add(id);
+      return next;
+    });
+  };
+
+  // ── Bulk apply ──────────────────────────────────────────────────────────
+
+  const updateStage = useUpdateOpportunityStage();
+  const updateOpp = useUpdateOpportunity();
+
+  const [bulkMode, setBulkMode] = useState<"stage" | "owner" | null>(null);
+  const [bulkValue, setBulkValue] = useState<string>("");
+  const [progress, setProgress] = useState<{ done: number; total: number; failures: { id: string; name: string; error: string }[] } | null>(null);
+
+  const selectedOpps = useMemo(
+    () => sorted.filter((o) => selectedIds.has(o.Id)),
+    [sorted, selectedIds],
+  );
+
+  const startBulk = (mode: "stage" | "owner") => {
+    setBulkMode(mode);
+    setBulkValue("");
+    setProgress(null);
+  };
+
+  const runBulk = async () => {
+    if (!bulkMode || !bulkValue || selectedOpps.length === 0) return;
+    const failures: { id: string; name: string; error: string }[] = [];
+    let done = 0;
+    setProgress({ done, total: selectedOpps.length, failures });
+
+    // Bounded parallelism so we don't slam SF with 500 simultaneous PUTs.
+    const queue = [...selectedOpps];
+    const workers = Array.from({ length: Math.min(BULK_PARALLELISM, queue.length) }, async () => {
+      while (queue.length > 0) {
+        const o = queue.shift();
+        if (!o) return;
+        try {
+          if (bulkMode === "stage") {
+            await updateStage.mutateAsync({ id: o.Id, newStage: bulkValue });
+          } else {
+            const ownerName = ownerLabel(bulkValue);
+            await updateOpp.mutateAsync({
+              id: o.Id,
+              patch: { OwnerId: bulkValue },
+              displayPatch: { Owner: { Name: ownerName } } as Record<string, unknown>,
+            });
+          }
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          failures.push({ id: o.Id, name: o.Name ?? o.Id, error: msg });
+        } finally {
+          done += 1;
+          setProgress({ done, total: selectedOpps.length, failures: [...failures] });
+        }
+      }
+    });
+    await Promise.all(workers);
+  };
+
+  const closeBulk = () => {
+    setBulkMode(null);
+    setBulkValue("");
+    setProgress(null);
+    // Wipe selections only if the run finished cleanly.
+    if (progress && progress.failures.length === 0 && progress.done === progress.total) {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const tableMinWidth = totalWidth(widths) + CHECKBOX_W;
+
+  // Virtualizer (the table is all-rows; no row-expansion to reserve space for).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+  const paddingTop = virtualItems[0]?.start ?? 0;
+  const paddingBottom = totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
+
+  return (
+    <div className="flex h-full flex-col px-7 py-6 pb-6">
+      <PageHeader
+        title="Cleanup"
+        subtitle={
+          isLoading
+            ? "Loading…"
+            : `${sorted.length.toLocaleString()} of ${opps.length.toLocaleString()} opportunities${selectedIds.size > 0 ? ` · ${selectedIds.size.toLocaleString()} selected` : ""}`
+        }
+      />
+
+      <Toolbar>
+        <div className="relative">
+          <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+          <input
+            placeholder="Search opps, accounts, owner, next step"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-7 w-80 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
+          />
+        </div>
+        <AddFilterButton
+          existingRules={rules}
+          stageOptions={facets.stages}
+          recordTypeOptions={facets.recordTypes}
+          ownerOptions={ownerOptions}
+          onAdd={(r) => setRules((prev) => [...prev, r])}
+        />
+        <ColumnChooser
+          allColumns={COLUMN_ORDER}
+          labels={COL_LABELS}
+          visible={visibleCols}
+          required={["name"]}
+          onToggle={toggleCol}
+        />
+      </Toolbar>
+
+      {rules.length > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {rules.map((r) => (
+            <FilterChip
+              key={r.id}
+              label={describeRule(r, { ownerLabel })}
+              onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => setRules([])}
+            className="text-[11.5px] text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && canEdit ? (
+        <div className="mt-3 flex items-center gap-2 rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-[12.5px]">
+          <span className="font-medium text-ink">
+            {selectedIds.size.toLocaleString()} selected
+            {selectedIds.size >= SELECTION_CAP ? ` (cap: ${SELECTION_CAP})` : ""}
+          </span>
+          <span className="text-ink-3">·</span>
+          <button
+            type="button"
+            onClick={() => startBulk("stage")}
+            className="rounded bg-ink px-2.5 py-1 text-[12px] font-medium text-surface hover:opacity-90"
+          >
+            Change stage…
+          </button>
+          <button
+            type="button"
+            onClick={() => startBulk("owner")}
+            className="rounded bg-ink px-2.5 py-1 text-[12px] font-medium text-surface hover:opacity-90"
+          >
+            Change owner…
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-[12px] text-ink-3 hover:text-ink-2"
+          >
+            Clear selection
+          </button>
+        </div>
+      ) : null}
+
+      <div
+        ref={scrollRef}
+        className="mt-3 flex-1 overflow-x-auto rounded-b-lg border border-border-strong bg-surface"
+      >
+        <table
+          className="border-collapse"
+          style={{ tableLayout: "fixed", width: "100%", minWidth: tableMinWidth }}
+        >
+          <colgroup>
+            <col style={{ width: CHECKBOX_W }} />
+            {visibleCols.map((k) => (
+              <col key={k} style={{ width: widths[k] }} />
+            ))}
+          </colgroup>
+          <thead className="sticky top-0 z-10">
+            <tr>
+              <th className="border-b border-border-strong bg-surface px-3 py-2 text-left">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  ref={(el) => { if (el) el.indeterminate = someVisibleSelected; }}
+                  onChange={toggleAll}
+                  aria-label={allVisibleSelected ? "Deselect all" : "Select all visible"}
+                  className="h-3.5 w-3.5 cursor-pointer accent-accent"
+                />
+              </th>
+              {visibleCols.map((key, idx) => (
+                <ResizableTh
+                  key={key}
+                  width={widths[key]}
+                  onStartResize={(e) => startResize(key, e)}
+                  align="left"
+                  isLast={idx === visibleCols.length - 1}
+                >
+                  <SortableHeader
+                    label={COL_LABELS[key]}
+                    sortKey={key}
+                    sort={sort}
+                    onToggle={toggle}
+                  />
+                </ResizableTh>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={visibleCols.length + 1} className="px-7 py-12 text-center text-[13px] text-ink-3">
+                  Loading…
+                </td>
+              </tr>
+            ) : sorted.length === 0 ? (
+              <tr>
+                <td colSpan={visibleCols.length + 1} className="px-7 py-12 text-center text-[13px] text-ink-3">
+                  {opps.length === 0 ? "No opportunities." : "No opportunities match the current filters."}
+                </td>
+              </tr>
+            ) : (
+              <>
+                {paddingTop > 0 ? (
+                  <tr aria-hidden style={{ height: paddingTop }}>
+                    <td colSpan={visibleCols.length + 1} />
+                  </tr>
+                ) : null}
+                {virtualItems.map((vi) => {
+                  const o = sorted[vi.index];
+                  const isChecked = selectedIds.has(o.Id);
+                  return (
+                    <CleanupRow
+                      key={o.Id}
+                      o={o}
+                      visibleCols={visibleCols}
+                      checked={isChecked}
+                      onToggle={() => toggleOne(o.Id)}
+                    />
+                  );
+                })}
+                {paddingBottom > 0 ? (
+                  <tr aria-hidden style={{ height: paddingBottom }}>
+                    <td colSpan={visibleCols.length + 1} />
+                  </tr>
+                ) : null}
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {bulkMode ? (
+        <BulkConfirmDialog
+          mode={bulkMode}
+          value={bulkValue}
+          onValueChange={setBulkValue}
+          stageOptions={facets.stages.length > 0 ? facets.stages : SF_STAGE_OPTIONS}
+          ownerOptions={ownerOptions}
+          selectedOpps={selectedOpps}
+          progress={progress}
+          onRun={runBulk}
+          onClose={closeBulk}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ── Row ───────────────────────────────────────────────────────────────────
+
+const CHECKBOX_W = 36;
+
+interface RowProps {
+  o: SfOpportunity;
+  visibleCols: ColKey[];
+  checked: boolean;
+  onToggle: () => void;
+}
+
+const CleanupRow = memo(function CleanupRow({ o, visibleCols, checked, onToggle }: RowProps) {
+  const account = o.Account?.Name ?? "—";
+
+  const cells: Record<ColKey, React.ReactNode> = {
+    name: (
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded bg-surface-2 text-[9px] font-semibold text-ink-2">
+          {initials(account === "—" ? (o.Name ?? "") : account)}
+        </div>
+        <Link
+          to={`/opportunities/${o.Id}`}
+          className="min-w-0 flex-1 truncate font-medium hover:underline"
+          title={o.Name ?? ""}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {o.Name}
+        </Link>
+      </div>
+    ),
+    account: (
+      <span className="truncate text-[12.5px] text-ink-2" title={account}>
+        {account}
+      </span>
+    ),
+    stage: o.StageName ? (
+      <StageChip stage={o.StageName} status={stageStatus(o)} />
+    ) : (
+      <span className="text-ink-4">—</span>
+    ),
+    owner: (
+      <span className="truncate text-[12.5px] text-ink-2">{o.Owner?.Name ?? "—"}</span>
+    ),
+    recordType: o.RecordType?.Name ? (
+      <Tag>{o.RecordType.Name}</Tag>
+    ) : (
+      <span className="text-ink-4">—</span>
+    ),
+    amount: o.Amount != null ? (
+      <span className="mono tabular-nums">{fmtMoney(o.Amount)}</span>
+    ) : (
+      <span className="text-ink-4">—</span>
+    ),
+    probability: o.Probability != null ? (
+      <span className="mono tabular-nums text-ink-2">{o.Probability}%</span>
+    ) : (
+      <span className="text-ink-4">—</span>
+    ),
+    closeDate: <span className="mono text-[11.5px] text-ink-3">{fmtDate(o.CloseDate)}</span>,
+  };
+
+  const cellCls: Record<ColKey, string> = {
+    name: "px-3 py-1 text-[13px]",
+    account: "px-3 py-1 text-[12.5px]",
+    stage: "px-3 py-1",
+    owner: "px-3 py-1",
+    recordType: "px-3 py-1",
+    amount: "mono px-3 py-1 text-[12px] tabular-nums",
+    probability: "mono px-3 py-1 text-[12px] tabular-nums",
+    closeDate: "mono px-3 py-1 text-[11.5px] text-ink-3",
+  };
+
+  return (
+    <tr
+      className={cn(
+        "group/row border-b border-border-strong hover:bg-surface-2",
+        checked && "bg-accent/5",
+      )}
+      style={{ height: ROW_HEIGHT }}
+      onClick={onToggle}
+    >
+      <td className="px-3 py-1" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="h-3.5 w-3.5 cursor-pointer accent-accent"
+        />
+      </td>
+      {visibleCols.map((key) => (
+        <td key={key} className={cellCls[key]}>
+          {cells[key]}
+        </td>
+      ))}
+    </tr>
+  );
+});
+
+// ── Filter chip + add-filter button ───────────────────────────────────────
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded border border-accent/50 bg-accent/10 px-2 py-0.5 text-[11.5px] text-ink">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="text-ink-3 hover:text-ink"
+        aria-label="Remove filter"
+      >
+        <X size={11} />
+      </button>
+    </span>
+  );
+}
+
+interface AddFilterProps {
+  existingRules: FilterRule[];
+  stageOptions: { value: string; label: string }[];
+  recordTypeOptions: { value: string; label: string }[];
+  ownerOptions: { value: string; label: string }[];
+  onAdd: (rule: FilterRule) => void;
+}
+
+function AddFilterButton({
+  stageOptions,
+  recordTypeOptions,
+  ownerOptions,
+  onAdd,
+}: AddFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [field, setField] = useState<FieldKey>("stage");
+  const [op, setOp] = useState<Operator>("equals");
+  const [value, setValue] = useState("");
+
+  const meta = FILTERABLE[field];
+  const ops = OPS_BY_TYPE[meta.type];
+  const needsValue = op !== "is_empty" && op !== "is_not_empty";
+
+  const valueOptions = useMemo(() => {
+    if (field === "stage") return stageOptions;
+    if (field === "recordType") return recordTypeOptions;
+    if (field === "owner") return ownerOptions;
+    return null;
+  }, [field, stageOptions, recordTypeOptions, ownerOptions]);
+
+  const reset = () => {
+    setField("stage");
+    setOp("equals");
+    setValue("");
+  };
+
+  const handleAdd = () => {
+    if (needsValue && !value) return;
+    onAdd({
+      id: `${field}-${Date.now()}`,
+      field,
+      op,
+      value: needsValue ? value : "",
+    });
+    reset();
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-7 items-center gap-1 rounded border border-border-strong bg-surface px-2 text-[12.5px] text-ink-2 hover:bg-surface-2"
+      >
+        <FilterIcon size={12} />
+        <span>Add filter</span>
+        <ChevronDown size={12} />
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2 py-2 shadow-md">
+          <select
+            value={field}
+            onChange={(e) => {
+              const next = e.target.value as FieldKey;
+              setField(next);
+              const firstOp = OPS_BY_TYPE[FILTERABLE[next].type][0].value;
+              setOp(firstOp);
+              setValue("");
+            }}
+            className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+          >
+            {(Object.keys(FILTERABLE) as FieldKey[]).map((k) => (
+              <option key={k} value={k}>
+                {FILTERABLE[k].label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={op}
+            onChange={(e) => setOp(e.target.value as Operator)}
+            className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+          >
+            {ops.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {needsValue ? (
+            valueOptions ? (
+              <select
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="h-7 min-w-[140px] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+              >
+                <option value="">—</option>
+                {valueOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : meta.type === "date" ? (
+              <input
+                type="date"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="h-7 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+              />
+            ) : meta.type === "number" ? (
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="0"
+                className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+              />
+            ) : (
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="value"
+                className="h-7 w-40 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus:border-accent"
+              />
+            )
+          ) : null}
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={needsValue && !value}
+            className="inline-flex h-7 items-center gap-1 rounded bg-ink px-2 text-[12px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus size={11} /> Add
+          </button>
+          <button
+            type="button"
+            onClick={() => { reset(); setOpen(false); }}
+            className="text-[11.5px] text-ink-3 hover:text-ink-2"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ── Bulk confirm dialog ───────────────────────────────────────────────────
+
+interface BulkDialogProps {
+  mode: "stage" | "owner";
+  value: string;
+  onValueChange: (v: string) => void;
+  stageOptions: { value: string; label: string }[];
+  ownerOptions: { value: string; label: string }[];
+  selectedOpps: SfOpportunity[];
+  progress: { done: number; total: number; failures: { id: string; name: string; error: string }[] } | null;
+  onRun: () => Promise<void>;
+  onClose: () => void;
+}
+
+function BulkConfirmDialog({
+  mode,
+  value,
+  onValueChange,
+  stageOptions,
+  ownerOptions,
+  selectedOpps,
+  progress,
+  onRun,
+  onClose,
+}: BulkDialogProps) {
+  const fieldLabel = mode === "stage" ? "Stage" : "Owner";
+  const options = mode === "stage" ? stageOptions : ownerOptions;
+  const previewNames = selectedOpps.slice(0, 5).map((o) => o.Name ?? o.Id);
+  const remaining = selectedOpps.length - previewNames.length;
+
+  const running = progress != null && progress.done < progress.total;
+  const finished = progress != null && progress.done === progress.total;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-lg bg-surface shadow-xl">
+        <header className="border-b border-border-strong px-5 py-3">
+          <h2 className="text-[15px] font-semibold text-ink">
+            Change {fieldLabel.toLowerCase()} for {selectedOpps.length.toLocaleString()} opportunit{selectedOpps.length === 1 ? "y" : "ies"}
+          </h2>
+        </header>
+
+        <div className="px-5 py-4">
+          {!progress ? (
+            <>
+              <label className="block text-[12px] font-medium text-ink-3">
+                New {fieldLabel.toLowerCase()}
+              </label>
+              <select
+                value={value}
+                onChange={(e) => onValueChange(e.target.value)}
+                autoFocus
+                className="mt-1 h-9 w-full rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus:border-accent"
+              >
+                <option value="">Pick a value…</option>
+                {options.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+
+              <div className="mt-4 rounded border border-border-strong bg-surface-2 px-3 py-2.5 text-[12px] text-ink-2">
+                <div className="font-medium text-ink">First {previewNames.length} of {selectedOpps.length}:</div>
+                <ul className="mt-1 list-disc pl-4 leading-relaxed">
+                  {previewNames.map((n) => (
+                    <li key={n} className="truncate">{n}</li>
+                  ))}
+                </ul>
+                {remaining > 0 ? (
+                  <div className="mt-1 text-ink-3">…and {remaining.toLocaleString()} more</div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <div>
+              <div className="text-[13px] text-ink">
+                {running
+                  ? `Updating ${progress.done.toLocaleString()} of ${progress.total.toLocaleString()}…`
+                  : `Updated ${(progress.total - progress.failures.length).toLocaleString()} of ${progress.total.toLocaleString()}.`}
+              </div>
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+                <div
+                  className="h-full rounded-full bg-accent transition-all"
+                  style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                />
+              </div>
+              {progress.failures.length > 0 ? (
+                <div className="mt-3 max-h-40 overflow-y-auto rounded border border-red/40 bg-red/5 p-2 text-[11.5px] text-red">
+                  <div className="font-semibold">Failed ({progress.failures.length}):</div>
+                  <ul className="mt-1 list-disc pl-4">
+                    {progress.failures.slice(0, 10).map((f) => (
+                      <li key={f.id} className="truncate">
+                        <span className="font-medium">{f.name}</span> — {f.error}
+                      </li>
+                    ))}
+                    {progress.failures.length > 10 ? (
+                      <li>…and {progress.failures.length - 10} more</li>
+                    ) : null}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        <footer className="flex items-center justify-end gap-2 border-t border-border-strong px-5 py-3">
+          {!progress ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded border border-border-strong bg-surface px-3 py-1.5 text-[12.5px] text-ink-2 hover:bg-surface-2"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onRun}
+                disabled={!value}
+                className="rounded bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Apply to {selectedOpps.length.toLocaleString()}{selectedOpps.length === 1 ? " opp" : " opps"}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={running}
+              className="rounded bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {finished ? "Done" : "Running…"}
+            </button>
+          )}
+        </footer>
+      </div>
+    </div>
+  );
+}
+
