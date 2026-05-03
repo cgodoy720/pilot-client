@@ -200,7 +200,12 @@ interface TaskUpdateBody {
 
 interface TaskCreateResult {
   success?: boolean;
-  data?: { id?: string };
+  data?: {
+    id?: string;
+    /** SF-side workflow rewrote Subject. Frontend warns the user. */
+    saved_subject?: string | null;
+    subject_clobbered?: boolean;
+  };
 }
 
 /**

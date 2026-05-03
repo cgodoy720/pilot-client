@@ -1622,6 +1622,15 @@ async def create_account_task(
     """Create a task tied directly to an Account (WhatId = account_id).
     Account-level tasks aren't lock-gated the way opp-level ones are —
     locking lives on Opportunity in this org.
+
+    Subject preservation:
+        Some SF orgs run a Process Builder / Flow / Apex Trigger that
+        rewrites Task.Subject on insert (e.g. "[Account Name]"). After
+        creating, we read back the Subject and — if it's different from
+        what the user asked for — send an UPDATE to restore the user's
+        intent. If the rewrite still wins after the retry, log loudly
+        and surface a partial-success response so the frontend can show
+        a "saved but renamed" hint.
     """
     validate_salesforce_id(account_id, "account_id")
     try:
@@ -1632,7 +1641,57 @@ async def create_account_task(
         task_id = result.get("id") or result.get("Id")
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
-        return ApiResponse(success=True, data={"id": task_id, "message": "Task created"})
+
+        # Read-back + workflow-clobber recovery.
+        intended_subject = task_data.Subject
+        saved_subject: Optional[str] = None
+        if task_id and intended_subject:
+            try:
+                safe_id = escape_soql_string(task_id)
+                verify = await salesforce.query(
+                    f"SELECT Subject FROM Task WHERE Id = '{safe_id}' LIMIT 1"
+                )
+                rows = verify.get("records") or []
+                saved_subject = rows[0].get("Subject") if rows else None
+
+                if saved_subject != intended_subject:
+                    logger.warning(
+                        "Account task %s created with Subject=%r but SF saved %r "
+                        "(account=%s) — attempting one update to restore.",
+                        task_id, intended_subject, saved_subject, account_id,
+                    )
+                    await salesforce.update_record(
+                        "Task", task_id, {"Subject": intended_subject},
+                    )
+                    # Verify the update stuck.
+                    verify2 = await salesforce.query(
+                        f"SELECT Subject FROM Task WHERE Id = '{safe_id}' LIMIT 1"
+                    )
+                    rows2 = verify2.get("records") or []
+                    saved_subject = rows2[0].get("Subject") if rows2 else saved_subject
+                    if saved_subject != intended_subject:
+                        logger.error(
+                            "Account task %s Subject still %r after retry "
+                            "(intended %r). Likely an Apex Trigger — needs SF-side fix.",
+                            task_id, saved_subject, intended_subject,
+                        )
+            except Exception as verify_err:
+                logger.warning(
+                    "Subject read-back failed for task %s: %s", task_id, verify_err,
+                )
+
+        subject_clobbered = (
+            saved_subject is not None and saved_subject != intended_subject
+        )
+        return ApiResponse(
+            success=True,
+            data={
+                "id": task_id,
+                "message": "Task created",
+                "saved_subject": saved_subject,
+                "subject_clobbered": subject_clobbered,
+            },
+        )
     except Exception as e:
         logger.error(f"Error creating account task: {e}")
         raise HTTPException(status_code=500, detail="Failed to create task")

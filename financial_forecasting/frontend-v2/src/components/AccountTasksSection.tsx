@@ -65,6 +65,10 @@ export function AccountTasksSection({
   );
 
   const [showClosed, setShowClosed] = useState(false);
+  const [clobberWarning, setClobberWarning] = useState<{
+    intended: string;
+    saved: string | null;
+  } | null>(null);
   // SF returns ORDER BY ActivityDate DESC NULLS LAST, which sinks any
   // task without a due date to the bottom — including the one the user
   // just created. Re-sort by CreatedDate DESC so newly-added tasks
@@ -105,6 +109,30 @@ export function AccountTasksSection({
 
   return (
     <div className="mt-6 flex flex-col gap-4">
+      {clobberWarning ? (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-900">
+          <span className="mt-0.5">⚠️</span>
+          <div className="flex-1">
+            <p className="font-semibold">Salesforce overwrote the task subject.</p>
+            <p className="mt-0.5">
+              You entered <strong>"{clobberWarning.intended}"</strong>, but
+              Salesforce saved it as{" "}
+              <strong>"{clobberWarning.saved ?? "(empty)"}"</strong>. This is
+              almost always an Apex Trigger or Flow on the Task object —
+              ask a Salesforce admin to investigate (we tried to restore your
+              subject once and it was overwritten again).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setClobberWarning(null)}
+            className="text-amber-700 hover:text-amber-900"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
       <SectionShell title={`Tasks · Open (${open.length})`}>
         {isLoading ? (
           <Loading />
@@ -133,10 +161,16 @@ export function AccountTasksSection({
         <NewTaskRow
           disabled={createTask.isPending}
           onCreate={async (subject) => {
-            await createTask.mutateAsync({
+            const result = await createTask.mutateAsync({
               accountId,
               body: { Subject: subject },
             });
+            if (result?.data?.subject_clobbered) {
+              setClobberWarning({
+                intended: subject,
+                saved: result.data.saved_subject ?? null,
+              });
+            }
           }}
         />
       </SectionShell>
