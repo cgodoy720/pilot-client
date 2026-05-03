@@ -4,6 +4,20 @@ import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
+ * Clearbit's free logo CDN (logo.clearbit.com/{domain}) was shut down
+ * after HubSpot acquired Clearbit. Every URL we stored from that
+ * source returns no response now. Rewrite to DuckDuckGo's icon API,
+ * which is free, no-auth, and returns reasonable favicons/marks.
+ * If you later get a logo.dev or Brandfetch token, swap this one
+ * function — DB stays unchanged.
+ */
+function rewriteLogoUrl(raw: string): string {
+  const m = /^https?:\/\/logo\.clearbit\.com\/([^?#]+)/i.exec(raw);
+  if (m) return `https://icons.duckduckgo.com/ip3/${m[1]}.ico`;
+  return raw;
+}
+
+/**
  * Avatar tile for an SF Account. Renders the company logo when one
  * exists in `public.companies` (via bedrock.sf_account_company_map),
  * falls back to a colored initials gradient otherwise. Same layout in
@@ -24,7 +38,8 @@ export function AccountAvatar({
   className?: string;
 }) {
   const [errored, setErrored] = useState(false);
-  const showLogo = logoUrl && !errored;
+  const resolved = logoUrl ? rewriteLogoUrl(logoUrl) : null;
+  const showLogo = resolved && !errored;
 
   return (
     <div
@@ -45,7 +60,7 @@ export function AccountAvatar({
     >
       {showLogo ? (
         <img
-          src={logoUrl}
+          src={resolved}
           alt=""
           referrerPolicy="no-referrer"
           onError={() => setErrored(true)}
