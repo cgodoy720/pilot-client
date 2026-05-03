@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 
-import { InlineDate, InlineSelect } from "@/components/ui/InlineEdit";
+import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { useCollapsible } from "@/lib/collapsible";
 import {
   useAccountTasks,
   useCreateAccountTask,
+  useDeleteTask,
   useUpdateTask,
 } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
@@ -51,6 +52,7 @@ export function AccountTasksSection({
   const { data: tasks = [], isLoading } = useAccountTasks(accountId);
   const updateTask = useUpdateTask();
   const createTask = useCreateAccountTask();
+  const deleteTask = useDeleteTask();
   const usersQ = useActiveUsers();
 
   const ownerOptions = useMemo(
@@ -74,6 +76,14 @@ export function AccountTasksSection({
     updateTask.mutateAsync({ id, patch: { ActivityDate: date } }).then(() => undefined);
   const saveOwner = (id: string, ownerId: string) =>
     updateTask.mutateAsync({ id, patch: { OwnerId: ownerId } }).then(() => undefined);
+  const saveSubject = (id: string, subject: string) =>
+    updateTask.mutateAsync({ id, patch: { Subject: subject } }).then(() => undefined);
+  const saveDescription = (id: string, description: string) =>
+    updateTask.mutateAsync({ id, patch: { Description: description } }).then(() => undefined);
+  const removeTask = (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm("Delete this task?")) return;
+    void deleteTask.mutateAsync(id);
+  };
 
   const toggleComplete = (t: SfTask) => {
     const nextStatus = isTaskClosed(t) ? "Not Started" : "Completed";
@@ -103,6 +113,9 @@ export function AccountTasksSection({
                 onSavePriority={(p) => savePriority(t.Id, p)}
                 onSaveDate={(d) => saveDate(t.Id, d)}
                 onSaveOwner={(o) => saveOwner(t.Id, o)}
+                onSaveSubject={(s) => saveSubject(t.Id, s)}
+                onSaveDescription={(d) => saveDescription(t.Id, d)}
+                onDelete={() => removeTask(t.Id)}
               />
             ))}
           </ScrollList>
@@ -140,6 +153,9 @@ export function AccountTasksSection({
                   onSavePriority={(p) => savePriority(t.Id, p)}
                   onSaveDate={(d) => saveDate(t.Id, d)}
                   onSaveOwner={(o) => saveOwner(t.Id, o)}
+                  onSaveSubject={(s) => saveSubject(t.Id, s)}
+                  onSaveDescription={(d) => saveDescription(t.Id, d)}
+                  onDelete={() => removeTask(t.Id)}
                 />
               ))}
             </ScrollList>
@@ -213,6 +229,9 @@ function TaskRow({
   onSavePriority,
   onSaveDate,
   onSaveOwner,
+  onSaveSubject,
+  onSaveDescription,
+  onDelete,
 }: {
   t: SfTask;
   accountId: string;
@@ -222,82 +241,153 @@ function TaskRow({
   onSavePriority: (next: string) => Promise<void>;
   onSaveDate: (next: string | null) => Promise<void>;
   onSaveOwner: (next: string) => Promise<void>;
+  onSaveSubject: (next: string) => Promise<void>;
+  onSaveDescription: (next: string) => Promise<void>;
+  onDelete: () => void;
 }) {
   // SF Id prefixes: 001 = Account, 006 = Opportunity. Anything else (or
   // the same account_id) we treat as an account-level task.
   const tiedToOpp = t.WhatId && t.WhatId.startsWith("006");
   const tiedToAccount = t.WhatId === accountId;
+  const [expanded, setExpanded] = useState(false);
+  const closed = isTaskClosed(t);
 
   return (
-    <li
-      className={cn(
-        "flex items-center gap-3 border-b border-border-strong px-5 py-2 last:border-b-0",
-        isTaskClosed(t) && "text-ink-3",
-      )}
-    >
-      <input
-        type="checkbox"
-        checked={isTaskClosed(t)}
-        onChange={onToggleComplete}
-        className="h-4 w-4 cursor-pointer"
-        aria-label={isTaskClosed(t) ? "Reopen task" : "Mark complete"}
-      />
-      <div className="flex min-w-0 flex-1 flex-col leading-tight">
-        <span
-          className={cn(
-            "truncate text-[13px]",
-            isTaskClosed(t) && "line-through",
-          )}
-          title={t.Subject ?? ""}
+    <li className={cn("border-b border-border-strong last:border-b-0", closed && "text-ink-3")}>
+      <div className="group flex items-center gap-3 px-5 py-2 hover:bg-surface-2/40">
+        <input
+          type="checkbox"
+          checked={closed}
+          onChange={onToggleComplete}
+          className="h-4 w-4 cursor-pointer flex-shrink-0"
+          aria-label={closed ? "Reopen task" : "Mark complete"}
+        />
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex-shrink-0 text-ink-4 hover:text-ink-2"
+          aria-label={expanded ? "Collapse details" : "View details"}
         >
-          {t.Subject ?? "(no subject)"}
-        </span>
-        <span className="truncate text-[11px] text-ink-4">
-          {tiedToOpp && t.WhatName
-            ? `→ ${t.WhatName}`
-            : tiedToAccount
-              ? "Account-level"
-              : tiedToOpp
-                ? "→ Opportunity"
-                : "—"}
-        </span>
-      </div>
-      <div className="w-[140px] flex-shrink-0">
-        <InlineSelect
-          value={t.Status ?? null}
-          options={STATUS_OPTIONS}
-          onSave={onSaveStatus}
-        />
-      </div>
-      <div className="w-[90px] flex-shrink-0">
-        <InlineSelect
-          value={t.Priority ?? null}
-          options={PRIORITY_OPTIONS}
-          onSave={onSavePriority}
-        />
-      </div>
-      <div className="w-[140px] flex-shrink-0">
-        <InlineSelect
-          value={t.OwnerId ?? null}
-          options={ownerOptions}
-          onSave={onSaveOwner}
-          renderValue={() => (
-            <span className="truncate text-[12.5px] text-ink-2">
-              {t.OwnerName ??
-                ownerOptions.find((o) => o.value === t.OwnerId)?.label ??
-                "—"}
-            </span>
+          {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className={cn(
+            "flex min-w-0 flex-1 flex-col leading-tight text-left",
+            closed && "line-through",
           )}
-        />
+        >
+          <span className="truncate text-[13px]" title={t.Subject ?? ""}>
+            {t.Subject ?? "(no subject)"}
+          </span>
+          <span className="truncate text-[11px] text-ink-4">
+            {tiedToOpp && t.WhatName
+              ? `→ ${t.WhatName}`
+              : tiedToAccount
+                ? "Account-level"
+                : tiedToOpp
+                  ? "→ Opportunity"
+                  : "—"}
+          </span>
+        </button>
+        <div className="w-[130px] flex-shrink-0">
+          <InlineSelect
+            value={t.Status ?? null}
+            options={STATUS_OPTIONS}
+            onSave={onSaveStatus}
+          />
+        </div>
+        <div className="w-[80px] flex-shrink-0">
+          <InlineSelect
+            value={t.Priority ?? null}
+            options={PRIORITY_OPTIONS}
+            onSave={onSavePriority}
+          />
+        </div>
+        <div className="w-[130px] flex-shrink-0">
+          <InlineSelect
+            value={t.OwnerId ?? null}
+            options={ownerOptions}
+            onSave={onSaveOwner}
+            renderValue={() => (
+              <span className="truncate text-[12.5px] text-ink-2">
+                {t.OwnerName ??
+                  ownerOptions.find((o) => o.value === t.OwnerId)?.label ??
+                  "—"}
+              </span>
+            )}
+          />
+        </div>
+        <div className="w-[110px] flex-shrink-0">
+          <InlineDate
+            value={t.ActivityDate}
+            onSave={onSaveDate}
+            align="right"
+            placeholder="—"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex-shrink-0 rounded p-1 text-ink-4 opacity-0 transition-opacity hover:text-red focus:opacity-100 group-hover:opacity-100"
+          aria-label="Delete task"
+          title="Delete task"
+        >
+          <Trash2 size={12} />
+        </button>
       </div>
-      <div className="w-[110px] flex-shrink-0">
-        <InlineDate
-          value={t.ActivityDate}
-          onSave={onSaveDate}
-          align="right"
-          placeholder="—"
-        />
-      </div>
+
+      {expanded ? (
+        <div className="border-t border-border-strong bg-surface-2/30 px-5 py-3">
+          <div className="grid grid-cols-[80px_1fr] gap-x-4 gap-y-2 text-[12.5px]">
+            <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+              Subject
+            </span>
+            <InlineText
+              value={t.Subject ?? ""}
+              onSave={onSaveSubject}
+              placeholder="(no subject)"
+            />
+
+            <span className="pt-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+              Description
+            </span>
+            <InlineText
+              value={t.Description ?? ""}
+              onSave={onSaveDescription}
+              placeholder="Add details…"
+              multiline
+            />
+
+            {t.Type ? (
+              <>
+                <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+                  Type
+                </span>
+                <span className="text-ink-2">{t.Type}</span>
+              </>
+            ) : null}
+
+            {t.CreatedDate || t.LastModifiedDate ? (
+              <>
+                <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+                  Audit
+                </span>
+                <span className="mono text-[11px] text-ink-3">
+                  {t.CreatedDate
+                    ? `Created ${new Date(t.CreatedDate).toLocaleDateString()}`
+                    : null}
+                  {t.CreatedDate && t.LastModifiedDate ? " · " : null}
+                  {t.LastModifiedDate
+                    ? `Updated ${new Date(t.LastModifiedDate).toLocaleDateString()}`
+                    : null}
+                </span>
+              </>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </li>
   );
 }

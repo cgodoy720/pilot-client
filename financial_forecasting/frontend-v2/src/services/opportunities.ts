@@ -318,6 +318,50 @@ async function fetchAccountTasks(accountId: string): Promise<SfTask[]> {
   return data.data ?? [];
 }
 
+export function useDeleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/salesforce/tasks/${encodeURIComponent(id)}`);
+    },
+    onMutate: async (id) => {
+      // Optimistically drop from every cached task list.
+      const matches = qc.getQueryCache().findAll({
+        predicate: (q) => {
+          const k = q.queryKey;
+          if (!Array.isArray(k) || typeof k[0] !== "string") return false;
+          if (!TASK_LIST_PREFIXES.includes(k[0] as (typeof TASK_LIST_PREFIXES)[number])) {
+            return false;
+          }
+          const data = q.state.data as SfTask[] | undefined;
+          return Array.isArray(data) && data.some((t) => t.Id === id);
+        },
+      });
+      const snapshots: { key: readonly unknown[]; data: SfTask[] }[] = [];
+      for (const m of matches) {
+        const prev = qc.getQueryData<SfTask[]>(m.queryKey);
+        if (!prev) continue;
+        snapshots.push({ key: m.queryKey, data: prev });
+        await qc.cancelQueries({ queryKey: m.queryKey });
+        qc.setQueryData<SfTask[]>(m.queryKey, (old) =>
+          old?.filter((t) => t.Id !== id),
+        );
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.snapshots?.forEach(({ key, data }) => qc.setQueryData(key, data));
+    },
+    onSettled: () => {
+      setTimeout(() => {
+        TASK_LIST_PREFIXES.forEach((prefix) =>
+          qc.invalidateQueries({ queryKey: [prefix] }),
+        );
+      }, 2000);
+    },
+  });
+}
+
 export function useAccountTasks(accountId: string | undefined) {
   return useQuery({
     queryKey: ["account-tasks", accountId],
