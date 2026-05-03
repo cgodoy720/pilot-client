@@ -104,7 +104,6 @@ export function ActivityTimeline({
   const [typeFilter, setTypeFilter] = useState<string>(ALL_TYPE);
   const [sourceFilter, setSourceFilter] = useState<string>(ALL_SOURCE);
   const [quick, setQuick] = useState<Quick>("all");
-  const [groupMode, setGroupMode] = useState<"time" | "contact">("time");
 
   // Pin state — persisted per scope.
   const [pinned, setPinned] = useState<Set<string>>(() => loadPins(scopeKey));
@@ -118,12 +117,15 @@ export function ActivityTimeline({
     });
   };
 
-  // Tasks live in their own section (AccountTasksSection / OppTasksSection).
-  // Drop them from the activity feed so we don't duplicate them here.
-  const visibleActivities = useMemo(
-    () => activities.filter((a) => (a.type ?? "").toLowerCase() !== "task"),
-    [activities],
-  );
+  // Activity feed only shows real outreach signal: emails, meetings,
+  // calls. Tasks live in their own section above. "Notes" in SF are
+  // mostly auto-generated reminders ("Report Due", "[Account Name]")
+  // not actual logged interactions, so we drop them too — too noisy
+  // to be useful in this context.
+  const visibleActivities = useMemo(() => {
+    const drop = new Set(["task", "note"]);
+    return activities.filter((a) => !drop.has((a.type ?? "").toLowerCase()));
+  }, [activities]);
 
   // Facets.
   const facets = useMemo(() => {
@@ -202,20 +204,6 @@ export function ActivityTimeline({
     [filtered, pinned],
   );
 
-  // Person grouping — by owner_email primarily, since contact_ids
-  // doesn't carry display names.
-  const personGroups = useMemo(() => {
-    if (groupMode !== "contact") return null;
-    const map = new Map<string, BedrockActivity[]>();
-    for (const a of unpinnedRows) {
-      const key = a.owner_email ?? "(no owner)";
-      const arr = map.get(key);
-      if (arr) arr.push(a);
-      else map.set(key, [a]);
-    }
-    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
-  }, [unpinnedRows, groupMode]);
-
   const heading =
     title ??
     `Activity${
@@ -279,17 +267,6 @@ export function ActivityTimeline({
                   {q.label}
                 </button>
               ))}
-
-              <span className="mx-1 h-4 w-px bg-border-strong" />
-
-              <button
-                type="button"
-                onClick={() => setGroupMode((m) => (m === "time" ? "contact" : "time"))}
-                className="rounded-full border border-border-strong bg-surface px-2.5 py-0.5 text-[11.5px] font-medium text-ink-3 hover:bg-surface-2"
-                title={`Switch to ${groupMode === "time" ? "person" : "time"} grouping`}
-              >
-                Group: {groupMode === "time" ? "Time" : "Person"}
-              </button>
             </div>
           ) : null}
 
@@ -399,39 +376,20 @@ export function ActivityTimeline({
                 </div>
               ) : null}
 
-              {groupMode === "contact" && personGroups ? (
-                personGroups.map(([person, rows]) => (
-                  <div key={person}>
-                    <GroupHeader label={`${person} · ${rows.length}`} />
-                    <ul className="flex flex-col">
-                      {rows.map((a) => (
-                        <ActivityRow
-                          key={a.id}
-                          a={a}
-                          showContext
-                          needle={needle}
-                          pinned={false}
-                          onTogglePin={() => togglePin(a.id)}
-                        />
-                      ))}
-                    </ul>
-                  </div>
-                ))
-              ) : (
-                /* Time mode: flat list, sorted desc — no period dividers. */
-                <ul className="flex flex-col">
-                  {unpinnedRows.map((a) => (
-                    <ActivityRow
-                      key={a.id}
-                      a={a}
-                      showContext
-                      needle={needle}
-                      pinned={false}
-                      onTogglePin={() => togglePin(a.id)}
-                    />
-                  ))}
-                </ul>
-              )}
+              {/* Flat list, sorted by date desc. No grouping — pinned
+                  rows already get their own group above. */}
+              <ul className="flex flex-col">
+                {unpinnedRows.map((a) => (
+                  <ActivityRow
+                    key={a.id}
+                    a={a}
+                    showContext
+                    needle={needle}
+                    pinned={false}
+                    onTogglePin={() => togglePin(a.id)}
+                  />
+                ))}
+              </ul>
             </div>
           )}
         </>
