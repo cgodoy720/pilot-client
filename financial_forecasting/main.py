@@ -1523,7 +1523,19 @@ async def create_opportunity_task(
         task_id = result.get("id") or result.get("Id")
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
-        return ApiResponse(success=True, data={"id": task_id, "message": "Task created"})
+
+        verify = await _verify_and_recover_task_fields(salesforce, task_id, fields)
+        return ApiResponse(
+            success=True,
+            data={
+                "id": task_id,
+                "message": "Task created",
+                "saved_subject": verify["saved"].get("Subject"),
+                "subject_clobbered": "Subject" in verify["clobbered"],
+                "clobbered_fields": list(verify["clobbered"].keys()),
+                "saved_values": verify["saved"],
+            },
+        )
     except Exception as e:
         logger.error(f"Error creating task: {e}")
         raise HTTPException(status_code=500, detail="Failed to create task")
@@ -1612,6 +1624,101 @@ async def get_account_tasks(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Fields we read back when verifying a Task write. Anything we let the
+# user edit needs to be in this list — when SF's saved value differs
+# from the user's intent, we retry once and then surface a clobber flag.
+_TASK_VERIFY_FIELDS: List[str] = [
+    "Subject", "Description", "Status", "Priority",
+    "ActivityDate", "OwnerId", "WhoId", "WhatId",
+]
+
+
+def _date_to_iso(value: Any) -> Any:
+    """SF returns ActivityDate as `2026-05-30`, our request body sends
+    the same string — so == works. Numeric fields would need normalization
+    but for now we only have string and bool fields among _TASK_VERIFY_FIELDS."""
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+async def _verify_and_recover_task_fields(
+    salesforce,
+    task_id: str,
+    intended: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Read back the Task and compare each intended field with what SF
+    saved. If anything differs, send one UPDATE to restore the user's
+    intent and re-read. Returns a dict::
+
+        {
+          "saved": {<field>: <saved_value>, ...},   # what SF stores now
+          "clobbered": {<field>: <saved>, ...},     # fields still wrong
+        }
+
+    The frontend uses ``clobbered`` to surface a visible warning so a
+    Salesforce admin can find the offending Apex Trigger / Flow.
+    """
+    if not task_id or not intended:
+        return {"saved": {}, "clobbered": {}}
+
+    fields_to_check = [f for f in _TASK_VERIFY_FIELDS if f in intended]
+    if not fields_to_check:
+        return {"saved": {}, "clobbered": {}}
+
+    safe_id = escape_soql_string(task_id)
+    select_clause = ", ".join(fields_to_check)
+
+    async def _read() -> Dict[str, Any]:
+        try:
+            res = await salesforce.query(
+                f"SELECT Id, {select_clause} FROM Task WHERE Id = '{safe_id}' LIMIT 1"
+            )
+            rows = res.get("records") or []
+            return rows[0] if rows else {}
+        except Exception as e:
+            logger.warning("Task %s read-back failed: %s", task_id, e)
+            return {}
+
+    saved = await _read()
+    diff: Dict[str, Any] = {}
+    for f in fields_to_check:
+        if _date_to_iso(saved.get(f)) != intended[f]:
+            diff[f] = saved.get(f)
+
+    if diff:
+        logger.warning(
+            "Task %s — SF clobbered %s; intended=%r saved=%r — retrying once.",
+            task_id, list(diff.keys()),
+            {k: intended[k] for k in diff},
+            diff,
+        )
+        try:
+            await salesforce.update_record(
+                "Task", task_id, {k: intended[k] for k in diff},
+            )
+            saved = await _read()
+            diff = {
+                f: saved.get(f)
+                for f in fields_to_check
+                if _date_to_iso(saved.get(f)) != intended[f]
+            }
+        except Exception as retry_err:
+            logger.warning("Task %s clobber-retry failed: %s", task_id, retry_err)
+
+    if diff:
+        logger.error(
+            "Task %s still clobbered after retry: %r — likely an Apex Trigger "
+            "or Flow that needs an admin fix.",
+            task_id, diff,
+        )
+
+    return {
+        "saved": {f: saved.get(f) for f in fields_to_check},
+        "clobbered": diff,
+    }
+
+
 @app.post("/api/salesforce/accounts/{account_id}/tasks")
 async def create_account_task(
     account_id: str,
@@ -1642,54 +1749,16 @@ async def create_account_task(
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
 
-        # Read-back + workflow-clobber recovery.
-        intended_subject = task_data.Subject
-        saved_subject: Optional[str] = None
-        if task_id and intended_subject:
-            try:
-                safe_id = escape_soql_string(task_id)
-                verify = await salesforce.query(
-                    f"SELECT Subject FROM Task WHERE Id = '{safe_id}' LIMIT 1"
-                )
-                rows = verify.get("records") or []
-                saved_subject = rows[0].get("Subject") if rows else None
-
-                if saved_subject != intended_subject:
-                    logger.warning(
-                        "Account task %s created with Subject=%r but SF saved %r "
-                        "(account=%s) — attempting one update to restore.",
-                        task_id, intended_subject, saved_subject, account_id,
-                    )
-                    await salesforce.update_record(
-                        "Task", task_id, {"Subject": intended_subject},
-                    )
-                    # Verify the update stuck.
-                    verify2 = await salesforce.query(
-                        f"SELECT Subject FROM Task WHERE Id = '{safe_id}' LIMIT 1"
-                    )
-                    rows2 = verify2.get("records") or []
-                    saved_subject = rows2[0].get("Subject") if rows2 else saved_subject
-                    if saved_subject != intended_subject:
-                        logger.error(
-                            "Account task %s Subject still %r after retry "
-                            "(intended %r). Likely an Apex Trigger — needs SF-side fix.",
-                            task_id, saved_subject, intended_subject,
-                        )
-            except Exception as verify_err:
-                logger.warning(
-                    "Subject read-back failed for task %s: %s", task_id, verify_err,
-                )
-
-        subject_clobbered = (
-            saved_subject is not None and saved_subject != intended_subject
-        )
+        verify = await _verify_and_recover_task_fields(salesforce, task_id, fields)
         return ApiResponse(
             success=True,
             data={
                 "id": task_id,
                 "message": "Task created",
-                "saved_subject": saved_subject,
-                "subject_clobbered": subject_clobbered,
+                "saved_subject": verify["saved"].get("Subject"),
+                "subject_clobbered": "Subject" in verify["clobbered"],
+                "clobbered_fields": list(verify["clobbered"].keys()),
+                "saved_values": verify["saved"],
             },
         )
     except Exception as e:
@@ -1730,7 +1799,16 @@ async def update_task(
         await salesforce.update_record("Task", task_id, fields)
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
-        return ApiResponse(success=True, data={"message": "Task updated"})
+
+        verify = await _verify_and_recover_task_fields(salesforce, task_id, fields)
+        return ApiResponse(
+            success=True,
+            data={
+                "message": "Task updated",
+                "clobbered_fields": list(verify["clobbered"].keys()),
+                "saved_values": verify["saved"],
+            },
+        )
     except HTTPException:
         raise
     except Exception as e:

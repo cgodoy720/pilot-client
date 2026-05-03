@@ -68,6 +68,7 @@ export function AccountTasksSection({
   const [clobberWarning, setClobberWarning] = useState<{
     intended: string;
     saved: string | null;
+    field: string;
   } | null>(null);
   // SF returns ORDER BY ActivityDate DESC NULLS LAST, which sinks any
   // task without a due date to the bottom — including the one the user
@@ -92,8 +93,17 @@ export function AccountTasksSection({
     updateTask.mutateAsync({ id, patch: { OwnerId: ownerId } }).then(() => undefined);
   const saveSubject = (id: string, subject: string) =>
     updateTask.mutateAsync({ id, patch: { Subject: subject } }).then(() => undefined);
-  const saveDescription = (id: string, description: string) =>
-    updateTask.mutateAsync({ id, patch: { Description: description } }).then(() => undefined);
+  const saveDescription = async (id: string, description: string) => {
+    const result = await updateTask.mutateAsync({
+      id,
+      patch: { Description: description },
+    });
+    if (result?.data?.clobbered_fields?.includes("Description")) {
+      const saved =
+        (result.data.saved_values?.Description as string | undefined) ?? "(empty)";
+      setClobberWarning({ intended: description, saved, field: "Description" });
+    }
+  };
   const removeTask = (id: string) => {
     if (typeof window !== "undefined" && !window.confirm("Delete this task?")) return;
     void deleteTask.mutateAsync(id);
@@ -113,14 +123,16 @@ export function AccountTasksSection({
         <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-900">
           <span className="mt-0.5">⚠️</span>
           <div className="flex-1">
-            <p className="font-semibold">Salesforce overwrote the task subject.</p>
+            <p className="font-semibold">
+              Salesforce overwrote the task {clobberWarning.field.toLowerCase()}.
+            </p>
             <p className="mt-0.5">
               You entered <strong>"{clobberWarning.intended}"</strong>, but
               Salesforce saved it as{" "}
               <strong>"{clobberWarning.saved ?? "(empty)"}"</strong>. This is
               almost always an Apex Trigger or Flow on the Task object —
               ask a Salesforce admin to investigate (we tried to restore your
-              subject once and it was overwritten again).
+              value once and it was overwritten again).
             </p>
           </div>
           <button
@@ -169,6 +181,7 @@ export function AccountTasksSection({
               setClobberWarning({
                 intended: subject,
                 saved: result.data.saved_subject ?? null,
+                field: "Subject",
               });
             }
           }}

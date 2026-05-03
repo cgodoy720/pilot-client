@@ -202,9 +202,22 @@ interface TaskCreateResult {
   success?: boolean;
   data?: {
     id?: string;
-    /** SF-side workflow rewrote Subject. Frontend warns the user. */
+    /** Legacy single-field flag — kept for compat, mirrors clobbered_fields. */
     saved_subject?: string | null;
     subject_clobbered?: boolean;
+    /** Names of fields SF saved differently from what we sent. */
+    clobbered_fields?: string[];
+    /** Field → value map of what SF actually has after the write. */
+    saved_values?: Record<string, unknown>;
+  };
+}
+
+interface TaskUpdateResult {
+  success?: boolean;
+  data?: {
+    message?: string;
+    clobbered_fields?: string[];
+    saved_values?: Record<string, unknown>;
   };
 }
 
@@ -266,7 +279,7 @@ export function useUpdateTask() {
       id: string;
       patch: TaskUpdateBody;
     }) => {
-      const { data } = await api.put<SfTask>(
+      const { data } = await api.put<TaskUpdateResult>(
         `/api/salesforce/tasks/${encodeURIComponent(id)}`,
         patch,
       );
