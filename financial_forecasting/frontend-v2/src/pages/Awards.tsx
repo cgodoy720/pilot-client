@@ -238,7 +238,10 @@ function isWithinDays(iso: string | null, days: number): boolean {
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export function AwardsPage() {
-  const [filter, setFilter] = useState<AwardFilter>({ status: "All" });
+  // Default to Active so the page opens to actionable awards instead
+  // of a noisy union of historical Closed / Did-Not-Fulfill rows.
+  // User can still pick All / Closed / etc. via the toolbar pill.
+  const [filter, setFilter] = useState<AwardFilter>({ status: "Active" });
   const [q, setQ] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

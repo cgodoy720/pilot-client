@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { ResizableTh } from "@/components/ui/ResizableTable";
@@ -33,7 +34,7 @@ import { Toolbar } from "@/components/ui/Toolbar";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { useColumnVisibility } from "@/lib/columnVisibility";
 import type { CsvColumn } from "@/lib/csv";
-import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { fmtDate, fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { isOpen, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ import {
   useUpdateOpportunity,
   useUpdateOpportunityStage,
 } from "@/services/opportunities";
+import { useAccountsEnrichment } from "@/services/accounts";
 import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
@@ -358,6 +360,16 @@ function OpportunitiesCleanupTab() {
     () => (oppsData ?? []).filter(isOpen),
     [oppsData],
   );
+
+  // Logo enrichment for the account behind every visible opp.
+  const accountIdsForEnrichment = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of opps) {
+      if (o.AccountId) set.add(o.AccountId);
+    }
+    return Array.from(set);
+  }, [opps]);
+  const enrichmentQ = useAccountsEnrichment(accountIdsForEnrichment);
 
   // Curated bulk-action stage targets — only stages that make sense as
   // the *destination* of a cleanup rewrite. Ordered to match the funnel
@@ -742,10 +754,14 @@ function OpportunitiesCleanupTab() {
                 {virtualItems.map((vi) => {
                   const o = sorted[vi.index];
                   const isChecked = selectedIds.has(o.Id);
+                  const logoUrl = o.AccountId
+                    ? (enrichmentQ.data?.[o.AccountId]?.logo_url ?? null)
+                    : null;
                   return (
                     <CleanupRow
                       key={o.Id}
                       o={o}
+                      logoUrl={logoUrl}
                       visibleCols={visibleCols}
                       checked={isChecked}
                       onToggle={() => toggleOne(o.Id)}
@@ -787,20 +803,23 @@ const CHECKBOX_W = 36;
 
 interface RowProps {
   o: SfOpportunity;
+  logoUrl: string | null;
   visibleCols: ColKey[];
   checked: boolean;
   onToggle: () => void;
 }
 
-const CleanupRow = memo(function CleanupRow({ o, visibleCols, checked, onToggle }: RowProps) {
+const CleanupRow = memo(function CleanupRow({ o, logoUrl, visibleCols, checked, onToggle }: RowProps) {
   const account = o.Account?.Name ?? "—";
 
   const cells: Record<ColKey, React.ReactNode> = {
     name: (
       <div className="flex min-w-0 items-center gap-2">
-        <div className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded bg-surface-2 text-[9px] font-semibold text-ink-2">
-          {initials(account === "—" ? (o.Name ?? "") : account)}
-        </div>
+        <AccountAvatar
+          name={account === "—" ? (o.Name ?? "") : account}
+          logoUrl={logoUrl}
+          size={18}
+        />
         <Link
           to={`/opportunities/${o.Id}`}
           state={CLEANUP_REFERRER}

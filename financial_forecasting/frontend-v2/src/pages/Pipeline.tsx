@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight, Plus, Search, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { PageHeader } from "@/components/PageHeader";
 import { TaskExpandPanel, TASK_PANEL_HEIGHT } from "@/components/TaskExpandPanel";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
@@ -14,7 +15,7 @@ import { StageChip } from "@/components/ui/StageChip";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
 import { useColumnVisibility } from "@/lib/columnVisibility";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
-import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtMoneyFull } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import {
   isLost,
@@ -24,7 +25,7 @@ import {
   stageStatus,
 } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccounts } from "@/services/accounts";
+import { useAccounts, useAccountsEnrichment } from "@/services/accounts";
 import {
   useCreateOpportunity,
   useOpportunities,
@@ -156,6 +157,19 @@ export function PipelinePage() {
   const updateStage = useUpdateOpportunityStage();
 
   const opps = data ?? [];
+
+  // Logo enrichment for the account behind every visible opp. Same
+  // Apollo-overlay pipeline used elsewhere — chunked 200 ids per
+  // batch by the hook so a 2000-row pipeline doesn't pile into one
+  // monstrous URL.
+  const accountIdsForEnrichment = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of opps) {
+      if (o.AccountId) set.add(o.AccountId);
+    }
+    return Array.from(set);
+  }, [opps]);
+  const enrichmentQ = useAccountsEnrichment(accountIdsForEnrichment);
 
   // Stage <select> options come from the distinct stage names actually
   // present in the org. Avoids showing stages SF doesn't accept.
@@ -433,10 +447,14 @@ export function PipelinePage() {
                 {virtualItems.map((vi) => {
                   const o = filtered[vi.index];
                   const isExpanded = o.Id === expandedId;
+                  const logoUrl = o.AccountId
+                    ? (enrichmentQ.data?.[o.AccountId]?.logo_url ?? null)
+                    : null;
                   return (
                     <Fragment key={o.Id}>
                       <OpportunityRow
                         o={o}
+                        logoUrl={logoUrl}
                         stageOptions={stageOptions}
                         ownerOptions={ownerOptions}
                         onOpen={() => navigate(`/opportunities/${o.Id}`, { state: PIPELINE_REFERRER })}
@@ -749,6 +767,7 @@ function FunnelStrip({
 
 interface RowProps {
   o: SfOpportunity;
+  logoUrl: string | null;
   stageOptions: { value: string; label: string }[];
   ownerOptions: { value: string; label: string }[];
   onOpen: () => void;
@@ -779,6 +798,7 @@ function pipelinePercentDisplay(raw: string): string {
 
 const OpportunityRow = memo(function OpportunityRow({
   o,
+  logoUrl,
   stageOptions,
   ownerOptions,
   onOpen,
@@ -805,9 +825,7 @@ const OpportunityRow = memo(function OpportunityRow({
         >
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
-        <div className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded bg-surface-2 text-[9px] font-semibold text-ink-2">
-          {initials(account)}
-        </div>
+        <AccountAvatar name={account} logoUrl={logoUrl} size={18} />
         <div className="flex min-w-0 flex-1 flex-col leading-tight cursor-pointer" onClick={onOpen}>
           <span className="truncate font-medium hover:underline" title={o.Name}>{o.Name}</span>
           <span className="truncate text-[11px] text-ink-3" title={account}>{account}</span>
