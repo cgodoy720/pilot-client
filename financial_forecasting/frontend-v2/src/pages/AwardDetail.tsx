@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Check, ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 
+import { BackLink as SharedBackLink } from "@/components/detail";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoneyFull, initials } from "@/lib/format";
@@ -234,14 +235,7 @@ function Loaded({ award, opp }: { award: Award; opp: SfOpportunity | undefined }
 // ── Header bits ───────────────────────────────────────────────────────────
 
 function BackLink() {
-  return (
-    <Link
-      to="/awards"
-      className="inline-flex items-center gap-1 text-[12px] text-ink-3 hover:text-ink-2"
-    >
-      <ArrowLeft size={12} /> Back to awards
-    </Link>
-  );
+  return <SharedBackLink defaultTo="/awards" defaultLabel="Awards" />;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

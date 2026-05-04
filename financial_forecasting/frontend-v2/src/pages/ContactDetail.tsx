@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Mail, Phone } from "lucide-react";
+import { ExternalLink, Mail, Phone } from "lucide-react";
 
 import { ActivityTimeline } from "@/components/ActivityTimeline";
+import { BackLink as SharedBackLink } from "@/components/detail";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, initials } from "@/lib/format";
 import { useActivities } from "@/services/activities";
@@ -133,14 +134,7 @@ export function ContactDetailPage() {
 }
 
 function BackLink() {
-  return (
-    <Link
-      to="/contacts"
-      className="inline-flex items-center gap-1 text-[12.5px] text-ink-3 hover:text-ink"
-    >
-      <ArrowLeft size={14} /> Contacts
-    </Link>
-  );
+  return <SharedBackLink defaultTo="/contacts" defaultLabel="Contacts" />;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

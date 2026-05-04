@@ -111,6 +111,13 @@ const COL_LABELS: Record<ColKey, string> = {
 
 const ROW_HEIGHT = 44; // px — must match the row's actual rendered height
 
+/** Stable router-state passed when opening an account from this page,
+ *  so AccountDetail's BackLink renders "Back to Accounts" instead of
+ *  the static default. Constant ref so memoized rows don't re-render. */
+const ACCOUNTS_REFERRER = {
+  from: { pathname: "/accounts", label: "Accounts" },
+} as const;
+
 function extractAccount(
   a: SfAccount,
   metrics: AccountMetrics,
@@ -379,7 +386,7 @@ export function AccountsPage() {
                         m={metricsByAccount.get(a.Id) ?? ZERO_METRICS}
                         logoUrl={enrichment[a.Id]?.logo_url ?? null}
                         ownerOptions={ownerOptions}
-                        onOpen={() => navigate(`/accounts/${a.Id}`)}
+                        onOpen={() => navigate(`/accounts/${a.Id}`, { state: ACCOUNTS_REFERRER })}
                         onSaveOwner={(id) => saveOwner(a.Id, id)}
                         isExpanded={isExpanded}
                         onToggleExpand={() => setExpandedId(isExpanded ? null : a.Id)}
@@ -440,7 +447,7 @@ export function AccountsPage() {
           onClose={() => setShowCreate(false)}
           onCreated={(id) => {
             setShowCreate(false);
-            navigate(`/accounts/${id}`);
+            navigate(`/accounts/${id}`, { state: ACCOUNTS_REFERRER });
           }}
         />
       ) : null}

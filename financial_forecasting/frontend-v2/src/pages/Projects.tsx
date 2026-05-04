@@ -32,6 +32,12 @@ const COL_LABELS: Record<ColKey, string> = {
 
 const ROW_HEIGHT = 44; // px — must match the row's actual rendered height
 
+/** Stable router-state for outbound detail-page links so BackLinks
+ *  render "Back to Projects". */
+const PROJECTS_REFERRER = {
+  from: { pathname: "/projects", label: "Projects" },
+} as const;
+
 function extractProject(p: BedrockProject, key: ColKey): unknown {
   switch (key) {
     case "name":
@@ -193,7 +199,7 @@ export function ProjectsPage() {
                     <ProjectRow
                       key={p.id}
                       p={p}
-                      onOpen={() => navigate(`/projects/${p.id}`)}
+                      onOpen={() => navigate(`/projects/${p.id}`, { state: PROJECTS_REFERRER })}
                     />
                   );
                 })}

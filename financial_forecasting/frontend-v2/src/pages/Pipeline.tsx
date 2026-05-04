@@ -106,6 +106,12 @@ const COL_LABELS: Record<ColKey, string> = {
 
 const ROW_HEIGHT = 44; // px — must match the row's actual rendered height
 
+/** Stable router-state passed when opening an opp from this page so
+ *  the detail page's BackLink renders "Back to Pipeline". */
+const PIPELINE_REFERRER = {
+  from: { pathname: "/pipeline", label: "Pipeline" },
+} as const;
+
 function extractOpp(o: SfOpportunity, key: ColKey): unknown {
   switch (key) {
     case "name": return o.Name;
@@ -433,7 +439,7 @@ export function PipelinePage() {
                         o={o}
                         stageOptions={stageOptions}
                         ownerOptions={ownerOptions}
-                        onOpen={() => navigate(`/opportunities/${o.Id}`)}
+                        onOpen={() => navigate(`/opportunities/${o.Id}`, { state: PIPELINE_REFERRER })}
                         onSaveStage={(stage) => saveStage(o.Id, stage)}
                         onSaveAmount={(raw) => saveAmount(o.Id, raw)}
                         onSaveProbability={(raw) => saveProbability(o.Id, raw)}
@@ -496,7 +502,7 @@ export function PipelinePage() {
           onClose={() => setShowCreate(false)}
           onCreated={(id) => {
             setShowCreate(false);
-            navigate(`/opportunities/${id}`);
+            navigate(`/opportunities/${id}`, { state: PIPELINE_REFERRER });
           }}
         />
       ) : null}

@@ -12,6 +12,12 @@ import { useOpportunities } from "@/services/opportunities";
 import { useOwnerGoals } from "@/services/ownerGoals";
 import { useActiveUsers } from "@/services/users";
 
+/** Stable router-state for outbound detail-page links so BackLinks
+ *  render "Back to Dashboard". */
+const DASHBOARD_REFERRER = {
+  from: { pathname: "/", label: "Dashboard" },
+} as const;
+
 export function DashboardPage() {
   const { data: user } = useCurrentUser();
   const { data: accounts = [] } = useAccounts();
@@ -139,6 +145,7 @@ export function DashboardPage() {
                   <div className="min-w-0 flex-1">
                     <Link
                       to={`/opportunities/${o.Id}`}
+                      state={DASHBOARD_REFERRER}
                       className="block truncate text-[13px] font-medium hover:underline"
                     >
                       {o.Name}
@@ -184,6 +191,7 @@ export function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <Link
                         to={`/opportunities/${a.opportunity_id}`}
+                        state={DASHBOARD_REFERRER}
                         className="block truncate text-[13px] font-medium hover:underline"
                       >
                         {opp?.Name ?? a.opportunity_id}

@@ -226,6 +226,14 @@ function extractOpp(o: SfOpportunity, key: ColKey): unknown {
 }
 
 const SELECTION_CAP = 500;
+
+/** Static router-state object passed via `<Link state={...}>` from rows
+ *  in this page → so detail pages render "Back to Cleanup" instead of
+ *  defaulting to "Pipeline" / "Accounts" / "Contacts". Constant ref so
+ *  memoized rows don't re-render. */
+const CLEANUP_REFERRER = {
+  from: { pathname: "/cleanup", label: "Cleanup" },
+} as const;
 const BULK_PARALLELISM = 4;
 
 // ── Page ──────────────────────────────────────────────────────────────────
@@ -736,6 +744,7 @@ const CleanupRow = memo(function CleanupRow({ o, visibleCols, checked, onToggle 
         </div>
         <Link
           to={`/opportunities/${o.Id}`}
+          state={CLEANUP_REFERRER}
           className="min-w-0 flex-1 truncate font-medium hover:underline"
           title={o.Name ?? ""}
           onClick={(e) => e.stopPropagation()}

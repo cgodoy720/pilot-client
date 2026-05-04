@@ -72,6 +72,11 @@ type AccountField = keyof typeof ACCOUNT_FILTERABLE;
 const ROW_HEIGHT = 44;
 const CHECKBOX_W = 36;
 
+/** Stable referrer state — see CleanupPage for rationale. */
+const CLEANUP_REFERRER = {
+  from: { pathname: "/cleanup", label: "Cleanup" },
+} as const;
+
 type ColKey = "name" | "owner" | "type" | "industry" | "billing" | "website" | "lastModified";
 
 const COL_LABELS: Record<ColKey, string> = {
@@ -525,6 +530,7 @@ const AccountRow = memo(function AccountRow({
           <AccountAvatar name={a.Name} logoUrl={logoUrl} website={a.Website} size={22} />
           <Link
             to={`/accounts/${a.Id}`}
+            state={CLEANUP_REFERRER}
             className="min-w-0 flex-1 truncate font-medium hover:underline"
             title={a.Name ?? ""}
             onClick={(e) => e.stopPropagation()}

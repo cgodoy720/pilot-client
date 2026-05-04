@@ -68,6 +68,11 @@ type ContactField = keyof typeof CONTACT_FILTERABLE;
 const ROW_HEIGHT = 44;
 const CHECKBOX_W = 36;
 
+/** Stable referrer state — see CleanupPage for rationale. */
+const CLEANUP_REFERRER = {
+  from: { pathname: "/cleanup", label: "Cleanup" },
+} as const;
+
 type ColKey = "name" | "account" | "title" | "email" | "owner" | "lastActivity";
 
 const COL_LABELS: Record<ColKey, string> = {
@@ -518,6 +523,7 @@ const ContactRow = memo(function ContactRow({
           </div>
           <Link
             to={`/contacts/${c.Id}`}
+            state={CLEANUP_REFERRER}
             className="min-w-0 flex-1 truncate font-medium hover:underline"
             title={name}
             onClick={(e) => e.stopPropagation()}
@@ -530,6 +536,7 @@ const ContactRow = memo(function ContactRow({
         {c.AccountId && c.Account?.Name ? (
           <Link
             to={`/accounts/${c.AccountId}`}
+            state={CLEANUP_REFERRER}
             className="truncate text-[12.5px] text-ink-2 hover:underline"
             onClick={(e) => e.stopPropagation()}
             title={c.Account.Name}

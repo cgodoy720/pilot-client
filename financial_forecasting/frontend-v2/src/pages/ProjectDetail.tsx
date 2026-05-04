@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronRight,
   MoreHorizontal,
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
+import { BackLink as SharedBackLink } from "@/components/detail";
 import { Tag } from "@/components/ui/Tag";
 import { api } from "@/lib/api";
 import { fmtDate, initials } from "@/lib/format";
@@ -909,14 +909,7 @@ function LinkedAccountsSection({ projectId }: { projectId: string }) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function BackLink() {
-  return (
-    <Link
-      to="/projects"
-      className="inline-flex items-center gap-1 text-[12.5px] text-ink-3 hover:text-ink"
-    >
-      <ArrowLeft size={14} /> Projects
-    </Link>
-  );
+  return <SharedBackLink defaultTo="/projects" defaultLabel="Projects" />;
 }
 
 // ── Editable project name ─────────────────────────────────────────────────────

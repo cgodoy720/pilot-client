@@ -112,6 +112,12 @@ const DEFAULT_VISIBLE: ColKey[] = [
 
 const ROW_HEIGHT = 52; // taller — name now has account on a second line
 
+/** Stable router-state for outbound detail-page links so BackLinks
+ *  render "Back to Awards". */
+const AWARDS_REFERRER = {
+  from: { pathname: "/awards", label: "Awards" },
+} as const;
+
 function pendingAmount(opp: SfOpportunity | undefined): number {
   const total = opp?.Amount ?? 0;
   const paid = opp?.npe01__Payments_Made__c ?? 0;
@@ -534,6 +540,7 @@ const AwardRow = memo(function AwardRow({
         </div>
         <Link
           to={`/awards/${a.id}`}
+          state={AWARDS_REFERRER}
           className="flex min-w-0 flex-1 flex-col leading-tight"
           onClick={(e) => e.stopPropagation()}
         >

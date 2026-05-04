@@ -3,9 +3,10 @@ import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
-import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Mail, Pencil, Phone, Plus, Search, UserPlus, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Mail, Pencil, Phone, Plus, Search, UserPlus, X } from "lucide-react";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { BackLink as SharedBackLink } from "@/components/detail";
 import { AccountTasksSection } from "@/components/AccountTasksSection";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
@@ -518,14 +519,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function BackLink() {
-  return (
-    <Link
-      to="/accounts"
-      className="inline-flex items-center gap-1 text-[12.5px] text-ink-3 hover:text-ink"
-    >
-      <ArrowLeft size={14} /> Accounts
-    </Link>
-  );
+  return <SharedBackLink defaultTo="/accounts" defaultLabel="Accounts" />;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

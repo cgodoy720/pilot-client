@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 
 import { ActivityTimeline } from "@/components/ActivityTimeline";
+import { BackLink as SharedBackLink } from "@/components/detail";
 import { OppTasksSection } from "@/components/OppTasksSection";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
@@ -301,14 +301,7 @@ function paymentStatus(p: {
 }
 
 function BackLink() {
-  return (
-    <Link
-      to="/pipeline"
-      className="inline-flex items-center gap-1 text-[12.5px] text-ink-3 hover:text-ink"
-    >
-      <ArrowLeft size={14} /> Pipeline
-    </Link>
-  );
+  return <SharedBackLink defaultTo="/pipeline" defaultLabel="Pipeline" />;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
