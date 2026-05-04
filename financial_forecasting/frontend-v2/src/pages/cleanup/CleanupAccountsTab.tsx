@@ -18,7 +18,12 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { Toolbar } from "@/components/ui/Toolbar";
-import { fmtDate } from "@/lib/format";
+import {
+  buildAccountMetricsMap,
+  ZERO_ACCOUNT_METRICS,
+  type AccountMetrics,
+} from "@/lib/accountMetrics";
+import { fmtDate, fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +32,7 @@ import {
   useUpdateAccount,
   useAccountsEnrichment,
 } from "@/services/accounts";
+import { useOpportunities } from "@/services/opportunities";
 import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfAccount } from "@/types/salesforce";
@@ -49,23 +55,34 @@ import {
 
 // ── Filter model ─────────────────────────────────────────────────────────
 
+/**
+ * Account row enriched with the per-account roll-ups from
+ * {@link buildAccountMetricsMap}. Columns and filter rules read from
+ * `_metrics` for Open pipeline / Amount won / Received / Outstanding,
+ * keeping the cleanup tab in sync with the Accounts page table.
+ */
+type AccountWithMetrics = SfAccount & { _metrics: AccountMetrics };
+
 const ACCOUNT_FILTERABLE = {
-  name: { label: "Name", type: "text", getValue: (a: SfAccount) => a.Name ?? "" },
-  owner: { label: "Owner", type: "select", getValue: (a: SfAccount) => a.OwnerId ?? "" },
-  type: { label: "Type", type: "select", getValue: (a: SfAccount) => a.Type ?? "" },
-  industry: { label: "Industry", type: "select", getValue: (a: SfAccount) => a.Industry ?? "" },
-  recordType: { label: "Record Type", type: "select", getValue: (a: SfAccount) => a.RecordType?.Name ?? "" },
-  billingCity: { label: "Billing city", type: "text", getValue: (a: SfAccount) => a.BillingCity ?? "" },
-  billingState: { label: "Billing state", type: "select", getValue: (a: SfAccount) => a.BillingState ?? "" },
-  website: { label: "Website", type: "text", getValue: (a: SfAccount) => a.Website ?? "" },
-  annualRevenue: { label: "Annual revenue", type: "number", getValue: (a: SfAccount) => a.AnnualRevenue ?? null },
-  numEmployees: { label: "Employees", type: "number", getValue: (a: SfAccount) => a.NumberOfEmployees ?? null },
-  totalRevenue: { label: "Lifetime revenue", type: "number", getValue: (a: SfAccount) => a.npo02__TotalOppAmount__c ?? null },
-  closedOpps: { label: "Closed opps", type: "number", getValue: (a: SfAccount) => a.npo02__NumberOfClosedOpps__c ?? null },
-  lastActivity: { label: "Last activity", type: "date", getValue: (a: SfAccount) => a.LastActivityDate ?? null },
-  createdDate: { label: "Created", type: "date", getValue: (a: SfAccount) => a.CreatedDate ?? null },
-  lastModified: { label: "Last modified", type: "date", getValue: (a: SfAccount) => a.LastModifiedDate ?? null },
-} satisfies Record<string, FieldMeta<SfAccount>>;
+  name: { label: "Name", type: "text", getValue: (a: AccountWithMetrics) => a.Name ?? "" },
+  owner: { label: "Owner", type: "select", getValue: (a: AccountWithMetrics) => a.OwnerId ?? "" },
+  openPipeline: { label: "Open pipeline", type: "number", getValue: (a: AccountWithMetrics) => a._metrics.openPipeline },
+  amountWon: { label: "Lifetime won", type: "number", getValue: (a: AccountWithMetrics) => a._metrics.amountWon },
+  received: { label: "Received", type: "number", getValue: (a: AccountWithMetrics) => a._metrics.received },
+  outstanding: { label: "Outstanding", type: "number", getValue: (a: AccountWithMetrics) => a._metrics.outstanding },
+  type: { label: "Type", type: "select", getValue: (a: AccountWithMetrics) => a.Type ?? "" },
+  industry: { label: "Industry", type: "select", getValue: (a: AccountWithMetrics) => a.Industry ?? "" },
+  recordType: { label: "Record Type", type: "select", getValue: (a: AccountWithMetrics) => a.RecordType?.Name ?? "" },
+  billingCity: { label: "Billing city", type: "text", getValue: (a: AccountWithMetrics) => a.BillingCity ?? "" },
+  billingState: { label: "Billing state", type: "select", getValue: (a: AccountWithMetrics) => a.BillingState ?? "" },
+  website: { label: "Website", type: "text", getValue: (a: AccountWithMetrics) => a.Website ?? "" },
+  annualRevenue: { label: "Annual revenue", type: "number", getValue: (a: AccountWithMetrics) => a.AnnualRevenue ?? null },
+  numEmployees: { label: "Employees", type: "number", getValue: (a: AccountWithMetrics) => a.NumberOfEmployees ?? null },
+  closedOpps: { label: "Closed opps (SF)", type: "number", getValue: (a: AccountWithMetrics) => a.npo02__NumberOfClosedOpps__c ?? null },
+  lastActivity: { label: "Last activity", type: "date", getValue: (a: AccountWithMetrics) => a.LastActivityDate ?? null },
+  createdDate: { label: "Created", type: "date", getValue: (a: AccountWithMetrics) => a.CreatedDate ?? null },
+  lastModified: { label: "Last modified", type: "date", getValue: (a: AccountWithMetrics) => a.LastModifiedDate ?? null },
+} satisfies Record<string, FieldMeta<AccountWithMetrics>>;
 
 type AccountField = keyof typeof ACCOUNT_FILTERABLE;
 
@@ -77,11 +94,26 @@ const CLEANUP_REFERRER = {
   from: { pathname: "/cleanup", label: "Cleanup" },
 } as const;
 
-type ColKey = "name" | "owner" | "type" | "industry" | "billing" | "website" | "lastModified";
+type ColKey =
+  | "name"
+  | "owner"
+  | "openPipeline"
+  | "amountWon"
+  | "received"
+  | "outstanding"
+  | "type"
+  | "industry"
+  | "billing"
+  | "website"
+  | "lastModified";
 
 const COL_LABELS: Record<ColKey, string> = {
   name: "Account",
   owner: "Owner",
+  openPipeline: "Open pipeline",
+  amountWon: "Lifetime won",
+  received: "Received",
+  outstanding: "Outstanding",
   type: "Type",
   industry: "Industry",
   billing: "Location",
@@ -90,21 +122,41 @@ const COL_LABELS: Record<ColKey, string> = {
 };
 
 const COL_WIDTHS: Record<ColKey, number> = {
-  name: 320,
-  owner: 160,
-  type: 120,
-  industry: 160,
-  billing: 160,
-  website: 200,
-  lastModified: 130,
+  name: 280,
+  owner: 150,
+  openPipeline: 130,
+  amountWon: 130,
+  received: 120,
+  outstanding: 130,
+  type: 110,
+  industry: 150,
+  billing: 150,
+  website: 180,
+  lastModified: 120,
 };
 
-const COLUMN_ORDER: ColKey[] = ["name", "owner", "type", "industry", "billing", "website", "lastModified"];
+const COLUMN_ORDER: ColKey[] = [
+  "name",
+  "owner",
+  "openPipeline",
+  "amountWon",
+  "received",
+  "outstanding",
+  "type",
+  "industry",
+  "billing",
+  "website",
+  "lastModified",
+];
 
-function extract(a: SfAccount, key: ColKey): unknown {
+function extract(a: AccountWithMetrics, key: ColKey): unknown {
   switch (key) {
     case "name": return a.Name ?? "";
     case "owner": return a.Owner?.Name ?? "";
+    case "openPipeline": return a._metrics.openPipeline;
+    case "amountWon": return a._metrics.amountWon;
+    case "received": return a._metrics.received;
+    case "outstanding": return a._metrics.outstanding;
     case "type": return a.Type ?? "";
     case "industry": return a.Industry ?? "";
     case "billing":
@@ -117,11 +169,23 @@ function extract(a: SfAccount, key: ColKey): unknown {
 export function CleanupAccountsTab() {
   const canEdit = usePerm("edit_accounts");
   const { data: accountsData, isLoading } = useAccounts();
+  const { data: opps = [] } = useOpportunities();
   const usersQ = useActiveUsers();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
 
-  const accounts = useMemo(() => accountsData ?? [], [accountsData]);
+  // Per-account roll-ups (open pipeline / lifetime won / received /
+  // outstanding) — same source as the Accounts page table so both
+  // views stay in sync.
+  const metricsByAccount = useMemo(() => buildAccountMetricsMap(opps), [opps]);
+  const accounts = useMemo<AccountWithMetrics[]>(
+    () =>
+      (accountsData ?? []).map((a) => ({
+        ...a,
+        _metrics: metricsByAccount.get(a.Id) ?? ZERO_ACCOUNT_METRICS,
+      })),
+    [accountsData, metricsByAccount],
+  );
   const accountIds = useMemo(() => accounts.map((a) => a.Id), [accounts]);
   const enrichmentQ = useAccountsEnrichment(accountIds);
 
@@ -502,12 +566,13 @@ const AccountRow = memo(function AccountRow({
   checked,
   onToggle,
 }: {
-  a: SfAccount;
+  a: AccountWithMetrics;
   logoUrl: string | null;
   checked: boolean;
   onToggle: () => void;
 }) {
   const billing = [a.BillingCity, a.BillingState].filter(Boolean).join(", ");
+  const m = a._metrics;
   return (
     <tr
       className={cn(
@@ -542,6 +607,10 @@ const AccountRow = memo(function AccountRow({
       <td className="px-3 py-1">
         <span className="truncate text-[12.5px] text-ink-2">{a.Owner?.Name ?? "—"}</span>
       </td>
+      <MoneyCell value={m.openPipeline} />
+      <MoneyCell value={m.amountWon} />
+      <MoneyCell value={m.received} />
+      <MoneyCell value={m.outstanding} />
       <td className="px-3 py-1">
         <span className="truncate text-[12.5px] text-ink-2">{a.Type ?? "—"}</span>
       </td>
@@ -570,4 +639,14 @@ const AccountRow = memo(function AccountRow({
     </tr>
   );
 });
+
+/** Right-aligned money cell — em-dash for zero so the table doesn't
+ *  read as a wall of "$0" for accounts with no pipeline yet. */
+function MoneyCell({ value }: { value: number }) {
+  return (
+    <td className="mono px-3 py-1 text-right text-[12.5px] tabular-nums text-ink-2">
+      {value > 0 ? fmtMoney(value) : <span className="text-ink-4">—</span>}
+    </td>
+  );
+}
 

@@ -11,11 +11,15 @@ import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
 import { SavedViewsPicker } from "@/components/ui/SavedViewsPicker";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
+import {
+  buildAccountMetricsMap,
+  ZERO_ACCOUNT_METRICS as ZERO_METRICS,
+  type AccountMetrics,
+} from "@/lib/accountMetrics";
 import { useColumnVisibility } from "@/lib/columnVisibility";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
-import { isOpen, isWon } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import {
@@ -27,7 +31,7 @@ import {
 import { useOpportunities } from "@/services/opportunities";
 import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
-import type { SfAccount, SfOpportunity } from "@/types/salesforce";
+import type { SfAccount } from "@/types/salesforce";
 
 const TYPE_FILTERS = ["All", "Foundation", "Corporate", "Government", "Individual"] as const;
 type TypeFilter = (typeof TYPE_FILTERS)[number];
@@ -42,43 +46,6 @@ function matchesType(account: SfAccount, filter: TypeFilter): boolean {
   return true;
 }
 
-interface AccountMetrics {
-  openPipeline: number;
-  amountWon: number;
-  received: number;
-  outstanding: number;
-}
-
-const ZERO_METRICS: AccountMetrics = {
-  openPipeline: 0,
-  amountWon: 0,
-  received: 0,
-  outstanding: 0,
-};
-
-function buildMetricsMap(opps: SfOpportunity[]): Map<string, AccountMetrics> {
-  const m = new Map<string, AccountMetrics>();
-  for (const o of opps) {
-    const accountId = o.AccountId;
-    if (!accountId) continue;
-    let cur = m.get(accountId);
-    if (!cur) {
-      cur = { ...ZERO_METRICS };
-      m.set(accountId, cur);
-    }
-    const amount = o.Amount ?? 0;
-    if (isOpen(o)) {
-      cur.openPipeline += amount;
-    } else if (isWon(o)) {
-      cur.amountWon += amount;
-      cur.received += o.npe01__Payments_Made__c ?? 0;
-    }
-  }
-  for (const v of m.values()) {
-    v.outstanding = Math.max(0, v.amountWon - v.received);
-  }
-  return m;
-}
 
 type ColKey = "name" | "owner" | "openPipeline" | "amountWon" | "received" | "outstanding";
 
@@ -163,7 +130,7 @@ export function AccountsPage() {
   const accounts = accountsQ.data ?? [];
   const opps = oppsQ.data ?? [];
 
-  const metricsByAccount = useMemo(() => buildMetricsMap(opps), [opps]);
+  const metricsByAccount = useMemo(() => buildAccountMetricsMap(opps), [opps]);
 
   // Logos / domains from public.companies via the bridge map. Fetch once
   // for every visible account in a single batched request (cap 1000).
