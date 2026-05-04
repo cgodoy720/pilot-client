@@ -123,27 +123,36 @@ export function AccountPicker({
 
   return (
     <div className="relative" ref={popoverRef}>
-      {!open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className={cn(
-            "group/edit relative flex w-full max-w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[13px] text-ink-2 hover:bg-surface hover:ring-1 hover:ring-border-strong",
-            !currentLabel && "italic text-ink-4",
-          )}
-          title={currentLabel ?? "No account"}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "group/edit relative flex w-full max-w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[13px] text-ink-2 hover:bg-surface hover:ring-1 hover:ring-border-strong",
+          !currentLabel && "italic text-ink-4",
+          open && "bg-surface ring-1 ring-accent/40",
+        )}
+        title={currentLabel ?? "No account"}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <span className="min-w-0 flex-1 truncate">
+          {currentLabel ?? "—"}
+        </span>
+        <Pencil
+          size={11}
+          className="flex-shrink-0 text-ink-4 opacity-0 transition-opacity group-hover/edit:opacity-100"
+          aria-hidden="true"
+        />
+      </button>
+
+      {open ? (
+        <div
+          /* Absolute popover so opening the picker doesn't push the
+             surrounding grid cell taller. min-w-[280px] keeps the
+             dropdown readable even when the trigger cell is narrow. */
+          className="absolute left-0 top-full z-30 mt-1 min-w-[280px] max-w-[420px] rounded-md border border-border-strong bg-surface shadow-lg"
+          role="listbox"
         >
-          <span className="min-w-0 flex-1 truncate">
-            {currentLabel ?? "—"}
-          </span>
-          <Pencil
-            size={11}
-            className="flex-shrink-0 text-ink-4 opacity-0 transition-opacity group-hover/edit:opacity-100"
-            aria-hidden="true"
-          />
-        </button>
-      ) : (
-        <div className="rounded-md border border-border-strong bg-surface shadow-md">
           <div className="flex items-center gap-1 border-b border-border-strong px-2 py-1.5">
             <input
               ref={inputRef}
@@ -207,7 +216,7 @@ export function AccountPicker({
             </div>
           ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
