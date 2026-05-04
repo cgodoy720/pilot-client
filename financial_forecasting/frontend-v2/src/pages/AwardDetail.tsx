@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { Check, ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { BackLink as SharedBackLink } from "@/components/detail";
@@ -99,6 +99,7 @@ function Loaded({ award, opp }: { award: Award; opp: SfOpportunity | undefined }
   const updateAward = useUpdateAward();
   const updateOpp = useUpdateOpportunity();
   const usersQ = useActiveUsers();
+  const location = useLocation();
 
   const ownerOptions = useMemo(
     () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
@@ -110,6 +111,11 @@ function Loaded({ award, opp }: { award: Award; opp: SfOpportunity | undefined }
 
   const account = opp?.Account?.Name ?? "—";
   const oppName = opp?.Name ?? award.opportunity_id;
+  // Referrer for cross-detail jumps (award → account / project) so
+  // those pages' BackLinks return here instead of their default lists.
+  const referrer = {
+    from: { pathname: location.pathname, label: oppName || "Award" },
+  };
   const ownerName = opp?.Owner?.Name ?? "—";
   const total = opp?.Amount ?? 0;
   const paid = opp?.npe01__Payments_Made__c ?? 0;
@@ -144,7 +150,11 @@ function Loaded({ award, opp }: { award: Award; opp: SfOpportunity | undefined }
             )}
             {opp?.RecordType?.Name ? <Tag>{opp.RecordType.Name}</Tag> : null}
             {opp?.AccountId ? (
-              <Link to={`/accounts/${opp.AccountId}`} className="underline-offset-4 hover:underline">
+              <Link
+                to={`/accounts/${opp.AccountId}`}
+                state={referrer}
+                className="underline-offset-4 hover:underline"
+              >
                 · {account}
               </Link>
             ) : null}
@@ -717,6 +727,10 @@ function TasksDetail({ opportunityId }: { opportunityId: string }) {
 // ── Projects section (sidebar) ────────────────────────────────────────────
 
 function ProjectsDetail({ award }: { award: Award }) {
+  const location = useLocation();
+  const referrer = {
+    from: { pathname: location.pathname, label: "Award" },
+  };
   const projectsQ = useProjects();
   const createProject = useCreateProject();
   const linkProject = useLinkProjectToOpportunity();
@@ -812,6 +826,7 @@ function ProjectsDetail({ award }: { award: Award }) {
             <li key={p.id}>
               <Link
                 to={`/projects/${p.id}`}
+                state={referrer}
                 className="group flex items-center gap-2 rounded border border-border-strong bg-surface px-3 py-1.5 hover:border-accent"
               >
                 <span className="flex-1 truncate text-[12.5px] font-medium text-ink">

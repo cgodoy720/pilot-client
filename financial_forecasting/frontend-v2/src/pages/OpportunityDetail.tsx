@@ -1,16 +1,28 @@
-import { useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
-import { BackLink as SharedBackLink } from "@/components/detail";
 import { OppTasksSection } from "@/components/OppTasksSection";
+import {
+  BackLink as SharedBackLink,
+  DetailRow,
+  EditField,
+  Empty,
+  SectionCard,
+  Stat,
+} from "@/components/detail";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
-import { SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoneyFull, initials } from "@/lib/format";
+import { fmtDate, fmtMoneyFull } from "@/lib/format";
+import { SF_STAGE_OPTIONS, isOpen, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
+import { useAccountEnrichment } from "@/services/accounts";
 import { useActivities } from "@/services/activities";
+import { useAwards } from "@/services/awards";
+import { useContacts } from "@/services/contacts";
 import {
   useOpportunities,
   useOpportunityPayments,
@@ -18,8 +30,9 @@ import {
   useUpdateOpportunityStage,
 } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
+import type { SfOpportunity } from "@/types/salesforce";
 
-const LEAD_SOURCE_OPTIONS = [
+const LEAD_SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: "Web", label: "Web" },
   { value: "Phone Inquiry", label: "Phone Inquiry" },
   { value: "Partner Referral", label: "Partner Referral" },
@@ -30,8 +43,12 @@ const LEAD_SOURCE_OPTIONS = [
   { value: "Internal", label: "Internal" },
 ];
 
+/** Filter values for the Payments section pill toggle. */
+type PaymentFilter = "all" | "open" | "paid";
+
 export function OpportunityDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
+  const location = useLocation();
 
   const { data: opps } = useOpportunities();
   const opp = useMemo(
@@ -41,13 +58,24 @@ export function OpportunityDetailPage() {
 
   const { data: payments = [] } = useOpportunityPayments(id);
   const { data: activities = [] } = useActivities({ opportunityId: id, limit: 30 });
+  const { data: awards = [] } = useAwards();
+  const enrichment = useAccountEnrichment(opp?.AccountId ?? null);
+  // Pull contacts on the parent account so the primary-contact picker
+  // only suggests people who actually belong to this account.
+  const { data: accountContacts = [] } = useContacts(opp?.AccountId ?? undefined);
   const usersQ = useActiveUsers();
+
   const updateOpp = useUpdateOpportunity();
   const updateStage = useUpdateOpportunityStage();
 
   const ownerOptions = useMemo(
     () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
     [usersQ.data],
+  );
+
+  const award = useMemo(
+    () => awards.find((a) => a.opportunity_id === id) ?? null,
+    [awards, id],
   );
 
   if (!opp) {
@@ -61,7 +89,7 @@ export function OpportunityDetailPage() {
     );
   }
 
-  const patch = (field: string, val: unknown) =>
+  const patch = (field: string, val: unknown): Promise<void> =>
     updateOpp.mutateAsync({ id: opp.Id, patch: { [field]: val } }).then(() => undefined);
 
   const saveOwner = async (ownerId: string) => {
@@ -80,15 +108,42 @@ export function OpportunityDetailPage() {
     .filter((p) => !p.npe01__Paid__c && !p.npe01__Written_Off__c)
     .reduce((s, p) => s + (p.npe01__Payment_Amount__c ?? 0), 0);
 
+  // 5th stat — Probability when open, Days-to-close when closed.
+  const isOpenOpp = isOpen(opp);
+  const days = opp.CloseDate
+    ? Math.round((new Date(opp.CloseDate).getTime() - Date.now()) / 86400_000)
+    : null;
+  const fifthStat = isOpenOpp
+    ? {
+        label: "Probability",
+        value: opp.Probability != null ? `${opp.Probability}%` : "—",
+        tone: "default" as const,
+      }
+    : {
+        label: "Days to close",
+        value: days != null ? `${Math.abs(days)}` : "—",
+        tone: "default" as const,
+      };
+
+  // Referrer for cross-detail jumps (account, contact, award) — when
+  // the user clicks one of those, the BackLink there should return
+  // here, not to /accounts. {@link DetailReferrer}.
+  const referrer = {
+    from: { pathname: location.pathname, label: opp.Name ?? "Opportunity" },
+  };
+
   return (
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
       <BackLink />
 
       {/* Header */}
       <div className="mt-4 flex items-start gap-4">
-        <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-md bg-surface-2 text-[14px] font-semibold text-ink-2">
-          {initials(opp.Account?.Name ?? opp.Name)}
-        </div>
+        <AccountAvatar
+          name={opp.Account?.Name ?? opp.Name}
+          logoUrl={enrichment.data?.logo_url ?? null}
+          website={null}
+          size={48}
+        />
         <div className="flex-1 min-w-0">
           <InlineText
             value={opp.Name}
@@ -99,13 +154,16 @@ export function OpportunityDetailPage() {
             <InlineSelect
               value={opp.StageName}
               options={SF_STAGE_OPTIONS}
-              onSave={(v) => updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)}
+              onSave={(v) =>
+                updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
+              }
               renderValue={() => <StageChip stage={opp.StageName} status={stageStatus(opp)} />}
             />
             {opp.RecordType?.Name ? <Tag>{opp.RecordType.Name}</Tag> : null}
             {opp.AccountId ? (
               <Link
                 to={`/accounts/${opp.AccountId}`}
+                state={referrer}
                 className="underline-offset-4 hover:underline"
               >
                 · {opp.Account?.Name ?? opp.AccountId}
@@ -116,15 +174,16 @@ export function OpportunityDetailPage() {
       </div>
 
       {/* Stats row */}
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Amount" value={opp.Amount ? fmtMoneyFull(opp.Amount) : "—"} />
-        <Stat label="Paid" value={fmtMoneyFull(totalPaid)} />
+        <Stat label="Paid" value={fmtMoneyFull(totalPaid)} tone={totalPaid > 0 ? "green" : "default"} />
         <Stat label="Scheduled" value={fmtMoneyFull(totalScheduled)} />
         <Stat label="Close" value={fmtDate(opp.CloseDate)} />
+        <Stat label={fifthStat.label} value={fifthStat.value} tone={fifthStat.tone} />
       </div>
 
-      {/* Editable details grid */}
-      <SectionCard title="Details">
+      {/* Details — always-on canonical fields */}
+      <SectionCard title="Details" collapsible={false} storageScope="opportunity">
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-5 py-4 md:grid-cols-3">
           <EditField label="Owner">
             <InlineSelect
@@ -180,9 +239,12 @@ export function OpportunityDetailPage() {
             />
           </EditField>
           <EditField label="Primary contact">
-            <span className="px-1.5 py-1 text-[13px] text-ink-2">
-              {opp.npsp__Primary_Contact__r?.Name ?? <span className="italic text-ink-4">—</span>}
-            </span>
+            <PrimaryContactPicker
+              opp={opp}
+              accountContacts={accountContacts}
+              onSave={(contactId) => patch("npsp__Primary_Contact__c", contactId)}
+              referrer={referrer}
+            />
           </EditField>
           <EditField label="Type">
             <span className="px-1.5 py-1 text-[13px] text-ink-2">
@@ -192,93 +254,89 @@ export function OpportunityDetailPage() {
         </div>
       </SectionCard>
 
-      {/* Next step + description */}
-      <SectionCard title="Notes">
-        <div className="px-5 py-3 space-y-2">
-          <div>
-            <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-              Next step
-            </div>
+      {/* Notes — Next step + Description */}
+      <SectionCard title="Notes" storageScope="opportunity">
+        <div className="space-y-3 px-5 py-3">
+          <DetailRow label="Next step">
             <InlineText
               value={opp.NextStep}
               onSave={(v) => patch("NextStep", v)}
               placeholder="Add a next step…"
             />
-          </div>
-          <div>
-            <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-              Description
-            </div>
+          </DetailRow>
+          <DetailRow label="Description">
             <InlineText
               value={opp.Description}
               onSave={(v) => patch("Description", v)}
               placeholder="Add a description…"
               multiline
             />
-          </div>
+          </DetailRow>
         </div>
       </SectionCard>
 
+      {/* Tasks */}
       <OppTasksSection opportunityId={opp.Id} />
 
-      {/* Payments */}
-      <SectionCard title={`Payments (${payments.length})`}>
-        {payments.length === 0 ? (
-          <Empty>No payment schedule.</Empty>
-        ) : (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                {["Scheduled", "Amount", "Status", "Method", "Received", "Notes"].map(
-                  (h, i) => (
-                    <th
-                      key={h}
-                      className={cn(
-                        "border-b border-border-strong bg-surface-2 px-5 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3",
-                        i === 1 ? "text-right" : "text-left",
-                      )}
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => {
-                const status = paymentStatus(p);
-                return (
-                  <tr
-                    key={p.Id}
-                    className="border-b border-border-strong last:border-b-0"
-                  >
-                    <td className="mono px-5 py-2.5 text-[12.5px] text-ink-2">
-                      {fmtDate(p.npe01__Scheduled_Date__c)}
-                    </td>
-                    <td className="mono px-5 py-2.5 text-right text-[13px] font-medium tabular-nums">
-                      {p.npe01__Payment_Amount__c ? fmtMoneyFull(p.npe01__Payment_Amount__c, true) : "—"}
-                    </td>
-                    <td className="px-5 py-2.5">
-                      <Tag variant={status.variant}>{status.label}</Tag>
-                    </td>
-                    <td className="px-5 py-2.5 text-[12px] text-ink-2">
-                      {p.npe01__Payment_Method__c ?? "—"}
-                    </td>
-                    <td className="mono px-5 py-2.5 text-[11.5px] text-ink-3">
-                      {fmtDate(p.npe01__Payment_Date__c)}
-                    </td>
-                    <td className="px-5 py-2.5 text-[12px] text-ink-3">
-                      {p.npe01__Written_Off__c ? "Written off" : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </SectionCard>
+      {/* Payments — pill-toggle filter (All / Open / Paid). Default-open
+          when there's an unpaid balance, default-closed once everything
+          is paid (no action needed). */}
+      <PaymentsSection
+        payments={payments}
+        defaultOpen={totalScheduled > 0 || payments.length === 0}
+      />
 
-      <ActivityTimeline activities={activities} />
+      {/* Award — only when this opp produced an award. */}
+      {award ? (
+        <SectionCard
+          title="Award"
+          storageScope="opportunity"
+          action={
+            <Link
+              to={`/awards/${award.id}`}
+              state={referrer}
+              className="inline-flex items-center gap-1 rounded border border-border-strong bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:bg-surface-2"
+            >
+              <ExternalLink size={11} aria-hidden="true" /> Open
+            </Link>
+          }
+        >
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-5 py-4 md:grid-cols-4">
+            <EditField label="Status">
+              <Tag
+                variant={
+                  award.award_status === "Active"
+                    ? "green"
+                    : award.award_status === "Closing"
+                      ? "amber"
+                      : award.award_status === "Did Not Fulfill"
+                        ? "red"
+                        : "default"
+                }
+              >
+                {award.award_status}
+              </Tag>
+            </EditField>
+            <EditField label="Awarded">
+              <span className="px-1.5 py-1 text-[13px] text-ink-2">{fmtDate(award.award_date)}</span>
+            </EditField>
+            <EditField label="Period end">
+              <span className="px-1.5 py-1 text-[13px] text-ink-2">{fmtDate(award.period_end_date)}</span>
+            </EditField>
+            <EditField label="Reports">
+              <span className="px-1.5 py-1 text-[13px] text-ink-2">
+                {award.report_done}/{award.report_total}
+                {award.report_overdue > 0 ? (
+                  <span className="ml-1 text-red"> · {award.report_overdue} overdue</span>
+                ) : null}
+              </span>
+            </EditField>
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {/* Activity timeline — scoped so search/filter state is per-entity. */}
+      <ActivityTimeline activities={activities} scopeKey={`opportunity:${opp.Id}`} />
 
       <p className="mt-6 text-[11px] text-ink-4">
         SF Id: <span className="mono">{opp.Id}</span>
@@ -287,12 +345,239 @@ export function OpportunityDetailPage() {
   );
 }
 
-function paymentStatus(p: {
+// ── Payments ─────────────────────────────────────────────────────────────
+
+interface PaymentLite {
+  Id: string;
   npe01__Paid__c?: boolean | null;
   npe01__Written_Off__c?: boolean | null;
   Delinquent__c?: boolean | null;
   Payment_Status__c?: string | null;
-}): { label: string; variant: "green" | "amber" | "red" | "default" } {
+  npe01__Payment_Amount__c?: number | null;
+  npe01__Payment_Method__c?: string | null;
+  npe01__Scheduled_Date__c?: string | null;
+  npe01__Payment_Date__c?: string | null;
+}
+
+function PaymentsSection({
+  payments,
+  defaultOpen,
+}: {
+  payments: PaymentLite[];
+  defaultOpen: boolean;
+}) {
+  const [filter, setFilter] = useState<PaymentFilter>("all");
+
+  const counts = useMemo(() => {
+    let open = 0;
+    let paid = 0;
+    for (const p of payments) {
+      if (p.npe01__Paid__c) paid += 1;
+      else if (!p.npe01__Written_Off__c) open += 1;
+    }
+    return { all: payments.length, open, paid };
+  }, [payments]);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return payments;
+    if (filter === "open") {
+      return payments.filter((p) => !p.npe01__Paid__c && !p.npe01__Written_Off__c);
+    }
+    return payments.filter((p) => p.npe01__Paid__c);
+  }, [payments, filter]);
+
+  return (
+    <SectionCard
+      title={`Payments (${payments.length})`}
+      storageScope="opportunity"
+      defaultOpen={defaultOpen}
+      action={
+        <PaymentFilterPill
+          counts={counts}
+          value={filter}
+          onChange={setFilter}
+        />
+      }
+    >
+      {filtered.length === 0 ? (
+        <Empty>
+          {payments.length === 0 ? "No payment schedule." : `No ${filter} payments.`}
+        </Empty>
+      ) : (
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {["Scheduled", "Amount", "Status", "Method", "Received", "Notes"].map(
+                (h, i) => (
+                  <th
+                    key={h}
+                    className={cn(
+                      "border-b border-border-strong bg-surface-2 px-5 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-3",
+                      i === 1 ? "text-right" : "text-left",
+                    )}
+                  >
+                    {h}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p) => {
+              const status = paymentStatus(p);
+              return (
+                <tr
+                  key={p.Id}
+                  className="border-b border-border-strong last:border-b-0"
+                >
+                  <td className="mono px-5 py-2.5 text-[12.5px] text-ink-2">
+                    {fmtDate(p.npe01__Scheduled_Date__c)}
+                  </td>
+                  <td className="mono px-5 py-2.5 text-right text-[13px] font-medium tabular-nums">
+                    {p.npe01__Payment_Amount__c
+                      ? fmtMoneyFull(p.npe01__Payment_Amount__c, true)
+                      : "—"}
+                  </td>
+                  <td className="px-5 py-2.5">
+                    <Tag variant={status.variant}>{status.label}</Tag>
+                  </td>
+                  <td className="px-5 py-2.5 text-[12px] text-ink-2">
+                    {p.npe01__Payment_Method__c ?? "—"}
+                  </td>
+                  <td className="mono px-5 py-2.5 text-[11.5px] text-ink-3">
+                    {fmtDate(p.npe01__Payment_Date__c)}
+                  </td>
+                  <td className="px-5 py-2.5 text-[12px] text-ink-3">
+                    {p.npe01__Written_Off__c ? "Written off" : null}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </SectionCard>
+  );
+}
+
+function PaymentFilterPill({
+  counts,
+  value,
+  onChange,
+}: {
+  counts: { all: number; open: number; paid: number };
+  value: PaymentFilter;
+  onChange: (v: PaymentFilter) => void;
+}) {
+  const opts: { value: PaymentFilter; label: string; count: number }[] = [
+    { value: "open", label: "Open", count: counts.open },
+    { value: "paid", label: "Paid", count: counts.paid },
+    { value: "all", label: "All", count: counts.all },
+  ];
+  return (
+    <div
+      className="inline-flex items-center rounded-md border border-border-strong bg-surface p-0.5"
+      role="tablist"
+      aria-label="Filter payments"
+    >
+      {opts.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="tab"
+          aria-selected={value === o.value}
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange(o.value);
+          }}
+          className={cn(
+            "rounded px-2 py-0.5 text-[11px] font-medium transition-colors",
+            value === o.value
+              ? "bg-ink text-surface"
+              : "text-ink-3 hover:text-ink",
+          )}
+        >
+          {o.label} <span className="opacity-60">{o.count}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Primary contact picker ───────────────────────────────────────────────
+
+import type { SfContact } from "@/types/salesforce";
+import type { DetailReferrerState } from "@/components/detail";
+
+/**
+ * Inline picker for the opportunity's primary contact. Suggests
+ * contacts from the parent account (which is the SF convention) —
+ * if the desired person isn't on the account, the user should add
+ * them on the account page first.
+ */
+function PrimaryContactPicker({
+  opp,
+  accountContacts,
+  onSave,
+  referrer,
+}: {
+  opp: SfOpportunity;
+  accountContacts: SfContact[];
+  onSave: (contactId: string) => Promise<void>;
+  referrer: DetailReferrerState;
+}) {
+  const primary = opp.npsp__Primary_Contact__r ?? null;
+  const primaryId = opp.npsp__Primary_Contact__c ?? null;
+
+  const options = useMemo(
+    () =>
+      accountContacts.map((c) => {
+        const composed = [c.FirstName, c.LastName].filter(Boolean).join(" ").trim();
+        return {
+          value: c.Id,
+          label: c.Name || composed || c.Id,
+        };
+      }),
+    [accountContacts],
+  );
+
+  if (!opp.AccountId) {
+    return <span className="px-1.5 py-1 text-[13px] italic text-ink-4">No account</span>;
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <InlineSelect
+        value={primaryId}
+        options={options}
+        onSave={onSave}
+        emptyLabel="—"
+        renderValue={() =>
+          primary && primaryId ? (
+            <Link
+              to={`/contacts/${primaryId}`}
+              state={referrer}
+              className="truncate text-[13px] text-ink-2 hover:underline"
+              title={primary.Name ?? ""}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {primary.Name ?? "—"}
+            </Link>
+          ) : (
+            <span className="text-[13px] italic text-ink-4">—</span>
+          )
+        }
+      />
+    </div>
+  );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function paymentStatus(p: PaymentLite): {
+  label: string;
+  variant: "green" | "amber" | "red" | "default";
+} {
   if (p.npe01__Paid__c) return { label: "Paid", variant: "green" };
   if (p.npe01__Written_Off__c) return { label: "Written off", variant: "default" };
   if (p.Delinquent__c) return { label: "Overdue", variant: "red" };
@@ -302,41 +587,4 @@ function paymentStatus(p: {
 
 function BackLink() {
   return <SharedBackLink defaultTo="/pipeline" defaultLabel="Pipeline" />;
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-border-strong bg-surface px-4 py-3 shadow-sm">
-      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-        {label}
-      </div>
-      <div className="mono mt-1 text-[18px] font-semibold tabular-nums">{value}</div>
-    </div>
-  );
-}
-
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-6 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
-      <div className="border-b border-border-strong bg-surface-2 px-5 py-2.5 text-[12px] font-semibold uppercase tracking-wider text-ink-3">
-        {title}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function EditField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-5 py-8 text-center text-[12.5px] text-ink-3">{children}</div>;
 }
