@@ -42,9 +42,39 @@ export function isWon(o: Pick<SfOpportunity, "StageName">): boolean {
   return !!o.StageName && AWARD_ELIGIBLE_STAGES.has(o.StageName);
 }
 
+/**
+ * Stage names that semantically mean "closed but didn't produce an
+ * award." We can't rely solely on SF's IsClosed flag because some
+ * picklist values (e.g. "Closed / Unknown", "In Collection") have
+ * IsClosed=false set on the picklist in SF — so they'd otherwise be
+ * classified as Open Pipeline even though the name clearly says
+ * otherwise. Include any new flagged-closed-but-IsClosed=false stage
+ * here as Pursuit's picklist evolves.
+ */
+const CLOSED_NOT_WON_STAGE_NAMES: ReadonlySet<string> = new Set([
+  // Stages with IsClosed=true on the SF picklist — included for
+  // belt-and-suspenders so the predicate stays correct even if the
+  // flag flips.
+  "Closed Lost",
+  "Closed / Did not Fulfill",
+  "Closed / Contract or Agreement But No Fellows Hired",
+  "Withdrawn",
+  // Stages with IsClosed=false on the picklist (the bug-causing set):
+  "Closed / Unknown",
+  "Closed Unknown",
+  "Close / Unknown",
+  "In Collection",
+]);
+
+function nameImpliesClosed(name: string | null | undefined): boolean {
+  return !!name && CLOSED_NOT_WON_STAGE_NAMES.has(name);
+}
+
 export function isLost(o: Pick<SfOpportunity, "StageName" | "IsClosed">): boolean {
-  // Closed in SF, but didn't produce an award.
-  return o.IsClosed === true && !isWon(o);
+  if (isWon(o)) return false;
+  // Either SF's IsClosed flag is true, OR the stage name itself reads as
+  // closed (covers picklist values where IsClosed wasn't set in SF).
+  return o.IsClosed === true || nameImpliesClosed(o.StageName);
 }
 
 export function isOpen(

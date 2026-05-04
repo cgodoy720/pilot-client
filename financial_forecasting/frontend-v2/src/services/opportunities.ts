@@ -15,14 +15,20 @@ export interface OpportunityFilters {
  * Per JP 2026-05-03: ISA / Pursuit Bond is 2019–2020 legacy, tracked
  * in a separate enforcement system, and shouldn't appear in any of the
  * pipeline/awards/cleanup/account views.
+ *
+ * Pattern-matches rather than exact-equality because SF orgs sometimes
+ * have multiple variant names ("ISA", "Income Share Agreement", "ISAs",
+ * "Pursuit Bond / Income Share Agreement") and the user reported still
+ * seeing some despite the original exclusion. The pattern below is
+ * case-insensitive and uses word boundaries so it won't accidentally
+ * match unrelated record types like "Visa Sponsorship".
  */
-const EXCLUDED_RECORD_TYPES: ReadonlySet<string> = new Set([
-  "Pursuit Bond / Income Share Agreement",
-]);
+const EXCLUDED_RECORD_TYPE_PATTERN =
+  /\bISA\b|\bIncome Share Agreement\b|\bPursuit Bond\b/i;
 
 export function isExcludedOpp(o: SfOpportunity): boolean {
   const rt = o.RecordType?.Name ?? "";
-  return EXCLUDED_RECORD_TYPES.has(rt);
+  return EXCLUDED_RECORD_TYPE_PATTERN.test(rt);
 }
 
 async function fetchOpportunities(
