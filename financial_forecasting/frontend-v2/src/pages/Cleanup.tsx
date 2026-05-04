@@ -55,6 +55,14 @@ const FILTERABLE = {
   account: { label: "Account", type: "text" as const, getValue: (o: SfOpportunity) => o.Account?.Name ?? "" },
   name: { label: "Name", type: "text" as const, getValue: (o: SfOpportunity) => o.Name ?? "" },
   nextStep: { label: "Next step", type: "text" as const, getValue: (o: SfOpportunity) => o.NextStep ?? "" },
+  // SF custom flag the org uses to mark "this opp is currently being
+  // worked" — filter as Yes/No since it's boolean-coded but renders
+  // best as an explicit dropdown choice.
+  active: {
+    label: "Active",
+    type: "select" as const,
+    getValue: (o: SfOpportunity) => (o.Active_Opportunity__c ? "Yes" : "No"),
+  },
   amount: { label: "Amount", type: "number" as const, getValue: (o: SfOpportunity) => o.Amount ?? null },
   probability: { label: "Probability", type: "number" as const, getValue: (o: SfOpportunity) => o.Probability ?? null },
   closeDate: { label: "Close date", type: "date" as const, getValue: (o: SfOpportunity) => o.CloseDate ?? null },
@@ -180,11 +188,21 @@ function describeRule(r: FilterRule, opts: {
 
 // ── Columns ───────────────────────────────────────────────────────────────
 
-type ColKey = "name" | "account" | "stage" | "owner" | "recordType" | "amount" | "probability" | "closeDate" | "lastModified";
+type ColKey =
+  | "name"
+  | "account"
+  | "stage"
+  | "owner"
+  | "recordType"
+  | "active"
+  | "amount"
+  | "probability"
+  | "closeDate"
+  | "lastModified";
 
 const COLUMN_ORDER: ColKey[] = [
   "name", "account", "stage", "owner", "recordType",
-  "amount", "probability", "closeDate", "lastModified",
+  "active", "amount", "probability", "closeDate", "lastModified",
 ];
 
 const DEFAULT_WIDTHS: Record<ColKey, number> = {
@@ -193,6 +211,7 @@ const DEFAULT_WIDTHS: Record<ColKey, number> = {
   stage: 200,
   owner: 150,
   recordType: 130,
+  active: 80,
   amount: 110,
   probability: 80,
   closeDate: 110,
@@ -205,6 +224,7 @@ const COL_LABELS: Record<ColKey, string> = {
   stage: "Stage",
   owner: "Owner",
   recordType: "Record Type",
+  active: "Active",
   amount: "Amount",
   probability: "Prob.",
   closeDate: "Close",
@@ -220,6 +240,10 @@ function extractOpp(o: SfOpportunity, key: ColKey): unknown {
     case "stage": return o.StageName;
     case "owner": return o.Owner?.Name ?? "";
     case "recordType": return o.RecordType?.Name ?? "";
+    case "active":
+      // Sort booleans as numbers — true rows float to the top under
+      // ascending sort.
+      return o.Active_Opportunity__c ? 1 : 0;
     case "amount": return o.Amount ?? 0;
     case "probability": return o.Probability ?? 0;
     case "closeDate": return o.CloseDate;
@@ -250,6 +274,7 @@ const OPP_CSV_COLUMNS: CsvColumn<SfOpportunity>[] = [
   { label: "Owner", getValue: (o) => o.Owner?.Name },
   { label: "Owner Id", getValue: (o) => o.OwnerId },
   { label: "Record Type", getValue: (o) => o.RecordType?.Name },
+  { label: "Active", getValue: (o) => (o.Active_Opportunity__c ? "Yes" : "No") },
   { label: "Amount", getValue: (o) => o.Amount ?? "" },
   { label: "Probability", getValue: (o) => o.Probability ?? "" },
   { label: "Forecast Category", getValue: (o) => o.ForecastCategory },
@@ -809,6 +834,11 @@ const CleanupRow = memo(function CleanupRow({ o, visibleCols, checked, onToggle 
     ) : (
       <span className="text-ink-4">—</span>
     ),
+    active: o.Active_Opportunity__c ? (
+      <Tag variant="green">Yes</Tag>
+    ) : (
+      <span className="text-[12px] text-ink-4">No</span>
+    ),
     amount: o.Amount != null ? (
       <span className="mono tabular-nums">{fmtMoney(o.Amount)}</span>
     ) : (
@@ -829,6 +859,7 @@ const CleanupRow = memo(function CleanupRow({ o, visibleCols, checked, onToggle 
     stage: "px-3 py-1",
     owner: "px-3 py-1",
     recordType: "px-3 py-1",
+    active: "px-3 py-1",
     amount: "mono px-3 py-1 text-[12px] tabular-nums",
     probability: "mono px-3 py-1 text-[12px] tabular-nums",
     closeDate: "mono px-3 py-1 text-[11.5px] text-ink-3",
@@ -879,6 +910,13 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   );
 }
 
+/** Static option list for the boolean Active_Opportunity__c filter —
+ *  Yes/No instead of true/false so the chip reads naturally. */
+const ACTIVE_OPP_OPTIONS = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+];
+
 interface AddFilterProps {
   existingRules: FilterRule[];
   stageOptions: { value: string; label: string }[];
@@ -912,6 +950,7 @@ function AddFilterButton({
     if (field === "stage") return stageOptions;
     if (field === "recordType") return recordTypeOptions;
     if (field === "owner") return ownerOptions;
+    if (field === "active") return ACTIVE_OPP_OPTIONS;
     return null;
   }, [field, stageOptions, recordTypeOptions, ownerOptions]);
 
