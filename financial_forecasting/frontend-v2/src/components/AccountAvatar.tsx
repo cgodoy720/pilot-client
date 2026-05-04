@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -80,6 +80,17 @@ export function AccountAvatar({
   // `step` advances on each <img> error: 0 = direct, 1 = icon.horse, 2 = initials.
   const [step, setStep] = useState(0);
   const candidates = [directLogo, fallbackUrl].filter(Boolean) as string[];
+
+  // Virtual-list recycling: the same AccountAvatar instance gets reused
+  // for different rows as the user scrolls. If row A errored and bumped
+  // step → 2, and React reuses the instance for row B (different
+  // logoUrl), step stays at 2 and B falsely shows initials. Reset
+  // whenever the candidate URLs change.
+  const candidatesKey = candidates.join("|");
+  useEffect(() => {
+    setStep(0);
+  }, [candidatesKey]);
+
   const resolved = candidates[step] ?? null;
   const showLogo = !!resolved;
 
