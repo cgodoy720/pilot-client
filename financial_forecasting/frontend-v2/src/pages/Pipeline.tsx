@@ -878,9 +878,9 @@ const OpportunityRow = memo(function OpportunityRow({
     ),
     close: <>{fmtDate(o.CloseDate)}</>,
     paymentDate: canEdit ? (
-      <InlineDate value={o.PaymentDate__c} onSave={onSavePaymentDate} align="right" variant="short" placeholder="—" />
+      <InlineDate value={o.PaymentDate__c} onSave={onSavePaymentDate} align="right" placeholder="—" />
     ) : (
-      <span className="text-right block text-ink-3">{fmtDate(o.PaymentDate__c)}</span>
+      <span className="block text-right text-[13px] tabular-nums text-ink-2">{fmtDate(o.PaymentDate__c)}</span>
     ),
   };
 
@@ -890,7 +890,7 @@ const OpportunityRow = memo(function OpportunityRow({
     stage: "overflow-hidden px-3 py-1 text-[13px]",
     amount: cn(numCell, o.Amount && o.Amount > 0 && "font-semibold"),
     probability: cn(numCell),
-    close: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-right text-[11.5px] tabular-nums text-ink-3",
+    close: "cursor-pointer overflow-hidden truncate px-3 py-1 text-right text-[13px] tabular-nums text-ink-2",
     paymentDate: "overflow-hidden px-3 py-1",
   };
 

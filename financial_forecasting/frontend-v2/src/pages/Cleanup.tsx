@@ -860,8 +860,8 @@ const CleanupRow = memo(function CleanupRow({ o, logoUrl, visibleCols, checked, 
     ) : (
       <span className="text-ink-4">—</span>
     ),
-    closeDate: <span className="mono text-[11.5px] text-ink-3">{fmtDate(o.CloseDate)}</span>,
-    lastModified: <span className="mono text-[11.5px] text-ink-3">{fmtDate(o.LastModifiedDate)}</span>,
+    closeDate: <span className="text-[13px] tabular-nums text-ink-2">{fmtDate(o.CloseDate)}</span>,
+    lastModified: <span className="text-[13px] tabular-nums text-ink-2">{fmtDate(o.LastModifiedDate)}</span>,
   };
 
   const cellCls: Record<ColKey, string> = {
@@ -873,8 +873,8 @@ const CleanupRow = memo(function CleanupRow({ o, logoUrl, visibleCols, checked, 
     active: "px-3 py-1",
     amount: "mono px-3 py-1 text-[12px] tabular-nums",
     probability: "mono px-3 py-1 text-[12px] tabular-nums",
-    closeDate: "mono px-3 py-1 text-[11.5px] text-ink-3",
-    lastModified: "mono px-3 py-1 text-[11.5px] text-ink-3",
+    closeDate: "px-3 py-1 text-[13px] tabular-nums text-ink-2",
+    lastModified: "px-3 py-1 text-[13px] tabular-nums text-ink-2",
   };
 
   return (

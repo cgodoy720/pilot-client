@@ -696,7 +696,7 @@ const AccountRow = memo(function AccountRow({
           <span className="text-ink-4">—</span>
         )}
       </td>
-      <td className="mono px-3 py-1 text-[11.5px] text-ink-3">{fmtDate(a.LastModifiedDate)}</td>
+      <td className="px-3 py-1 text-[13px] tabular-nums text-ink-2">{fmtDate(a.LastModifiedDate)}</td>
     </tr>
   );
 });

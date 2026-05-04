@@ -19,7 +19,7 @@ import { SortableHeader } from "@/components/ui/SortableHeader";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { useColumnVisibility } from "@/lib/columnVisibility";
-import { fmtDateShort, initials } from "@/lib/format";
+import { fmtDate, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { cn } from "@/lib/utils";
 import { useContacts, useUpdateContact } from "@/services/contacts";
@@ -454,10 +454,10 @@ const ContactRow = memo(function ContactRow({
     ),
     lastActivity: (
       <span
-        className="mono cursor-pointer truncate text-[11.5px] text-ink-3"
+        className="cursor-pointer truncate text-[13px] tabular-nums text-ink-2"
         onClick={onOpen}
       >
-        {fmtDateShort(c.Last_Activity_Date__c ?? c.LastActivityDate)}
+        {fmtDate(c.Last_Activity_Date__c ?? c.LastActivityDate)}
       </span>
     ),
   };

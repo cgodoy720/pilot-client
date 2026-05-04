@@ -617,7 +617,7 @@ const ContactRow = memo(function ContactRow({
       <td className="px-3 py-1">
         <span className="truncate text-[12.5px] text-ink-2">{c.Owner?.Name ?? "—"}</span>
       </td>
-      <td className="mono px-3 py-1 text-[11.5px] text-ink-3">{fmtDate(lastActivity)}</td>
+      <td className="px-3 py-1 text-[13px] tabular-nums text-ink-2">{fmtDate(lastActivity)}</td>
     </tr>
   );
 });
