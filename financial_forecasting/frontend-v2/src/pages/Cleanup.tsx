@@ -621,7 +621,7 @@ function OpportunitiesCleanupTab() {
           onToggle={toggleCol}
         />
         <div className="ml-auto">
-          <ExportCsvButton<SfOpportunity>
+          <ExportCsvButton
             baseFilename="cleanup-opportunities"
             rows={sorted}
             columns={OPP_CSV_COLUMNS}

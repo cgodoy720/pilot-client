@@ -455,7 +455,7 @@ export function CleanupAccountsTab() {
           onAdd={(r) => setRules((prev) => [...prev, r])}
         />
         <div className="ml-auto">
-          <ExportCsvButton<AccountWithMetrics>
+          <ExportCsvButton
             baseFilename="cleanup-accounts"
             rows={sorted}
             columns={ACCOUNT_CSV_COLUMNS}

@@ -380,7 +380,7 @@ export function CleanupContactsTab() {
           onAdd={(r) => setRules((prev) => [...prev, r])}
         />
         <div className="ml-auto">
-          <ExportCsvButton<SfContact>
+          <ExportCsvButton
             baseFilename="cleanup-contacts"
             rows={sorted}
             columns={CONTACT_CSV_COLUMNS}
