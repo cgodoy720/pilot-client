@@ -17,7 +17,9 @@ import { Search } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { Toolbar } from "@/components/ui/Toolbar";
+import type { CsvColumn } from "@/lib/csv";
 import {
   buildAccountMetricsMap,
   ZERO_ACCOUNT_METRICS,
@@ -148,6 +150,45 @@ const COLUMN_ORDER: ColKey[] = [
   "website",
   "lastModified",
 ];
+
+/**
+ * Columns emitted into the CSV export. Wider than the visible table —
+ * the export should be self-sufficient for downstream analysis (Excel /
+ * Sheets), so we include the SF Id, all four roll-ups as raw numbers
+ * (no "$" prefix or thousands sep — easier to sum), ISO dates instead
+ * of "May 4, 2026", and a couple of fields that aren't on-screen
+ * (RecordType, AnnualRevenue, NumberOfEmployees) but are useful for
+ * downstream pivots.
+ */
+const ACCOUNT_CSV_COLUMNS: CsvColumn<AccountWithMetrics>[] = [
+  { label: "SF Id", getValue: (a) => a.Id },
+  { label: "Name", getValue: (a) => a.Name },
+  { label: "Owner", getValue: (a) => a.Owner?.Name },
+  { label: "Owner Id", getValue: (a) => a.OwnerId },
+  { label: "Open Pipeline", getValue: (a) => a._metrics.openPipeline || "" },
+  { label: "Lifetime Won", getValue: (a) => a._metrics.amountWon || "" },
+  { label: "Received", getValue: (a) => a._metrics.received || "" },
+  { label: "Outstanding", getValue: (a) => a._metrics.outstanding || "" },
+  { label: "Type", getValue: (a) => a.Type },
+  { label: "Industry", getValue: (a) => a.Industry },
+  { label: "Record Type", getValue: (a) => a.RecordType?.Name },
+  { label: "Billing City", getValue: (a) => a.BillingCity },
+  { label: "Billing State", getValue: (a) => a.BillingState },
+  { label: "Billing Country", getValue: (a) => a.BillingCountry },
+  { label: "Website", getValue: (a) => a.Website },
+  { label: "Annual Revenue", getValue: (a) => a.AnnualRevenue ?? "" },
+  { label: "Employees", getValue: (a) => a.NumberOfEmployees ?? "" },
+  { label: "Last Activity", getValue: (a) => isoDate(a.LastActivityDate) },
+  { label: "Created", getValue: (a) => isoDate(a.CreatedDate) },
+  { label: "Last Modified", getValue: (a) => isoDate(a.LastModifiedDate) },
+];
+
+/** Render any datetime-y field as YYYY-MM-DD for CSV. SF returns ISO
+ *  strings already, but defensively trim time component. */
+function isoDate(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
 
 function extract(a: AccountWithMetrics, key: ColKey): unknown {
   switch (key) {
@@ -413,6 +454,13 @@ export function CleanupAccountsTab() {
           }}
           onAdd={(r) => setRules((prev) => [...prev, r])}
         />
+        <div className="ml-auto">
+          <ExportCsvButton<AccountWithMetrics>
+            baseFilename="cleanup-accounts"
+            rows={sorted}
+            columns={ACCOUNT_CSV_COLUMNS}
+          />
+        </div>
       </Toolbar>
 
       {rules.length > 0 ? (

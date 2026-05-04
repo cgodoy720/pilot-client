@@ -24,6 +24,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { ResizableTh } from "@/components/ui/ResizableTable";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { StageChip } from "@/components/ui/StageChip";
@@ -31,6 +32,7 @@ import { Tag } from "@/components/ui/Tag";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { useColumnVisibility } from "@/lib/columnVisibility";
+import type { CsvColumn } from "@/lib/csv";
 import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { isOpen, stageStatus } from "@/lib/stages";
@@ -234,6 +236,35 @@ const SELECTION_CAP = 500;
 const CLEANUP_REFERRER = {
   from: { pathname: "/cleanup", label: "Cleanup" },
 } as const;
+
+/** CSV columns for Opportunities export. Wider than the visible table —
+ *  includes SF Id (for re-import / pivots), raw money values, and ISO
+ *  dates so downstream tooling can parse without the display layer's
+ *  formatting in the way. */
+const OPP_CSV_COLUMNS: CsvColumn<SfOpportunity>[] = [
+  { label: "SF Id", getValue: (o) => o.Id },
+  { label: "Name", getValue: (o) => o.Name },
+  { label: "Account", getValue: (o) => o.Account?.Name },
+  { label: "Account Id", getValue: (o) => o.AccountId },
+  { label: "Stage", getValue: (o) => o.StageName },
+  { label: "Owner", getValue: (o) => o.Owner?.Name },
+  { label: "Owner Id", getValue: (o) => o.OwnerId },
+  { label: "Record Type", getValue: (o) => o.RecordType?.Name },
+  { label: "Amount", getValue: (o) => o.Amount ?? "" },
+  { label: "Probability", getValue: (o) => o.Probability ?? "" },
+  { label: "Forecast Category", getValue: (o) => o.ForecastCategory },
+  { label: "Lead Source", getValue: (o) => o.LeadSource },
+  { label: "Close Date", getValue: (o) => isoDate(o.CloseDate) },
+  { label: "First Payment", getValue: (o) => isoDate(o.PaymentDate__c) },
+  { label: "Next Step", getValue: (o) => o.NextStep },
+  { label: "Last Modified", getValue: (o) => isoDate(o.LastModifiedDate) },
+  { label: "Created", getValue: (o) => isoDate(o.CreatedDate) },
+];
+
+function isoDate(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
 const BULK_PARALLELISM = 4;
 
 // ── Page ──────────────────────────────────────────────────────────────────
@@ -564,6 +595,13 @@ function OpportunitiesCleanupTab() {
           required={["name"]}
           onToggle={toggleCol}
         />
+        <div className="ml-auto">
+          <ExportCsvButton<SfOpportunity>
+            baseFilename="cleanup-opportunities"
+            rows={sorted}
+            columns={OPP_CSV_COLUMNS}
+          />
+        </div>
       </Toolbar>
 
       {rules.length > 0 ? (

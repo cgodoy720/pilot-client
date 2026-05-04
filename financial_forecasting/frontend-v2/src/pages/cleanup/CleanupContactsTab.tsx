@@ -16,7 +16,9 @@ import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { Toolbar } from "@/components/ui/Toolbar";
+import type { CsvColumn } from "@/lib/csv";
 import { fmtDate, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { cn } from "@/lib/utils";
@@ -94,6 +96,40 @@ const COL_WIDTHS: Record<ColKey, number> = {
 };
 
 const COLUMN_ORDER: ColKey[] = ["name", "account", "title", "email", "owner", "lastActivity"];
+
+/** CSV columns — wider than the visible table so the export is
+ *  self-sufficient for downstream analysis. ISO dates, raw values
+ *  (no display formatting). */
+const CONTACT_CSV_COLUMNS: CsvColumn<SfContact>[] = [
+  { label: "SF Id", getValue: (c) => c.Id },
+  { label: "Name", getValue: (c) => contactName(c) },
+  { label: "First Name", getValue: (c) => c.FirstName },
+  { label: "Last Name", getValue: (c) => c.LastName },
+  { label: "Title", getValue: (c) => c.Title },
+  { label: "Department", getValue: (c) => c.Department },
+  { label: "Email", getValue: (c) => c.Email },
+  { label: "Phone", getValue: (c) => c.Phone },
+  { label: "Mobile", getValue: (c) => c.MobilePhone },
+  { label: "Account", getValue: (c) => c.Account?.Name },
+  { label: "Account Id", getValue: (c) => c.AccountId },
+  { label: "Owner", getValue: (c) => c.Owner?.Name },
+  { label: "Owner Id", getValue: (c) => c.OwnerId },
+  { label: "Lead Source", getValue: (c) => c.LeadSource },
+  { label: "Record Type", getValue: (c) => c.RecordType?.Name },
+  { label: "Philanthropic", getValue: (c) => (c.Philanthropic_Contact__c ? "Yes" : "") },
+  { label: "Board Status", getValue: (c) => c.Board_Status__c },
+  { label: "LinkedIn", getValue: (c) => c.LinkedIn_URL__c },
+  { label: "Mailing City", getValue: (c) => c.MailingCity },
+  { label: "Mailing State", getValue: (c) => c.MailingState },
+  { label: "Last Activity", getValue: (c) => isoDate(c.Last_Activity_Date__c ?? c.LastActivityDate) },
+  { label: "Days Since Activity", getValue: (c) => c.Days_Since_Last_Activity__c ?? "" },
+  { label: "Created", getValue: (c) => isoDate(c.CreatedDate) },
+];
+
+function isoDate(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
 
 function contactName(c: SfContact): string {
   if (c.Name) return c.Name;
@@ -343,6 +379,13 @@ export function CleanupContactsTab() {
           }}
           onAdd={(r) => setRules((prev) => [...prev, r])}
         />
+        <div className="ml-auto">
+          <ExportCsvButton<SfContact>
+            baseFilename="cleanup-contacts"
+            rows={sorted}
+            columns={CONTACT_CSV_COLUMNS}
+          />
+        </div>
       </Toolbar>
 
       {rules.length > 0 ? (
