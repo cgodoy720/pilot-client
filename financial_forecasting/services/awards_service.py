@@ -163,7 +163,10 @@ async def ensure_for_opp(
 
     if stage_name is None or record_type_name is None:
         try:
-            result = sf_client.query(
+            # `sf_client.query` is async on the unified MCP client wrapper —
+            # the prior synchronous-style call returned a coroutine that then
+            # blew up on `.get("records")`. Await it.
+            result = await sf_client.query(
                 f"SELECT StageName, RecordType.Name, CloseDate "
                 f"FROM Opportunity WHERE Id = '{opp_id}' LIMIT 1"
             )

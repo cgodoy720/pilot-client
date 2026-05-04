@@ -16,9 +16,14 @@ export interface CreateContactBody {
 }
 
 async function fetchContacts(accountId?: string): Promise<SfContact[]> {
-  const path = accountId
-    ? `/api/salesforce/contacts?account_id=${encodeURIComponent(accountId)}`
-    : "/api/salesforce/contacts";
+  // ?fields=light cuts SOQL payload by ~70% — the list view, Cleanup
+  // tab, and Contact-detail header only need the ~12 light fields.
+  // Per-account drilldowns get the full set for the detail page that
+  // exposes things like NPSP Primary Affiliation, deceased flag, etc.
+  const params = new URLSearchParams();
+  if (accountId) params.set("account_id", accountId);
+  else params.set("fields", "light");
+  const path = `/api/salesforce/contacts?${params.toString()}`;
   const { data } = await api.get<SfContact[]>(path);
   return data;
 }
