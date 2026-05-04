@@ -8,8 +8,16 @@
  */
 import type React from "react";
 
+import { withRetry } from "@/lib/retry";
+
 export const SELECTION_CAP = 500;
-export const BULK_PARALLELISM = 4;
+/**
+ * Concurrency for bulk PUT/DELETE bursts. 3 is the SOC sweet spot for
+ * Salesforce mutations under per-user rate limits — high enough to
+ * finish 500 rows in well under a minute, low enough that the SF proxy
+ * doesn't start returning 503s under burst.
+ */
+export const BULK_PARALLELISM = 3;
 
 /** Where the dialog sits in its lifecycle. */
 export type BulkProgress = {
@@ -33,6 +41,10 @@ export interface BulkDialogProps {
   progress: BulkProgress | null;
   onRun: () => void;
   onClose: () => void;
+  /** Optional re-run that targets ONLY the rows that failed in the
+   *  previous attempt. Surfaces a "Retry failed" CTA next to "Done"
+   *  when the run finished with at least one failure. Omit to hide. */
+  onRetryFailed?: () => void;
 }
 
 export function BulkDialog({
@@ -45,6 +57,7 @@ export function BulkDialog({
   progress,
   onRun,
   onClose,
+  onRetryFailed,
 }: BulkDialogProps): React.ReactElement {
   const previewNames = selected.slice(0, 5).map((s) => s.name);
   const remaining = selected.length - previewNames.length;
@@ -173,14 +186,25 @@ export function BulkDialog({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={running}
-              className="rounded bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {finished ? "Done" : "Running…"}
-            </button>
+            <>
+              {finished && progress.failures.length > 0 && onRetryFailed ? (
+                <button
+                  type="button"
+                  onClick={onRetryFailed}
+                  className="rounded border border-border-strong bg-surface px-3 py-1.5 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2"
+                >
+                  Retry {progress.failures.length.toLocaleString()} failed
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={running}
+                className="rounded bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {finished ? "Done" : "Running…"}
+              </button>
+            </>
           )}
         </footer>
       </div>
@@ -189,15 +213,22 @@ export function BulkDialog({
 }
 
 /**
- * Run a per-row mutation across `items` with bounded parallelism. Records
- * per-item failures via the supplied callback so the UI can render a
- * fail-list while the loop continues.
+ * Run a per-row mutation across `items` with bounded parallelism +
+ * automatic retry-with-backoff for transient failures (timeouts, 5xx
+ * gateway errors, 429 rate limit). Non-transient errors (4xx auth /
+ * validation) bubble up immediately and land in `failures`.
+ *
+ * Idempotency notes:
+ *   - SF PUT writes the same payload on retry — safe.
+ *   - DELETE retries can race: if the first call succeeded but timed
+ *     out at the network layer, the retry sees 404. We let that surface
+ *     as a failure rather than mask it — "already deleted" is rare and
+ *     useful to know about.
  *
  * Dedupes by `id` before queueing — SOQL relationship joins can return
  * the same record under multiple parents (e.g. a contact joined under
  * two accounts), and we'd otherwise fire DELETE/PUT against the same
- * id N times. After the first success the subsequent calls 400 because
- * SF already cleaned up the row, producing spurious failure entries.
+ * id N times.
  */
 export async function runBulk<T extends { id: string; name: string }>(
   items: T[],
@@ -225,7 +256,10 @@ export async function runBulk<T extends { id: string; name: string }>(
         const it = queue.shift();
         if (!it) return;
         try {
-          await mutate(it);
+          // Up to 3 attempts (original + 2 retries) for transient errors.
+          // withRetry classifies 4xx as non-transient and throws on the
+          // first failure so user-actionable errors surface fast.
+          await withRetry(() => mutate(it), { maxAttempts: 3 });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           failures.push({ id: it.id, name: it.name, error: msg });

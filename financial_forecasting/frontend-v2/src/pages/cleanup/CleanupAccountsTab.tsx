@@ -377,28 +377,40 @@ export function CleanupAccountsTab() {
     setProgress(null);
   };
 
+  /** Shared mutation for an item — used by both the initial bulk run
+   *  and the retry-failed re-run. Closes over `bulkMode` + `bulkValue`
+   *  which are stable for the duration of a dialog session. */
+  const applyOne = async (it: { id: string; name: string }) => {
+    if (bulkMode === "owner") {
+      const ownerName =
+        ownerBulkOptions.find((o) => o.value === bulkValue)?.label ?? "";
+      await updateAccount.mutateAsync({
+        id: it.id,
+        patch: { OwnerId: bulkValue },
+        displayPatch: { Owner: { Name: ownerName } } as Record<string, unknown>,
+      });
+    } else {
+      await deleteAccount.mutateAsync(it.id);
+    }
+  };
+
   const runApply = async () => {
     if (!bulkMode) return;
     if (bulkMode === "owner" && !bulkValue) return;
-
     const items = selectedAccounts.map((a) => ({
       id: a.Id,
       name: a.Name ?? a.Id,
     }));
-    const ownerName =
-      ownerBulkOptions.find((o) => o.value === bulkValue)?.label ?? "";
+    await runBulk(items, applyOne, setProgress);
+  };
 
-    await runBulk(items, async (it) => {
-      if (bulkMode === "owner") {
-        await updateAccount.mutateAsync({
-          id: it.id,
-          patch: { OwnerId: bulkValue },
-          displayPatch: { Owner: { Name: ownerName } } as Record<string, unknown>,
-        });
-      } else {
-        await deleteAccount.mutateAsync(it.id);
-      }
-    }, setProgress);
+  /** Re-run the bulk action against just the rows that failed last time.
+   *  Map { id → name } via the original selection so we don't have to
+   *  refetch — `selectedAccounts` is still the same array. */
+  const retryFailed = async () => {
+    if (!progress || progress.failures.length === 0) return;
+    const items = progress.failures.map((f) => ({ id: f.id, name: f.name }));
+    await runBulk(items, applyOne, setProgress);
   };
 
   const closeBulk = () => {
@@ -599,6 +611,7 @@ export function CleanupAccountsTab() {
           selected={selectedAccounts.map((a) => ({ id: a.Id, name: a.Name ?? a.Id }))}
           progress={progress}
           onRun={runApply}
+          onRetryFailed={retryFailed}
           onClose={closeBulk}
         />
       ) : null}

@@ -37,6 +37,7 @@ import { fmtDate, fmtMoney, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { isOpen, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
+import { runBulk as runBulkShared, type BulkProgress } from "@/pages/cleanup/CleanupShared";
 import {
   useOpportunities,
   useUpdateOpportunity,
@@ -290,7 +291,6 @@ function isoDate(value: string | null | undefined): string {
   if (!value) return "";
   return value.slice(0, 10);
 }
-const BULK_PARALLELISM = 4;
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
@@ -515,7 +515,7 @@ function OpportunitiesCleanupTab() {
 
   const [bulkMode, setBulkMode] = useState<"stage" | "owner" | null>(null);
   const [bulkValue, setBulkValue] = useState<string>("");
-  const [progress, setProgress] = useState<{ done: number; total: number; failures: { id: string; name: string; error: string }[] } | null>(null);
+  const [progress, setProgress] = useState<BulkProgress | null>(null);
 
   const selectedOpps = useMemo(
     () => sorted.filter((o) => selectedIds.has(o.Id)),
@@ -528,39 +528,34 @@ function OpportunitiesCleanupTab() {
     setProgress(null);
   };
 
+  /** Single-item mutation — closes over the dialog's stage/owner choice
+   *  and is shared between the initial run and the retry-failed re-run. */
+  const applyOne = async (it: { id: string; name: string }) => {
+    if (bulkMode === "stage") {
+      await updateStage.mutateAsync({ id: it.id, newStage: bulkValue });
+    } else {
+      const ownerName = ownerLabel(bulkValue);
+      await updateOpp.mutateAsync({
+        id: it.id,
+        patch: { OwnerId: bulkValue },
+        displayPatch: { Owner: { Name: ownerName } } as Record<string, unknown>,
+      });
+    }
+  };
+
   const runBulk = async () => {
     if (!bulkMode || !bulkValue || selectedOpps.length === 0) return;
-    const failures: { id: string; name: string; error: string }[] = [];
-    let done = 0;
-    setProgress({ done, total: selectedOpps.length, failures });
+    const items = selectedOpps.map((o) => ({ id: o.Id, name: o.Name ?? o.Id }));
+    await runBulkShared(items, applyOne, setProgress);
+  };
 
-    // Bounded parallelism so we don't slam SF with 500 simultaneous PUTs.
-    const queue = [...selectedOpps];
-    const workers = Array.from({ length: Math.min(BULK_PARALLELISM, queue.length) }, async () => {
-      while (queue.length > 0) {
-        const o = queue.shift();
-        if (!o) return;
-        try {
-          if (bulkMode === "stage") {
-            await updateStage.mutateAsync({ id: o.Id, newStage: bulkValue });
-          } else {
-            const ownerName = ownerLabel(bulkValue);
-            await updateOpp.mutateAsync({
-              id: o.Id,
-              patch: { OwnerId: bulkValue },
-              displayPatch: { Owner: { Name: ownerName } } as Record<string, unknown>,
-            });
-          }
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e);
-          failures.push({ id: o.Id, name: o.Name ?? o.Id, error: msg });
-        } finally {
-          done += 1;
-          setProgress({ done, total: selectedOpps.length, failures: [...failures] });
-        }
-      }
-    });
-    await Promise.all(workers);
+  /** Re-run the same bulk action against just the rows that failed last
+   *  time. The shared runner re-derives the failures + progress, so the
+   *  user sees a fresh "Updating N of M" line for the retry pass. */
+  const retryFailed = async () => {
+    if (!progress || progress.failures.length === 0) return;
+    const items = progress.failures.map((f) => ({ id: f.id, name: f.name }));
+    await runBulkShared(items, applyOne, setProgress);
   };
 
   const closeBulk = () => {
@@ -778,6 +773,7 @@ function OpportunitiesCleanupTab() {
           selectedOpps={selectedOpps}
           progress={progress}
           onRun={runBulk}
+          onRetryFailed={retryFailed}
           onClose={closeBulk}
         />
       ) : null}
@@ -1180,8 +1176,11 @@ interface BulkDialogProps {
   stageOptions: { value: string; label: string }[];
   ownerOptions: { value: string; label: string }[];
   selectedOpps: SfOpportunity[];
-  progress: { done: number; total: number; failures: { id: string; name: string; error: string }[] } | null;
+  progress: BulkProgress | null;
   onRun: () => Promise<void>;
+  /** Re-run the same action targeting only previously-failed rows.
+   *  Surfaces a "Retry N failed" CTA when the run finishes with errors. */
+  onRetryFailed?: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -1194,6 +1193,7 @@ function BulkConfirmDialog({
   selectedOpps,
   progress,
   onRun,
+  onRetryFailed,
   onClose,
 }: BulkDialogProps) {
   const fieldLabel = mode === "stage" ? "Stage" : "Owner";
@@ -1297,14 +1297,25 @@ function BulkConfirmDialog({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={running}
-              className="rounded bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {finished ? "Done" : "Running…"}
-            </button>
+            <>
+              {finished && progress.failures.length > 0 && onRetryFailed ? (
+                <button
+                  type="button"
+                  onClick={() => void onRetryFailed()}
+                  className="rounded border border-border-strong bg-surface px-3 py-1.5 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2"
+                >
+                  Retry {progress.failures.length.toLocaleString()} failed
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={running}
+                className="rounded bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {finished ? "Done" : "Running…"}
+              </button>
+            </>
           )}
         </footer>
       </div>

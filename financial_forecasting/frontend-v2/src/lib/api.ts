@@ -13,9 +13,20 @@ import axios, { type AxiosInstance } from "axios";
  * deployments work the same as dev (where the Vite proxy makes everything
  * same-origin anyway).
  */
+/**
+ * Default timeout: 60s. Salesforce SOQL/Apex roundtrips routinely take
+ * 5-15s under normal load and can spike past 30s during peak hours
+ * (especially mutations that fire org-wide validation rules + flows).
+ *
+ * Faster failures aren't a virtue — they just produce false negatives
+ * we then have to retry by hand. 60s lets the long tail of legitimate
+ * SF responses complete; transient failures past 60s are caught by the
+ * runBulk retry-with-backoff layer for bulk ops, and surface as a real
+ * error for one-off calls (where the user can hit save again).
+ */
 export const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "",
-  timeout: 30_000,
+  timeout: 60_000,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
