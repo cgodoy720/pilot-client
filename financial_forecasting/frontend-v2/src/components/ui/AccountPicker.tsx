@@ -10,7 +10,8 @@
  * them all in a `<select>` makes the browser jank. The search list
  * caps at 50 visible matches per query, which keeps it fast.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Pencil, Plus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -51,7 +52,33 @@ export function AccountPicker({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  /** Coordinates for the portaled popover. Recomputed when it opens
+   *  and when the user scrolls / resizes — keeps the dropdown anchored
+   *  to the trigger even if the page moves under it. */
+  const [coords, setCoords] = useState<{ left: number; top: number; width: number }>({
+    left: 0,
+    top: 0,
+    width: 0,
+  });
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const updateCoords = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setCoords({ left: r.left, top: r.bottom + 4, width: r.width });
+    };
+    updateCoords();
+    window.addEventListener("scroll", updateCoords, true);
+    window.addEventListener("resize", updateCoords);
+    return () => {
+      window.removeEventListener("scroll", updateCoords, true);
+      window.removeEventListener("resize", updateCoords);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -63,17 +90,15 @@ export function AccountPicker({
     }
   }, [open]);
 
-  // Click-outside dismiss — the dropdown is portal-less and lives in
-  // a relative parent, so we listen on document and check the wrapper.
+  // Click-outside dismiss. Both the trigger and the portaled popover
+  // live in different DOM subtrees, so we check both on every doc click.
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t)) return;
+      if (popoverRef.current?.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -122,8 +147,9 @@ export function AccountPicker({
   };
 
   return (
-    <div className="relative" ref={popoverRef}>
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
@@ -145,14 +171,25 @@ export function AccountPicker({
         />
       </button>
 
-      {open ? (
-        <div
-          /* Absolute popover so opening the picker doesn't push the
-             surrounding grid cell taller. min-w-[280px] keeps the
-             dropdown readable even when the trigger cell is narrow. */
-          className="absolute left-0 top-full z-30 mt-1 min-w-[280px] max-w-[420px] rounded-md border border-border-strong bg-surface shadow-lg"
-          role="listbox"
-        >
+      {open
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              /* Portaled to document.body and positioned via fixed
+                 coords so SectionCard's overflow-hidden doesn't clip
+                 the dropdown. width = trigger width clamped to a
+                 readable min/max so narrow grid cells still get a
+                 usable popover. */
+              style={{
+                position: "fixed",
+                left: coords.left,
+                top: coords.top,
+                minWidth: Math.max(coords.width, 280),
+                maxWidth: 420,
+              }}
+              className="z-50 rounded-md border border-border-strong bg-surface shadow-lg"
+              role="listbox"
+            >
           <div className="flex items-center gap-1 border-b border-border-strong px-2 py-1.5">
             <input
               ref={inputRef}
@@ -215,8 +252,10 @@ export function AccountPicker({
               {error}
             </div>
           ) : null}
-        </div>
-      ) : null}
-    </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
