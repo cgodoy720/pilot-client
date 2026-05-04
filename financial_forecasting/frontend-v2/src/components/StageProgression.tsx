@@ -147,16 +147,27 @@ export function StageProgression({
   isClosed,
   history,
 }: StageProgressionProps) {
+  // Closed-lost / withdrawn opps don't map to a funnel bucket of their
+  // own, so we override the LAST cell to surface the lost-state at
+  // the end of the bar. The override happens at render-time (not in
+  // the bucket states) so the duration walk doesn't get polluted.
+  const lostState = useMemo(() => deriveLostState(currentStage, isClosed), [
+    currentStage,
+    isClosed,
+  ]);
+
   const states = useMemo<BucketState[]>(
     () => computeBucketStates(currentStage, createdDate, history),
     [currentStage, createdDate, history],
   );
 
   // Find the funnel index of the current bucket so steps before it
-  // render as completed. -1 means the current stage isn't in the
-  // funnel (closed-lost / withdrawn) — for those we fall back to
-  // marking every visited bucket as completed so the journey shows.
-  const currentIdx = states.findIndex((s) => s.current);
+  // render as completed. When the opp is lost/withdrawn the override
+  // is rendered on the LAST cell, so we treat that as the "current"
+  // index and let earlier cells render as visited / completed.
+  const naturalCurrentIdx = states.findIndex((s) => s.current);
+  const currentIdx =
+    lostState != null ? states.length - 1 : naturalCurrentIdx;
 
   return (
     <div
@@ -165,33 +176,35 @@ export function StageProgression({
       aria-label="Stage progression"
     >
       {states.map((s, i) => {
-        // A cell is "completed" if either:
-        //  - It comes before the current bucket in the funnel, OR
-        //  - The opp's current stage isn't in the funnel (lost /
-        //    withdrawn / did-not-fulfill) and this bucket was actually
-        //    visited at some point. Lets the bar still show the
-        //    journey for closed-lost opps even though no cell is
-        //    "current".
-        const completed =
-          currentIdx >= 0 ? i < currentIdx : s.visited && isClosed === true;
-        const current = s.current;
         const last = i === states.length - 1;
+        // The last cell becomes "Lost" / "Withdrawn" for those opps,
+        // tinted red. Otherwise it's the regular Collecting / In Effect
+        // bucket terminus.
+        const isLostCell = lostState != null && last;
+        const cellLabel = isLostCell ? lostState!.label : s.label;
+        // A cell is "completed" if it comes before the current cell.
+        // With the lost-state override the current is always the last
+        // cell, so earlier cells fall into the i < currentIdx branch.
+        const completed = currentIdx >= 0 ? i < currentIdx : false;
+        const current = isLostCell ? true : s.current;
         // Terminal-bucket "current" rendering: the deal is done, so
         // the running "N so far" counter is misleading. Swap to the
-        // CloseDate, which is the actually-meaningful anchor.
-        const isTerminalCurrent = current && s.key === TERMINAL_BUCKET_KEY;
+        // CloseDate, which is the meaningful anchor.
+        const isTerminalCurrent =
+          current && (isLostCell || s.key === TERMINAL_BUCKET_KEY);
         return (
           <div
             key={s.key}
             role="listitem"
             /* `min-w-0` lets the flex item shrink below its content's
-               intrinsic width — without it, long labels like
-               "Proposal Negotiation" force the cell to its content
-               size and the bar overflows the section's width. */
+               intrinsic width — without it, long labels force the cell
+               to its content size and the bar overflows. Lost cell uses
+               red tint to distinguish it from won-state Collecting bg. */
             className={cn(
               "relative flex min-w-0 flex-1 flex-col px-2.5 py-2.5",
               !last && "border-r border-border-strong",
-              current && "bg-accent/10",
+              current && !isLostCell && "bg-accent/10",
+              isLostCell && "bg-red/10",
               completed && "bg-surface-2",
             )}
           >
@@ -199,38 +212,43 @@ export function StageProgression({
               <div
                 className={cn(
                   "grid h-4 w-4 flex-shrink-0 place-items-center rounded-full text-[9px] font-semibold",
-                  current
-                    ? "bg-accent text-surface"
-                    : completed
-                      ? "bg-ink text-surface"
-                      : "bg-surface-2 text-ink-3 ring-1 ring-border-strong",
+                  isLostCell
+                    ? "bg-red text-surface"
+                    : current
+                      ? "bg-accent text-surface"
+                      : completed
+                        ? "bg-ink text-surface"
+                        : "bg-surface-2 text-ink-3 ring-1 ring-border-strong",
                 )}
                 aria-hidden="true"
               >
                 {completed ? <Check size={8} strokeWidth={3} /> : i + 1}
               </div>
               <span
-                /* `whitespace-normal` + `leading-tight` lets long labels
-                   wrap to a second line cleanly when the cell is narrow,
-                   instead of truncating mid-word. tooltip stays for
-                   the rare case where the wrap still cuts something. */
                 className={cn(
                   "min-w-0 whitespace-normal break-words text-[10.5px] font-semibold uppercase leading-tight tracking-wide",
-                  current
-                    ? "text-ink"
-                    : completed
-                      ? "text-ink-2"
-                      : "text-ink-3",
+                  isLostCell
+                    ? "text-red"
+                    : current
+                      ? "text-ink"
+                      : completed
+                        ? "text-ink-2"
+                        : "text-ink-3",
                 )}
-                title={s.label}
+                title={cellLabel}
               >
-                {s.label}
+                {cellLabel}
               </span>
             </div>
             <div className="mt-1.5 text-[12px]">
               {isTerminalCurrent ? (
-                <span className="mono font-medium text-ink">
-                  {closeDate ? `Closed ${fmtDate(closeDate)}` : "Closed"}
+                <span
+                  className={cn(
+                    "mono font-medium",
+                    isLostCell ? "text-red" : "text-ink",
+                  )}
+                >
+                  {closeDate ? fmtDate(closeDate) : isLostCell ? lostState!.label : "Closed"}
                 </span>
               ) : current ? (
                 <span className="mono font-medium text-ink">
@@ -249,6 +267,23 @@ export function StageProgression({
       })}
     </div>
   );
+}
+
+/**
+ * Compute lost-state display when an opp is closed but didn't reach
+ * the won "Collecting / In Effect" bucket. Returns null for active or
+ * won opps (the regular last cell renders).
+ */
+function deriveLostState(
+  currentStage: string | null,
+  isClosed: boolean | undefined,
+): { label: string } | null {
+  if (!isClosed) return null;
+  // Won-state stages already map to the terminal bucket; nothing to
+  // override.
+  if (stageBucket(currentStage) === TERMINAL_BUCKET_KEY) return null;
+  if (currentStage === "Withdrawn") return { label: "Withdrawn" };
+  return { label: "Lost" };
 }
 
 /**
