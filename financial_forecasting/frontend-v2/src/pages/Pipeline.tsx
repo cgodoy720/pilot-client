@@ -14,7 +14,7 @@ import { StageChip } from "@/components/ui/StageChip";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
 import { useColumnVisibility } from "@/lib/columnVisibility";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
-import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import {
   isLost,
@@ -764,6 +764,19 @@ interface RowProps {
   visibleCols: ColKey[];
 }
 
+/** Resting-state formatters for the row's inline-edit fields. Defined
+ *  outside the component so the function references are stable across
+ *  renders (memo cache). */
+function pipelineMoneyDisplay(raw: string): string {
+  const n = Number(raw.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) ? fmtMoneyFull(n) : raw;
+}
+
+function pipelinePercentDisplay(raw: string): string {
+  const n = Number(raw);
+  return Number.isFinite(n) ? `${n}%` : raw;
+}
+
 const OpportunityRow = memo(function OpportunityRow({
   o,
   stageOptions,
@@ -839,6 +852,7 @@ const OpportunityRow = memo(function OpportunityRow({
       <InlineText
         value={o.Amount != null ? String(o.Amount) : ""}
         onSave={onSaveAmount}
+        formatDisplay={pipelineMoneyDisplay}
         placeholder="—"
         className="justify-end text-right"
       />
@@ -849,8 +863,9 @@ const OpportunityRow = memo(function OpportunityRow({
     ),
     probability: canEdit ? (
       <InlineText
-        value={o.Probability != null ? `${o.Probability}%` : ""}
+        value={o.Probability != null ? String(o.Probability) : ""}
         onSave={onSaveProbability}
+        formatDisplay={pipelinePercentDisplay}
         placeholder="—"
         className="justify-end text-right"
       />

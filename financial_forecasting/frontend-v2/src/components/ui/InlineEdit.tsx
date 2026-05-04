@@ -80,6 +80,16 @@ interface InlineTextProps {
   multiline?: boolean;
   className?: string;
   emptyLabel?: string;
+  /**
+   * Optional formatter for the resting-state label only — the editor
+   * still operates on the raw `value`. Use this for currency / percent
+   * fields where the display should be "$5,000" or "20%" but the user
+   * types digits when editing.
+   *
+   * Receives the raw string value (already-trimmed). Return any string;
+   * if it's empty / null we fall back to the placeholder.
+   */
+  formatDisplay?: (raw: string) => string;
 }
 
 export function InlineText({
@@ -89,6 +99,7 @@ export function InlineText({
   multiline,
   className,
   emptyLabel,
+  formatDisplay,
 }: InlineTextProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
@@ -147,7 +158,13 @@ export function InlineText({
   const display = optimistic ?? value;
 
   if (!editing) {
-    const hasValue = display != null && String(display).trim().length > 0;
+    const rawDisplay = display != null ? String(display) : "";
+    const hasValue = rawDisplay.trim().length > 0;
+    // formatDisplay only runs in resting state — the editor input
+    // shows the raw value so the user can type digits without
+    // fighting the formatter.
+    const shown = hasValue && formatDisplay ? formatDisplay(rawDisplay) : rawDisplay;
+    const shownHasValue = shown.trim().length > 0;
     return (
       <button
         type="button"
@@ -157,14 +174,14 @@ export function InlineText({
         }}
         className={cn(
           "group/edit relative flex w-full max-w-full items-center rounded px-1.5 py-1 text-left text-[13px] text-ink-2 hover:bg-surface hover:ring-1 hover:ring-border-strong",
-          !hasValue && "italic text-ink-4",
+          !shownHasValue && "italic text-ink-4",
           error && "ring-1 ring-red",
           className,
         )}
-        title={hasValue ? String(display) : (emptyLabel ?? placeholder)}
+        title={shownHasValue ? shown : (emptyLabel ?? placeholder)}
       >
         <span className="min-w-0 flex-1 truncate">
-          {hasValue ? display : (emptyLabel ?? placeholder)}
+          {shownHasValue ? shown : (emptyLabel ?? placeholder)}
         </span>
         <StatusIndicator saving={showSpinner} saved={saved} error={!!error} />
       </button>

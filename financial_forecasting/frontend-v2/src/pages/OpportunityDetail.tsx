@@ -200,11 +200,14 @@ export function OpportunityDetailPage() {
       {/* Details — always-on canonical fields */}
       <SectionCard title="Details" collapsible={false} storageScope="opportunity">
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-5 py-4 md:grid-cols-3">
-          {/* Top row: the three the user updates most often. */}
+          {/* Top row: the three the user updates most often.
+              formatDisplay shows currency/percent in resting state but
+              the editor input still operates on raw digits. */}
           <EditField label="Amount">
             <InlineText
               value={opp.Amount != null ? String(opp.Amount) : ""}
               onSave={(v) => patch("Amount", v ? Number(v.replace(/[^0-9.]/g, "")) : null)}
+              formatDisplay={formatMoneyDisplay}
               placeholder="—"
             />
           </EditField>
@@ -218,6 +221,7 @@ export function OpportunityDetailPage() {
             <InlineText
               value={opp.Probability != null ? String(opp.Probability) : ""}
               onSave={(v) => patch("Probability", v ? Number(v) : null)}
+              formatDisplay={formatPercentDisplay}
               placeholder="—"
             />
           </EditField>
@@ -307,6 +311,7 @@ export function OpportunityDetailPage() {
                   v ? Number(v.replace(/[^0-9.]/g, "")) : null,
                 )
               }
+              formatDisplay={formatMoneyDisplay}
               placeholder="—"
             />
           </EditField>
@@ -601,4 +606,21 @@ function paymentStatus(p: PaymentLite): {
 
 function BackLink() {
   return <SharedBackLink defaultTo="/pipeline" defaultLabel="Pipeline" />;
+}
+
+/** Currency display for inline-edit fields — "$5,000" in resting state.
+ *  Strips non-numeric junk before formatting so a stored "5000.00" still
+ *  renders cleanly. Returns the raw string when it can't be parsed so
+ *  the user sees what's actually there instead of a misleading "$0". */
+function formatMoneyDisplay(raw: string): string {
+  const n = Number(raw.replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(n)) return raw;
+  return fmtMoneyFull(n);
+}
+
+/** Percent display — "20%" in resting state. */
+function formatPercentDisplay(raw: string): string {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return raw;
+  return `${n}%`;
 }
