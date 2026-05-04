@@ -287,6 +287,7 @@ function TaskRow({
           value={t.ActivityDate}
           onSave={onSaveDate}
           align="right"
+          variant="short"
           placeholder="—"
         />
       </div>

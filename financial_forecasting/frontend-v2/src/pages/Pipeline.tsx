@@ -859,7 +859,7 @@ const OpportunityRow = memo(function OpportunityRow({
     ),
     close: <>{fmtDate(o.CloseDate)}</>,
     paymentDate: canEdit ? (
-      <InlineDate value={o.PaymentDate__c} onSave={onSavePaymentDate} align="right" placeholder="—" />
+      <InlineDate value={o.PaymentDate__c} onSave={onSavePaymentDate} align="right" variant="short" placeholder="—" />
     ) : (
       <span className="text-right block text-ink-3">{fmtDate(o.PaymentDate__c)}</span>
     ),

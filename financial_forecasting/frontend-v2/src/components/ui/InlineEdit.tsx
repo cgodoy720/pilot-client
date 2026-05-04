@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 
-import { fmtDateShort } from "@/lib/format";
+import { fmtDate, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -324,6 +324,17 @@ interface InlineDateProps {
   placeholder?: string;
   className?: string;
   align?: "left" | "right";
+  /**
+   * Display variant for the resting-state label:
+   *   - "long"  → "May 4, 2026" — used on detail pages where the year
+   *               matters and there's room
+   *   - "short" → "May 4" — used in dense table rows / task lists
+   *
+   * Defaults to "long" so detail-page callers get the year for free
+   * without opting in. Compact callers (TaskExpandPanel, opp pipeline
+   * row, etc.) opt into "short" explicitly.
+   */
+  variant?: "long" | "short";
 }
 
 function toIsoDate(raw: string | null | undefined): string {
@@ -341,7 +352,9 @@ export function InlineDate({
   placeholder = "—",
   className,
   align = "left",
+  variant = "long",
 }: InlineDateProps) {
+  const formatter = variant === "long" ? fmtDate : fmtDateShort;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(toIsoDate(value));
   const [saving, setSaving] = useState(false);
@@ -407,16 +420,16 @@ export function InlineDate({
           setEditing(true);
         }}
         className={cn(
-          "group/edit relative flex w-full max-w-full items-center rounded px-1.5 py-1 text-[12.5px] text-ink-3 hover:bg-surface hover:ring-1 hover:ring-border-strong",
+          "group/edit relative flex w-full max-w-full items-center rounded px-1.5 py-1 text-left text-[13px] text-ink-2 hover:bg-surface hover:ring-1 hover:ring-border-strong",
           align === "right" && "justify-end text-right",
           !hasValue && "italic text-ink-4",
           error && "ring-1 ring-red",
           className,
         )}
-        title={hasValue ? fmtDateShort(display) : placeholder}
+        title={hasValue ? formatter(display) : placeholder}
       >
-        <span className="mono min-w-0 flex-1 truncate tabular-nums">
-          {hasValue ? fmtDateShort(display) : placeholder}
+        <span className="min-w-0 flex-1 truncate tabular-nums">
+          {hasValue ? formatter(display) : placeholder}
         </span>
         <StatusIndicator saving={showSpinner} saved={saved} error={!!error} />
       </button>
