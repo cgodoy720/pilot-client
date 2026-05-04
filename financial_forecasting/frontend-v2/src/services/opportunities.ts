@@ -26,9 +26,23 @@ export interface OpportunityFilters {
 const EXCLUDED_RECORD_TYPE_PATTERN =
   /\bISA\b|\bIncome Share Agreement\b|\bPursuit Bond\b/i;
 
+/**
+ * Stage names that should be hidden everywhere — these aren't pipeline
+ * data the fundraising team works with, regardless of open/closed
+ * classification. ("In Collection" is a finance-team workflow
+ * tracked elsewhere; treating it as Lost would still let it skew
+ * the Lost rollups, so we drop the rows entirely instead.)
+ */
+const EXCLUDED_STAGE_NAMES: ReadonlySet<string> = new Set([
+  "In Collection",
+]);
+
 export function isExcludedOpp(o: SfOpportunity): boolean {
   const rt = o.RecordType?.Name ?? "";
-  return EXCLUDED_RECORD_TYPE_PATTERN.test(rt);
+  if (EXCLUDED_RECORD_TYPE_PATTERN.test(rt)) return true;
+  const stage = o.StageName ?? "";
+  if (EXCLUDED_STAGE_NAMES.has(stage)) return true;
+  return false;
 }
 
 async function fetchOpportunities(

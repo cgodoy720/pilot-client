@@ -45,11 +45,11 @@ export function isWon(o: Pick<SfOpportunity, "StageName">): boolean {
 /**
  * Stage names that semantically mean "closed but didn't produce an
  * award." We can't rely solely on SF's IsClosed flag because some
- * picklist values (e.g. "Closed / Unknown", "In Collection") have
- * IsClosed=false set on the picklist in SF — so they'd otherwise be
- * classified as Open Pipeline even though the name clearly says
- * otherwise. Include any new flagged-closed-but-IsClosed=false stage
- * here as Pursuit's picklist evolves.
+ * picklist values (e.g. "Closed / Unknown") have IsClosed=false
+ * set on the picklist in SF — so they'd otherwise be classified as
+ * Open Pipeline even though the name clearly says otherwise. Include
+ * any new flagged-closed-but-IsClosed=false stage here as Pursuit's
+ * picklist evolves.
  */
 const CLOSED_NOT_WON_STAGE_NAMES: ReadonlySet<string> = new Set([
   // Stages with IsClosed=true on the SF picklist — included for
@@ -59,15 +59,25 @@ const CLOSED_NOT_WON_STAGE_NAMES: ReadonlySet<string> = new Set([
   "Closed / Did not Fulfill",
   "Closed / Contract or Agreement But No Fellows Hired",
   "Withdrawn",
-  // Stages with IsClosed=false on the picklist (the bug-causing set):
-  "Closed / Unknown",
-  "Closed Unknown",
-  "Close / Unknown",
-  "In Collection",
 ]);
 
+/**
+ * "Closed / Unknown" is the bug-prone offender — SF picklist sets
+ * IsClosed=false on it, and the org has used a couple of spacing
+ * variants over the years. Match every plausible form so we don't
+ * play whack-a-mole as new variants surface.
+ *
+ * Matches: "Close Unknown", "Closed Unknown", "Closed/Unknown",
+ *          "Closed / Unknown", "Close/Unknown", "Close / Unknown".
+ * Does NOT match: "Unknown", "Closed Won", etc.
+ */
+const CLOSE_UNKNOWN_PATTERN = /^close[d]?\s*[/\s]\s*unknown$/i;
+
 function nameImpliesClosed(name: string | null | undefined): boolean {
-  return !!name && CLOSED_NOT_WON_STAGE_NAMES.has(name);
+  if (!name) return false;
+  if (CLOSED_NOT_WON_STAGE_NAMES.has(name)) return true;
+  if (CLOSE_UNKNOWN_PATTERN.test(name)) return true;
+  return false;
 }
 
 export function isLost(o: Pick<SfOpportunity, "StageName" | "IsClosed">): boolean {
