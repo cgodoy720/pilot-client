@@ -23,7 +23,7 @@
 import { useMemo } from "react";
 import { Check } from "lucide-react";
 
-import { fmtDuration } from "@/lib/format";
+import { fmtDate, fmtDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { StageHistoryEntry } from "@/services/opportunities";
 
@@ -111,11 +111,24 @@ export interface StageProgressionProps {
   /** Opportunity's CreatedDate (ISO). Anchors the start of the
    *  duration walk for the very first stage. */
   createdDate: string | null;
+  /** Opportunity's CloseDate (ISO). Once the opp reaches the terminal
+   *  "Collecting / In Effect" bucket (or any closed-won variant), the
+   *  current cell shows "Closed {CloseDate}" instead of a running
+   *  "N so far" counter — the deal is done, the timer doesn't matter. */
+  closeDate: string | null;
+  /** Whether SF marked the opp as closed (won OR lost). Used so
+   *  closed-lost / withdrawn opps render visited stages as completed
+   *  even though the lost stage isn't in the funnel. */
+  isClosed?: boolean;
   /** Full OpportunityFieldHistory entries for this opp, oldest-first.
    *  Empty array is fine (older opps past SF's 18-mo retention) — the
    *  current stage still highlights, others render as unvisited. */
   history: StageHistoryEntry[];
 }
+
+/** Funnel-position key for the terminal "won" bucket. Used to swap
+ *  the running counter for a Close Date display. */
+const TERMINAL_BUCKET_KEY = "collecting";
 
 interface BucketState {
   key: string;
@@ -130,6 +143,8 @@ interface BucketState {
 export function StageProgression({
   currentStage,
   createdDate,
+  closeDate,
+  isClosed,
   history,
 }: StageProgressionProps) {
   const states = useMemo<BucketState[]>(
@@ -138,9 +153,9 @@ export function StageProgression({
   );
 
   // Find the funnel index of the current bucket so steps before it
-  // render as completed even when their durations are zero (legacy
-  // opps with no history still get a visually correct "current at
-  // step N" bar).
+  // render as completed. -1 means the current stage isn't in the
+  // funnel (closed-lost / withdrawn) — for those we fall back to
+  // marking every visited bucket as completed so the journey shows.
   const currentIdx = states.findIndex((s) => s.current);
 
   return (
@@ -150,9 +165,21 @@ export function StageProgression({
       aria-label="Stage progression"
     >
       {states.map((s, i) => {
-        const completed = currentIdx >= 0 && i < currentIdx;
+        // A cell is "completed" if either:
+        //  - It comes before the current bucket in the funnel, OR
+        //  - The opp's current stage isn't in the funnel (lost /
+        //    withdrawn / did-not-fulfill) and this bucket was actually
+        //    visited at some point. Lets the bar still show the
+        //    journey for closed-lost opps even though no cell is
+        //    "current".
+        const completed =
+          currentIdx >= 0 ? i < currentIdx : s.visited && isClosed === true;
         const current = s.current;
         const last = i === states.length - 1;
+        // Terminal-bucket "current" rendering: the deal is done, so
+        // the running "N so far" counter is misleading. Swap to the
+        // CloseDate, which is the actually-meaningful anchor.
+        const isTerminalCurrent = current && s.key === TERMINAL_BUCKET_KEY;
         return (
           <div
             key={s.key}
@@ -201,7 +228,11 @@ export function StageProgression({
               </span>
             </div>
             <div className="mt-1.5 text-[12px]">
-              {current ? (
+              {isTerminalCurrent ? (
+                <span className="mono font-medium text-ink">
+                  {closeDate ? `Closed ${fmtDate(closeDate)}` : "Closed"}
+                </span>
+              ) : current ? (
                 <span className="mono font-medium text-ink">
                   {s.durationMs > 0 ? `${fmtDuration(s.durationMs)} so far` : "Just entered"}
                 </span>

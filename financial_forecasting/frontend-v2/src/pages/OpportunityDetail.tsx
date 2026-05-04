@@ -192,6 +192,8 @@ export function OpportunityDetailPage() {
       <StageProgression
         currentStage={opp.StageName}
         createdDate={opp.CreatedDate ?? null}
+        closeDate={opp.CloseDate ?? null}
+        isClosed={opp.IsClosed === true}
         history={stageHistory.data ?? []}
       />
 
