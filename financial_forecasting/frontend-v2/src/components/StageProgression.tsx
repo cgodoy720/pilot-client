@@ -182,10 +182,14 @@ export function StageProgression({
         // bucket terminus.
         const isLostCell = lostState != null && last;
         const cellLabel = isLostCell ? lostState!.label : s.label;
-        // A cell is "completed" if it comes before the current cell.
-        // With the lost-state override the current is always the last
-        // cell, so earlier cells fall into the i < currentIdx branch.
-        const completed = currentIdx >= 0 ? i < currentIdx : false;
+        // A cell is "completed" only if it (a) comes before the
+        // current cell AND (b) the opp actually visited it.
+        // The visited check is critical for opps that skipped stages
+        // (e.g. Qualifying → Withdrawn): without it, intermediate
+        // unvisited cells would falsely render as completed and the
+        // bar would overstate how far the deal progressed.
+        const completed =
+          currentIdx >= 0 && i < currentIdx && s.visited;
         const current = isLostCell ? true : s.current;
         // Terminal-bucket "current" rendering: the deal is done, so
         // the running "N so far" counter is misleading. Swap to the
