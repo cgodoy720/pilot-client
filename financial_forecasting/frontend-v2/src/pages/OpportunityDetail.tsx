@@ -8,23 +8,27 @@ import { OppTasksSection } from "@/components/OppTasksSection";
 import { PaymentScheduleBuilder } from "@/components/PaymentScheduleBuilder";
 import {
   BackLink as SharedBackLink,
-  DetailRow,
   EditField,
   Empty,
   SectionCard,
   Stat,
 } from "@/components/detail";
 import { AccountPicker } from "@/components/ui/AccountPicker";
+import { ContactPicker } from "@/components/ui/ContactPicker";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { SF_STAGE_OPTIONS, isOpen, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccountEnrichment, useAccounts } from "@/services/accounts";
+import {
+  useAccountEnrichment,
+  useAccounts,
+  useCreateAccount,
+} from "@/services/accounts";
 import { useActivities } from "@/services/activities";
 import { useAwards } from "@/services/awards";
-import { useContacts } from "@/services/contacts";
+import { useContacts, useCreateContact } from "@/services/contacts";
 import {
   useOpportunities,
   useOpportunityPayments,
@@ -32,18 +36,6 @@ import {
   useUpdateOpportunityStage,
 } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
-import type { SfOpportunity } from "@/types/salesforce";
-
-const LEAD_SOURCE_OPTIONS: { value: string; label: string }[] = [
-  { value: "Web", label: "Web" },
-  { value: "Phone Inquiry", label: "Phone Inquiry" },
-  { value: "Partner Referral", label: "Partner Referral" },
-  { value: "Purchased List", label: "Purchased List" },
-  { value: "Other", label: "Other" },
-  { value: "Word of mouth", label: "Word of mouth" },
-  { value: "Event", label: "Event" },
-  { value: "Internal", label: "Internal" },
-];
 
 /** Filter values for the Payments section pill toggle. */
 type PaymentFilter = "all" | "open" | "paid";
@@ -62,9 +54,9 @@ export function OpportunityDetailPage() {
   const { data: activities = [] } = useActivities({ opportunityId: id, limit: 30 });
   const { data: awards = [] } = useAwards();
   const enrichment = useAccountEnrichment(opp?.AccountId ?? null);
-  // Pull contacts on the parent account so the primary-contact picker
-  // only suggests people who actually belong to this account.
-  const { data: accountContacts = [] } = useContacts(opp?.AccountId ?? undefined);
+  // Full contact list — feeds the inline Contact picker. Org has
+  // ~10K contacts; we filter client-side as the user types.
+  const { data: contactsData = [] } = useContacts();
   // Full account list — feeds the inline Account picker (search-based,
   // since the org has 20K accounts and a `<select>` would jank).
   const { data: accountsData = [] } = useAccounts();
@@ -72,6 +64,8 @@ export function OpportunityDetailPage() {
 
   const updateOpp = useUpdateOpportunity();
   const updateStage = useUpdateOpportunityStage();
+  const createAccount = useCreateAccount();
+  const createContact = useCreateContact();
 
   const ownerOptions = useMemo(
     () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
@@ -84,6 +78,25 @@ export function OpportunityDetailPage() {
         .map((a) => ({ value: a.Id, label: a.Name }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     [accountsData],
+  );
+
+  // Build display labels for the contact picker — show name + parent
+  // account as the muted detail line so similarly-named contacts are
+  // disambiguated at a glance.
+  const contactOptions = useMemo(
+    () =>
+      contactsData
+        .map((c) => {
+          const composed =
+            c.Name ?? [c.FirstName, c.LastName].filter(Boolean).join(" ").trim();
+          return {
+            value: c.Id,
+            label: composed || c.Id,
+            detail: c.Account?.Name ?? c.Email ?? undefined,
+          };
+        })
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [contactsData],
   );
 
   // Whether to show the payment-schedule modal — controlled at the
@@ -233,6 +246,13 @@ export function OpportunityDetailPage() {
                   })
                   .then(() => undefined)
               }
+              onCreateNew={async (name) => {
+                // Minimal create — Name only. The user can edit
+                // Type/Industry/Owner on the new account's detail
+                // page later if needed.
+                const result = await createAccount.mutateAsync({ Name: name });
+                return result.id;
+              }}
             />
           </EditField>
           <EditField label="Stage">
@@ -246,11 +266,32 @@ export function OpportunityDetailPage() {
             />
           </EditField>
           <EditField label="Primary contact">
-            <PrimaryContactPicker
-              opp={opp}
-              accountContacts={accountContacts}
+            <ContactPicker
+              value={opp.npsp__Primary_Contact__c ?? null}
+              currentLabel={opp.npsp__Primary_Contact__r?.Name ?? null}
+              options={contactOptions}
               onSave={(contactId) => patch("npsp__Primary_Contact__c", contactId)}
-              referrer={referrer}
+              onCreateNew={async (raw) => {
+                // Split on last whitespace into FirstName / LastName
+                // (SF requires LastName; single-token input goes there).
+                const trimmed = raw.trim();
+                const lastSpace = trimmed.lastIndexOf(" ");
+                const firstName =
+                  lastSpace > 0 ? trimmed.slice(0, lastSpace).trim() : undefined;
+                const lastName =
+                  lastSpace > 0 ? trimmed.slice(lastSpace + 1).trim() : trimmed;
+                if (!opp.AccountId) {
+                  throw new Error(
+                    "Set an account on this opportunity first — contacts require an Account.",
+                  );
+                }
+                const result = await createContact.mutateAsync({
+                  AccountId: opp.AccountId,
+                  FirstName: firstName,
+                  LastName: lastName,
+                });
+                return result.id;
+              }}
             />
           </EditField>
           <EditField label="Probability">
@@ -295,47 +336,6 @@ export function OpportunityDetailPage() {
               placeholder="—"
             />
           </EditField>
-          <EditField label="Forecast category">
-            <InlineText
-              value={opp.ForecastCategory}
-              onSave={(v) => patch("ForecastCategory", v)}
-              placeholder="—"
-            />
-          </EditField>
-          <EditField label="Lead source">
-            <InlineSelect
-              value={opp.LeadSource ?? null}
-              options={LEAD_SOURCE_OPTIONS}
-              onSave={(v) => patch("LeadSource", v)}
-              emptyLabel="—"
-            />
-          </EditField>
-          <EditField label="Type">
-            <span className="px-1.5 py-1 text-[13px] text-ink-2">
-              {opp.RecordType?.Name ?? <span className="italic text-ink-4">—</span>}
-            </span>
-          </EditField>
-        </div>
-      </SectionCard>
-
-      {/* Notes — Next step + Description */}
-      <SectionCard title="Notes" storageScope="opportunity">
-        <div className="space-y-3 px-5 py-3">
-          <DetailRow label="Next step">
-            <InlineText
-              value={opp.NextStep}
-              onSave={(v) => patch("NextStep", v)}
-              placeholder="Add a next step…"
-            />
-          </DetailRow>
-          <DetailRow label="Description">
-            <InlineText
-              value={opp.Description}
-              onSave={(v) => patch("Description", v)}
-              placeholder="Add a description…"
-              multiline
-            />
-          </DetailRow>
         </div>
       </SectionCard>
 
@@ -601,72 +601,6 @@ function PaymentFilterPill({
 }
 
 // ── Primary contact picker ───────────────────────────────────────────────
-
-import type { SfContact } from "@/types/salesforce";
-import type { DetailReferrerState } from "@/components/detail";
-
-/**
- * Inline picker for the opportunity's primary contact. Suggests
- * contacts from the parent account (which is the SF convention) —
- * if the desired person isn't on the account, the user should add
- * them on the account page first.
- */
-function PrimaryContactPicker({
-  opp,
-  accountContacts,
-  onSave,
-  referrer,
-}: {
-  opp: SfOpportunity;
-  accountContacts: SfContact[];
-  onSave: (contactId: string) => Promise<void>;
-  referrer: DetailReferrerState;
-}) {
-  const primary = opp.npsp__Primary_Contact__r ?? null;
-  const primaryId = opp.npsp__Primary_Contact__c ?? null;
-
-  const options = useMemo(
-    () =>
-      accountContacts.map((c) => {
-        const composed = [c.FirstName, c.LastName].filter(Boolean).join(" ").trim();
-        return {
-          value: c.Id,
-          label: c.Name || composed || c.Id,
-        };
-      }),
-    [accountContacts],
-  );
-
-  if (!opp.AccountId) {
-    return <span className="px-1.5 py-1 text-[13px] italic text-ink-4">No account</span>;
-  }
-
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      <InlineSelect
-        value={primaryId}
-        options={options}
-        onSave={onSave}
-        emptyLabel="—"
-        renderValue={() =>
-          primary && primaryId ? (
-            <Link
-              to={`/contacts/${primaryId}`}
-              state={referrer}
-              className="truncate text-[13px] text-ink-2 hover:underline"
-              title={primary.Name ?? ""}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {primary.Name ?? "—"}
-            </Link>
-          ) : (
-            <span className="text-[13px] italic text-ink-4">—</span>
-          )
-        }
-      />
-    </div>
-  );
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
