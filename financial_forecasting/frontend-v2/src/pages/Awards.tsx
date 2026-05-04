@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { AwardExpandPanel, AWARD_PANEL_HEIGHT } from "@/components/AwardExpandPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
@@ -14,9 +15,10 @@ import { Tag } from "@/components/ui/Tag";
 import { ButtonGroup, Toolbar } from "@/components/ui/Toolbar";
 import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { useColumnVisibility } from "@/lib/columnVisibility";
-import { fmtDate, fmtMoney, initials } from "@/lib/format";
+import { fmtDate, fmtMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { sortBy, useSort } from "@/lib/sort";
+import { useAccountsEnrichment } from "@/services/accounts";
 import {
   useAwards,
   useUpdateAward,
@@ -258,6 +260,18 @@ export function AwardsPage() {
   const updateAward = useUpdateAward();
   const updateOpp = useUpdateOpportunity();
 
+  // Pull logo enrichment for every account that owns an award. Reuses
+  // the same Apollo-overlay pipeline as the Accounts page so the brand
+  // logos rendered here are the high-quality marks (not favicons).
+  const accountIdsForEnrichment = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of oppsData ?? []) {
+      if (o.AccountId) set.add(o.AccountId);
+    }
+    return Array.from(set);
+  }, [oppsData]);
+  const enrichmentQ = useAccountsEnrichment(accountIdsForEnrichment);
+
   const ownerOptions = useMemo(
     () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
     [usersQ.data],
@@ -427,11 +441,15 @@ export function AwardsPage() {
                   const opp = oppById.get(a.opportunity_id);
                   const isExpanded = a.id === expandedId;
                   const projects = projectsByOpp.get(a.opportunity_id) ?? [];
+                  const logoUrl = opp?.AccountId
+                    ? (enrichmentQ.data?.[opp.AccountId]?.logo_url ?? null)
+                    : null;
                   return (
                     <Fragment key={a.id}>
                       <AwardRow
                         a={a}
                         opp={opp}
+                        logoUrl={logoUrl}
                         ownerOptions={ownerOptions}
                         projects={projects}
                         visibleCols={visibleCols}
@@ -493,6 +511,7 @@ export function AwardsPage() {
 interface RowProps {
   a: Award;
   opp: SfOpportunity | undefined;
+  logoUrl: string | null;
   ownerOptions: { value: string; label: string }[];
   projects: { id: string; name: string }[];
   visibleCols: ColKey[];
@@ -506,6 +525,7 @@ interface RowProps {
 const AwardRow = memo(function AwardRow({
   a,
   opp,
+  logoUrl,
   ownerOptions,
   projects,
   visibleCols,
@@ -532,12 +552,11 @@ const AwardRow = memo(function AwardRow({
         >
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
-        <div
-          className="grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded text-[9px] font-semibold text-surface"
-          style={{ background: "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))" }}
-        >
-          {initials(account === "—" ? oppName : account)}
-        </div>
+        <AccountAvatar
+          name={account === "—" ? oppName : account}
+          logoUrl={logoUrl}
+          size={20}
+        />
         <Link
           to={`/awards/${a.id}`}
           state={AWARDS_REFERRER}

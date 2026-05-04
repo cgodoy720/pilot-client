@@ -2,11 +2,13 @@ import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { Check, ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { BackLink as SharedBackLink } from "@/components/detail";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDate, fmtMoneyFull, initials } from "@/lib/format";
+import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useAccountEnrichment } from "@/services/accounts";
 import {
   useAward,
   useAwardReports,
@@ -95,6 +97,7 @@ export function AwardDetailPage() {
 }
 
 function Loaded({ award, opp }: { award: Award; opp: SfOpportunity | undefined }) {
+  const enrichment = useAccountEnrichment(opp?.AccountId ?? null);
   const canEdit = usePerm("edit_awards");
   const updateAward = useUpdateAward();
   const updateOpp = useUpdateOpportunity();
@@ -127,12 +130,11 @@ function Loaded({ award, opp }: { award: Award; opp: SfOpportunity | undefined }
 
       {/* Header */}
       <div className="mt-4 flex items-start gap-4">
-        <div
-          className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-md text-[14px] font-semibold text-surface"
-          style={{ background: "linear-gradient(135deg, oklch(0.65 0.10 250), oklch(0.50 0.13 270))" }}
-        >
-          {initials(account === "—" ? oppName : account)}
-        </div>
+        <AccountAvatar
+          name={account === "—" ? oppName : account}
+          logoUrl={enrichment.data?.logo_url ?? null}
+          size={48}
+        />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[24px] font-bold leading-tight tracking-tight text-ink">
             {oppName}
