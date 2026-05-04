@@ -1034,6 +1034,18 @@ CREATE INDEX IF NOT EXISTS idx_sf_account_map_company_id
 CREATE INDEX IF NOT EXISTS idx_sf_account_map_confidence
     ON bedrock.sf_account_company_map(confidence);
 
+-- Logo enrichment overlay for public.companies. Bedrock can't UPDATE
+-- public.companies directly (DB role lacks write privilege), so logos
+-- fetched from external APIs (Apollo via Zero CLI, etc.) land here and
+-- the read endpoints LEFT JOIN this table preferring its logo_url over
+-- the dead Clearbit URLs in public.companies.logo_url.
+CREATE TABLE IF NOT EXISTS bedrock.company_logo_enrichment (
+    public_company_id   INTEGER PRIMARY KEY,
+    logo_url            TEXT NOT NULL,
+    source              TEXT NOT NULL DEFAULT 'apollo_zero',
+    enriched_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Prospect → SF Opportunity hints (research-derived suggestions)
 CREATE TABLE IF NOT EXISTS bedrock.prospect_sf_opportunity (
     id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

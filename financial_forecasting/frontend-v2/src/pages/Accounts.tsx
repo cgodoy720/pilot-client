@@ -626,7 +626,7 @@ const AccountRow = memo(function AccountRow({
         >
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
-        <AccountAvatar name={a.Name} logoUrl={logoUrl} size={22} />
+        <AccountAvatar name={a.Name} logoUrl={logoUrl} website={a.Website} size={22} />
         <div className="min-w-0 flex-1 cursor-pointer" onClick={onOpen}>
           <span className="block truncate font-medium hover:underline" title={a.Name}>
             {a.Name}

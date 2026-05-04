@@ -33,15 +33,20 @@ _LOOKUP_SQL = """
            c.company_id,
            c.name,
            c.domain,
-           c.logo_url,
+           -- Prefer the bedrock overlay (Apollo via Zero, etc.) over the
+           -- often-dead Clearbit URLs stored in public.companies.logo_url.
+           COALESCE(le.logo_url, c.logo_url)             AS logo_url,
            c.industry,
            c.size_bucket,
-           c.enrichment_source,
-           c.enriched_at,
+           COALESCE(le.source, c.enrichment_source)       AS enrichment_source,
+           COALESCE(le.enriched_at, c.enriched_at)        AS enriched_at,
            m.confidence,
            m.matched_by
     FROM bedrock.sf_account_company_map m
-    JOIN public.companies c ON c.company_id = m.public_company_id
+    JOIN public.companies c
+        ON c.company_id = m.public_company_id
+    LEFT JOIN bedrock.company_logo_enrichment le
+        ON le.public_company_id = c.company_id
     WHERE m.sf_account_id = ANY($1::text[])
 """
 

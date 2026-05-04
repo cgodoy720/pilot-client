@@ -4,17 +4,42 @@ import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Clearbit's free logo CDN (logo.clearbit.com/{domain}) was shut down
- * after HubSpot acquired Clearbit. Every URL we stored from that
- * source returns no response now. Rewrite to DuckDuckGo's icon API,
- * which is free, no-auth, and returns reasonable favicons/marks.
- * If you later get a logo.dev or Brandfetch token, swap this one
- * function — DB stays unchanged.
+ * Extract a bare hostname from anything that might contain one — a stored
+ * `logo.clearbit.com/{domain}` URL, a raw domain like `nytimes.com`, or
+ * a full Website URL like `https://www.example.org/path?x=1`. Returns
+ * null if no plausible host can be parsed.
  */
-function rewriteLogoUrl(raw: string): string {
-  const m = /^https?:\/\/logo\.clearbit\.com\/([^?#]+)/i.exec(raw);
-  if (m) return `https://icons.duckduckgo.com/ip3/${m[1]}.ico`;
-  return raw;
+function extractDomain(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Stored Clearbit URLs encode the domain as the path segment.
+  const cb = /^https?:\/\/logo\.clearbit\.com\/([^?#/]+)/i.exec(trimmed);
+  if (cb) return cb[1].toLowerCase();
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+  let host: string;
+  try {
+    host = new URL(withScheme).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+  if (host.startsWith("www.")) host = host.slice(4);
+  return host.includes(".") ? host : null;
+}
+
+/**
+ * icon.horse prefers apple-touch-icon (typically 180×180 PNG on modern
+ * sites) and falls back to favicon. Returns 404 for missing domains so
+ * `<img onError>` still triggers our initials fallback. Free, no auth,
+ * higher quality than Google S2 — which is capped by whatever favicon
+ * the site exposes (often 16/32px) and renders blurry when upscaled.
+ *
+ * To upgrade beyond favicons/touch-icons to real brand logos, swap
+ * this function to logo.dev (`img.logo.dev/{domain}?token=...&size=N`)
+ * or Brandfetch. Both require a token but emit proper logo marks at
+ * any size. DB and component shape stay unchanged.
+ */
+function iconUrl(domain: string): string {
+  return `https://icon.horse/icon/${encodeURIComponent(domain)}`;
 }
 
 /**
@@ -29,17 +54,34 @@ function rewriteLogoUrl(raw: string): string {
 export function AccountAvatar({
   name,
   logoUrl,
+  website,
   size = 24,
   className,
 }: {
   name: string | null | undefined;
   logoUrl: string | null | undefined;
+  /** SF Account.Website fallback when no public.companies match exists. */
+  website?: string | null | undefined;
   size?: number;
   className?: string;
 }) {
-  const [errored, setErrored] = useState(false);
-  const resolved = logoUrl ? rewriteLogoUrl(logoUrl) : null;
-  const showLogo = resolved && !errored;
+  // Resolution chain (each step falls through on <img> error):
+  //   1. `logoUrl` is a direct image URL (Apollo, etc.) — use as-is
+  //   2. icon.horse from extracted domain (Clearbit pointer or SF Website)
+  //   3. Initials fallback
+  const isClearbitPointer =
+    !!logoUrl && /^https?:\/\/logo\.clearbit\.com\//i.test(logoUrl);
+  const directLogo = !!logoUrl && !isClearbitPointer ? logoUrl : null;
+  const fallbackDomain =
+    (isClearbitPointer ? extractDomain(logoUrl!) : null) ??
+    extractDomain(website ?? "");
+  const fallbackUrl = fallbackDomain ? iconUrl(fallbackDomain) : null;
+
+  // `step` advances on each <img> error: 0 = direct, 1 = icon.horse, 2 = initials.
+  const [step, setStep] = useState(0);
+  const candidates = [directLogo, fallbackUrl].filter(Boolean) as string[];
+  const resolved = candidates[step] ?? null;
+  const showLogo = !!resolved;
 
   return (
     <div
@@ -60,11 +102,18 @@ export function AccountAvatar({
     >
       {showLogo ? (
         <img
+          /* Force a re-mount when the candidate URL changes so the
+             browser re-evaluates `onError` against the new src. */
+          key={resolved}
           src={resolved}
           alt=""
           referrerPolicy="no-referrer"
-          onError={() => setErrored(true)}
-          className="h-full w-full object-contain"
+          onError={() => setStep((s) => s + 1)}
+          /* Render at natural size up to the tile, never upscaled —
+             a small favicon stays crisp at 32px on a 48px tile rather
+             than being stretched into pixel mush. */
+          style={{ maxWidth: "85%", maxHeight: "85%", width: "auto", height: "auto" }}
+          className="object-contain"
         />
       ) : (
         <span>{initials(name ?? "?")}</span>

@@ -152,6 +152,7 @@ export function AccountDetailPage() {
         <AccountAvatar
           name={account.Name}
           logoUrl={enrichment?.logo_url ?? null}
+          website={account.Website}
           size={48}
         />
         <div className="flex-1 min-w-0">
