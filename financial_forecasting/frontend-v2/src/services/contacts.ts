@@ -50,6 +50,37 @@ export function useCreateContact() {
   });
 }
 
+/**
+ * Delete a Salesforce Contact. Backend invalidates contact + task caches
+ * (Who.Name joins). We optimistically drop the row from every cached
+ * contacts list (global + per-account) and rollback on error.
+ */
+export function useDeleteContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/salesforce/contacts/${encodeURIComponent(id)}`);
+      return id;
+    },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["contacts"] });
+      const snapshots = qc
+        .getQueriesData<SfContact[]>({ queryKey: ["contacts"] })
+        .map(([key, data]) => ({ key, data }));
+      qc.setQueriesData<SfContact[]>({ queryKey: ["contacts"] }, (old) =>
+        old ? old.filter((c) => c.Id !== id) : old,
+      );
+      return { snapshots };
+    },
+    onError: (_err, _id, ctx) => {
+      ctx?.snapshots?.forEach(({ key, data }) => qc.setQueryData(key, data));
+    },
+    onSettled: () => {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["contacts"] }), 2000);
+    },
+  });
+}
+
 export function useUpdateContact() {
   const qc = useQueryClient();
   return useMutation({

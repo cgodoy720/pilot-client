@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import { PageHeader } from "@/components/PageHeader";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
 import { ResizableTh } from "@/components/ui/ResizableTable";
 import { SortableHeader } from "@/components/ui/SortableHeader";
@@ -231,7 +230,60 @@ const BULK_PARALLELISM = 4;
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
+export type CleanupTabKey = "opportunities" | "accounts" | "contacts";
+
+import { CleanupAccountsTab } from "./cleanup/CleanupAccountsTab";
+import { CleanupContactsTab } from "./cleanup/CleanupContactsTab";
+
 export function CleanupPage() {
+  const [tab, setTab] = useState<CleanupTabKey>("opportunities");
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-1 px-7 pt-5">
+        <CleanupTab active={tab === "opportunities"} onClick={() => setTab("opportunities")}>
+          Opportunities
+        </CleanupTab>
+        <CleanupTab active={tab === "accounts"} onClick={() => setTab("accounts")}>
+          Accounts
+        </CleanupTab>
+        <CleanupTab active={tab === "contacts"} onClick={() => setTab("contacts")}>
+          Contacts
+        </CleanupTab>
+      </div>
+      {tab === "opportunities" ? <OpportunitiesCleanupTab /> : null}
+      {tab === "accounts" ? <CleanupAccountsTab /> : null}
+      {tab === "contacts" ? <CleanupContactsTab /> : null}
+    </div>
+  );
+}
+
+function CleanupTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-t-md border-b-2 px-3 py-1.5 text-[13px] font-medium transition-colors",
+        active
+          ? "border-accent text-ink"
+          : "border-transparent text-ink-3 hover:text-ink-2",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function OpportunitiesCleanupTab() {
   const canEdit = usePerm("edit_all_opportunities");
   const { data: oppsData, isLoading } = useOpportunities();
   const usersQ = useActiveUsers();
@@ -473,15 +525,12 @@ export function CleanupPage() {
   const paddingBottom = totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0);
 
   return (
-    <div className="flex h-full flex-col px-7 py-6 pb-6">
-      <PageHeader
-        title="Cleanup"
-        subtitle={
-          isLoading
-            ? "Loading…"
-            : `${sorted.length.toLocaleString()} of ${opps.length.toLocaleString()} opportunities${selectedIds.size > 0 ? ` · ${selectedIds.size.toLocaleString()} selected` : ""}`
-        }
-      />
+    <div className="flex flex-1 flex-col overflow-hidden px-7 pt-3 pb-6">
+      <div className="mb-3 text-[12px] text-ink-3">
+        {isLoading
+          ? "Loading…"
+          : `${sorted.length.toLocaleString()} of ${opps.length.toLocaleString()} opportunities${selectedIds.size > 0 ? ` · ${selectedIds.size.toLocaleString()} selected` : ""}`}
+      </div>
 
       <Toolbar>
         <div className="relative">

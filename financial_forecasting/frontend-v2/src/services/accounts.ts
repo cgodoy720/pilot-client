@@ -127,6 +127,40 @@ export function useCreateAccount() {
  * OwnerId, set `displayPatch: { Owner: { Name: 'Jane Doe' } }` so the
  * row's owner label updates immediately).
  */
+/**
+ * Delete a Salesforce Account. Backend cascade-invalidates contacts +
+ * opps caches (they reference AccountId), so we only need to drop this
+ * row from the accounts list optimistically and rollback on error.
+ */
+export function useDeleteAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/salesforce/accounts/${encodeURIComponent(id)}`);
+      return id;
+    },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["accounts"] });
+      const prev = qc.getQueryData<SfAccount[]>(["accounts"]);
+      qc.setQueryData<SfAccount[]>(["accounts"], (old) =>
+        old ? old.filter((a) => a.Id !== id) : old,
+      );
+      return { prev };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["accounts"], ctx.prev);
+    },
+    onSettled: () => {
+      // Wait for SF propagation before refetch (mirrors useUpdateAccount).
+      setTimeout(() => {
+        void qc.invalidateQueries({ queryKey: ["accounts"] });
+        void qc.invalidateQueries({ queryKey: ["contacts"] });
+        void qc.invalidateQueries({ queryKey: ["opportunities"] });
+      }, 1500);
+    },
+  });
+}
+
 export function useUpdateAccount() {
   const qc = useQueryClient();
   return useMutation({
