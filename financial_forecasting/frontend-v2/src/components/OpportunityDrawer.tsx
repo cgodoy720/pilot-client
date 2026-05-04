@@ -94,11 +94,6 @@ function OpportunityDrawerBody({ opp }: { opp: SfOpportunity }) {
             label="Primary contact"
             value={opp.npsp__Primary_Contact__r?.Name}
           />
-          <Meta
-            label="Next step"
-            value={opp.NextStep}
-            full
-          />
         </dl>
       </Section>
 

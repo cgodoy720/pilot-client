@@ -57,7 +57,6 @@ const FILTERABLE = {
   recordType: { label: "Record Type", type: "select" as const, getValue: (o: SfOpportunity) => o.RecordType?.Name ?? "" },
   account: { label: "Account", type: "text" as const, getValue: (o: SfOpportunity) => o.Account?.Name ?? "" },
   name: { label: "Name", type: "text" as const, getValue: (o: SfOpportunity) => o.Name ?? "" },
-  nextStep: { label: "Next step", type: "text" as const, getValue: (o: SfOpportunity) => o.NextStep ?? "" },
   // SF custom flag the org uses to mark "this opp is currently being
   // worked" — filter as Yes/No since it's boolean-coded but renders
   // best as an explicit dropdown choice.
@@ -284,7 +283,6 @@ const OPP_CSV_COLUMNS: CsvColumn<SfOpportunity>[] = [
   { label: "Lead Source", getValue: (o) => o.LeadSource },
   { label: "Close Date", getValue: (o) => isoDate(o.CloseDate) },
   { label: "First Payment", getValue: (o) => isoDate(o.PaymentDate__c) },
-  { label: "Next Step", getValue: (o) => o.NextStep },
   { label: "Last Modified", getValue: (o) => isoDate(o.LastModifiedDate) },
   { label: "Created", getValue: (o) => isoDate(o.CreatedDate) },
 ];
@@ -445,7 +443,7 @@ function OpportunitiesCleanupTab() {
 
   const filtered = useMemo(() => {
     return opps.filter((o) => {
-      // Free-text search across name/account/owner/next step.
+      // Free-text search across name/account/owner.
       if (q) {
         const needle = q.toLowerCase();
         const hay =
@@ -453,9 +451,7 @@ function OpportunitiesCleanupTab() {
           " " +
           (o.Account?.Name ?? "") +
           " " +
-          (o.Owner?.Name ?? "") +
-          " " +
-          (o.NextStep ?? "");
+          (o.Owner?.Name ?? "");
         if (!hay.toLowerCase().includes(needle)) return false;
       }
       // All chip rules must pass (AND).

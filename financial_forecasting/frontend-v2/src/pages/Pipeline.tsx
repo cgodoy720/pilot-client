@@ -59,6 +59,8 @@ function inScope(o: SfOpportunity, scope: Scope): boolean {
   return true;
 }
 
+// NextStep was dropped — Pursuit uses Tasks as the system of record
+// for "what's next on this opp", not the standard SF NextStep field.
 type ColKey =
   | "name"
   | "owner"
@@ -66,8 +68,7 @@ type ColKey =
   | "amount"
   | "probability"
   | "close"
-  | "paymentDate"
-  | "nextStep";
+  | "paymentDate";
 
 const COLUMN_ORDER: ColKey[] = [
   "name",
@@ -77,12 +78,11 @@ const COLUMN_ORDER: ColKey[] = [
   "probability",
   "close",
   "paymentDate",
-  "nextStep",
 ];
 
 // Defaults balanced for ~1280px viewport. Mirrors the legacy DEFAULT_VISIBLE
 // set: name+account / owner / stage / amount / probability / close /
-// 1st-payment / next-step. Sum ≈ 1310 to leave a touch of horizontal slack.
+// 1st-payment. Sum ≈ 1110 to leave a touch of horizontal slack.
 const DEFAULT_WIDTHS: Record<ColKey, number> = {
   name: 260,
   owner: 150,
@@ -91,7 +91,6 @@ const DEFAULT_WIDTHS: Record<ColKey, number> = {
   probability: 90,
   close: 110,
   paymentDate: 120,
-  nextStep: 200,
 };
 
 const COL_LABELS: Record<ColKey, string> = {
@@ -102,7 +101,6 @@ const COL_LABELS: Record<ColKey, string> = {
   probability: "Prob.",
   close: "Close",
   paymentDate: "1st Payment",
-  nextStep: "Next step",
 };
 
 const ROW_HEIGHT = 44; // px — must match the row's actual rendered height
@@ -122,7 +120,6 @@ function extractOpp(o: SfOpportunity, key: ColKey): unknown {
     case "probability": return o.Probability ?? 0;
     case "close": return o.CloseDate;
     case "paymentDate": return o.PaymentDate__c;
-    case "nextStep": return o.NextStep;
   }
 }
 
@@ -209,8 +206,7 @@ export function PipelinePage() {
         (!q ||
           (o.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
           (o.Account?.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
-          (o.Owner?.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
-          (o.NextStep ?? "").toLowerCase().includes(q.toLowerCase())),
+          (o.Owner?.Name ?? "").toLowerCase().includes(q.toLowerCase())),
     );
     return sortBy(filt, sort, extractOpp);
   }, [opps, scope, stageFilter, q, sort]);
@@ -264,13 +260,6 @@ export function PipelinePage() {
       });
     },
     [updateOpp, usersQ.data],
-  );
-
-  const saveNextStep = useCallback(
-    async (id: string, next: string) => {
-      await updateOpp.mutateAsync({ id, patch: { NextStep: next } });
-    },
-    [updateOpp],
   );
 
   const savePaymentDate = useCallback(
@@ -352,7 +341,7 @@ export function PipelinePage() {
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
           />
           <input
-            placeholder="Search opps, accounts, owner, next step"
+            placeholder="Search opps, accounts, owner"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="h-7 w-80 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
@@ -462,7 +451,6 @@ export function PipelinePage() {
                         onSaveAmount={(raw) => saveAmount(o.Id, raw)}
                         onSaveProbability={(raw) => saveProbability(o.Id, raw)}
                         onSaveOwner={(ownerId) => saveOwner(o.Id, ownerId)}
-                        onSaveNextStep={(next) => saveNextStep(o.Id, next)}
                         onSavePaymentDate={(next) => savePaymentDate(o.Id, next)}
                         isExpanded={isExpanded}
                         onToggleExpand={() => setExpandedId(isExpanded ? null : o.Id)}
@@ -775,7 +763,6 @@ interface RowProps {
   onSaveAmount: (raw: string) => Promise<void>;
   onSaveProbability: (raw: string) => Promise<void>;
   onSaveOwner: (ownerId: string) => Promise<void>;
-  onSaveNextStep: (next: string) => Promise<void>;
   onSavePaymentDate: (next: string | null) => Promise<void>;
   isExpanded: boolean;
   onToggleExpand: () => void;
@@ -806,7 +793,6 @@ const OpportunityRow = memo(function OpportunityRow({
   onSaveAmount,
   onSaveProbability,
   onSaveOwner,
-  onSaveNextStep,
   onSavePaymentDate,
   isExpanded,
   onToggleExpand,
@@ -896,11 +882,6 @@ const OpportunityRow = memo(function OpportunityRow({
     ) : (
       <span className="text-right block text-ink-3">{fmtDate(o.PaymentDate__c)}</span>
     ),
-    nextStep: canEdit ? (
-      <InlineText value={o.NextStep} onSave={onSaveNextStep} placeholder="Add next step…" />
-    ) : (
-      <span className="text-ink-3">{o.NextStep ?? ""}</span>
-    ),
   };
 
   const cellCls: Partial<Record<ColKey, string>> = {
@@ -911,7 +892,6 @@ const OpportunityRow = memo(function OpportunityRow({
     probability: cn(numCell),
     close: "mono cursor-pointer overflow-hidden truncate px-3 py-1 text-right text-[11.5px] tabular-nums text-ink-3",
     paymentDate: "overflow-hidden px-3 py-1",
-    nextStep: "overflow-hidden px-3 py-1 text-[12.5px] text-ink-3",
   };
 
   return (

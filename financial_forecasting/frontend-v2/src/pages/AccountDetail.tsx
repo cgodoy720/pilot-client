@@ -1551,11 +1551,6 @@ function OppTable({
                 >
                   {o.Name}
                 </Link>
-                {o.NextStep ? (
-                  <div className="mt-0.5 line-clamp-1 text-[11.5px] text-ink-3">
-                    {o.NextStep}
-                  </div>
-                ) : null}
               </td>
               <td className="px-3 py-2.5">
                 <div className="flex flex-col gap-0.5 leading-tight">
