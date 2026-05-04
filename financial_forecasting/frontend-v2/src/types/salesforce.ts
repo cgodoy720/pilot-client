@@ -89,6 +89,11 @@ export interface SfOpportunity {
   ForecastCategory?: string | null;
 
   Amount?: number | null;
+  /** Ask amount — what was originally requested. May differ from
+   *  Amount once the opp is closed (Amount is the realized number).
+   *  SF API name is intentionally awkward (`..._if_different_...`)
+   *  but the picklist label is just "Ask Amount". */
+  Ask_Amount_if_different_from_actual__c?: number | null;
   CloseDate?: string | null;
   LeadSource?: string | null;
   NextStep?: string | null;

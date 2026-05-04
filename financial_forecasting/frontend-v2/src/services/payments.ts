@@ -65,3 +65,38 @@ export function useUpdatePayment(opportunityId: string) {
     },
   });
 }
+
+export interface PaymentScheduleItem {
+  amount: number;
+  scheduled_date: string; // YYYY-MM-DD
+}
+
+/**
+ * Create a payment schedule by replacing (or appending to) the existing
+ * SF payments. Backend rejects if `sum(amounts) !== Opportunity.Amount`,
+ * so callers should validate the total before submitting.
+ */
+export function useCreatePaymentSchedule(opportunityId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      payments: PaymentScheduleItem[];
+      delete_existing?: boolean;
+    }) => {
+      const { data } = await api.post<{ success: boolean; payments_created: number }>(
+        "/api/opportunities/create-payment-schedule",
+        {
+          opportunity_id: opportunityId,
+          payments: input.payments,
+          delete_existing: input.delete_existing ?? true,
+        },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["opp-payments", opportunityId] });
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
+      qc.invalidateQueries({ queryKey: ["awards"] });
+    },
+  });
+}

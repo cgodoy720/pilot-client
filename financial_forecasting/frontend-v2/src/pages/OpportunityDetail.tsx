@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { OppTasksSection } from "@/components/OppTasksSection";
+import { PaymentScheduleBuilder } from "@/components/PaymentScheduleBuilder";
 import {
   BackLink as SharedBackLink,
   DetailRow,
@@ -13,13 +14,14 @@ import {
   SectionCard,
   Stat,
 } from "@/components/detail";
+import { AccountPicker } from "@/components/ui/AccountPicker";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { SF_STAGE_OPTIONS, isOpen, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAccountEnrichment } from "@/services/accounts";
+import { useAccountEnrichment, useAccounts } from "@/services/accounts";
 import { useActivities } from "@/services/activities";
 import { useAwards } from "@/services/awards";
 import { useContacts } from "@/services/contacts";
@@ -63,6 +65,9 @@ export function OpportunityDetailPage() {
   // Pull contacts on the parent account so the primary-contact picker
   // only suggests people who actually belong to this account.
   const { data: accountContacts = [] } = useContacts(opp?.AccountId ?? undefined);
+  // Full account list — feeds the inline Account picker (search-based,
+  // since the org has 20K accounts and a `<select>` would jank).
+  const { data: accountsData = [] } = useAccounts();
   const usersQ = useActiveUsers();
 
   const updateOpp = useUpdateOpportunity();
@@ -72,6 +77,19 @@ export function OpportunityDetailPage() {
     () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
     [usersQ.data],
   );
+
+  const accountOptions = useMemo(
+    () =>
+      accountsData
+        .map((a) => ({ value: a.Id, label: a.Name }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [accountsData],
+  );
+
+  // Whether to show the payment-schedule modal — controlled at the
+  // page level so the action button on the Payments section can open
+  // it and the modal can dismiss back to the page cleanly.
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
   const award = useMemo(
     () => awards.find((a) => a.opportunity_id === id) ?? null,
@@ -197,10 +215,48 @@ export function OpportunityDetailPage() {
               )}
             />
           </EditField>
-          <EditField label="Amount">
+          <EditField label="Account">
+            <AccountPicker
+              value={opp.AccountId ?? null}
+              currentLabel={opp.Account?.Name ?? null}
+              options={accountOptions}
+              onSave={(accountId) =>
+                updateOpp
+                  .mutateAsync({
+                    id: opp.Id,
+                    patch: { AccountId: accountId },
+                    displayPatch: {
+                      Account: {
+                        Name: accountOptions.find((o) => o.value === accountId)?.label ?? "",
+                      },
+                    } as Record<string, unknown>,
+                  })
+                  .then(() => undefined)
+              }
+            />
+          </EditField>
+          <EditField label="Stage">
+            <InlineSelect
+              value={opp.StageName}
+              options={SF_STAGE_OPTIONS}
+              onSave={(v) =>
+                updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
+              }
+              renderValue={() => <StageChip stage={opp.StageName} status={stageStatus(opp)} />}
+            />
+          </EditField>
+          <EditField label="Primary contact">
+            <PrimaryContactPicker
+              opp={opp}
+              accountContacts={accountContacts}
+              onSave={(contactId) => patch("npsp__Primary_Contact__c", contactId)}
+              referrer={referrer}
+            />
+          </EditField>
+          <EditField label="Probability">
             <InlineText
-              value={opp.Amount != null ? String(opp.Amount) : ""}
-              onSave={(v) => patch("Amount", v ? Number(v.replace(/[^0-9.]/g, "")) : null)}
+              value={opp.Probability != null ? String(opp.Probability) : ""}
+              onSave={(v) => patch("Probability", v ? Number(v) : null)}
               placeholder="—"
             />
           </EditField>
@@ -210,10 +266,32 @@ export function OpportunityDetailPage() {
               onSave={(v) => patch("CloseDate", v)}
             />
           </EditField>
-          <EditField label="Probability">
+          <EditField label="1st payment">
+            <InlineDate
+              value={opp.PaymentDate__c}
+              onSave={(v) => patch("PaymentDate__c", v)}
+            />
+          </EditField>
+          <EditField label="Ask amount">
             <InlineText
-              value={opp.Probability != null ? String(opp.Probability) : ""}
-              onSave={(v) => patch("Probability", v ? Number(v) : null)}
+              value={
+                opp.Ask_Amount_if_different_from_actual__c != null
+                  ? String(opp.Ask_Amount_if_different_from_actual__c)
+                  : ""
+              }
+              onSave={(v) =>
+                patch(
+                  "Ask_Amount_if_different_from_actual__c",
+                  v ? Number(v.replace(/[^0-9.]/g, "")) : null,
+                )
+              }
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="Amount">
+            <InlineText
+              value={opp.Amount != null ? String(opp.Amount) : ""}
+              onSave={(v) => patch("Amount", v ? Number(v.replace(/[^0-9.]/g, "")) : null)}
               placeholder="—"
             />
           </EditField>
@@ -230,20 +308,6 @@ export function OpportunityDetailPage() {
               options={LEAD_SOURCE_OPTIONS}
               onSave={(v) => patch("LeadSource", v)}
               emptyLabel="—"
-            />
-          </EditField>
-          <EditField label="1st payment">
-            <InlineDate
-              value={opp.PaymentDate__c}
-              onSave={(v) => patch("PaymentDate__c", v)}
-            />
-          </EditField>
-          <EditField label="Primary contact">
-            <PrimaryContactPicker
-              opp={opp}
-              accountContacts={accountContacts}
-              onSave={(contactId) => patch("npsp__Primary_Contact__c", contactId)}
-              referrer={referrer}
             />
           </EditField>
           <EditField label="Type">
@@ -280,11 +344,23 @@ export function OpportunityDetailPage() {
 
       {/* Payments — pill-toggle filter (All / Open / Paid). Default-open
           when there's an unpaid balance, default-closed once everything
-          is paid (no action needed). */}
+          is paid (no action needed). The "Schedule" action opens the
+          builder modal — replaces existing payments by default. */}
       <PaymentsSection
         payments={payments}
         defaultOpen={totalScheduled > 0 || payments.length === 0}
+        onSchedule={() => setScheduleModalOpen(true)}
       />
+
+      {scheduleModalOpen ? (
+        <PaymentScheduleBuilder
+          opportunityId={opp.Id}
+          oppAmount={opp.Amount ?? null}
+          existingCount={payments.length}
+          initialFirstDate={opp.PaymentDate__c ?? null}
+          onClose={() => setScheduleModalOpen(false)}
+        />
+      ) : null}
 
       {/* Award — only when this opp produced an award. */}
       {award ? (
@@ -362,9 +438,11 @@ interface PaymentLite {
 function PaymentsSection({
   payments,
   defaultOpen,
+  onSchedule,
 }: {
   payments: PaymentLite[];
   defaultOpen: boolean;
+  onSchedule: () => void;
 }) {
   const [filter, setFilter] = useState<PaymentFilter>("all");
 
@@ -392,11 +470,29 @@ function PaymentsSection({
       storageScope="opportunity"
       defaultOpen={defaultOpen}
       action={
-        <PaymentFilterPill
-          counts={counts}
-          value={filter}
-          onChange={setFilter}
-        />
+        <div className="flex items-center gap-2">
+          <PaymentFilterPill
+            counts={counts}
+            value={filter}
+            onChange={setFilter}
+          />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSchedule();
+            }}
+            className="inline-flex items-center gap-1 rounded border border-border-strong bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:bg-surface-2"
+            title={
+              payments.length > 0
+                ? `Replace the existing ${payments.length} payment${payments.length === 1 ? "" : "s"}`
+                : "Generate a payment schedule"
+            }
+          >
+            <Plus size={11} aria-hidden="true" />
+            {payments.length > 0 ? "Replace schedule" : "Schedule"}
+          </button>
+        </div>
       }
     >
       {filtered.length === 0 ? (

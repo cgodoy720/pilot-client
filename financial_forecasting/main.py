@@ -347,7 +347,8 @@ async def get_opportunities(
                npsp__Primary_Contact__c,
                npsp__Primary_Contact__r.Name, npsp__Primary_Contact__r.Email,
                RecordTypeId, RecordType.Name, Active_Opportunity__c,
-               Reporting_Method__c, npsp__Next_Grant_Deadline_Due_Date__c
+               Reporting_Method__c, npsp__Next_Grant_Deadline_Due_Date__c,
+               Ask_Amount_if_different_from_actual__c
         FROM Opportunity
         """
 
