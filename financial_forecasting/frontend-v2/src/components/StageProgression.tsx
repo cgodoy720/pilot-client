@@ -157,14 +157,18 @@ export function StageProgression({
           <div
             key={s.key}
             role="listitem"
+            /* `min-w-0` lets the flex item shrink below its content's
+               intrinsic width — without it, long labels like
+               "Proposal Negotiation" force the cell to its content
+               size and the bar overflows the section's width. */
             className={cn(
-              "relative flex flex-1 flex-col px-4 py-3",
+              "relative flex min-w-0 flex-1 flex-col px-2.5 py-2.5",
               !last && "border-r border-border-strong",
               current && "bg-accent/10",
               completed && "bg-surface-2",
             )}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-start gap-1.5">
               <div
                 className={cn(
                   "grid h-4 w-4 flex-shrink-0 place-items-center rounded-full text-[9px] font-semibold",
@@ -179,8 +183,12 @@ export function StageProgression({
                 {completed ? <Check size={8} strokeWidth={3} /> : i + 1}
               </div>
               <span
+                /* `whitespace-normal` + `leading-tight` lets long labels
+                   wrap to a second line cleanly when the cell is narrow,
+                   instead of truncating mid-word. tooltip stays for
+                   the rare case where the wrap still cuts something. */
                 className={cn(
-                  "truncate text-[11px] font-semibold uppercase tracking-wider",
+                  "min-w-0 whitespace-normal break-words text-[10.5px] font-semibold uppercase leading-tight tracking-wide",
                   current
                     ? "text-ink"
                     : completed
