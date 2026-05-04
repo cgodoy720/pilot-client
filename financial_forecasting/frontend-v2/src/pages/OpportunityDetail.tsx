@@ -6,12 +6,12 @@ import { AccountAvatar } from "@/components/AccountAvatar";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { OppTasksSection } from "@/components/OppTasksSection";
 import { PaymentScheduleBuilder } from "@/components/PaymentScheduleBuilder";
+import { StageProgression } from "@/components/StageProgression";
 import {
   BackLink as SharedBackLink,
   EditField,
   Empty,
   SectionCard,
-  Stat,
 } from "@/components/detail";
 import { AccountPicker } from "@/components/ui/AccountPicker";
 import { ContactPicker } from "@/components/ui/ContactPicker";
@@ -19,7 +19,7 @@ import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit
 import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoneyFull } from "@/lib/format";
-import { SF_STAGE_OPTIONS, isOpen, stageStatus } from "@/lib/stages";
+import { SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import {
   useAccountEnrichment,
@@ -32,6 +32,7 @@ import { useContacts, useCreateContact } from "@/services/contacts";
 import {
   useOpportunities,
   useOpportunityPayments,
+  useOpportunityStageHistory,
   useUpdateOpportunity,
   useUpdateOpportunityStage,
 } from "@/services/opportunities";
@@ -53,6 +54,7 @@ export function OpportunityDetailPage() {
   const { data: payments = [] } = useOpportunityPayments(id);
   const { data: activities = [] } = useActivities({ opportunityId: id, limit: 30 });
   const { data: awards = [] } = useAwards();
+  const stageHistory = useOpportunityStageHistory(id);
   const enrichment = useAccountEnrichment(opp?.AccountId ?? null);
   // Full contact list — feeds the inline Contact picker. Org has
   // ~10K contacts; we filter client-side as the user types.
@@ -132,29 +134,11 @@ export function OpportunityDetailPage() {
     });
   };
 
-  const totalPaid = payments
-    .filter((p) => p.npe01__Paid__c)
-    .reduce((s, p) => s + (p.npe01__Payment_Amount__c ?? 0), 0);
+  // Used by PaymentsSection for its default-open heuristic — open when
+  // there's an unpaid balance, closed once everything is paid.
   const totalScheduled = payments
     .filter((p) => !p.npe01__Paid__c && !p.npe01__Written_Off__c)
     .reduce((s, p) => s + (p.npe01__Payment_Amount__c ?? 0), 0);
-
-  // 5th stat — Probability when open, Days-to-close when closed.
-  const isOpenOpp = isOpen(opp);
-  const days = opp.CloseDate
-    ? Math.round((new Date(opp.CloseDate).getTime() - Date.now()) / 86400_000)
-    : null;
-  const fifthStat = isOpenOpp
-    ? {
-        label: "Probability",
-        value: opp.Probability != null ? `${opp.Probability}%` : "—",
-        tone: "default" as const,
-      }
-    : {
-        label: "Days to close",
-        value: days != null ? `${Math.abs(days)}` : "—",
-        tone: "default" as const,
-      };
 
   // Referrer for cross-detail jumps (account, contact, award) — when
   // the user clicks one of those, the BackLink there should return
@@ -204,18 +188,39 @@ export function OpportunityDetailPage() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat label="Amount" value={opp.Amount ? fmtMoneyFull(opp.Amount) : "—"} />
-        <Stat label="Paid" value={fmtMoneyFull(totalPaid)} tone={totalPaid > 0 ? "green" : "default"} />
-        <Stat label="Scheduled" value={fmtMoneyFull(totalScheduled)} />
-        <Stat label="Close" value={fmtDate(opp.CloseDate)} />
-        <Stat label={fifthStat.label} value={fifthStat.value} tone={fifthStat.tone} />
-      </div>
+      {/* Stage progression — visualizes the funnel and time-in-stage. */}
+      <StageProgression
+        currentStage={opp.StageName}
+        createdDate={opp.CreatedDate ?? null}
+        history={stageHistory.data ?? []}
+      />
 
       {/* Details — always-on canonical fields */}
       <SectionCard title="Details" collapsible={false} storageScope="opportunity">
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 px-5 py-4 md:grid-cols-3">
+          {/* Top row: the three the user updates most often. */}
+          <EditField label="Amount">
+            <InlineText
+              value={opp.Amount != null ? String(opp.Amount) : ""}
+              onSave={(v) => patch("Amount", v ? Number(v.replace(/[^0-9.]/g, "")) : null)}
+              placeholder="—"
+            />
+          </EditField>
+          <EditField label="Close date">
+            <InlineDate
+              value={opp.CloseDate}
+              onSave={(v) => patch("CloseDate", v)}
+            />
+          </EditField>
+          <EditField label="Probability">
+            <InlineText
+              value={opp.Probability != null ? String(opp.Probability) : ""}
+              onSave={(v) => patch("Probability", v ? Number(v) : null)}
+              placeholder="—"
+            />
+          </EditField>
+
+          {/* Second row: ownership + relationships. */}
           <EditField label="Owner">
             <InlineSelect
               value={opp.OwnerId ?? null}
@@ -247,22 +252,9 @@ export function OpportunityDetailPage() {
                   .then(() => undefined)
               }
               onCreateNew={async (name) => {
-                // Minimal create — Name only. The user can edit
-                // Type/Industry/Owner on the new account's detail
-                // page later if needed.
                 const result = await createAccount.mutateAsync({ Name: name });
                 return result.id;
               }}
-            />
-          </EditField>
-          <EditField label="Stage">
-            <InlineSelect
-              value={opp.StageName}
-              options={SF_STAGE_OPTIONS}
-              onSave={(v) =>
-                updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
-              }
-              renderValue={() => <StageChip stage={opp.StageName} status={stageStatus(opp)} />}
             />
           </EditField>
           <EditField label="Primary contact">
@@ -272,8 +264,6 @@ export function OpportunityDetailPage() {
               options={contactOptions}
               onSave={(contactId) => patch("npsp__Primary_Contact__c", contactId)}
               onCreateNew={async (raw) => {
-                // Split on last whitespace into FirstName / LastName
-                // (SF requires LastName; single-token input goes there).
                 const trimmed = raw.trim();
                 const lastSpace = trimmed.lastIndexOf(" ");
                 const firstName =
@@ -294,19 +284,8 @@ export function OpportunityDetailPage() {
               }}
             />
           </EditField>
-          <EditField label="Probability">
-            <InlineText
-              value={opp.Probability != null ? String(opp.Probability) : ""}
-              onSave={(v) => patch("Probability", v ? Number(v) : null)}
-              placeholder="—"
-            />
-          </EditField>
-          <EditField label="Close date">
-            <InlineDate
-              value={opp.CloseDate}
-              onSave={(v) => patch("CloseDate", v)}
-            />
-          </EditField>
+
+          {/* Third row: payment + ask + stage (also live in header). */}
           <EditField label="1st payment">
             <InlineDate
               value={opp.PaymentDate__c}
@@ -329,11 +308,14 @@ export function OpportunityDetailPage() {
               placeholder="—"
             />
           </EditField>
-          <EditField label="Amount">
-            <InlineText
-              value={opp.Amount != null ? String(opp.Amount) : ""}
-              onSave={(v) => patch("Amount", v ? Number(v.replace(/[^0-9.]/g, "")) : null)}
-              placeholder="—"
+          <EditField label="Stage">
+            <InlineSelect
+              value={opp.StageName}
+              options={SF_STAGE_OPTIONS}
+              onSave={(v) =>
+                updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
+              }
+              renderValue={() => <StageChip stage={opp.StageName} status={stageStatus(opp)} />}
             />
           </EditField>
         </div>

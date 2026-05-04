@@ -104,6 +104,52 @@ async def get_prior_stages(
 # Stage history
 # ---------------------------------------------------------------------------
 
+@router.get("/api/salesforce/opportunities/{opportunity_id}/stage-history")
+async def get_opp_stage_history(
+    opportunity_id: str,
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Full stage-transition history for one opportunity, oldest-first.
+
+    Pulls from OpportunityFieldHistory which retains StageName changes
+    for ~18 months by default in SF; older opps may have a truncated
+    history. The frontend's StageProgression component combines this
+    with the opp's CreatedDate to compute time-in-stage per bucket.
+    """
+    validate_salesforce_id(opportunity_id, "opportunity_id")
+    safe_id = escape_soql_string(opportunity_id)
+    cache_key = f"stage_history:opp:{opportunity_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        salesforce = client.salesforce
+        query = f"""
+        SELECT OldValue, NewValue, CreatedDate
+        FROM OpportunityFieldHistory
+        WHERE Field = 'StageName'
+          AND OpportunityId = '{safe_id}'
+        ORDER BY CreatedDate ASC
+        """
+        result = await salesforce.query_all(query)
+        records = result.get("records", [])
+        formatted = [
+            {
+                "old_value": r.get("OldValue"),
+                "new_value": r.get("NewValue"),
+                "created_date": r.get("CreatedDate"),
+            }
+            for r in records
+        ]
+        cache.set(cache_key, formatted, CACHE_TTL_STAGE_HISTORY)
+        return formatted
+    except Exception as e:
+        logger.warning(f"per-opp stage history failed for %s: %s", opportunity_id, e)
+        raise HTTPException(status_code=500, detail="stage history unavailable")
+
+
 @router.get("/api/salesforce/opportunities/stage-history")
 async def get_stage_history(
     days: int = Query(30, ge=1, le=365),

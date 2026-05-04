@@ -101,3 +101,33 @@ export function initials(name: string): string {
     .slice(0, 2)
     .toUpperCase();
 }
+
+/**
+ * Render a duration in ms as the largest sensible unit:
+ *   < 60s    → "Ns"
+ *   < 60m    → "Nm"
+ *   < 24h    → "Nh"
+ *   < 14d    → "Nd"
+ *   < 60d    → "Nw"
+ *   < 365d   → "Nmo"
+ *   ≥ 365d   → "N.Yyr"
+ *
+ * Used by the StageProgression bar and other "time spent" displays.
+ * Keeps output to 2-3 chars + unit so it fits in tight UI spots.
+ */
+export function fmtDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "—";
+  const sec = ms / 1000;
+  if (sec < 60) return `${Math.round(sec)}s`;
+  const min = sec / 60;
+  if (min < 60) return `${Math.round(min)}m`;
+  const hr = min / 60;
+  if (hr < 24) return `${Math.round(hr)}h`;
+  const day = hr / 24;
+  if (day < 14) return `${Math.round(day)}d`;
+  const week = day / 7;
+  if (day < 60) return `${Math.round(week)}w`;
+  if (day < 365) return `${Math.round(day / 30)}mo`;
+  const yr = day / 365;
+  return yr >= 10 ? `${Math.round(yr)}yr` : `${yr.toFixed(1)}yr`;
+}

@@ -76,6 +76,31 @@ export interface PriorStage {
   transitioned_at: string | null;
 }
 
+export interface StageHistoryEntry {
+  old_value: string | null;
+  new_value: string | null;
+  created_date: string | null;
+}
+
+/** Full stage-transition history for one opp, oldest-first. Drives the
+ *  StageProgression bar on the opp detail page. SF retains
+ *  OpportunityFieldHistory for ~18 months; older opps may have a
+ *  truncated history (the visualization handles missing history by
+ *  showing only the current stage as active). */
+export function useOpportunityStageHistory(opportunityId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["opp-stage-history", opportunityId],
+    queryFn: async () => {
+      const { data } = await api.get<StageHistoryEntry[]>(
+        `/api/salesforce/opportunities/${encodeURIComponent(opportunityId!)}/stage-history`,
+      );
+      return data;
+    },
+    enabled: !!opportunityId,
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useOpportunityPriorStages(ids: string[]) {
   // Sort the id list so the cache key is stable regardless of input order.
   const stableKey = useMemo(() => [...ids].sort(), [ids]);
