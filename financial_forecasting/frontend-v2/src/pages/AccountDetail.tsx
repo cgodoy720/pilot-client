@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { api } from "@/lib/api";
 import { ChevronDown, ChevronRight, ExternalLink, Mail, Pencil, Phone, Plus, Search, UserPlus, X } from "lucide-react";
@@ -14,13 +15,13 @@ import { StageChip } from "@/components/ui/StageChip";
 import { Tag } from "@/components/ui/Tag";
 import { fmtDate, fmtMoney, fmtMoneyFull, initials } from "@/lib/format";
 import { useCollapsible } from "@/lib/collapsible";
-import { isLost, isOpen, isWon, stageStatus } from "@/lib/stages";
+import { isLost, isOpen, isWon, SF_STAGE_OPTIONS, stageStatus } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 import { useAccountEnrichment, useAccounts, useUpdateAccount } from "@/services/accounts";
 import { useAccountFullActivities } from "@/services/activities";
 import { useContacts, useCreateContact, useUpdateContact } from "@/services/contacts";
 import { useAwards, type Award, type AwardStatus } from "@/services/awards";
-import { useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/services/opportunities";
+import { useCreateOpportunity, useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
 import type { SfContact, SfOpportunity } from "@/types/salesforce";
 
@@ -49,6 +50,8 @@ export function AccountDetailPage() {
   );
 
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showAddOpp, setShowAddOpp] = useState(false);
+  const navigate = useNavigate();
 
   if (!account) {
     return (
@@ -254,18 +257,38 @@ export function AccountDetailPage() {
       {/* Tasks — full width */}
       <AccountTasksSection accountId={account.Id} />
 
-      {/* Opportunities — single section, pill toggles Open / Lost / All. */}
-      {openOpps.length + lostOpps.length > 0 ? (
-        <SectionCard
-          title={`Opportunities (${openOpps.length + lostOpps.length})`}
-          defaultOpen={openOpps.length > 0}
-        >
-          <OpportunitiesForAccount
-            openOpps={openOpps}
-            lostOpps={lostOpps}
-            priorStages={priorStages}
-          />
-        </SectionCard>
+      {/* Opportunities — always visible; pill toggles Open / Won / Lost. */}
+      <SectionCard
+        title={`Opportunities (${opps.length})`}
+        defaultOpen={openOpps.length > 0}
+        action={
+          <button
+            onClick={() => setShowAddOpp(true)}
+            className="inline-flex items-center gap-1 rounded border border-border-strong bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-2 hover:bg-surface-2"
+          >
+            <Plus size={11} /> New
+          </button>
+        }
+      >
+        <OpportunitiesForAccount
+          openOpps={openOpps}
+          wonOpps={wonOpps}
+          lostOpps={lostOpps}
+          priorStages={priorStages}
+        />
+      </SectionCard>
+
+      {showAddOpp ? (
+        <CreateOpportunityForAccountModal
+          accountId={account.Id}
+          ownerOptions={ownerOptions}
+          onClose={() => setShowAddOpp(false)}
+          onCreated={(id) => {
+            setShowAddOpp(false);
+            toast.success("Opportunity created");
+            navigate(`/opportunities/${id}`);
+          }}
+        />
       ) : null}
 
       {/* Awards — pulled from bedrock.award (not opp.IsWon). Each row
@@ -1466,30 +1489,33 @@ function ReportsCell({ award }: { award: Award }) {
 
 // ── Opportunities (pill toggle) ───────────────────────────────────────────
 
-type OppScope = "open" | "lost";
+type OppScope = "open" | "won" | "lost";
 
 function OpportunitiesForAccount({
   openOpps,
+  wonOpps,
   lostOpps,
   priorStages,
 }: {
   openOpps: SfOpportunity[];
+  wonOpps: SfOpportunity[];
   lostOpps: SfOpportunity[];
   priorStages: Record<string, PriorStage>;
 }) {
   const [scope, setScope] = useState<OppScope>("open");
 
-  const visible = scope === "open" ? openOpps : lostOpps;
-  const counts = { open: openOpps.length, lost: lostOpps.length };
+  const visible = scope === "open" ? openOpps : scope === "won" ? wonOpps : lostOpps;
+  const counts = { open: openOpps.length, won: wonOpps.length, lost: lostOpps.length };
   const labels: Record<OppScope, string> = {
     open: "Open",
+    won: "Won",
     lost: "Lost / Withdrawn",
   };
 
   return (
     <div>
       <div className="flex items-center gap-1.5 border-b border-border-strong bg-surface-2/40 px-5 py-2">
-        {(["open", "lost"] as const).map((s) => {
+        {(["open", "won", "lost"] as const).map((s) => {
           const active = scope === s;
           return (
             <button
@@ -1510,7 +1536,7 @@ function OpportunitiesForAccount({
       </div>
       {visible.length === 0 ? (
         <div className="px-5 py-6 text-center text-[12.5px] text-ink-3">
-          No {scope === "open" ? "open" : "lost / withdrawn"} opportunities.
+          No {scope === "open" ? "open" : scope === "won" ? "won" : "lost / withdrawn"} opportunities.
         </div>
       ) : (
         <OppTable
@@ -1576,5 +1602,121 @@ function OppTable({
         })}
       </tbody>
     </table>
+  );
+}
+
+// ── Create Opportunity Modal (account-scoped) ─────────────────────────────
+
+const oppInputCls =
+  "w-full rounded border border-border-strong bg-surface px-3 py-1.5 text-[13px] outline-none focus:ring-1 focus:ring-accent";
+
+function CreateOpportunityForAccountModal({
+  accountId,
+  ownerOptions,
+  onClose,
+  onCreated,
+}: {
+  accountId: string;
+  ownerOptions: { value: string; label: string }[];
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const createOpp = useCreateOpportunity();
+  const [form, setForm] = useState({
+    Name: "",
+    StageName: "New Lead",
+    CloseDate: "",
+    Amount: "",
+    OwnerId: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const set = (key: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.Name.trim() || !form.CloseDate) return;
+    setError(null);
+    try {
+      const result = await createOpp.mutateAsync({
+        Name: form.Name.trim(),
+        StageName: form.StageName,
+        CloseDate: form.CloseDate,
+        AccountId: accountId,
+        Amount: form.Amount ? Number(form.Amount.replace(/[^0-9.]/g, "")) : undefined,
+        OwnerId: form.OwnerId || undefined,
+      });
+      onCreated(result.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create opportunity.");
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-lg border border-border-strong bg-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-border-strong px-5 py-3">
+          <span className="text-[14px] font-semibold">New opportunity</span>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink">
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={submit} className="flex flex-col gap-3 px-5 py-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11.5px] font-medium text-ink-3">Name *</label>
+            <input value={form.Name} onChange={set("Name")} placeholder="Opportunity name" required className={oppInputCls} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11.5px] font-medium text-ink-3">Stage</label>
+            <select value={form.StageName} onChange={set("StageName")} className={oppInputCls}>
+              {SF_STAGE_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11.5px] font-medium text-ink-3">Close date *</label>
+              <input type="date" value={form.CloseDate} onChange={set("CloseDate")} required className={oppInputCls} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11.5px] font-medium text-ink-3">Amount</label>
+              <input value={form.Amount} onChange={set("Amount")} placeholder="0" className={oppInputCls} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11.5px] font-medium text-ink-3">Owner</label>
+            <select value={form.OwnerId} onChange={set("OwnerId")} className={oppInputCls}>
+              <option value="">— unassigned —</option>
+              {ownerOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          {error ? <p className="text-[12px] text-red-500">{error}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded border border-border-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createOpp.isPending}
+              className="rounded bg-ink px-3 py-1.5 text-[12.5px] font-medium text-surface hover:bg-ink-2 disabled:opacity-50"
+            >
+              {createOpp.isPending ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

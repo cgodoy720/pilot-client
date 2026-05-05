@@ -43,6 +43,7 @@ import {
 import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
+import { toast } from "sonner";
 
 // Three-pill scope toggle. "All" was dropped per JR — when no scope
 // pill is active the user can use chip filters or search instead, and
@@ -673,6 +674,7 @@ export function PipelinePage() {
           onClose={() => setShowCreate(false)}
           onCreated={(id) => {
             setShowCreate(false);
+            toast.success("Opportunity created");
             navigate(`/opportunities/${id}`, { state: PIPELINE_REFERRER });
           }}
         />

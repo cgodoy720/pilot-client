@@ -40,6 +40,7 @@ import { useOpportunities } from "@/services/opportunities";
 import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfAccount } from "@/types/salesforce";
+import { toast } from "sonner";
 
 const TYPE_FILTERS = ["All", "Foundation", "Corporate", "Government", "Individual"] as const;
 type TypeFilter = (typeof TYPE_FILTERS)[number];
@@ -598,6 +599,7 @@ export function AccountsPage() {
           onClose={() => setShowCreate(false)}
           onCreated={(id) => {
             setShowCreate(false);
+            toast.success("Account created");
             navigate(`/accounts/${id}`, { state: ACCOUNTS_REFERRER });
           }}
         />

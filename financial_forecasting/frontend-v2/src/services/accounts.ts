@@ -99,14 +99,14 @@ export function useCreateAccount() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreateAccountBody) => {
-      const { data } = await api.post<{ id: string; message: string }>(
+      const { data } = await api.post<{ success: boolean; data: { id: string; message: string } }>(
         "/api/salesforce/accounts",
         body,
       );
-      return data;
+      return data.data;
     },
-    onSettled: () => {
-      setTimeout(() => qc.invalidateQueries({ queryKey: ["accounts"] }), 1500);
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
     },
   });
 }

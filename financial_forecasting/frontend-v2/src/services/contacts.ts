@@ -40,17 +40,15 @@ export function useCreateContact() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreateContactBody) => {
-      const { data } = await api.post<{ id: string; message: string }>(
+      const { data } = await api.post<{ success: boolean; data: { id: string; message: string } }>(
         "/api/salesforce/contacts",
         body,
       );
-      return data;
+      return data.data;
     },
-    onSettled: (_data, _err, vars) => {
-      setTimeout(() => {
-        void qc.invalidateQueries({ queryKey: ["contacts", vars.AccountId] });
-        void qc.invalidateQueries({ queryKey: ["contacts", "all"] });
-      }, 1500);
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ["contacts", vars.AccountId] });
+      void qc.invalidateQueries({ queryKey: ["contacts", "all"] });
     },
   });
 }

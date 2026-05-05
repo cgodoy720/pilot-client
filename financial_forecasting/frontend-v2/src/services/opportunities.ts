@@ -196,14 +196,15 @@ export function useCreateOpportunity() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreateOpportunityBody) => {
-      const { data } = await api.post<{ id: string; message: string }>(
+      const { data } = await api.post<{ success: boolean; data: { id: string; message: string } }>(
         "/api/salesforce/opportunities",
         body,
       );
-      return data;
+      // Backend wraps response in ApiResponse envelope: { success, data: { id, message } }
+      return data.data;
     },
-    onSettled: () => {
-      setTimeout(() => qc.invalidateQueries({ queryKey: ["opportunities"] }), 1500);
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
     },
   });
 }
@@ -242,10 +243,7 @@ export function useUpdateOpportunity() {
       );
     },
     onSettled: () => {
-      setTimeout(
-        () => qc.invalidateQueries({ queryKey: ["opportunities"] }),
-        2000,
-      );
+      void qc.invalidateQueries({ queryKey: ["opportunities"] });
     },
   });
 }
@@ -548,10 +546,8 @@ export function useUpdateOpportunityStage() {
       return data;
     },
     onSuccess: () => {
-      setTimeout(() => {
-        qc.invalidateQueries({ queryKey: ["opportunities"] });
-        qc.invalidateQueries({ queryKey: ["awards"] });
-      }, 2000);
+      qc.invalidateQueries({ queryKey: ["opportunities"] });
+      qc.invalidateQueries({ queryKey: ["awards"] });
     },
   });
 }
