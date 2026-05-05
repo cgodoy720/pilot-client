@@ -76,6 +76,27 @@ export interface PaymentScheduleItem {
  * SF payments. Backend rejects if `sum(amounts) !== Opportunity.Amount`,
  * so callers should validate the total before submitting.
  */
+interface ACVSummary {
+  fy: number;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+}
+
+export function useACVSummary(year: number) {
+  return useQuery({
+    queryKey: ["acv-summary", year],
+    queryFn: async () => {
+      const { data } = await api.get<ACVSummary>(
+        `/api/salesforce/payments/acv-summary?year=${year}`,
+      );
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useCreatePaymentSchedule(opportunityId: string) {
   const qc = useQueryClient();
   return useMutation({

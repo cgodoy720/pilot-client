@@ -2,6 +2,7 @@
 
 import os
 import asyncio
+import calendar
 from dotenv import load_dotenv
 load_dotenv(override=False)
 from typing import Any, Dict, List, Optional
@@ -829,6 +830,263 @@ async def get_opportunity_payments(
 
     except Exception as e:
         logger.error(f"Error fetching payments for opportunity {opportunity_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── ACV Summary: payments scheduled in FY from FY wins ──────────────────
+
+@app.get("/api/salesforce/payments/acv-summary")
+async def get_acv_summary(
+    year: int = Query(..., ge=2000, le=2100),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Sum of npe01__OppPayment__c amounts where:
+      - Scheduled_Date falls in `year`
+      - Related opp is Won
+      - Related opp's CloseDate also falls in `year`
+
+    Returns quarterly + annual totals for the Wins (ACV) row in the
+    FY Overview matrix on the Dashboard.
+    """
+    cache_key = f"acv-summary:{year}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        salesforce = client.salesforce
+        soql = f"""
+            SELECT npe01__Payment_Amount__c, npe01__Scheduled_Date__c,
+                   npe01__Opportunity__r.CloseDate
+            FROM npe01__OppPayment__c
+            WHERE npe01__Scheduled_Date__c >= {year}-01-01
+            AND npe01__Scheduled_Date__c <= {year}-12-31
+            AND npe01__Written_Off__c = false
+            AND npe01__Opportunity__r.StageName IN ('Collecting / In Effect', 'Closed Won', 'Closed Completed')
+            AND npe01__Opportunity__r.CloseDate >= {year}-01-01
+            AND npe01__Opportunity__r.CloseDate <= {year}-12-31
+            LIMIT 2000
+        """
+        result = await salesforce.query(soql)
+        records = result.get("records", [])
+
+        q_totals = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0}
+        for r in records:
+            amt = r.get("npe01__Payment_Amount__c") or 0
+            opp = r.get("npe01__Opportunity__r") or {}
+            close_date = opp.get("CloseDate")
+            if not close_date or not amt:
+                continue
+            try:
+                month = int(close_date[5:7])
+                q = (month - 1) // 3 + 1
+                q_totals[q] += amt
+            except (ValueError, IndexError):
+                continue
+
+        summary = {
+            "fy": sum(q_totals.values()),
+            "q1": q_totals[1],
+            "q2": q_totals[2],
+            "q3": q_totals[3],
+            "q4": q_totals[4],
+        }
+        cache.set(cache_key, summary, CACHE_TTL_OPPORTUNITIES)
+        return summary
+
+    except Exception as e:
+        logger.error(f"Error fetching ACV summary for year {year}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/cashflow")
+async def get_cashflow(
+    year: int = Query(..., ge=2000, le=2100),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Monthly cash flow for a given year.
+
+    Returns 12 months with:
+      - actuals: paid payments (npe01__Payment_Date__c) from won opps
+      - scheduled: unpaid future payments (npe01__Scheduled_Date__c) from won opps
+      - projected: open-pipeline payments weighted by opp probability
+    """
+    cache_key = f"cashflow:{year}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        salesforce = client.salesforce
+        won_stages = "('Collecting / In Effect', 'Closed Won', 'Closed Completed')"
+
+        # Won-opp payments: actuals (paid) + scheduled (unpaid)
+        soql_won = f"""
+            SELECT npe01__Payment_Amount__c, npe01__Scheduled_Date__c,
+                   npe01__Paid__c, npe01__Payment_Date__c
+            FROM npe01__OppPayment__c
+            WHERE npe01__Written_Off__c = false
+            AND npe01__Opportunity__r.StageName IN {won_stages}
+            AND (
+                (npe01__Scheduled_Date__c >= {year}-01-01
+                 AND npe01__Scheduled_Date__c <= {year}-12-31)
+                OR
+                (npe01__Paid__c = true
+                 AND npe01__Payment_Date__c >= {year}-01-01
+                 AND npe01__Payment_Date__c <= {year}-12-31)
+            )
+            LIMIT 2000
+        """
+
+        # Open-pipeline payments weighted by probability
+        soql_open = f"""
+            SELECT npe01__Payment_Amount__c, npe01__Scheduled_Date__c,
+                   npe01__Opportunity__r.Probability
+            FROM npe01__OppPayment__c
+            WHERE npe01__Written_Off__c = false
+            AND npe01__Opportunity__r.IsClosed = false
+            AND npe01__Opportunity__r.StageName NOT IN {won_stages}
+            AND npe01__Scheduled_Date__c >= {year}-01-01
+            AND npe01__Scheduled_Date__c <= {year}-12-31
+            LIMIT 2000
+        """
+
+        won_result, open_result = await asyncio.gather(
+            salesforce.query(soql_won),
+            salesforce.query(soql_open),
+        )
+
+        months = {m: {"actuals": 0.0, "scheduled": 0.0, "projected": 0.0}
+                  for m in range(1, 13)}
+
+        for r in won_result.get("records", []):
+            amt = r.get("npe01__Payment_Amount__c") or 0
+            if not amt:
+                continue
+            if r.get("npe01__Paid__c"):
+                date_str = r.get("npe01__Payment_Date__c")
+                key = "actuals"
+            else:
+                date_str = r.get("npe01__Scheduled_Date__c")
+                key = "scheduled"
+            if not date_str:
+                continue
+            try:
+                months[int(date_str[5:7])][key] += amt
+            except (ValueError, KeyError):
+                continue
+
+        for r in open_result.get("records", []):
+            amt = r.get("npe01__Payment_Amount__c") or 0
+            date_str = r.get("npe01__Scheduled_Date__c")
+            prob = (r.get("npe01__Opportunity__r") or {}).get("Probability") or 0
+            if not amt or not date_str:
+                continue
+            try:
+                months[int(date_str[5:7])]["projected"] += amt * (prob / 100)
+            except (ValueError, KeyError):
+                continue
+
+        result = [
+            {"month": m, **months[m]}
+            for m in range(1, 13)
+        ]
+        cache.set(cache_key, result, CACHE_TTL_OPPORTUNITIES)
+        return result
+
+    except Exception as e:
+        logger.error(f"Error fetching cashflow for year {year}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/cashflow/detail")
+async def get_cashflow_detail(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    type: str = Query(..., regex="^(actuals|scheduled|outstanding|projected)$"),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Individual payment records for a specific cash flow cell."""
+    cache_key = f"cashflow-detail:{year}:{month}:{type}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        salesforce = client.salesforce
+        won_stages = "('Collecting / In Effect', 'Closed Won', 'Closed Completed')"
+        last_day = calendar.monthrange(year, month)[1]
+        m_start = f"{year}-{month:02d}-01"
+        m_end   = f"{year}-{month:02d}-{last_day:02d}"
+
+        if type == "actuals":
+            soql = f"""
+                SELECT npe01__Payment_Amount__c, npe01__Payment_Date__c,
+                       npe01__Scheduled_Date__c,
+                       npe01__Opportunity__r.Name, npe01__Opportunity__r.StageName,
+                       npe01__Opportunity__r.Account.Name
+                FROM npe01__OppPayment__c
+                WHERE npe01__Paid__c = true
+                AND npe01__Written_Off__c = false
+                AND npe01__Payment_Date__c >= {m_start}
+                AND npe01__Payment_Date__c <= {m_end}
+                ORDER BY npe01__Payment_Date__c ASC
+                LIMIT 500
+            """
+        elif type in ("scheduled", "outstanding"):
+            soql = f"""
+                SELECT npe01__Payment_Amount__c, npe01__Scheduled_Date__c,
+                       npe01__Opportunity__r.Name, npe01__Opportunity__r.StageName,
+                       npe01__Opportunity__r.Account.Name
+                FROM npe01__OppPayment__c
+                WHERE npe01__Paid__c = false
+                AND npe01__Written_Off__c = false
+                AND npe01__Opportunity__r.StageName IN {won_stages}
+                AND npe01__Scheduled_Date__c >= {m_start}
+                AND npe01__Scheduled_Date__c <= {m_end}
+                ORDER BY npe01__Scheduled_Date__c ASC
+                LIMIT 500
+            """
+        else:  # projected
+            soql = f"""
+                SELECT npe01__Payment_Amount__c, npe01__Scheduled_Date__c,
+                       npe01__Opportunity__r.Name, npe01__Opportunity__r.StageName,
+                       npe01__Opportunity__r.Probability,
+                       npe01__Opportunity__r.Account.Name
+                FROM npe01__OppPayment__c
+                WHERE npe01__Written_Off__c = false
+                AND npe01__Opportunity__r.IsClosed = false
+                AND npe01__Opportunity__r.StageName NOT IN {won_stages}
+                AND npe01__Scheduled_Date__c >= {m_start}
+                AND npe01__Scheduled_Date__c <= {m_end}
+                ORDER BY npe01__Scheduled_Date__c ASC
+                LIMIT 500
+            """
+
+        result = await salesforce.query(soql)
+        records = []
+        for r in result.get("records", []):
+            opp = r.get("npe01__Opportunity__r") or {}
+            prob = opp.get("Probability") or 0
+            amt = r.get("npe01__Payment_Amount__c") or 0
+            records.append({
+                "amount": amt,
+                "weighted_amount": round(amt * prob / 100, 2) if type == "projected" else None,
+                "probability": prob if type == "projected" else None,
+                "date": r.get("npe01__Payment_Date__c") or r.get("npe01__Scheduled_Date__c"),
+                "opp_name": opp.get("Name"),
+                "account_name": (opp.get("Account") or {}).get("Name"),
+                "stage": opp.get("StageName"),
+            })
+
+        cache.set(cache_key, records, 300)  # 5-min cache
+        return records
+
+    except Exception as e:
+        logger.error(f"Error fetching cashflow detail: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

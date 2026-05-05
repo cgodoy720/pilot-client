@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useAwards } from "@/services/awards";
 import { useCurrentUser } from "@/services/auth";
 import { useOpportunities } from "@/services/opportunities";
+import { useACVSummary } from "@/services/payments";
 import { useOwnerGoals } from "@/services/ownerGoals";
 import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
@@ -37,7 +38,6 @@ export function DashboardPage() {
     <div className="mx-auto max-w-[1320px] px-7 py-6 pb-20">
       <PageHeader
         title={user ? `Welcome, ${user.name?.split(" ")[0] ?? ""}` : "Dashboard"}
-        subtitle={`${opps.length.toLocaleString()} opportunities · ${awards.length.toLocaleString()} awards`}
       />
 
       <div className="flex flex-col gap-6">
@@ -104,6 +104,7 @@ function CurrentFYOverview({
   opps: SfOpportunity[];
   fy: number;
 }) {
+  const { data: acv } = useACVSummary(fy);
   const metrics = useMemo(() => {
     const openOpps = opps.filter(isOpen);
     const wonOpps = opps.filter(isWon);
@@ -199,7 +200,7 @@ function CurrentFYOverview({
   return (
     <SectionCard
       title={`Current FY Overview · ${fy}`}
-      subtitle={`Quarterly wins and open pipeline · probability-weighted`}
+
     >
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[12.5px]">
@@ -222,12 +223,18 @@ function CurrentFYOverview({
             </tr>
           </thead>
           <tbody>
-            {/* Wins — Overall is "—" by design (the deployed dashboard
-                doesn't show all-time wins here; the FY column is the
-                actionable number). Quarterly cells always show wins
-                even for closed quarters. */}
+            {/* Wins (TCV) — total contract value of won opps closing this FY */}
             <tr className="border-t border-border-strong bg-green-soft/30">
-              <td className="px-4 py-2 font-semibold text-green">Wins</td>
+              <td className="px-4 py-2 font-semibold text-green">
+                <span className="inline-flex items-center gap-1">
+                  Wins (TCV)
+                  <Tooltip content="Total contract value">
+                    <span tabIndex={0} aria-label="Total contract value" className="cursor-help text-green/50 outline-none focus:text-green">
+                      <Info size={11} />
+                    </span>
+                  </Tooltip>
+                </span>
+              </td>
               <Dash />
               <DollarCell value={metrics.fy.wins} className="font-semibold text-green" />
               {metrics.qMetrics.map((q) => (
@@ -239,11 +246,35 @@ function CurrentFYOverview({
               ))}
             </tr>
 
+            {/* Wins (ACV) — subset of TCV: payments from won opps hitting this year */}
+            <tr className="border-b border-border bg-green-soft/10">
+              <td className="py-1.5 pl-7 pr-4 text-ink-3">
+                <span className="inline-flex items-center gap-1 text-[12px]">
+                  <span className="text-ink-4">↳</span>
+                  cash this year
+                  <Tooltip content="ACV: annual contract value">
+                    <span tabIndex={0} aria-label="ACV: annual contract value" className="cursor-help text-ink-4 outline-none focus:text-ink-2">
+                      <Info size={11} />
+                    </span>
+                  </Tooltip>
+                </span>
+              </td>
+              <Dash />
+              <DollarCell value={acv?.fy ?? 0} className="text-[12px] text-ink-2" />
+              {metrics.qMetrics.map((q) => (
+                <DollarCell
+                  key={q.label}
+                  value={acv?.[q.label.toLowerCase() as "q1" | "q2" | "q3" | "q4"] ?? 0}
+                  className="text-[12px] text-ink-2"
+                />
+              ))}
+            </tr>
+
             {/* Total Pipeline — only row that shows an "Overall" number
                 (cumulative wins+open is meaningful). Past quarters
                 render —. */}
             <tr className="border-t border-border-strong">
-              <td className="px-4 py-2 font-semibold">Total Pipeline</td>
+              <td className="px-4 py-2 font-semibold">Open Pipeline</td>
               <DollarCell
                 value={metrics.totalPipelineOverall}
                 className="font-bold text-accent-ink"
@@ -264,19 +295,19 @@ function CurrentFYOverview({
 
             <ScenarioRowEl
               label="Upside"
-              tooltip="Wins (100%) + all open opps weighted by probability"
+              tooltip="Wins (100% TCV) + all open opps weighted by probability"
               fyValue={metrics.fy.upside}
               quarters={metrics.qMetrics.map((q) => ({ q, value: q.upside }))}
             />
             <ScenarioRowEl
               label="Base Case"
-              tooltip="Wins (100%) + open renewals or 50%+ probability, weighted"
+              tooltip="Wins (100% TCV) + open renewals or 50%+ probability, weighted"
               fyValue={metrics.fy.baseCase}
               quarters={metrics.qMetrics.map((q) => ({ q, value: q.baseCase }))}
             />
             <ScenarioRowEl
               label="Downside"
-              tooltip="Wins (100%) + open renewals or 70%+ probability, weighted"
+              tooltip="Wins (100% TCV) + open renewals or 70%+ probability, weighted"
               fyValue={metrics.fy.downside}
               quarters={metrics.qMetrics.map((q) => ({ q, value: q.downside }))}
             />

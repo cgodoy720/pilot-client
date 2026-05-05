@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -12,8 +12,10 @@ import {
   Settings as SettingsIcon,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { cn } from "@/lib/utils";
 import { useCurrentUser, useSalesforceStatus } from "@/services/auth";
 
@@ -22,6 +24,7 @@ const NAV = [
   { to: "/accounts", label: "Accounts", icon: Building2 },
   { to: "/contacts", label: "Contacts", icon: Users },
   { to: "/pipeline", label: "Pipeline", icon: GitBranch },
+  { to: "/cashflow", label: "Cash Flow", icon: TrendingUp },
   { to: "/awards", label: "Awards", icon: Trophy },
   { to: "/projects", label: "Projects", icon: FolderOpen },
   { to: "/cleanup", label: "Cleanup", icon: Sparkles },
@@ -56,6 +59,25 @@ function useSidebarCollapsed() {
 
 export function AppShell() {
   const { collapsed, toggle } = useSidebarCollapsed();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
+
   return (
     <div
       className="grid h-screen overflow-hidden transition-[grid-template-columns] duration-200"
@@ -63,9 +85,10 @@ export function AppShell() {
         gridTemplateColumns: `${collapsed ? NAV_COLLAPSED_W : NAV_EXPANDED_W}px 1fr`,
       }}
     >
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <Sidebar collapsed={collapsed} onToggle={toggle} onSearchOpen={() => setSearchOpen(true)} />
       <main className="flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
       </main>
@@ -76,9 +99,11 @@ export function AppShell() {
 function Sidebar({
   collapsed,
   onToggle,
+  onSearchOpen,
 }: {
   collapsed: boolean;
   onToggle: () => void;
+  onSearchOpen: () => void;
 }) {
   const { data: user } = useCurrentUser();
   const sf = useSalesforceStatus();
@@ -121,18 +146,21 @@ function Sidebar({
         </button>
       </div>
 
-      {/* Search — hidden when collapsed */}
+      {/* Search trigger — hidden when collapsed */}
       {!collapsed && (
-        <div className="mb-2 mt-1 flex h-[30px] items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-ink-3">
-          <Search size={13} />
-          <input
-            placeholder="Search records, contacts…"
-            className="min-w-0 flex-1 border-0 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-4"
-          />
+        <button
+          type="button"
+          onClick={onSearchOpen}
+          className="mb-2 mt-1 flex h-[30px] w-full items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-left text-ink-3 hover:border-ink-3 hover:bg-surface-2"
+        >
+          <Search size={13} className="flex-shrink-0" />
+          <span className="min-w-0 flex-1 text-[12.5px] text-ink-4">
+            Search…
+          </span>
           <kbd className="rounded border border-border-strong px-1.5 py-px text-[10px] text-ink-3">
             ⌘K
           </kbd>
-        </div>
+        </button>
       )}
 
       {!collapsed && (

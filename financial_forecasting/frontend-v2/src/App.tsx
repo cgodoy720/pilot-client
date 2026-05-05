@@ -17,6 +17,7 @@ import { ContactsPage } from "./pages/Contacts";
 import { ContactDetailPage } from "./pages/ContactDetail";
 import { LoginPage } from "./pages/Login";
 import { SettingsPage } from "./pages/Settings";
+import { CashFlowPage } from "./pages/CashFlow";
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
         <Route path="/contacts/:id" element={<ContactDetailPage />} />
+        <Route path="/cashflow" element={<CashFlowPage />} />
         <Route path="/settings" element={<SettingsPage />} />
 
         {/* Backend redirects to /priorities after Google OAuth — alias it */}
