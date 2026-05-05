@@ -231,7 +231,7 @@ export function ContactsPage() {
           Philanthropic only
         </button>
         <SavedViewsPicker
-          storageKey="bedrock-v2:views:contacts"
+          scopeKey="contacts"
           currentFilters={filter}
           onLoad={(v) => setFilter(v)}
         />

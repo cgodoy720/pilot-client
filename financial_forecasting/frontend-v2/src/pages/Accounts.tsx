@@ -261,7 +261,7 @@ export function AccountsPage() {
           {filtered.length.toLocaleString()} of {accounts.length.toLocaleString()}
         </span>
         <SavedViewsPicker
-          storageKey="bedrock-v2:views:accounts"
+          scopeKey="accounts"
           currentFilters={{ filter }}
           onLoad={(v) => setFilter(v.filter)}
         />

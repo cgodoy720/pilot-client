@@ -18,6 +18,14 @@ import { totalWidth, useColumnWidths } from "@/lib/columnWidths";
 import { fmtDate, fmtMoney, fmtMoneyFull } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import {
+  AddFilterButton,
+  FilterChip,
+  type FieldMeta,
+  type FilterRule,
+  describeRule,
+  ruleApplies,
+} from "@/pages/cleanup/Filters";
+import {
   isLost,
   isOpen,
   isWon,
@@ -57,6 +65,40 @@ function inScope(o: SfOpportunity, scope: Scope): boolean {
   if (scope === "won") return isWon(o);
   if (scope === "lost") return isLost(o);
   return true;
+}
+
+// ── Chip filter model ────────────────────────────────────────────────────
+//
+// Mirrors the Cleanup tabs' filter rig so the same operator catalog,
+// chip rendering, and saved-view payload work here. Adds Pipeline-
+// specific fields (Active flag, Payment date) that the table surfaces.
+
+const PIPELINE_FILTERABLE = {
+  name: { label: "Name", type: "text", getValue: (o: SfOpportunity) => o.Name ?? "" },
+  account: { label: "Account", type: "text", getValue: (o: SfOpportunity) => o.Account?.Name ?? "" },
+  stage: { label: "Stage", type: "select", getValue: (o: SfOpportunity) => o.StageName ?? "" },
+  owner: { label: "Owner", type: "select", getValue: (o: SfOpportunity) => o.OwnerId ?? "" },
+  recordType: { label: "Record Type", type: "select", getValue: (o: SfOpportunity) => o.RecordType?.Name ?? "" },
+  active: {
+    label: "Active",
+    type: "select",
+    getValue: (o: SfOpportunity) => (o.Active_Opportunity__c ? "Yes" : "No"),
+  },
+  amount: { label: "Amount", type: "number", getValue: (o: SfOpportunity) => o.Amount ?? null },
+  probability: { label: "Probability", type: "number", getValue: (o: SfOpportunity) => o.Probability ?? null },
+  closeDate: { label: "Close date", type: "date", getValue: (o: SfOpportunity) => o.CloseDate ?? null },
+  paymentDate: { label: "1st payment", type: "date", getValue: (o: SfOpportunity) => o.PaymentDate__c ?? null },
+} satisfies Record<string, FieldMeta<SfOpportunity>>;
+
+type PipelineField = keyof typeof PIPELINE_FILTERABLE;
+
+/** Persisted shape stored in `bedrock.saved_view.filters` for the
+ *  Pipeline page. Older saved views from before chip-rules existed
+ *  may be missing `rules` — the loader tolerates that. */
+interface PipelineSavedView {
+  scope?: Scope;
+  recordType?: RecordType;
+  rules?: FilterRule<PipelineField>[];
 }
 
 // NextStep was dropped — Pursuit uses Tasks as the system of record
@@ -129,6 +171,9 @@ export function PipelinePage() {
   const [recordType, setRecordType] = useState<RecordType>("All");
   // Stage card click on the funnel strip → narrow the table to one stage.
   const [stageFilter, setStageFilter] = useState<string | null>(null);
+  // Chip-based filter rules (parity with Cleanup). Persisted into
+  // saved views alongside scope/recordType.
+  const [rules, setRules] = useState<FilterRule<PipelineField>[]>([]);
   const [q, setQ] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -189,6 +234,47 @@ export function PipelinePage() {
     [usersQ.data],
   );
 
+  // Chip-filter facets — owners include inactive users (so historical
+  // owners still appear), record types come straight from the opps
+  // present in the loaded dataset.
+  const chipFacets = useMemo(() => {
+    const activeIds = new Set((usersQ.data ?? []).map((u) => u.Id));
+    const ownerNames = new Map<string, string>();
+    const recordTypes = new Set<string>();
+    for (const o of opps) {
+      if (o.OwnerId && o.Owner?.Name && !ownerNames.has(o.OwnerId)) {
+        ownerNames.set(o.OwnerId, o.Owner.Name);
+      }
+      if (o.RecordType?.Name) recordTypes.add(o.RecordType.Name);
+    }
+    return {
+      stage: stageOptions,
+      owner: Array.from(ownerNames.entries())
+        .map(([id, name]) => ({
+          value: id,
+          label: activeIds.has(id) ? name : `${name} (inactive)`,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+      recordType: Array.from(recordTypes).sort().map((v) => ({ value: v, label: v })),
+      active: [
+        { value: "Yes", label: "Yes" },
+        { value: "No", label: "No" },
+      ],
+    };
+  }, [opps, usersQ.data, stageOptions]);
+
+  // Owner-id → display-name lookup for filter-chip rendering.
+  const ownerLabelLookup = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of usersQ.data ?? []) m.set(u.Id, u.Name);
+    for (const o of opps) {
+      if (o.OwnerId && !m.has(o.OwnerId) && o.Owner?.Name) {
+        m.set(o.OwnerId, o.Owner.Name);
+      }
+    }
+    return (id: string) => m.get(id) ?? id;
+  }, [usersQ.data, opps]);
+
   const accountOptions = useMemo(
     () =>
       (accountsQ.data ?? []).map((a) => ({
@@ -199,17 +285,27 @@ export function PipelinePage() {
   );
 
   const filtered = useMemo(() => {
-    const filt = opps.filter(
-      (o) =>
-        inScope(o, scope) &&
-        (!stageFilter || o.StageName === stageFilter) &&
-        (!q ||
-          (o.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
-          (o.Account?.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
-          (o.Owner?.Name ?? "").toLowerCase().includes(q.toLowerCase())),
-    );
+    const filt = opps.filter((o) => {
+      if (!inScope(o, scope)) return false;
+      if (stageFilter && o.StageName !== stageFilter) return false;
+      if (q) {
+        const needle = q.toLowerCase();
+        const hay =
+          (o.Name ?? "").toLowerCase() +
+          " " +
+          (o.Account?.Name ?? "").toLowerCase() +
+          " " +
+          (o.Owner?.Name ?? "").toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      // Chip rules — every active rule must pass (AND).
+      for (const r of rules) {
+        if (!ruleApplies(o, r, PIPELINE_FILTERABLE)) return false;
+      }
+      return true;
+    });
     return sortBy(filt, sort, extractOpp);
-  }, [opps, scope, stageFilter, q, sort]);
+  }, [opps, scope, stageFilter, q, rules, sort]);
 
   const total = useMemo(
     () => filtered.reduce((s, o) => s + (o.Amount ?? 0), 0),
@@ -347,13 +443,29 @@ export function PipelinePage() {
             className="h-7 w-80 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
           />
         </div>
+        <AddFilterButton<PipelineField>
+          filterable={PIPELINE_FILTERABLE as Record<PipelineField, FieldMeta<unknown>>}
+          selectOptions={{
+            stage: chipFacets.stage,
+            owner: chipFacets.owner,
+            recordType: chipFacets.recordType,
+            active: chipFacets.active,
+          }}
+          onAdd={(r) => setRules((prev) => [...prev, r])}
+        />
         <span className="ml-auto text-[11.5px] text-ink-3">
           {filtered.length.toLocaleString()} of {opps.length.toLocaleString()}
         </span>
-        <SavedViewsPicker
-          storageKey="bedrock-v2:views:pipeline"
-          currentFilters={{ scope, recordType }}
-          onLoad={(v) => { setScope(v.scope); setRecordType(v.recordType); }}
+        <SavedViewsPicker<PipelineSavedView>
+          scopeKey="pipeline"
+          currentFilters={{ scope, recordType, rules }}
+          onLoad={(v) => {
+            // Tolerate older saved views that pre-date the rules field.
+            setScope(v.scope ?? "open");
+            setRecordType(v.recordType ?? "All");
+            setRules(v.rules ?? []);
+            setStageFilter(null);
+          }}
         />
         <ColumnChooser
           allColumns={COLUMN_ORDER}
@@ -363,6 +475,27 @@ export function PipelinePage() {
           onToggle={toggleCol}
         />
       </Toolbar>
+
+      {rules.length > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {rules.map((r) => (
+            <FilterChip
+              key={r.id}
+              label={describeRule(r, PIPELINE_FILTERABLE, (field, v) =>
+                field === "owner" ? ownerLabelLookup(v) : v,
+              )}
+              onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => setRules([])}
+            className="text-[11.5px] text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
 
       {/*
         Single scroll container. Header is sticky, body is virtualized via

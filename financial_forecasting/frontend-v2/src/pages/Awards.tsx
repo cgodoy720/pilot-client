@@ -381,7 +381,7 @@ export function AwardsPage() {
           />
         </div>
         <SavedViewsPicker<AwardFilter>
-          storageKey="bedrock-v2:views:awards"
+          scopeKey="awards"
           currentFilters={filter}
           onLoad={setFilter}
         />
