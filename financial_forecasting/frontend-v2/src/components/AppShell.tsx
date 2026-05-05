@@ -247,42 +247,15 @@ function Sidebar({
       </nav>
 
       <div className="mt-auto flex flex-col gap-px pt-4">
-        {/* SF status dot */}
-        {!sf.isLoading && (
-          <NavLink
-            to="/settings"
-            title={
-              collapsed
-                ? sf.data?.connected
-                  ? `Salesforce: ${sf.data.user_name ?? "connected"}`
-                  : "Salesforce not connected"
-                : undefined
-            }
-            className={({ isActive }) =>
-              cn(
-                "flex items-center rounded-md hover:bg-black/[0.04]",
-                collapsed ? "h-9 w-9 justify-center" : "gap-2 px-2.5 py-1.5 text-[12px]",
-                isActive && "bg-surface",
-              )
-            }
-          >
-            <span
-              className={cn(
-                "inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full",
-                sf.data?.connected ? "bg-green" : "bg-amber",
-              )}
-            />
-            {!collapsed && (
-              <span className="text-ink-3">
-                {sf.data?.connected ? "Salesforce connected" : "Not connected"}
-              </span>
-            )}
-          </NavLink>
-        )}
-
         <NavLink
           to="/settings"
-          title={collapsed ? "Settings" : undefined}
+          title={
+            collapsed
+              ? sf.data?.connected
+                ? `Settings · SF: ${sf.data.user_name ?? "connected"}`
+                : "Settings · Salesforce not connected"
+              : undefined
+          }
           className={({ isActive }) =>
             cn(
               "flex select-none items-center rounded-md text-[13px] font-medium text-ink-2 hover:bg-black/[0.04] hover:text-ink",
@@ -292,7 +265,20 @@ function Sidebar({
           }
         >
           <SettingsIcon size={16} className="flex-shrink-0 opacity-70" />
-          {!collapsed && <span>Settings</span>}
+          {!collapsed && (
+            <>
+              <span className="flex-1">Settings</span>
+              {!sf.isLoading && (
+                <span
+                  className={cn(
+                    "inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full",
+                    sf.data?.connected ? "bg-green" : "bg-amber",
+                  )}
+                  title={sf.data?.connected ? `SF: ${sf.data.user_name ?? "connected"}` : "Salesforce not connected"}
+                />
+              )}
+            </>
+          )}
         </NavLink>
 
         {/* User avatar */}
