@@ -61,7 +61,7 @@ def _row_to_dict(row) -> dict:
 
 @router.post("/sync/count")
 async def activity_sync_count(
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(check_permission("trigger_data_sync")),
 ):
     """Count SF Tasks + Events to estimate sync volume."""
@@ -209,7 +209,7 @@ async def activity_search(
 async def activity_match_context(
     email: Optional[str] = None,
     name: Optional[str] = None,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Match email/name to Contacts and their Opportunities (3-tier matching)."""
@@ -466,7 +466,7 @@ async def list_account_activities_full(
     account_id: str,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     conn=Depends(get_db),
     user=Depends(require_auth),
 ):

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from auth import require_auth
 from db import get_db
-from dependencies import get_mcp_client
+from dependencies import get_mcp_client, require_sf_mcp_client
 from mcp_client import UnifiedMCPClient
 from models import OpportunityStage
 from routes.permissions import check_permission
@@ -37,7 +37,7 @@ async def get_prior_stages(
             "to stay well below SOQL IN-clause limits."
         ),
     ),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """For each opp Id, return the StageName the opp was in just before
@@ -107,7 +107,7 @@ async def get_prior_stages(
 @router.get("/api/salesforce/opportunities/{opportunity_id}/stage-history")
 async def get_opp_stage_history(
     opportunity_id: str,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Full stage-transition history for one opportunity, oldest-first.
@@ -153,7 +153,7 @@ async def get_opp_stage_history(
 @router.get("/api/salesforce/opportunities/stage-history")
 async def get_stage_history(
     days: int = Query(30, ge=1, le=365),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Get StageName changes from OpportunityFieldHistory within the given window."""
@@ -207,7 +207,7 @@ _SF_USER_ID_RE = re.compile(r"^005[a-zA-Z0-9]{12,15}$")
 @router.get("/api/salesforce/opportunities/ownership-history")
 async def get_ownership_history(
     days: int = Query(7, ge=1, le=365),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Get Owner changes from OpportunityFieldHistory within the given window.
@@ -294,7 +294,7 @@ async def get_ownership_history(
 @router.put("/api/salesforce/opportunities/bulk-update")
 async def bulk_update_opportunities(
     body: dict,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(check_permission("bulk_update_opportunities")),
 ):
     """Bulk update multiple Salesforce opportunities at once."""
@@ -413,7 +413,7 @@ async def _validate_stage_change_logic(
 @router.post("/api/opportunities/validate-stage-change")
 async def validate_stage_change(
     request: dict,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Validate that opportunity can move to 'Collecting / In Effect'."""
@@ -436,7 +436,7 @@ async def validate_stage_change(
 @router.post("/api/opportunities/update-stage")
 async def update_opportunity_stage(
     request: dict,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     conn=Depends(get_db),
     user=Depends(check_permission("edit_own_opportunities")),
 ):

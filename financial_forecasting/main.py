@@ -139,7 +139,7 @@ app.include_router(awards_router)
 app.include_router(saved_views_router)
 
 # Service singletons — shared with dependencies.py so route files can use
-# Depends(get_mcp_client) without circular imports.
+# Depends(require_sf_mcp_client) without circular imports.
 import dependencies as _deps
 _services = _deps._services
 from dependencies import _sync_lock, get_data_sync_service
@@ -239,6 +239,14 @@ def get_mcp_client(request: Request = None) -> UnifiedMCPClient:
     return _get(request)
 
 
+def require_sf_mcp_client(request: Request) -> UnifiedMCPClient:
+    """Like get_mcp_client but requires a valid sf_tokens cookie.
+    Use on all user-facing Salesforce data routes.
+    """
+    from dependencies import require_sf_mcp_client as _req
+    return _req(request)
+
+
 def get_forecasting_engine() -> ForecastingEngine:
     """Get forecasting engine dependency."""
     engine = _services.get("forecasting_engine")
@@ -315,7 +323,7 @@ async def get_opportunities(
     limit: Optional[int] = Query(None, le=2000),
     record_type: Optional[str] = Query(None, description="Filter by RecordType.Name (e.g. 'Philanthropy')"),
     active_only: bool = Query(False, description="Only return Active_Opportunity__c = true"),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth)
 ):
     """Get Salesforce opportunities with optional server-side filtering."""
@@ -392,7 +400,7 @@ async def get_opportunities(
 
 @app.get("/api/salesforce/opportunities/record-types")
 async def get_opportunity_record_types(
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Return active Opportunity RecordTypes as [{id, name}]."""
@@ -414,7 +422,7 @@ async def get_opportunity_record_types(
 @app.post("/api/salesforce/opportunities")
 async def create_opportunity(
     opp_data: Dict[str, Any],
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission("create_opportunities")),
 ):
     """Create a new Salesforce opportunity."""
@@ -438,7 +446,7 @@ async def create_opportunity(
 async def update_opportunity(
     opportunity_id: str,
     update_request: OpportunityUpdateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission("edit_own_opportunities")),
     db = Depends(get_db),
 ):
@@ -507,7 +515,7 @@ async def update_opportunity(
 async def delete_opportunity(
     request: Request,
     opportunity_id: str,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_own_opportunities")),
 ):
     """Delete a Salesforce Opportunity.
@@ -573,7 +581,7 @@ async def get_accounts(
     # `fields=light` returns only the ~17 fields the v2 frontend uses,
     # cutting SOQL payload ~70% vs the full 50-field default (kept for v1).
     fields: Optional[str] = Query(None),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth)
 ):
     """Get Salesforce accounts."""
@@ -644,7 +652,7 @@ async def get_accounts(
 @app.post("/api/salesforce/accounts")
 async def create_account(
     account_data: Dict[str, Any],
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("create_accounts"))
 ):
     """Create a new Salesforce account."""
@@ -679,7 +687,7 @@ async def get_contacts(
     # the dominant cause of the contacts list feeling slow on cold
     # cache. Per-contact detail page still uses fields=full.
     fields: Optional[str] = Query(None),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth)
 ):
     """Get Salesforce contacts, optionally filtered by account."""
@@ -749,7 +757,7 @@ async def get_contacts(
 @app.post("/api/salesforce/contacts")
 async def create_contact(
     contact_data: Dict[str, Any],
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("create_contacts"))
 ):
     """Create a new Salesforce contact."""
@@ -793,7 +801,7 @@ PAYMENT_SOQL_FIELDS = """
 async def get_payments(
     opportunity_id: Optional[str] = None,
     limit: int = Query(500, le=2000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth),
 ):
     """Get Salesforce payments, optionally filtered by opportunity."""
@@ -825,7 +833,7 @@ async def get_payments(
 @app.get("/api/salesforce/opportunities/{opportunity_id}/payments")
 async def get_opportunity_payments(
     opportunity_id: str,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth),
 ):
     """Get all payments for a specific opportunity."""
@@ -859,7 +867,7 @@ async def get_opportunity_payments(
 @app.get("/api/salesforce/payments/acv-summary")
 async def get_acv_summary(
     year: int = Query(..., ge=2000, le=2100),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Sum of npe01__OppPayment__c amounts where:
@@ -924,7 +932,7 @@ async def get_acv_summary(
 @app.get("/api/salesforce/cashflow")
 async def get_cashflow(
     year: int = Query(..., ge=2000, le=2100),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Monthly cash flow for a given year.
@@ -1027,7 +1035,7 @@ async def get_cashflow_detail(
     year: int = Query(..., ge=2000, le=2100),
     month: int = Query(..., ge=1, le=12),
     type: str = Query(..., regex="^(actuals|scheduled|outstanding|projected)$"),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Individual payment records for a specific cash flow cell."""
@@ -1257,7 +1265,7 @@ async def update_account(
     request: Request,
     account_id: str,
     update_request: AccountUpdateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_accounts")),
 ):
     """Update a Salesforce account.
@@ -1297,7 +1305,7 @@ async def update_account(
 async def delete_account(
     request: Request,
     account_id: str,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_accounts")),
 ):
     """Delete a Salesforce Account.
@@ -1346,7 +1354,7 @@ async def update_contact(
     request: Request,
     contact_id: str,
     update_request: ContactUpdateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_contacts")),
 ):
     """Update a Salesforce contact.
@@ -1384,7 +1392,7 @@ async def update_contact(
 async def delete_contact(
     request: Request,
     contact_id: str,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_contacts")),
 ):
     """Delete a Salesforce Contact.
@@ -1431,7 +1439,7 @@ async def update_payment(
     request: Request,
     payment_id: str,
     update_request: PaymentUpdateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_payments")),
 ):
     """Update a Salesforce payment (npe01__OppPayment__c).
@@ -1491,7 +1499,7 @@ async def update_payment(
 async def delete_payment(
     request: Request,
     payment_id: str,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_payments")),
 ):
     """Delete a Salesforce Payment (npe01__OppPayment__c).
@@ -1559,7 +1567,7 @@ async def delete_payment(
 async def create_payment(
     request: Request,
     create_request: PaymentCreateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission_or_internal("edit_payments")),
 ):
     """Create a single Salesforce Payment (npe01__OppPayment__c) on an existing
@@ -1625,7 +1633,7 @@ async def create_payment(
 @app.get("/api/salesforce/users")
 async def get_users(
     limit: int = Query(1000, le=5000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth)
 ):
     """Get Salesforce users (active + inactive, grouped by IsActive)."""
@@ -1667,7 +1675,7 @@ async def get_my_tasks(
     # Task counts well under 2000 at Pursuit's team-of-4 scale. Revisit if
     # any single user's open-Task count ever approaches the cap.
     limit: int = Query(2000, le=2000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Get current user's Salesforce Tasks in a date range."""
@@ -1748,7 +1756,7 @@ async def get_opportunity_tasks(
     # Default `None` returns all Tasks for the opportunity via query_all
     # pagination. `le=2000` caps callers that request an explicit limit.
     limit: Optional[int] = Query(None, le=2000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Get all tasks linked to a specific opportunity."""
@@ -1803,7 +1811,7 @@ async def get_opportunity_tasks(
 async def create_opportunity_task(
     opportunity_id: str,
     task_data: TaskCreateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(check_permission("create_tasks")),
     db=Depends(get_db),
 ):
@@ -1854,7 +1862,7 @@ async def create_opportunity_task(
 async def get_account_tasks(
     account_id: str,
     limit: Optional[int] = Query(None, le=2000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Tasks where WhatId is the account directly OR any of the account's
@@ -1937,7 +1945,7 @@ async def get_account_tasks(
 async def get_user_tasks(
     owner_id: str,
     limit: Optional[int] = Query(None, le=2000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Tasks owned by this Salesforce user (Task.OwnerId = owner_id).
@@ -2007,7 +2015,7 @@ async def get_user_tasks(
 async def get_contact_tasks(
     contact_id: str,
     limit: Optional[int] = Query(None, le=2000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Tasks where the SF Task.WhoId points at this contact.
@@ -2188,7 +2196,7 @@ async def _verify_and_recover_task_fields(
 async def create_account_task(
     account_id: str,
     task_data: TaskCreateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(check_permission("create_tasks")),
 ):
     """Create a task tied directly to an Account (WhatId = account_id).
@@ -2237,7 +2245,7 @@ async def create_account_task(
 async def update_task(
     task_id: str,
     updates: TaskUpdateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(check_permission("edit_own_tasks")),
     db=Depends(get_db),
 ):
@@ -2288,7 +2296,7 @@ async def update_task(
 @app.delete("/api/salesforce/tasks/{task_id}")
 async def delete_task(
     task_id: str,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(check_permission("edit_own_tasks")),
     db=Depends(get_db),
 ):
@@ -2317,7 +2325,7 @@ async def delete_task(
 async def duplicate_task(
     task_id: str,
     body: TaskDuplicateRequest,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(check_permission("create_tasks")),
     db=Depends(get_db),
 ):
@@ -2483,7 +2491,7 @@ async def get_my_calendar_events(
 async def get_invoices(
     customer_id: Optional[str] = None,
     limit: int = Query(100, le=1000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth)
 ):
     """Get Sage Intacct invoices."""
@@ -2509,7 +2517,7 @@ async def get_invoices(
 async def create_invoice(
     invoice_request: InvoiceCreationRequest,
     background_tasks: BackgroundTasks,
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(check_permission("create_sage_invoices"))
 ):
     """Create a new invoice in Sage Intacct."""
@@ -2553,7 +2561,7 @@ async def create_invoice(
 async def get_payments(
     customer_id: Optional[str] = None,
     limit: int = Query(100, le=1000),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user = Depends(require_auth)
 ):
     """Get Sage Intacct payments."""
@@ -2836,7 +2844,7 @@ async def search_opportunities(
     customer_name: Optional[str] = Query(None),
     invoice_amount: Optional[float] = Query(None),
     invoice_date: Optional[str] = Query(None),
-    client: UnifiedMCPClient = Depends(get_mcp_client),
+    client: UnifiedMCPClient = Depends(require_sf_mcp_client),
     user=Depends(require_auth),
 ):
     """Search Salesforce opportunities by name or account with smart matching."""

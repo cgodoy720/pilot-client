@@ -13,11 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  Link as LinkIcon,
 } from "lucide-react";
 
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { cn } from "@/lib/utils";
-import { useCurrentUser, useSalesforceStatus } from "@/services/auth";
+import { useCurrentUser, useSalesforceStatus, startSalesforceConnect } from "@/services/auth";
 
 const NAV_GROUPS = [
   {
@@ -72,6 +73,11 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
+  const sf = useSalesforceStatus();
+
+  // Allow Settings so the user can connect SF even when not yet connected.
+  const isSettingsPage = pathname.startsWith("/settings");
+  const sfNotConnected = !sf.isLoading && sf.data?.connected === false;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -98,10 +104,43 @@ export function AppShell() {
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <Sidebar collapsed={collapsed} onToggle={toggle} onSearchOpen={() => setSearchOpen(true)} />
       <main className="flex flex-col overflow-hidden">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          <Outlet />
-        </div>
+        {sfNotConnected && !isSettingsPage ? (
+          <SalesforceGate />
+        ) : (
+          <div ref={scrollRef} className="flex-1 overflow-y-auto">
+            <Outlet />
+          </div>
+        )}
       </main>
+    </div>
+  );
+}
+
+function SalesforceGate() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-5 px-8 text-center">
+      <div className="grid h-12 w-12 place-items-center rounded-full bg-surface-2 text-ink-3">
+        <LinkIcon size={22} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <h2 className="text-[17px] font-semibold text-ink">Connect Salesforce</h2>
+        <p className="max-w-[340px] text-[13px] text-ink-3">
+          Bedrock reads and writes directly to your Salesforce org. Connect your account to get started.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={startSalesforceConnect}
+        className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-[13px] font-medium text-surface hover:opacity-90"
+      >
+        Connect Salesforce
+      </button>
+      <p className="text-[11.5px] text-ink-4">
+        You can also connect in{" "}
+        <a href="/settings" className="underline hover:text-ink-2">
+          Settings → Connections
+        </a>
+      </p>
     </div>
   );
 }
