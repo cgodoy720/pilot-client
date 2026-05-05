@@ -107,11 +107,25 @@
 
 .pf-jobs__card {
   border: 1px solid #e8e8e8;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, opacity 0.2s;
 }
 
 .pf-jobs__card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.pf-jobs__card--stale {
+  opacity: 0.5;
+}
+
+.pf-jobs__card--stale:hover {
+  opacity: 0.75;
+}
+
+.pf-jobs__stale-label {
+  color: #b0b0b0;
+  font-style: italic;
+  font-size: 0.75rem;
 }
 
 .pf-jobs__card-content {
@@ -210,6 +224,36 @@
   align-items: flex-end;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.pf-jobs__applied-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  color: #888;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pf-jobs__applied-btn:hover:not(:disabled) {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.pf-jobs__applied-btn--active {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: #f0fdf4;
+  cursor: default;
+}
+
+.pf-jobs__applied-btn:disabled {
+  cursor: default;
 }
 
 .pf-jobs__interest-btn {
