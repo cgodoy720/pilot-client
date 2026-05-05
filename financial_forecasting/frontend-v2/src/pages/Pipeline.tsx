@@ -418,10 +418,10 @@ export function PipelinePage() {
         onStageClick={(s) => setStageFilter((cur) => (cur === s ? null : s))}
       />
 
-      {/* Row 1 — scope pills + record-type pills, with Columns and
-          Views right-aligned. Count display dropped (the table itself
-          is the row count); "All" scope dropped (chip filters or
-          searching cover that case more flexibly). */}
+      {/* Row 1 — primary controls all on one line, matching pill
+          aesthetic across the row: scope pills · record-type pills ·
+          [stage chip] · Search · Filter · spacer · Columns · Views.
+          Wraps cleanly on narrower viewports. */}
       <Toolbar className="mt-4">
         <ButtonGroup
           value={scope}
@@ -437,13 +437,37 @@ export function PipelinePage() {
           <button
             type="button"
             onClick={() => setStageFilter(null)}
-            className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-accent bg-accent/10 px-2 py-0.5 text-[11.5px] text-ink hover:bg-accent/20"
+            className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-accent bg-accent/10 px-2.5 text-[12px] text-ink hover:bg-accent/20"
             title="Clear stage filter"
           >
             Stage: {stageFilter}
-            <X size={11} />
+            <X size={11} aria-hidden="true" />
           </button>
         ) : null}
+        <div className="relative">
+          <Search
+            size={12}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
+          />
+          <input
+            placeholder="Search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-7 w-56 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] font-medium text-ink-2 outline-none placeholder:font-normal placeholder:text-ink-3 focus:border-accent focus:text-ink"
+          />
+        </div>
+        <AddFilterButton<PipelineField>
+          filterable={PIPELINE_FILTERABLE as Record<PipelineField, FieldMeta<unknown>>}
+          selectOptions={{
+            stage: chipFacets.stage,
+            owner: chipFacets.owner,
+            recordType: chipFacets.recordType,
+            active: chipFacets.active,
+          }}
+          onAdd={(r) => setRules((prev) => [...prev, r])}
+          buttonLabel="Filter"
+        />
         <div className="ml-auto flex items-center gap-2">
           <ColumnChooser
             allColumns={COLUMN_ORDER}
@@ -479,35 +503,7 @@ export function PipelinePage() {
         </div>
       </Toolbar>
 
-      {/* Row 2 — search + filter on the same row. */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search
-            size={13}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
-          />
-          <input
-            placeholder="Search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
-          />
-        </div>
-        <AddFilterButton<PipelineField>
-          filterable={PIPELINE_FILTERABLE as Record<PipelineField, FieldMeta<unknown>>}
-          selectOptions={{
-            stage: chipFacets.stage,
-            owner: chipFacets.owner,
-            recordType: chipFacets.recordType,
-            active: chipFacets.active,
-          }}
-          onAdd={(r) => setRules((prev) => [...prev, r])}
-          buttonLabel="Filter"
-        />
-      </div>
-
-      {/* Row 3 — active filter chips, only rendered when present. Single
-          row that wraps if the user accumulates many filters. */}
+      {/* Row 2 — active filter chips, only rendered when present. */}
       {rules.length > 0 ? (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {rules.map((r) => (
