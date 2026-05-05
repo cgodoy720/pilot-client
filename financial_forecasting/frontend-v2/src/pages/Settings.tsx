@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, AlertTriangle, Plug, Plug2 } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
-import { Tag } from "@/components/ui/Tag";
+import { ConnectionsTab } from "@/pages/settings/ConnectionsTab";
+import { ProfilesTab } from "@/pages/settings/ProfilesTab";
+import { TargetsTab } from "@/pages/settings/TargetsTab";
+import { UsersTab } from "@/pages/settings/UsersTab";
 import { cn } from "@/lib/utils";
-import {
-  startSalesforceConnect,
-  useCurrentUser,
-  useDisconnectSalesforce,
-  useLogout,
-  useSalesforceStatus,
-} from "@/services/auth";
+import { usePerm } from "@/services/permissions";
+
+type TabKey = "connections" | "targets" | "users" | "profiles";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "connections", label: "Connections" },
+  { key: "targets", label: "Targets" },
+  { key: "users", label: "Users" },
+  { key: "profiles", label: "Permission Profiles" },
+];
+
+const VALID_TABS = new Set<TabKey>(["connections", "targets", "users", "profiles"]);
 
 export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,158 +33,89 @@ export function SettingsPage() {
     const sfError = searchParams.get("sf_error");
     if (sfConnected === "true") {
       setBanner({ kind: "success", text: "Salesforce connected successfully." });
-      setSearchParams({});
+      const next = new URLSearchParams(searchParams);
+      next.delete("sf_connected");
+      setSearchParams(next, { replace: true });
     } else if (sfError) {
       setBanner({
         kind: "error",
         text: `Salesforce connection failed: ${sfError}`,
       });
-      setSearchParams({});
+      const next = new URLSearchParams(searchParams);
+      next.delete("sf_error");
+      setSearchParams(next, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
-  const { data: user } = useCurrentUser();
-  const sfStatus = useSalesforceStatus();
-  const disconnect = useDisconnectSalesforce();
-  const logout = useLogout();
+  const isAdmin = usePerm("manage_users_roles");
+  const canEditProfiles = usePerm("edit_permission_profiles") || isAdmin;
+  const canManageGoals = usePerm("manage_owner_goals") || isAdmin;
+
+  const tabFromUrl = searchParams.get("tab");
+  const activeTab: TabKey =
+    tabFromUrl && VALID_TABS.has(tabFromUrl as TabKey)
+      ? (tabFromUrl as TabKey)
+      : "connections";
+
+  // Hide tabs the caller can't access. Connections is always shown.
+  // Targets always rendered; the read-only mode handles missing perms.
+  const visibleTabs = TABS.filter((t) => {
+    if (t.key === "users" || t.key === "profiles") return isAdmin;
+    return true;
+  });
+
+  // Auto-redirect away from a hidden tab if URL points to one.
+  const shouldRedirect =
+    !visibleTabs.some((t) => t.key === activeTab) &&
+    tabFromUrl !== null;
+  useEffect(() => {
+    if (!shouldRedirect) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", "connections");
+    setSearchParams(next, { replace: true });
+  }, [shouldRedirect, searchParams, setSearchParams]);
+
+  const setTab = (key: TabKey) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", key);
+    setSearchParams(next, { replace: true });
+  };
 
   return (
-    <div className="mx-auto max-w-[800px] px-7 py-6 pb-20">
-      <PageHeader title="Settings" subtitle="Account and integrations" />
+    <div className="mx-auto max-w-[1200px] px-7 py-6 pb-20">
+      <PageHeader
+        title="Settings"
+        subtitle="Account, integrations, targets, and permissions"
+      />
 
-      {banner ? (
-        <div
-          className={cn(
-            "mb-5 flex items-center gap-2 rounded-md border px-3 py-2 text-[13px]",
-            banner.kind === "success"
-              ? "border-green bg-green-soft text-green"
-              : "border-red bg-red-soft text-red",
-          )}
-        >
-          {banner.kind === "success" ? (
-            <CheckCircle2 size={16} />
-          ) : (
-            <AlertTriangle size={16} />
-          )}
-          <span>{banner.text}</span>
-        </div>
-      ) : null}
-
-      {/* Account card */}
-      <Card>
-        <CardHeader title="Account" />
-        <div className="flex items-center gap-3 px-5 py-4">
-          {user?.picture ? (
-            <img
-              src={user.picture}
-              alt=""
-              className="h-9 w-9 rounded-full border border-border-strong"
-            />
-          ) : (
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-[13px] font-semibold text-ink-2">
-              {user?.name?.[0] ?? "?"}
-            </div>
-          )}
-          <div className="flex-1">
-            <div className="text-[14px] font-medium">{user?.name ?? "—"}</div>
-            <div className="text-[12px] text-ink-3">{user?.email ?? "—"}</div>
-          </div>
-          <button
-            onClick={() => logout.mutate()}
-            disabled={logout.isPending}
-            className="h-8 rounded border border-border-strong bg-surface px-3 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2"
-          >
-            Sign out
-          </button>
-        </div>
-      </Card>
-
-      {/* Salesforce card */}
-      <div className="mt-5">
-        <Card>
-          <CardHeader
-            title="Salesforce"
-            subtitle="Connect your Salesforce account so changes you make in Bedrock are attributed to you in Salesforce."
-          />
-          <div className="px-5 py-4">
-            {sfStatus.isLoading ? (
-              <div className="text-[13px] text-ink-3">
-                Checking Salesforce connection…
-              </div>
-            ) : sfStatus.data?.connected ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <Tag variant="green">Connected</Tag>
-                  <span className="text-[13px] text-ink-2">
-                    {sfStatus.data.user_name ?? "Salesforce user"}
-                  </span>
-                </div>
-                {sfStatus.data.instance_url ? (
-                  <div className="text-[12px] text-ink-3">
-                    Instance: {sfStatus.data.instance_url}
-                  </div>
-                ) : null}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => disconnect.mutate()}
-                    disabled={disconnect.isPending}
-                    className="inline-flex h-[30px] items-center gap-1.5 rounded border border-border-strong bg-surface px-3 text-[13px] font-medium text-ink-2 hover:bg-surface-2"
-                  >
-                    <Plug size={14} />
-                    Disconnect
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <Tag variant="amber">Not connected</Tag>
-                  {sfStatus.data?.needs_reconnect ? (
-                    <span className="text-[12.5px] text-amber">
-                      Session expired — please reconnect.
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-[12.5px] text-ink-3">
-                  Connect your Salesforce account to load real account, opp, and
-                  contact data.
-                </p>
-                <button
-                  onClick={startSalesforceConnect}
-                  className="inline-flex h-[30px] items-center gap-1.5 self-start rounded border border-ink bg-ink px-3 text-[13px] font-medium text-surface hover:opacity-90"
-                >
-                  <Plug2 size={14} />
-                  Connect Salesforce
-                </button>
-              </div>
-            )}
-          </div>
-        </Card>
+      <div role="tablist" className="mb-5 flex gap-1 border-b border-border-strong">
+        {visibleTabs.map((t) => {
+          const isActive = t.key === activeTab;
+          return (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={isActive}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "relative -mb-px h-9 px-4 text-[13px] font-medium transition-colors",
+                isActive
+                  ? "border-b-2 border-accent text-ink"
+                  : "border-b-2 border-transparent text-ink-3 hover:text-ink-2",
+              )}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
-    </div>
-  );
-}
 
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm">
-      {children}
-    </div>
-  );
-}
-
-function CardHeader({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="border-b border-border-strong bg-surface-2 px-5 py-3">
-      <div className="text-[13px] font-semibold text-ink">{title}</div>
-      {subtitle ? (
-        <div className="mt-1 text-[12px] text-ink-3">{subtitle}</div>
+      {activeTab === "connections" ? <ConnectionsTab banner={banner} /> : null}
+      {activeTab === "targets" ? <TargetsTab canEdit={canManageGoals} /> : null}
+      {activeTab === "users" && isAdmin ? <UsersTab /> : null}
+      {activeTab === "profiles" && isAdmin ? (
+        <ProfilesTab isAdmin={isAdmin} canEdit={canEditProfiles} />
       ) : null}
     </div>
   );

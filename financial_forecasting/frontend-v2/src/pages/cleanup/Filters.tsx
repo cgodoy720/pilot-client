@@ -152,16 +152,19 @@ export function FilterChip({
   label: string;
   onRemove: () => void;
 }) {
+  // Match the toolbar ButtonGroup pill exactly: h-7, text-[12.5px]
+  // font-medium, border-border-strong on bg-surface. No leading
+  // accent dot — the page's pill family is flat by convention.
   return (
-    <span className="inline-flex items-center gap-1 rounded border border-accent/50 bg-accent/10 px-2 py-0.5 text-[11.5px] text-ink">
-      {label}
+    <span className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded border border-border-strong bg-surface pl-2.5 pr-1 text-[12.5px] font-medium text-ink-2">
+      <span className="truncate">{label}</span>
       <button
         type="button"
         onClick={onRemove}
-        className="text-ink-3 hover:text-ink"
+        className="grid h-5 w-5 flex-shrink-0 place-items-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
         aria-label="Remove filter"
       >
-        <X size={11} />
+        <X size={11} aria-hidden="true" />
       </button>
     </span>
   );
@@ -213,14 +216,21 @@ export function AddFilterButton<F extends string>({
   };
 
   const handleAdd = () => {
+    // crypto.randomUUID is collision-safe even when the user smashes
+    // the Add button — Date.now() granularity (1ms) was racey enough
+    // that adjacent clicks could mint the same id.
+    const newId = () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${field}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     if (!needsValue) {
-      onAdd({ id: `${field}-${Date.now()}`, field, op, values: [] });
+      onAdd({ id: newId(), field, op, values: [] });
     } else if (isMultiSelect) {
       if (multiValues.length === 0) return;
-      onAdd({ id: `${field}-${Date.now()}`, field, op, values: multiValues });
+      onAdd({ id: newId(), field, op, values: multiValues });
     } else {
       if (!singleValue) return;
-      onAdd({ id: `${field}-${Date.now()}`, field, op, values: [singleValue] });
+      onAdd({ id: newId(), field, op, values: [singleValue] });
     }
     reset();
     setOpen(false);

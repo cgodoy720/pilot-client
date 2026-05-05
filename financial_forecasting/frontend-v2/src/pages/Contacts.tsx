@@ -6,10 +6,12 @@ import {
   useRef,
   useState,
 } from "react";
+import { Fragment } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Mail, Search } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { ContactExpandPanel, CONTACT_PANEL_HEIGHT } from "@/components/ContactExpandPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
@@ -22,6 +24,14 @@ import { useColumnVisibility } from "@/lib/columnVisibility";
 import { fmtDate, initials } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { cn } from "@/lib/utils";
+import {
+  AddFilterButton,
+  FilterChip,
+  type FieldMeta,
+  type FilterRule,
+  describeRule,
+  ruleApplies,
+} from "@/pages/cleanup/Filters";
 import { useContacts, useUpdateContact } from "@/services/contacts";
 import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
@@ -29,6 +39,48 @@ import type { SfContact } from "@/types/salesforce";
 
 interface ContactFilter {
   philOnly: boolean;
+}
+
+// ── Chip filter model ────────────────────────────────────────────────────
+
+const CONTACTS_FILTERABLE = {
+  name: {
+    label: "Name",
+    type: "text",
+    getValue: (c: SfContact) =>
+      [c.FirstName, c.LastName].filter(Boolean).join(" ") || c.Name || "",
+  },
+  account: { label: "Account", type: "text", getValue: (c: SfContact) => c.Account?.Name ?? "" },
+  email: { label: "Email", type: "text", getValue: (c: SfContact) => c.Email ?? "" },
+  title: { label: "Title", type: "text", getValue: (c: SfContact) => c.Title ?? "" },
+  owner: { label: "Owner", type: "select", getValue: (c: SfContact) => c.OwnerId ?? "" },
+  philanthropy: {
+    label: "Philanthropic",
+    type: "select",
+    getValue: (c: SfContact) =>
+      c.Philanthropic_Contact__c || c.Philanthropy__c ? "Yes" : "No",
+  },
+  boardStatus: {
+    label: "Board status",
+    type: "select",
+    getValue: (c: SfContact) => c.Board_Status__c ?? "",
+  },
+  state: { label: "State", type: "text", getValue: (c: SfContact) => c.MailingState ?? "" },
+  lastActivity: {
+    label: "Last activity",
+    type: "date",
+    getValue: (c: SfContact) =>
+      c.Last_Activity_Date__c ?? c.LastActivityDate ?? null,
+  },
+} satisfies Record<string, FieldMeta<SfContact>>;
+
+type ContactField = keyof typeof CONTACTS_FILTERABLE;
+
+interface ContactsSavedView {
+  filter?: ContactFilter;
+  rules?: FilterRule<ContactField>[];
+  visibleCols?: ColKey[];
+  widths?: Partial<Record<ColKey, number>>;
 }
 
 type ColKey =
@@ -102,19 +154,60 @@ export function ContactsPage() {
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<ContactFilter>({ philOnly: false });
+  const [rules, setRules] = useState<FilterRule<ContactField>[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const { philOnly } = filter;
-  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
-    "bedrock-v2:vis:contacts",
-    COLUMN_ORDER,
-  );
+  const { visible: visibleCols, toggle: toggleCol, replaceAll: replaceVisibleCols } =
+    useColumnVisibility("bedrock-v2:vis:contacts", COLUMN_ORDER);
 
   const { sort, toggle } = useSort<ColKey>({ key: "name", direction: "asc" });
-  const { widths, startResize } = useColumnWidths<ColKey>(
+  const { widths, startResize, replaceAll: replaceWidths } = useColumnWidths<ColKey>(
     "bedrock-v2:cols:contacts",
     DEFAULT_WIDTHS,
   );
 
   const contacts = contactsQ.data ?? [];
+
+  // Chip-filter facets — owner ids include inactive users so historical
+  // assignments remain selectable; board-status comes from the loaded
+  // dataset.
+  const chipFacets = useMemo(() => {
+    const activeIds = new Set((usersQ.data ?? []).map((u) => u.Id));
+    const owners = new Map<string, string>();
+    const boardStatuses = new Set<string>();
+    for (const c of contacts) {
+      if (c.OwnerId && c.Owner?.Name && !owners.has(c.OwnerId)) {
+        owners.set(c.OwnerId, c.Owner.Name);
+      }
+      if (c.Board_Status__c) boardStatuses.add(c.Board_Status__c);
+    }
+    return {
+      owner: Array.from(owners.entries())
+        .map(([id, name]) => ({
+          value: id,
+          label: activeIds.has(id) ? name : `${name} (inactive)`,
+        }))
+        .sort((x, y) => x.label.localeCompare(y.label)),
+      boardStatus: Array.from(boardStatuses)
+        .sort()
+        .map((v) => ({ value: v, label: v })),
+      philanthropy: [
+        { value: "Yes", label: "Yes" },
+        { value: "No", label: "No" },
+      ],
+    };
+  }, [contacts, usersQ.data]);
+
+  const ownerLabelLookup = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of usersQ.data ?? []) m.set(u.Id, u.Name);
+    for (const c of contacts) {
+      if (c.OwnerId && !m.has(c.OwnerId) && c.Owner?.Name) {
+        m.set(c.OwnerId, c.Owner.Name);
+      }
+    }
+    return (id: string) => m.get(id) ?? id;
+  }, [usersQ.data, contacts]);
 
   const filtered = useMemo(() => {
     const needle = q.toLowerCase();
@@ -122,18 +215,23 @@ export function ContactsPage() {
       if (philOnly && !c.Philanthropic_Contact__c && !c.Philanthropy__c) {
         return false;
       }
-      if (!q) return true;
-      return (
-        (c.Name ?? "").toLowerCase().includes(needle) ||
-        (c.FirstName ?? "").toLowerCase().includes(needle) ||
-        (c.LastName ?? "").toLowerCase().includes(needle) ||
-        (c.Email ?? "").toLowerCase().includes(needle) ||
-        (c.Account?.Name ?? "").toLowerCase().includes(needle) ||
-        (c.Title ?? "").toLowerCase().includes(needle)
-      );
+      if (q) {
+        const hit =
+          (c.Name ?? "").toLowerCase().includes(needle) ||
+          (c.FirstName ?? "").toLowerCase().includes(needle) ||
+          (c.LastName ?? "").toLowerCase().includes(needle) ||
+          (c.Email ?? "").toLowerCase().includes(needle) ||
+          (c.Account?.Name ?? "").toLowerCase().includes(needle) ||
+          (c.Title ?? "").toLowerCase().includes(needle);
+        if (!hit) return false;
+      }
+      for (const r of rules) {
+        if (!ruleApplies(c, r, CONTACTS_FILTERABLE)) return false;
+      }
+      return true;
     });
     return sortBy(f, sort, extractContact);
-  }, [contacts, q, filter, sort]);
+  }, [contacts, q, philOnly, rules, sort]);
 
   const ownerOptions = useMemo(
     () =>
@@ -186,9 +284,13 @@ export function ContactsPage() {
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: (i) =>
+      filtered[i]?.Id === expandedId ? ROW_HEIGHT + CONTACT_PANEL_HEIGHT : ROW_HEIGHT,
     overscan: 8,
   });
+  useEffect(() => {
+    virtualizer.measure();
+  }, [expandedId, virtualizer]);
   const virtualItems = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   const paddingTop = virtualItems[0]?.start ?? 0;
@@ -207,18 +309,6 @@ export function ContactsPage() {
       />
 
       <Toolbar>
-        <div className="relative">
-          <Search
-            size={13}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
-          />
-          <input
-            placeholder="Search by name, email, account, title"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-80 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
-          />
-        </div>
         <button
           onClick={() => setFilter((f) => ({ ...f, philOnly: !f.philOnly }))}
           className={cn(
@@ -230,23 +320,77 @@ export function ContactsPage() {
         >
           Philanthropic only
         </button>
-        <SavedViewsPicker
-          scopeKey="contacts"
-          currentFilters={filter}
-          onLoad={(v) => setFilter(v)}
+        <div className="relative">
+          <Search
+            size={12}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
+          />
+          <input
+            placeholder="Search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="h-7 w-56 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] font-medium text-ink-2 outline-none placeholder:font-normal placeholder:text-ink-3 focus:border-accent focus:text-ink"
+          />
+        </div>
+        <AddFilterButton<ContactField>
+          filterable={CONTACTS_FILTERABLE as Record<ContactField, FieldMeta<unknown>>}
+          selectOptions={{
+            owner: chipFacets.owner,
+            boardStatus: chipFacets.boardStatus,
+            philanthropy: chipFacets.philanthropy,
+          }}
+          onAdd={(r) => setRules((prev) => [...prev, r])}
+          buttonLabel="Filter"
         />
-        <ColumnChooser
-          allColumns={COLUMN_ORDER}
-          labels={COL_LABELS}
-          visible={visibleCols}
-          required={["name"]}
-          onToggle={toggleCol}
-        />
-        <span className="ml-auto text-[11.5px] text-ink-3">
-          {filtered.length.toLocaleString()} of{" "}
-          {contacts.length.toLocaleString()}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <ColumnChooser
+            allColumns={COLUMN_ORDER}
+            labels={COL_LABELS}
+            visible={visibleCols}
+            required={["name"]}
+            onToggle={toggleCol}
+          />
+          <SavedViewsPicker<ContactsSavedView>
+            scopeKey="contacts"
+            currentFilters={{ filter, rules, visibleCols, widths }}
+            onLoad={(v) => {
+              setFilter(v.filter ?? { philOnly: false });
+              setRules(v.rules ?? []);
+              if (v.visibleCols && v.visibleCols.length > 0) {
+                replaceVisibleCols(v.visibleCols);
+              }
+              if (v.widths && Object.keys(v.widths).length > 0) {
+                replaceWidths(v.widths);
+              }
+            }}
+          />
+        </div>
       </Toolbar>
+
+      {/* Active filter chips. Border-attached strip, same pattern as
+          Pipeline / Accounts: continues the toolbar card downward into
+          the table, aligned px-3 with the toolbar above. */}
+      {rules.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 border-x border-t border-border-strong bg-surface px-3 py-2">
+          {rules.map((r) => (
+            <FilterChip
+              key={r.id}
+              label={describeRule(r, CONTACTS_FILTERABLE, (field, v) =>
+                field === "owner" ? ownerLabelLookup(v) : v,
+              )}
+              onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => setRules([])}
+            className="ml-1 whitespace-nowrap text-[11.5px] font-medium text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
 
       <div
         ref={scrollRef}
@@ -314,19 +458,32 @@ export function ContactsPage() {
                 ) : null}
                 {virtualItems.map((vi) => {
                   const c = filtered[vi.index];
+                  const isExpanded = c.Id === expandedId;
                   return (
-                    <ContactRow
-                      key={c.Id}
-                      c={c}
-                      ownerOptions={ownerOptions}
-                      visibleCols={visibleCols}
-                      canEdit={canEdit}
-                      onOpen={() => navigate(`/contacts/${c.Id}`, { state: CONTACTS_REFERRER })}
-                      onSaveTitle={(title) => saveTitle(c.Id, title)}
-                      onSaveEmail={(email) => saveEmail(c.Id, email)}
-                      onSavePhone={(phone) => savePhone(c.Id, phone)}
-                      onSaveOwner={(ownerId) => saveOwner(c.Id, ownerId)}
-                    />
+                    <Fragment key={c.Id}>
+                      <ContactRow
+                        c={c}
+                        ownerOptions={ownerOptions}
+                        visibleCols={visibleCols}
+                        canEdit={canEdit}
+                        isExpanded={isExpanded}
+                        onToggleExpand={() =>
+                          setExpandedId(isExpanded ? null : c.Id)
+                        }
+                        onOpen={() => navigate(`/contacts/${c.Id}`, { state: CONTACTS_REFERRER })}
+                        onSaveTitle={(title) => saveTitle(c.Id, title)}
+                        onSaveEmail={(email) => saveEmail(c.Id, email)}
+                        onSavePhone={(phone) => savePhone(c.Id, phone)}
+                        onSaveOwner={(ownerId) => saveOwner(c.Id, ownerId)}
+                      />
+                      {isExpanded ? (
+                        <tr>
+                          <td colSpan={visibleCols.length} className="p-0">
+                            <ContactExpandPanel contactId={c.Id} />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   );
                 })}
                 {paddingBottom > 0 ? (
@@ -348,6 +505,8 @@ interface RowProps {
   ownerOptions: { value: string; label: string }[];
   visibleCols: ColKey[];
   canEdit: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onOpen: () => void;
   onSaveTitle: (title: string) => Promise<void>;
   onSaveEmail: (email: string) => Promise<void>;
@@ -360,6 +519,8 @@ const ContactRow = memo(function ContactRow({
   ownerOptions,
   visibleCols,
   canEdit,
+  isExpanded,
+  onToggleExpand,
   onOpen,
   onSaveTitle,
   onSaveEmail,
@@ -372,6 +533,16 @@ const ContactRow = memo(function ContactRow({
   const cells: Record<ColKey, React.ReactNode> = {
     name: (
       <div className="flex min-w-0 items-center gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpand();
+          }}
+          className="flex-shrink-0 text-ink-4 transition-colors hover:text-ink-2"
+          aria-label={isExpanded ? "Collapse details" : "Expand details"}
+        >
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </button>
         <div className="grid h-[22px] w-[22px] flex-shrink-0 place-items-center rounded-full bg-surface-2 text-[9px] font-semibold text-ink-2">
           {initials(fullName === "—" ? "?" : fullName)}
         </div>

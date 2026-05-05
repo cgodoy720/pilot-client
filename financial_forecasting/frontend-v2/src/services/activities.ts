@@ -7,6 +7,8 @@ export interface ActivityFilters {
   opportunityId?: string;
   accountId?: string;
   contactId?: string;
+  /** Backend filter on `bedrock.activity.owner_id` (Salesforce User ID). */
+  ownerId?: string;
   limit?: number;
 }
 
@@ -23,6 +25,7 @@ async function fetchActivities(
   if (filters.opportunityId) params.set("opportunity_id", filters.opportunityId);
   if (filters.accountId) params.set("account_id", filters.accountId);
   if (filters.contactId) params.set("contact_id", filters.contactId);
+  if (filters.ownerId) params.set("owner_id", filters.ownerId);
   params.set("limit", String(filters.limit ?? 50));
   const { data } = await api.get<ActivitiesResponse>(
     `/api/activities/?${params.toString()}`,
@@ -35,7 +38,12 @@ export function useActivities(filters: ActivityFilters) {
     queryKey: ["activities", filters],
     queryFn: () => fetchActivities(filters),
     staleTime: 30_000,
-    enabled: !!(filters.opportunityId || filters.accountId || filters.contactId),
+    enabled: !!(
+      filters.opportunityId ||
+      filters.accountId ||
+      filters.contactId ||
+      filters.ownerId
+    ),
   });
 }
 

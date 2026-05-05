@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, ExternalLink, Plus, Trash2, RefreshCw } from "lucide-react";
 
+import { TaskListTab } from "@/components/expand/TaskListTab";
 import { InlineDate, InlineSelect } from "@/components/ui/InlineEdit";
 import { Tag } from "@/components/ui/Tag";
 import {
@@ -15,16 +16,14 @@ import {
   type AwardReportStatus,
 } from "@/services/awards";
 import { useOpportunityPayments } from "@/services/payments";
-import { useOpportunityTasks, useUpdateTask } from "@/services/opportunities";
+import { useCreateTask, useOpportunityTasks } from "@/services/opportunities";
 import {
   useCreateProject,
   useLinkProjectToOpportunity,
   useProjects,
 } from "@/services/projects";
-import { useActiveUsers } from "@/services/users";
 import { fmtDate, fmtMoneyFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { SfTask } from "@/types/salesforce";
 
 export const AWARD_PANEL_HEIGHT = 320; // matches style={{ height }}
 
@@ -33,13 +32,6 @@ const REPORT_STATUS_OPTIONS: { value: AwardReportStatus; label: string }[] = [
   { value: "Submitted", label: "Submitted" },
   { value: "Approved", label: "Approved" },
   { value: "Skipped", label: "Skipped" },
-];
-
-const TASK_STATUS_OPTIONS = [
-  { value: "Not Started", label: "Not Started" },
-  { value: "In Progress", label: "In Progress" },
-  { value: "Waiting on someone else", label: "Waiting" },
-  { value: "Completed", label: "Completed" },
 ];
 
 function reportTagVariant(status: AwardReportStatus, dueDate: string): "green" | "amber" | "red" | "default" {
@@ -337,71 +329,19 @@ function PaymentsTab({ opportunityId }: { opportunityId: string }) {
 
 function TasksTab({ opportunityId }: { opportunityId: string }) {
   const { data: tasks = [], isLoading } = useOpportunityTasks(opportunityId);
-  const updateTask = useUpdateTask();
-  const usersQ = useActiveUsers();
-
-  const ownerOptions = useMemo(
-    () => (usersQ.data ?? []).map((u) => ({ value: u.Id, label: u.Name })),
-    [usersQ.data],
-  );
-
-  const open = tasks.filter((t) => !isTaskClosed(t));
+  const createTask = useCreateTask();
 
   return (
-    <div className="px-4 py-3">
-      <div className="mb-2 text-[11px] uppercase tracking-wider text-ink-3">
-        {open.length} open · {tasks.length - open.length} done
-      </div>
-      {isLoading ? (
-        <div className="text-[12px] text-ink-3">Loading…</div>
-      ) : open.length === 0 ? (
-        <div className="rounded border border-dashed border-border-strong px-3 py-4 text-center text-[12px] text-ink-3">
-          No open tasks for this opportunity.
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {open.map((t) => (
-            <div
-              key={t.Id}
-              className="flex items-center gap-3 rounded border border-border-strong bg-surface px-3 py-1.5 text-[12px]"
-            >
-              <span className="flex-1 truncate text-ink" title={t.Subject ?? ""}>
-                {t.Subject || "(no subject)"}
-              </span>
-              <span className="mono text-[11px] text-ink-3">
-                {fmtDate(t.ActivityDate)}
-              </span>
-              <InlineSelect
-                value={t.Status ?? "Not Started"}
-                options={TASK_STATUS_OPTIONS}
-                onSave={(v) =>
-                  updateTask.mutateAsync({ id: t.Id, patch: { Status: v } }).then(() => undefined)
-                }
-                renderValue={(v) => <Tag>{v || "—"}</Tag>}
-              />
-              <InlineSelect
-                value={t.OwnerId ?? ""}
-                options={ownerOptions}
-                onSave={(v) =>
-                  updateTask.mutateAsync({ id: t.Id, patch: { OwnerId: v } }).then(() => undefined)
-                }
-                renderValue={() => (
-                  <span className="text-[11.5px] text-ink-3">
-                    {t.OwnerName ?? "—"}
-                  </span>
-                )}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <TaskListTab
+      tasks={tasks}
+      isLoading={isLoading}
+      placeholder="Add a task — press Enter to create"
+      emptyMessage="No open tasks for this opportunity."
+      onCreate={async (subject) => {
+        await createTask.mutateAsync({ opportunityId, body: { Subject: subject } });
+      }}
+    />
   );
-}
-
-function isTaskClosed(t: SfTask): boolean {
-  if (t.IsClosed != null) return !!t.IsClosed;
-  return t.Status === "Completed";
 }
 
 // ── Projects tab ──────────────────────────────────────────────────────────

@@ -18,6 +18,14 @@ import { useColumnVisibility } from "@/lib/columnVisibility";
 import { fmtDate, fmtMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { sortBy, useSort } from "@/lib/sort";
+import {
+  AddFilterButton,
+  FilterChip,
+  type FieldMeta,
+  type FilterRule,
+  describeRule,
+  ruleApplies,
+} from "@/pages/cleanup/Filters";
 import { useAccountsEnrichment } from "@/services/accounts";
 import {
   useAwards,
@@ -55,6 +63,67 @@ function statusVariant(s: AwardStatus): "green" | "amber" | "default" | "red" {
   if (s === "Closing") return "amber";
   if (s === "Did Not Fulfill") return "red";
   return "default";
+}
+
+// ── Chip filter model ────────────────────────────────────────────────────
+//
+// Native Award fields live in the static base. Opp-derived fields
+// (name / account / owner / amount / paid / pending) join in via
+// useMemo so they can read oppById without re-creating the static
+// definition each render.
+
+const AWARDS_FILTERABLE_BASE = {
+  status: {
+    label: "Status",
+    type: "select",
+    getValue: (a: Award) => a.award_status,
+  },
+  reportingFrequency: {
+    label: "Reporting frequency",
+    type: "select",
+    getValue: (a: Award) => a.reporting_frequency ?? "",
+  },
+  awardDate: {
+    label: "Awarded",
+    type: "date",
+    getValue: (a: Award) => a.award_date,
+  },
+  periodEnd: {
+    label: "Period end",
+    type: "date",
+    getValue: (a: Award) => a.period_end_date,
+  },
+  nextReportDue: {
+    label: "Next report due",
+    type: "date",
+    getValue: (a: Award) => a.next_report_date ?? a.next_report_due ?? null,
+  },
+  overdue: {
+    label: "Reports overdue",
+    type: "select",
+    getValue: (a: Award) => (a.report_overdue > 0 ? "Yes" : "No"),
+  },
+  notes: {
+    label: "Notes",
+    type: "text",
+    getValue: (a: Award) => a.notes ?? "",
+  },
+} satisfies Record<string, FieldMeta<Award>>;
+
+type AwardField =
+  | keyof typeof AWARDS_FILTERABLE_BASE
+  | "name"
+  | "account"
+  | "owner"
+  | "amount"
+  | "paid"
+  | "pending";
+
+interface AwardsSavedView {
+  filter?: AwardFilter;
+  rules?: FilterRule<AwardField>[];
+  visibleCols?: ColKey[];
+  widths?: Partial<Record<ColKey, number>>;
 }
 
 type ColKey =
@@ -243,17 +312,18 @@ export function AwardsPage() {
   // User can still pick All / Closed / etc. via the toolbar pill.
   const [filter, setFilter] = useState<AwardFilter>({ status: "Active" });
   const [q, setQ] = useState("");
+  const [rules, setRules] = useState<FilterRule<AwardField>[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const canEdit = usePerm("edit_awards");
-  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility<ColKey>(
-    "bedrock-v2:vis:awards",
-    COLUMN_ORDER,
-    DEFAULT_VISIBLE,
-  );
+  const { visible: visibleCols, toggle: toggleCol, replaceAll: replaceVisibleCols } =
+    useColumnVisibility<ColKey>("bedrock-v2:vis:awards", COLUMN_ORDER, DEFAULT_VISIBLE);
 
   const { sort, toggle } = useSort<ColKey>({ key: "awardDate", direction: "desc" });
-  const { widths, startResize } = useColumnWidths<ColKey>("bedrock-v2:cols:awards", DEFAULT_WIDTHS);
+  const { widths, startResize, replaceAll: replaceWidths } = useColumnWidths<ColKey>(
+    "bedrock-v2:cols:awards",
+    DEFAULT_WIDTHS,
+  );
 
   const { data: awardsData, isLoading: awardsLoading, isError, error } =
     useAwards(filter.status === "All" ? undefined : filter.status);
@@ -286,6 +356,90 @@ export function AwardsPage() {
     return m;
   }, [oppsData]);
 
+  // Filterable extends the static base with opp-derived fields.
+  const filterable = useMemo(
+    () => ({
+      ...AWARDS_FILTERABLE_BASE,
+      name: {
+        label: "Name",
+        type: "text",
+        getValue: (a: Award) => oppById.get(a.opportunity_id)?.Name ?? "",
+      },
+      account: {
+        label: "Account",
+        type: "text",
+        getValue: (a: Award) => oppById.get(a.opportunity_id)?.Account?.Name ?? "",
+      },
+      owner: {
+        label: "Owner",
+        type: "select",
+        getValue: (a: Award) => oppById.get(a.opportunity_id)?.OwnerId ?? "",
+      },
+      amount: {
+        label: "Total",
+        type: "number",
+        getValue: (a: Award) => oppById.get(a.opportunity_id)?.Amount ?? 0,
+      },
+      paid: {
+        label: "Paid",
+        type: "number",
+        getValue: (a: Award) =>
+          oppById.get(a.opportunity_id)?.npe01__Payments_Made__c ?? 0,
+      },
+      pending: {
+        label: "Pending",
+        type: "number",
+        getValue: (a: Award) => pendingAmount(oppById.get(a.opportunity_id)),
+      },
+    }) as Record<AwardField, FieldMeta<Award>>,
+    [oppById],
+  );
+
+  // Chip-filter facets — owners pulled from opps' Owner refs (so
+  // historical owners survive even if the user is deactivated),
+  // statuses + reporting frequencies discovered from the loaded set.
+  const chipFacets = useMemo(() => {
+    const activeIds = new Set((usersQ.data ?? []).map((u) => u.Id));
+    const owners = new Map<string, string>();
+    const freqs = new Set<string>();
+    for (const a of awardsData ?? []) {
+      const opp = oppById.get(a.opportunity_id);
+      if (opp?.OwnerId && opp.Owner?.Name && !owners.has(opp.OwnerId)) {
+        owners.set(opp.OwnerId, opp.Owner.Name);
+      }
+      if (a.reporting_frequency) freqs.add(a.reporting_frequency);
+    }
+    const yesNo = [
+      { value: "Yes", label: "Yes" },
+      { value: "No", label: "No" },
+    ];
+    return {
+      owner: Array.from(owners.entries())
+        .map(([id, name]) => ({
+          value: id,
+          label: activeIds.has(id) ? name : `${name} (inactive)`,
+        }))
+        .sort((x, y) => x.label.localeCompare(y.label)),
+      status: STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+      reportingFrequency: Array.from(freqs)
+        .sort()
+        .map((v) => ({ value: v, label: v })),
+      overdue: yesNo,
+    };
+  }, [awardsData, oppById, usersQ.data]);
+
+  const ownerLabelLookup = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of usersQ.data ?? []) m.set(u.Id, u.Name);
+    for (const a of awardsData ?? []) {
+      const opp = oppById.get(a.opportunity_id);
+      if (opp?.OwnerId && !m.has(opp.OwnerId) && opp.Owner?.Name) {
+        m.set(opp.OwnerId, opp.Owner.Name);
+      }
+    }
+    return (id: string) => m.get(id) ?? id;
+  }, [usersQ.data, awardsData, oppById]);
+
   const projectsByOpp = useMemo(() => {
     const m = new Map<string, { id: string; name: string }[]>();
     for (const p of projectsQ.data ?? []) {
@@ -299,22 +453,26 @@ export function AwardsPage() {
 
   const awards = awardsData ?? [];
   const filtered = useMemo(() => {
-    const filt = q
-      ? awards.filter((a) => {
-          const opp = oppById.get(a.opportunity_id);
-          const needle = q.toLowerCase();
-          return (
-            (opp?.Name ?? "").toLowerCase().includes(needle) ||
-            (opp?.Account?.Name ?? "").toLowerCase().includes(needle) ||
-            (opp?.Owner?.Name ?? "").toLowerCase().includes(needle) ||
-            (a.notes ?? "").toLowerCase().includes(needle)
-          );
-        })
-      : awards;
+    const needle = q.toLowerCase();
+    const filt = awards.filter((a) => {
+      if (q) {
+        const opp = oppById.get(a.opportunity_id);
+        const hit =
+          (opp?.Name ?? "").toLowerCase().includes(needle) ||
+          (opp?.Account?.Name ?? "").toLowerCase().includes(needle) ||
+          (opp?.Owner?.Name ?? "").toLowerCase().includes(needle) ||
+          (a.notes ?? "").toLowerCase().includes(needle);
+        if (!hit) return false;
+      }
+      for (const r of rules) {
+        if (!ruleApplies(a, r, filterable)) return false;
+      }
+      return true;
+    });
     return sortBy(filt, sort, (a, key) =>
       extractAward(a, oppById.get(a.opportunity_id), key),
     );
-  }, [awards, oppById, q, sort]);
+  }, [awards, oppById, q, rules, filterable, sort]);
 
   const totalAmount = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.Amount ?? 0), 0);
   const totalPaid = filtered.reduce((s, a) => s + (oppById.get(a.opportunity_id)?.npe01__Payments_Made__c ?? 0), 0);
@@ -372,30 +530,76 @@ export function AwardsPage() {
           options={STATUS_FILTERS}
         />
         <div className="relative">
-          <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+          <Search
+            size={12}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
+          />
           <input
-            placeholder="Search by opp, funder, owner, notes"
+            placeholder="Search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
+            className="h-7 w-56 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] font-medium text-ink-2 outline-none placeholder:font-normal placeholder:text-ink-3 focus:border-accent focus:text-ink"
           />
         </div>
-        <SavedViewsPicker<AwardFilter>
-          scopeKey="awards"
-          currentFilters={filter}
-          onLoad={setFilter}
+        <AddFilterButton<AwardField>
+          filterable={filterable as Record<AwardField, FieldMeta<unknown>>}
+          selectOptions={{
+            owner: chipFacets.owner,
+            status: chipFacets.status,
+            reportingFrequency: chipFacets.reportingFrequency,
+            overdue: chipFacets.overdue,
+          }}
+          onAdd={(r) => setRules((prev) => [...prev, r])}
+          buttonLabel="Filter"
         />
-        <ColumnChooser<ColKey>
-          allColumns={COLUMN_ORDER}
-          labels={COL_LABELS}
-          visible={visibleCols}
-          onToggle={toggleCol}
-          required={["name"]}
-        />
-        <span className="ml-auto text-[11.5px] text-ink-3">
-          {filtered.length.toLocaleString()} of {awards.length.toLocaleString()}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <ColumnChooser<ColKey>
+            allColumns={COLUMN_ORDER}
+            labels={COL_LABELS}
+            visible={visibleCols}
+            onToggle={toggleCol}
+            required={["name"]}
+          />
+          <SavedViewsPicker<AwardsSavedView>
+            scopeKey="awards"
+            currentFilters={{ filter, rules, visibleCols, widths }}
+            onLoad={(v) => {
+              setFilter(v.filter ?? { status: "Active" });
+              setRules(v.rules ?? []);
+              if (v.visibleCols && v.visibleCols.length > 0) {
+                replaceVisibleCols(v.visibleCols);
+              }
+              if (v.widths && Object.keys(v.widths).length > 0) {
+                replaceWidths(v.widths);
+              }
+            }}
+          />
+        </div>
       </Toolbar>
+
+      {/* Active filter chips. Border-attached strip — same pattern
+          as Pipeline / Accounts / Contacts. */}
+      {rules.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 border-x border-t border-border-strong bg-surface px-3 py-2">
+          {rules.map((r) => (
+            <FilterChip
+              key={r.id}
+              label={describeRule(r, filterable, (field, v) =>
+                field === "owner" ? ownerLabelLookup(v) : v,
+              )}
+              onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => setRules([])}
+            className="ml-1 whitespace-nowrap text-[11.5px] font-medium text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
 
       <div
         ref={scrollRef}

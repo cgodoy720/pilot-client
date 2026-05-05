@@ -520,8 +520,10 @@ async def delete_opportunity(
         # opp-payments: / payments: — child payments now orphaned.
         cache.invalidate_prefix("opp-payments:")
         cache.invalidate_prefix("payments:")
-        # my-tasks: — child Tasks still have WhatId pointing at the deleted opp.
+        # my-tasks: / contact-tasks: — child Tasks still have WhatId pointing
+        # at the deleted opp; cached entries would render with a stale parent.
         cache.invalidate_prefix("my-tasks:")
+        cache.invalidate_prefix("contact-tasks:")
         # opportunities: — Payment endpoints invalidate this prefix defensively.
         cache.invalidate_prefix("opportunities:")
         logger.info(f"Opportunity {opportunity_id} deleted by {user['user_id']}")
@@ -1128,6 +1130,7 @@ async def delete_contact(
         cache.invalidate_prefix("contacts:")
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("opportunity-tasks:")
+        cache.invalidate_prefix("contact-tasks:")
         logger.info(f"Contact {contact_id} deleted by {user['user_id']}")
         return ApiResponse(
             success=True,
@@ -1548,6 +1551,8 @@ async def create_opportunity_task(
         task_id = result.get("id") or result.get("Id")
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
+        cache.invalidate_prefix("contact-tasks:")
+        cache.invalidate_prefix("user-tasks:")
 
         verify = await _verify_and_recover_task_fields(salesforce, task_id, fields)
         return ApiResponse(
@@ -1646,6 +1651,146 @@ async def get_account_tasks(
         return response
     except Exception as e:
         logger.error(f"Error fetching account tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/users/{owner_id}/tasks")
+async def get_user_tasks(
+    owner_id: str,
+    limit: Optional[int] = Query(None, le=2000),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Tasks owned by this Salesforce user (Task.OwnerId = owner_id).
+
+    Mirrors the per-account / per-opp / per-contact endpoints' shape so
+    the frontend's TaskListTab consumes it without an adapter. Cached
+    server-side (60s); existing task-mutation invalidations cover the
+    `user-tasks:` prefix.
+    """
+    validate_salesforce_id(owner_id, "owner_id")
+    try:
+        salesforce = client.salesforce
+
+        cache_key = f"user-tasks:{owner_id}:{limit or 'all'}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        query = f"""
+        SELECT Id, Subject, Status, Priority, ActivityDate, Description,
+               IsClosed, OwnerId, Owner.Name, WhoId, Who.Name, WhatId, What.Name,
+               Type, TaskSubtype,
+               CreatedById, CreatedBy.Name, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE OwnerId = '{owner_id}' AND IsClosed = false
+        ORDER BY ActivityDate ASC NULLS LAST
+        """
+        if limit is not None:
+            query += f" LIMIT {limit}"
+
+        result = await salesforce.query_all(query)
+        tasks = result.get("records", [])
+
+        formatted = []
+        for t in tasks:
+            formatted.append({
+                "Id": t.get("Id"),
+                "Subject": t.get("Subject"),
+                "Status": t.get("Status"),
+                "Priority": t.get("Priority"),
+                "ActivityDate": t.get("ActivityDate"),
+                "Description": t.get("Description"),
+                "IsClosed": t.get("IsClosed"),
+                "OwnerId": t.get("OwnerId"),
+                "OwnerName": (t.get("Owner") or {}).get("Name"),
+                "WhoId": t.get("WhoId"),
+                "WhoName": (t.get("Who") or {}).get("Name"),
+                "WhatId": t.get("WhatId"),
+                "WhatName": (t.get("What") or {}).get("Name"),
+                "Type": t.get("Type"),
+                "TaskSubtype": t.get("TaskSubtype"),
+                "CreatedById": t.get("CreatedById"),
+                "CreatedByName": (t.get("CreatedBy") or {}).get("Name"),
+                "CreatedDate": t.get("CreatedDate"),
+                "LastModifiedDate": t.get("LastModifiedDate"),
+            })
+
+        response = ApiResponse(success=True, data=formatted, meta={"count": len(formatted)})
+        cache.set(cache_key, response, ttl_seconds=60)
+        return response
+    except Exception as e:
+        logger.error(f"Error fetching user tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/salesforce/contacts/{contact_id}/tasks")
+async def get_contact_tasks(
+    contact_id: str,
+    limit: Optional[int] = Query(None, le=2000),
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Tasks where the SF Task.WhoId points at this contact.
+
+    Mirrors the get_account_tasks endpoint shape so the frontend's
+    TaskListTab can render the result without any per-call adapter.
+    Cached server-side (60s); any task mutation invalidates the
+    `contact-tasks:` prefix the same way other task caches do.
+    """
+    validate_salesforce_id(contact_id, "contact_id")
+    try:
+        salesforce = client.salesforce
+
+        cache_key = f"contact-tasks:{contact_id}:{limit or 'all'}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        query = f"""
+        SELECT Id, Subject, Status, Priority, ActivityDate, Description,
+               IsClosed, OwnerId, Owner.Name, WhoId, Who.Name, WhatId, What.Name,
+               Type, TaskSubtype,
+               CreatedById, CreatedBy.Name, CreatedDate, LastModifiedDate
+        FROM Task
+        WHERE WhoId = '{contact_id}'
+        ORDER BY ActivityDate DESC NULLS LAST
+        """
+        if limit is not None:
+            query += f" LIMIT {limit}"
+
+        result = await salesforce.query_all(query)
+        tasks = result.get("records", [])
+
+        formatted = []
+        for t in tasks:
+            formatted.append({
+                "Id": t.get("Id"),
+                "Subject": t.get("Subject"),
+                "Status": t.get("Status"),
+                "Priority": t.get("Priority"),
+                "ActivityDate": t.get("ActivityDate"),
+                "Description": t.get("Description"),
+                "IsClosed": t.get("IsClosed"),
+                "OwnerId": t.get("OwnerId"),
+                "OwnerName": (t.get("Owner") or {}).get("Name"),
+                "WhoId": t.get("WhoId"),
+                "WhoName": (t.get("Who") or {}).get("Name"),
+                "WhatId": t.get("WhatId"),
+                "WhatName": (t.get("What") or {}).get("Name"),
+                "Type": t.get("Type"),
+                "TaskSubtype": t.get("TaskSubtype"),
+                "CreatedById": t.get("CreatedById"),
+                "CreatedByName": (t.get("CreatedBy") or {}).get("Name"),
+                "CreatedDate": t.get("CreatedDate"),
+                "LastModifiedDate": t.get("LastModifiedDate"),
+            })
+
+        response = ApiResponse(success=True, data=formatted, meta={"count": len(formatted)})
+        cache.set(cache_key, response, ttl_seconds=60)
+        return response
+    except Exception as e:
+        logger.error(f"Error fetching contact tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1789,6 +1934,8 @@ async def create_account_task(
         task_id = result.get("id") or result.get("Id")
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
+        cache.invalidate_prefix("contact-tasks:")
+        cache.invalidate_prefix("user-tasks:")
 
         verify = await _verify_and_recover_task_fields(salesforce, task_id, fields)
         return ApiResponse(
@@ -1840,6 +1987,8 @@ async def update_task(
         await salesforce.update_record("Task", task_id, fields)
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
+        cache.invalidate_prefix("contact-tasks:")
+        cache.invalidate_prefix("user-tasks:")
 
         verify = await _verify_and_recover_task_fields(salesforce, task_id, fields)
         return ApiResponse(
@@ -1875,6 +2024,8 @@ async def delete_task(
         await salesforce.delete_record("Task", task_id)
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
+        cache.invalidate_prefix("contact-tasks:")
+        cache.invalidate_prefix("user-tasks:")
         return ApiResponse(success=True, data={"message": "Task deleted"})
     except HTTPException:
         raise
@@ -1943,6 +2094,8 @@ async def duplicate_task(
         new_id = new_task.get("id") or new_task.get("Id")
         cache.invalidate_prefix("my-tasks:")
         cache.invalidate_prefix("account-tasks:")
+        cache.invalidate_prefix("contact-tasks:")
+        cache.invalidate_prefix("user-tasks:")
         return ApiResponse(success=True, data={"id": new_id, "message": "Task duplicated"})
     except HTTPException:
         raise

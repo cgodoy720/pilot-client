@@ -348,7 +348,7 @@ interface InlineDateProps {
    *   - "short" → "May 4" — used in dense table rows / task lists
    *
    * Defaults to "long" so detail-page callers get the year for free
-   * without opting in. Compact callers (TaskExpandPanel, opp pipeline
+   * without opting in. Compact callers (TaskListTab, opp pipeline
    * row, etc.) opt into "short" explicitly.
    */
   variant?: "long" | "short";

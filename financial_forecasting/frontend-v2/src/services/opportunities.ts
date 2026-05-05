@@ -82,6 +82,33 @@ export interface StageHistoryEntry {
   created_date: string | null;
 }
 
+/** Org-wide stage-history row for the pipeline funnel. */
+export interface FunnelStageChange {
+  OpportunityId: string;
+  OpportunityName: string | null;
+  Amount: number;
+  CurrentStage: string | null;
+  OwnerId: string | null;
+  OldValue: string | null;
+  NewValue: string | null;
+  CreatedDate: string;
+}
+
+/** All StageName changes in the last N days, across every opp. Drives
+ *  the org-wide funnel's movement counts. Backend caches per-day key. */
+export function useStageHistory(days: number = 30) {
+  return useQuery({
+    queryKey: ["stage-history", days],
+    queryFn: async () => {
+      const { data } = await api.get<FunnelStageChange[]>(
+        `/api/salesforce/opportunities/stage-history?days=${days}`,
+      );
+      return data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 /** Full stage-transition history for one opp, oldest-first. Drives the
  *  StageProgression bar on the opp detail page. SF retains
  *  OpportunityFieldHistory for ~18 months; older opps may have a
@@ -296,7 +323,12 @@ export function useCreateTask() {
 
 /** Cache-key prefixes that may hold a task list — used by useUpdateTask
  *  to broadcast optimistic edits across every list that contains the row. */
-const TASK_LIST_PREFIXES = ["opportunity-tasks", "account-tasks"] as const;
+const TASK_LIST_PREFIXES = [
+  "opportunity-tasks",
+  "account-tasks",
+  "contact-tasks",
+  "user-tasks",
+] as const;
 
 function applyTaskPatch(t: SfTask, patch: TaskUpdateBody): SfTask {
   // IsClosed is SF-computed. When Status is patched, derive locally so
@@ -431,6 +463,40 @@ export function useAccountTasks(accountId: string | undefined) {
     queryFn: () => fetchAccountTasks(accountId!),
     staleTime: 60_000,
     enabled: !!accountId,
+  });
+}
+
+async function fetchContactTasks(contactId: string): Promise<SfTask[]> {
+  const { data } = await api.get<TasksResponse>(
+    `/api/salesforce/contacts/${encodeURIComponent(contactId)}/tasks`,
+  );
+  return data.data ?? [];
+}
+
+/** Tasks where SF Task.WhoId points at this contact. */
+export function useContactTasks(contactId: string | undefined) {
+  return useQuery({
+    queryKey: ["contact-tasks", contactId],
+    queryFn: () => fetchContactTasks(contactId!),
+    staleTime: 60_000,
+    enabled: !!contactId,
+  });
+}
+
+async function fetchUserTasks(ownerId: string): Promise<SfTask[]> {
+  const { data } = await api.get<TasksResponse>(
+    `/api/salesforce/users/${encodeURIComponent(ownerId)}/tasks`,
+  );
+  return data.data ?? [];
+}
+
+/** Open tasks owned by a Salesforce user (Task.OwnerId). */
+export function useUserTasks(ownerId: string | undefined) {
+  return useQuery({
+    queryKey: ["user-tasks", ownerId],
+    queryFn: () => fetchUserTasks(ownerId!),
+    staleTime: 60_000,
+    enabled: !!ownerId,
   });
 }
 

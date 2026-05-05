@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight, Plus, Search, Sparkles, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import { AccountExpandPanel, ACCOUNT_PANEL_HEIGHT } from "@/components/AccountExpandPanel";
 import { PageHeader } from "@/components/PageHeader";
-import { TaskExpandPanel, TASK_PANEL_HEIGHT } from "@/components/TaskExpandPanel";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
 import { InlineSelect } from "@/components/ui/InlineEdit";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
@@ -22,6 +22,14 @@ import { fmtMoney } from "@/lib/format";
 import { sortBy, useSort } from "@/lib/sort";
 import { cn } from "@/lib/utils";
 import { AccountAvatar } from "@/components/AccountAvatar";
+import {
+  AddFilterButton,
+  FilterChip,
+  type FieldMeta,
+  type FilterRule,
+  describeRule,
+  ruleApplies,
+} from "@/pages/cleanup/Filters";
 import {
   useAccounts,
   useAccountsEnrichment,
@@ -46,6 +54,52 @@ function matchesType(account: SfAccount, filter: TypeFilter): boolean {
   return true;
 }
 
+
+// ── Chip filter model ────────────────────────────────────────────────────
+//
+// Mirrors the Cleanup tabs' filter rig so the same operator catalog,
+// chip rendering, and saved-view payload work here. Native fields
+// (Owner, Type, Tier, Industry, State, flags, last activity) are in
+// the static base; computed metrics (open pipeline, won, received,
+// outstanding) join in via useMemo so they can read the metrics map.
+
+const ACCOUNTS_FILTERABLE_BASE = {
+  name: { label: "Name", type: "text", getValue: (a: SfAccount) => a.Name ?? "" },
+  owner: { label: "Owner", type: "select", getValue: (a: SfAccount) => a.OwnerId ?? "" },
+  type: { label: "Type", type: "select", getValue: (a: SfAccount) => a.Type ?? "" },
+  tier: { label: "Tier", type: "select", getValue: (a: SfAccount) => a.Account_Tier__c ?? "" },
+  industry: { label: "Industry", type: "text", getValue: (a: SfAccount) => a.Industry ?? "" },
+  state: { label: "State", type: "text", getValue: (a: SfAccount) => a.BillingState ?? "" },
+  philanthropy: {
+    label: "Philanthropy",
+    type: "select",
+    getValue: (a: SfAccount) => (a.Philanthropy__c ? "Yes" : "No"),
+  },
+  active: {
+    label: "Active",
+    type: "select",
+    getValue: (a: SfAccount) => (a.Active__c ? "Yes" : "No"),
+  },
+  lastActivity: {
+    label: "Last activity",
+    type: "date",
+    getValue: (a: SfAccount) => a.Last_Activity_Date__c ?? null,
+  },
+} satisfies Record<string, FieldMeta<SfAccount>>;
+
+type AccountField =
+  | keyof typeof ACCOUNTS_FILTERABLE_BASE
+  | "openPipeline"
+  | "amountWon"
+  | "received"
+  | "outstanding";
+
+interface AccountsSavedView {
+  filter?: TypeFilter;
+  rules?: FilterRule<AccountField>[];
+  visibleCols?: ColKey[];
+  widths?: Partial<Record<ColKey, number>>;
+}
 
 type ColKey = "name" | "owner" | "openPipeline" | "amountWon" | "received" | "outstanding";
 
@@ -110,19 +164,18 @@ export function AccountsPage() {
 
   const [filter, setFilter] = useState<TypeFilter>("All");
   const [q, setQ] = useState("");
+  const [rules, setRules] = useState<FilterRule<AccountField>[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
-    "bedrock-v2:vis:accounts",
-    COLUMN_ORDER,
-  );
+  const { visible: visibleCols, toggle: toggleCol, replaceAll: replaceVisibleCols } =
+    useColumnVisibility("bedrock-v2:vis:accounts", COLUMN_ORDER);
 
   const { sort, toggle } = useSort<ColKey>({
     key: "openPipeline",
     direction: "desc",
   });
-  const { widths, startResize } = useColumnWidths<ColKey>(
+  const { widths, startResize, replaceAll: replaceWidths } = useColumnWidths<ColKey>(
     "bedrock-v2:cols:accounts",
     DEFAULT_WIDTHS,
   );
@@ -138,18 +191,103 @@ export function AccountsPage() {
   const enrichmentQ = useAccountsEnrichment(accountIds);
   const enrichment = enrichmentQ.data ?? {};
 
+  // Filterable extends the static base with metric fields that need
+  // metricsByAccount to resolve. Re-built only when the metrics map
+  // identity changes — cheap.
+  const filterable = useMemo(
+    () => ({
+      ...ACCOUNTS_FILTERABLE_BASE,
+      openPipeline: {
+        label: "Open pipeline",
+        type: "number",
+        getValue: (a: SfAccount) =>
+          metricsByAccount.get(a.Id)?.openPipeline ?? 0,
+      },
+      amountWon: {
+        label: "Amount won",
+        type: "number",
+        getValue: (a: SfAccount) =>
+          metricsByAccount.get(a.Id)?.amountWon ?? 0,
+      },
+      received: {
+        label: "Received",
+        type: "number",
+        getValue: (a: SfAccount) =>
+          metricsByAccount.get(a.Id)?.received ?? 0,
+      },
+      outstanding: {
+        label: "Outstanding",
+        type: "number",
+        getValue: (a: SfAccount) =>
+          metricsByAccount.get(a.Id)?.outstanding ?? 0,
+      },
+    }) as Record<AccountField, FieldMeta<SfAccount>>,
+    [metricsByAccount],
+  );
+
+  // Chip-filter facets — owners include inactive users so historical
+  // owners still appear; type/tier/industry/state are discovered from
+  // the accounts actually loaded.
+  const chipFacets = useMemo(() => {
+    const activeIds = new Set((usersQ.data ?? []).map((u) => u.Id));
+    const owners = new Map<string, string>();
+    const types = new Set<string>();
+    const tiers = new Set<string>();
+    for (const a of accounts) {
+      if (a.OwnerId && a.Owner?.Name && !owners.has(a.OwnerId)) {
+        owners.set(a.OwnerId, a.Owner.Name);
+      }
+      if (a.Type) types.add(a.Type);
+      if (a.Account_Tier__c) tiers.add(a.Account_Tier__c);
+    }
+    const yesNo = [
+      { value: "Yes", label: "Yes" },
+      { value: "No", label: "No" },
+    ];
+    return {
+      owner: Array.from(owners.entries())
+        .map(([id, name]) => ({
+          value: id,
+          label: activeIds.has(id) ? name : `${name} (inactive)`,
+        }))
+        .sort((x, y) => x.label.localeCompare(y.label)),
+      type: Array.from(types).sort().map((v) => ({ value: v, label: v })),
+      tier: Array.from(tiers).sort().map((v) => ({ value: v, label: v })),
+      philanthropy: yesNo,
+      active: yesNo,
+    };
+  }, [accounts, usersQ.data]);
+
+  const ownerLabelLookup = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of usersQ.data ?? []) m.set(u.Id, u.Name);
+    for (const a of accounts) {
+      if (a.OwnerId && !m.has(a.OwnerId) && a.Owner?.Name) {
+        m.set(a.OwnerId, a.Owner.Name);
+      }
+    }
+    return (id: string) => m.get(id) ?? id;
+  }, [usersQ.data, accounts]);
+
   const filtered = useMemo(() => {
-    const f = accounts.filter(
-      (a) =>
-        matchesType(a, filter) &&
-        (!q ||
-          (a.Name ?? "").toLowerCase().includes(q.toLowerCase()) ||
-          (a.Owner?.Name ?? "").toLowerCase().includes(q.toLowerCase())),
-    );
+    const needle = q.toLowerCase();
+    const f = accounts.filter((a) => {
+      if (!matchesType(a, filter)) return false;
+      if (q) {
+        const hit =
+          (a.Name ?? "").toLowerCase().includes(needle) ||
+          (a.Owner?.Name ?? "").toLowerCase().includes(needle);
+        if (!hit) return false;
+      }
+      for (const r of rules) {
+        if (!ruleApplies(a, r, filterable)) return false;
+      }
+      return true;
+    });
     return sortBy(f, sort, (a, key) =>
       extractAccount(a, metricsByAccount.get(a.Id) ?? ZERO_METRICS, key),
     );
-  }, [accounts, filter, q, sort, metricsByAccount]);
+  }, [accounts, filter, q, rules, filterable, sort, metricsByAccount]);
 
   const totals = useMemo(
     () =>
@@ -205,7 +343,7 @@ export function AccountsPage() {
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: (i) =>
-      filtered[i]?.Id === expandedId ? ROW_HEIGHT + TASK_PANEL_HEIGHT : ROW_HEIGHT,
+      filtered[i]?.Id === expandedId ? ROW_HEIGHT + ACCOUNT_PANEL_HEIGHT : ROW_HEIGHT,
     overscan: 8,
   });
   useEffect(() => { virtualizer.measure(); }, [expandedId, virtualizer]);
@@ -247,32 +385,78 @@ export function AccountsPage() {
         />
         <div className="relative">
           <Search
-            size={13}
+            size={12}
+            aria-hidden="true"
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
           />
           <input
-            placeholder="Search by name or owner"
+            placeholder="Search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
+            className="h-7 w-56 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] font-medium text-ink-2 outline-none placeholder:font-normal placeholder:text-ink-3 focus:border-accent focus:text-ink"
           />
         </div>
-        <span className="ml-auto text-[11.5px] text-ink-3">
-          {filtered.length.toLocaleString()} of {accounts.length.toLocaleString()}
-        </span>
-        <SavedViewsPicker
-          scopeKey="accounts"
-          currentFilters={{ filter }}
-          onLoad={(v) => setFilter(v.filter)}
+        <AddFilterButton<AccountField>
+          filterable={filterable as Record<AccountField, FieldMeta<unknown>>}
+          selectOptions={{
+            owner: chipFacets.owner,
+            type: chipFacets.type,
+            tier: chipFacets.tier,
+            philanthropy: chipFacets.philanthropy,
+            active: chipFacets.active,
+          }}
+          onAdd={(r) => setRules((prev) => [...prev, r])}
+          buttonLabel="Filter"
         />
-        <ColumnChooser
-          allColumns={COLUMN_ORDER}
-          labels={COL_LABELS}
-          visible={visibleCols}
-          required={["name"]}
-          onToggle={toggleCol}
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <ColumnChooser
+            allColumns={COLUMN_ORDER}
+            labels={COL_LABELS}
+            visible={visibleCols}
+            required={["name"]}
+            onToggle={toggleCol}
+          />
+          <SavedViewsPicker<AccountsSavedView>
+            scopeKey="accounts"
+            currentFilters={{ filter, rules, visibleCols, widths }}
+            onLoad={(v) => {
+              setFilter(v.filter ?? "All");
+              setRules(v.rules ?? []);
+              if (v.visibleCols && v.visibleCols.length > 0) {
+                replaceVisibleCols(v.visibleCols);
+              }
+              if (v.widths && Object.keys(v.widths).length > 0) {
+                replaceWidths(v.widths);
+              }
+            }}
+          />
+        </div>
       </Toolbar>
+
+      {/* Active filter chips. Border-attached strip — toolbar above
+          (border-b-0) and table below (top border) sandwich it into
+          one continuous card. px-3 matches the toolbar so the first
+          chip aligns with the type pill above. */}
+      {rules.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5 border-x border-t border-border-strong bg-surface px-3 py-2">
+          {rules.map((r) => (
+            <FilterChip
+              key={r.id}
+              label={describeRule(r, filterable, (field, v) =>
+                field === "owner" ? ownerLabelLookup(v) : v,
+              )}
+              onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => setRules([])}
+            className="ml-1 whitespace-nowrap text-[11.5px] font-medium text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
 
       {/*
         Single scroll container. Header is sticky, body is virtualized via
@@ -363,7 +547,7 @@ export function AccountsPage() {
                       {isExpanded ? (
                         <tr>
                           <td colSpan={visibleCols.length} className="p-0">
-                            <TaskExpandPanel scope={{ type: "account", accountId: a.Id }} />
+                            <AccountExpandPanel accountId={a.Id} />
                           </td>
                         </tr>
                       ) : null}

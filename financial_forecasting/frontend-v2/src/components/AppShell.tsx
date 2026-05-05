@@ -6,7 +6,6 @@ import {
   GitBranch,
   Trophy,
   FolderOpen,
-  CheckSquare,
   Users,
   Search,
   Sparkles,
@@ -21,12 +20,18 @@ import { useCurrentUser, useSalesforceStatus } from "@/services/auth";
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/accounts", label: "Accounts", icon: Building2 },
+  { to: "/contacts", label: "Contacts", icon: Users },
   { to: "/pipeline", label: "Pipeline", icon: GitBranch },
-  { to: "/cleanup", label: "Cleanup", icon: Sparkles },
   { to: "/awards", label: "Awards", icon: Trophy },
   { to: "/projects", label: "Projects", icon: FolderOpen },
-  { to: "/tasks", label: "Tasks", icon: CheckSquare },
-  { to: "/contacts", label: "Contacts", icon: Users },
+  { to: "/cleanup", label: "Cleanup", icon: Sparkles },
+  // Tasks page hidden 2026-05-04 — pending a Salesforce data-hygiene
+  // pass to close the years-old open-task backlog. Tasks remain
+  // visible on the per-record expand panels and detail pages, where
+  // scoping makes the noise tractable. To restore the global page,
+  // re-add `{ to: "/tasks", label: "Tasks", icon: CheckSquare }` and
+  // re-import CheckSquare from lucide-react. Route at App.tsx is
+  // still wired so direct URLs continue to work.
 ] as const;
 
 const NAV_COLLAPSED_W = 52;
@@ -85,11 +90,13 @@ function Sidebar({
         collapsed ? "p-2" : "p-3",
       )}
     >
-      {/* Logo / wordmark */}
+      {/* Logo / wordmark — toggle lives in this row, anchored to the
+          right edge when expanded and stacked under the logo when
+          collapsed (so it can't overlap the user avatar at bottom). */}
       <div
         className={cn(
           "flex items-center gap-2 px-1 py-3",
-          collapsed && "justify-center px-0",
+          collapsed && "flex-col gap-2 px-0",
         )}
       >
         <div className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-md bg-ink text-[13px] font-bold tracking-tight text-surface">
@@ -101,6 +108,17 @@ function Sidebar({
             <span className="text-[11px] text-ink-3">Pursuit · Workspace</span>
           </div>
         )}
+        <button
+          onClick={onToggle}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={cn(
+            "grid h-6 w-6 flex-shrink-0 place-items-center rounded-md text-ink-3 hover:bg-black/[0.05] hover:text-ink",
+            !collapsed && "ml-auto",
+          )}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+        </button>
       </div>
 
       {/* Search — hidden when collapsed */}
@@ -224,17 +242,6 @@ function Sidebar({
         )}
       </div>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={onToggle}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className={cn(
-          "absolute bottom-4 flex h-5 w-5 items-center justify-center rounded-full border border-border-strong bg-surface text-ink-3 shadow-sm hover:bg-surface-2 hover:text-ink",
-          collapsed ? "left-1/2 -translate-x-1/2" : "right-2",
-        )}
-      >
-        {collapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
-      </button>
     </aside>
   );
 }

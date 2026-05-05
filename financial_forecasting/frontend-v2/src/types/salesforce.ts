@@ -230,7 +230,7 @@ export interface BedrockActivity {
   account_id?: string | null;
   contact_ids?: string[] | null;
   award_id?: string | null;
-  owner_email?: string | null;
+  owner_id?: string | null;
   /** Meeting metadata for type=meeting / calendar-event rows. */
   meeting_duration_minutes?: number | null;
   meeting_location?: string | null;

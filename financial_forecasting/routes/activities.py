@@ -574,6 +574,8 @@ async def list_activities(
     opportunity_id: Optional[str] = None,
     account_id: Optional[str] = None,
     contact_id: Optional[str] = None,
+    owner_email: Optional[str] = None,
+    owner_id: Optional[str] = None,
     type: Optional[str] = None,
     source: Optional[str] = None,
     start_date: Optional[str] = None,
@@ -600,6 +602,10 @@ async def list_activities(
         if contact_id:
             where_parts.append(f"${idx} = ANY(contact_ids)")
             params.append(contact_id)
+            idx += 1
+        if owner_id:
+            where_parts.append(f"owner_id = ${idx}")
+            params.append(owner_id)
             idx += 1
         if type:
             where_parts.append(f"type = ${idx}")

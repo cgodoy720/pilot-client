@@ -4,8 +4,8 @@ import { ChevronDown, ChevronRight, Plus, Search, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { OpportunityExpandPanel, OPP_PANEL_HEIGHT } from "@/components/OpportunityExpandPanel";
 import { PageHeader } from "@/components/PageHeader";
-import { TaskExpandPanel, TASK_PANEL_HEIGHT } from "@/components/TaskExpandPanel";
 import { ColumnChooser } from "@/components/ui/ColumnChooser";
 import { InlineDate, InlineSelect, InlineText } from "@/components/ui/InlineEdit";
 import { ColGroup, ResizableTh } from "@/components/ui/ResizableTable";
@@ -382,7 +382,7 @@ export function PipelinePage() {
     count: filtered.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: (i) =>
-      filtered[i]?.Id === expandedId ? ROW_HEIGHT + TASK_PANEL_HEIGHT : ROW_HEIGHT,
+      filtered[i]?.Id === expandedId ? ROW_HEIGHT + OPP_PANEL_HEIGHT : ROW_HEIGHT,
     overscan: 8,
   });
   useEffect(() => { virtualizer.measure(); }, [expandedId, virtualizer]);
@@ -503,9 +503,13 @@ export function PipelinePage() {
         </div>
       </Toolbar>
 
-      {/* Row 2 — active filter chips, only rendered when present. */}
+      {/* Row 2 — active filter chips. Sits flush against the toolbar
+          above and the table below, sharing the same border so the
+          three rows read as one continuous card. Horizontal padding
+          matches the toolbar's px-3 so the first chip's left edge
+          aligns with the "Open" pill directly above it. */}
       {rules.length > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 border-x border-t border-border-strong bg-surface px-3 py-2">
           {rules.map((r) => (
             <FilterChip
               key={r.id}
@@ -518,7 +522,7 @@ export function PipelinePage() {
           <button
             type="button"
             onClick={() => setRules([])}
-            className="ml-1 whitespace-nowrap text-[11.5px] text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
+            className="ml-1 whitespace-nowrap text-[11.5px] font-medium text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
           >
             Clear all
           </button>
@@ -621,7 +625,7 @@ export function PipelinePage() {
                       {isExpanded ? (
                         <tr>
                           <td colSpan={visibleCols.length} className="p-0">
-                            <TaskExpandPanel scope={{ type: "opportunity", opportunityId: o.Id }} />
+                            <OpportunityExpandPanel opportunityId={o.Id} />
                           </td>
                         </tr>
                       ) : null}

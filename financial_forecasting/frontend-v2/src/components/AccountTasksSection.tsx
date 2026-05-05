@@ -375,12 +375,11 @@ function TaskRow({
             )}
           />
         </div>
-        <div className="w-[110px] flex-shrink-0">
+        <div className="w-[130px] flex-shrink-0">
           <InlineDate
             value={t.ActivityDate}
             onSave={onSaveDate}
             align="right"
-            variant="short"
             placeholder="—"
           />
         </div>

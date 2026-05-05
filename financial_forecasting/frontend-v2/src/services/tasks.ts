@@ -38,10 +38,18 @@ async function fetchMyTasks(
     if (start) params.set("start", start);
     if (end) params.set("end", end);
     const qs = params.toString();
-    const { data } = await api.get<SfMyTask[]>(
-      qs ? `/api/salesforce/my-tasks?${qs}` : "/api/salesforce/my-tasks",
-    );
-    return data ?? [];
+    // Endpoint shape varies: when SF isn't connected the backend
+    // returns a raw `[]`; when connected it wraps in an ApiResponse
+    // envelope `{ success, data: [...], meta }`. Handle both so this
+    // hook stays a safe `SfMyTask[]` for the caller.
+    const { data } = await api.get<
+      SfMyTask[] | { data?: SfMyTask[] | null }
+    >(qs ? `/api/salesforce/my-tasks?${qs}` : "/api/salesforce/my-tasks");
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object" && Array.isArray(data.data)) {
+      return data.data;
+    }
+    return [];
   } catch {
     // SF not connected, no my-tasks, or backend error — fall back to
     // an empty list so the unified Tasks page still renders project
