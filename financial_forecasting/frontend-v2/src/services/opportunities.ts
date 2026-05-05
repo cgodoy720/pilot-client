@@ -542,6 +542,10 @@ export function useCreateAccountTask() {
  * Stage transition — uses POST /api/opportunities/update-stage so the
  * server-side validation runs and the awards auto-create handler fires
  * on closed-won transitions.
+ *
+ * Optimistic update: immediately patch StageName in every opportunities
+ * cache entry so the detail page reflects the new stage without waiting
+ * for a refetch. Rolls back on error.
  */
 export function useUpdateOpportunityStage() {
   const qc = useQueryClient();
@@ -558,6 +562,23 @@ export function useUpdateOpportunityStage() {
         new_stage: newStage,
       });
       return data;
+    },
+    onMutate: async ({ id, newStage }) => {
+      await qc.cancelQueries({ queryKey: ["opportunities"] });
+      const snapshots = qc
+        .getQueriesData<SfOpportunity[]>({ queryKey: ["opportunities"] })
+        .map(([key, data]) => ({ key, data }));
+      qc.setQueriesData<SfOpportunity[]>({ queryKey: ["opportunities"] }, (old) =>
+        old?.map((o) =>
+          o.Id === id ? { ...o, StageName: newStage } : o,
+        ),
+      );
+      return { snapshots };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.snapshots.forEach(({ key, data }) => {
+        qc.setQueryData(key, data);
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["opportunities"] });

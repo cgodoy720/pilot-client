@@ -172,7 +172,7 @@ export function OpportunityDetailPage() {
               onSave={(v) =>
                 updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
               }
-              renderValue={() => <StageChip stage={opp.StageName} status={stageStatus(opp)} />}
+              renderValue={(v) => <StageChip stage={v ?? opp.StageName} status={stageStatus({ ...opp, StageName: v ?? opp.StageName })} />}
             />
             {opp.RecordType?.Name ? <Tag>{opp.RecordType.Name}</Tag> : null}
             {opp.AccountId ? (
@@ -322,7 +322,7 @@ export function OpportunityDetailPage() {
               onSave={(v) =>
                 updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
               }
-              renderValue={() => <StageChip stage={opp.StageName} status={stageStatus(opp)} />}
+              renderValue={(v) => <StageChip stage={v ?? opp.StageName} status={stageStatus({ ...opp, StageName: v ?? opp.StageName })} />}
             />
           </EditField>
         </div>
