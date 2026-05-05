@@ -719,7 +719,7 @@ function PathfinderNetworking() {
 
         {/* Add/Edit Form Modal */}
         <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
-          <DialogContent className="max-w-[1200px] p-0 flex flex-col max-h-[90vh] overflow-hidden">
+          <DialogContent className="max-w-2xl w-[calc(100vw-6rem)] p-0 flex flex-col max-h-[90vh] overflow-hidden">
             <DialogHeader className="flex flex-row justify-between items-center p-6 border-b-2 border-[#e0e0e0] flex-shrink-0">
               <DialogTitle className="m-0 text-[#1a1a1a] text-2xl font-semibold">
                 {isEditing ? 'Edit Activity' : 'Add New Activity'}
@@ -756,8 +756,8 @@ function PathfinderNetworking() {
               </div>
             </DialogHeader>
             
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] flex-1 min-h-0">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+              <div className="grid grid-cols-1 flex-1 min-h-0">
                 {/* Left Panel - URL Quick Add */}
                 <Card className="rounded-none border-none shadow-none bg-[#f9f9f9] border-r-2 border-[#e0e0e0] p-6 flex flex-col flex-shrink-0">
                   <CardContent className="p-0">
