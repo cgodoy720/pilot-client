@@ -57,7 +57,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         maxAge: 24 * 60 * 60 * 1000,
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <App />
       </BrowserRouter>
     </PersistQueryClientProvider>
