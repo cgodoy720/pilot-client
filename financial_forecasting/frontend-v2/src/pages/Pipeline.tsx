@@ -44,13 +44,17 @@ import { usePerm } from "@/services/permissions";
 import { useActiveUsers } from "@/services/users";
 import type { SfOpportunity } from "@/types/salesforce";
 
+// Three-pill scope toggle. "All" was dropped per JR — when no scope
+// pill is active the user can use chip filters or search instead, and
+// the union of Open/Won/Lost equals every opp anyway. We keep "all" as
+// a valid Scope union value so older saved views and the inScope()
+// helper still work; just no UI pill maps to it.
 const SCOPES = [
   { value: "open", label: "Open" },
   { value: "won", label: "Won" },
   { value: "lost", label: "Lost" },
-  { value: "all", label: "All" },
 ] as const;
-type Scope = (typeof SCOPES)[number]["value"];
+type Scope = "open" | "won" | "lost" | "all";
 
 const RECORD_TYPES = [
   { value: "All", label: "All" },
@@ -414,8 +418,10 @@ export function PipelinePage() {
         onStageClick={(s) => setStageFilter((cur) => (cur === s ? null : s))}
       />
 
-      {/* Row 1 — primary scope pills + record-type pills + count.
-          Save / load / column-chooser sit at the right edge. */}
+      {/* Row 1 — scope pills + record-type pills, with Columns and
+          Views right-aligned. Count display dropped (the table itself
+          is the row count); "All" scope dropped (chip filters or
+          searching cover that case more flexibly). */}
       <Toolbar className="mt-4">
         <ButtonGroup
           value={scope}
@@ -438,44 +444,42 @@ export function PipelinePage() {
             <X size={11} />
           </button>
         ) : null}
-        <span className="ml-auto whitespace-nowrap text-[11.5px] text-ink-3">
-          {filtered.length.toLocaleString()} of {opps.length.toLocaleString()}
-        </span>
-        <SavedViewsPicker<PipelineSavedView>
-          scopeKey="pipeline"
-          currentFilters={{
-            scope,
-            recordType,
-            rules,
-            visibleCols,
-            widths,
-          }}
-          onLoad={(v) => {
-            // Tolerate older saved views that pre-date the rules /
-            // visibleCols / widths fields by defaulting to current.
-            setScope(v.scope ?? "open");
-            setRecordType(v.recordType ?? "All");
-            setRules(v.rules ?? []);
-            setStageFilter(null);
-            if (v.visibleCols && v.visibleCols.length > 0) {
-              replaceVisibleCols(v.visibleCols);
-            }
-            if (v.widths && Object.keys(v.widths).length > 0) {
-              replaceWidths(v.widths);
-            }
-          }}
-        />
-        <ColumnChooser
-          allColumns={COLUMN_ORDER}
-          labels={COL_LABELS}
-          visible={visibleCols}
-          required={["name"]}
-          onToggle={toggleCol}
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <ColumnChooser
+            allColumns={COLUMN_ORDER}
+            labels={COL_LABELS}
+            visible={visibleCols}
+            required={["name"]}
+            onToggle={toggleCol}
+          />
+          <SavedViewsPicker<PipelineSavedView>
+            scopeKey="pipeline"
+            currentFilters={{
+              scope,
+              recordType,
+              rules,
+              visibleCols,
+              widths,
+            }}
+            onLoad={(v) => {
+              // Tolerate older saved views that pre-date the rules /
+              // visibleCols / widths fields by defaulting to current.
+              setScope(v.scope ?? "open");
+              setRecordType(v.recordType ?? "All");
+              setRules(v.rules ?? []);
+              setStageFilter(null);
+              if (v.visibleCols && v.visibleCols.length > 0) {
+                replaceVisibleCols(v.visibleCols);
+              }
+              if (v.widths && Object.keys(v.widths).length > 0) {
+                replaceWidths(v.widths);
+              }
+            }}
+          />
+        </div>
       </Toolbar>
 
-      {/* Row 2 — search + chip filter. Dedicated row so the Add-filter
-          button doesn't get squeezed and chip rendering has room. */}
+      {/* Row 2 — search + filter on the same row. */}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search
@@ -483,7 +487,7 @@ export function PipelinePage() {
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"
           />
           <input
-            placeholder="Search opps, accounts, owner"
+            placeholder="Search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
@@ -498,17 +502,23 @@ export function PipelinePage() {
             active: chipFacets.active,
           }}
           onAdd={(r) => setRules((prev) => [...prev, r])}
+          buttonLabel="Filter"
         />
-        {rules.map((r) => (
-          <FilterChip
-            key={r.id}
-            label={describeRule(r, PIPELINE_FILTERABLE, (field, v) =>
-              field === "owner" ? ownerLabelLookup(v) : v,
-            )}
-            onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
-          />
-        ))}
-        {rules.length > 0 ? (
+      </div>
+
+      {/* Row 3 — active filter chips, only rendered when present. Single
+          row that wraps if the user accumulates many filters. */}
+      {rules.length > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {rules.map((r) => (
+            <FilterChip
+              key={r.id}
+              label={describeRule(r, PIPELINE_FILTERABLE, (field, v) =>
+                field === "owner" ? ownerLabelLookup(v) : v,
+              )}
+              onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+            />
+          ))}
           <button
             type="button"
             onClick={() => setRules([])}
@@ -516,8 +526,8 @@ export function PipelinePage() {
           >
             Clear all
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {/*
         Single scroll container. Header is sticky, body is virtualized via

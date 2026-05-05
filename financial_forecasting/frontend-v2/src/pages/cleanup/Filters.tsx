@@ -173,12 +173,15 @@ export interface AddFilterButtonProps<F extends string> {
    *  number/date inputs. */
   selectOptions: Partial<Record<F, { value: string; label: string }[]>>;
   onAdd: (rule: FilterRule<F>) => void;
+  /** Override the trigger button text. Default: "Add filter". */
+  buttonLabel?: string;
 }
 
 export function AddFilterButton<F extends string>({
   filterable,
   selectOptions,
   onAdd,
+  buttonLabel = "Add filter",
 }: AddFilterButtonProps<F>) {
   const fieldKeys = useMemo(() => Object.keys(filterable) as F[], [filterable]);
   const [open, setOpen] = useState(false);
@@ -237,7 +240,7 @@ export function AddFilterButton<F extends string>({
         className="inline-flex h-7 flex-shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-strong bg-surface px-2 text-[12.5px] text-ink-2 hover:bg-surface-2"
       >
         <FilterIcon size={12} aria-hidden="true" />
-        <span>Add filter</span>
+        <span>{buttonLabel}</span>
         <ChevronDown size={12} aria-hidden="true" />
       </button>
 
