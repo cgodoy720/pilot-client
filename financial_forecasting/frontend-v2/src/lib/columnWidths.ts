@@ -70,7 +70,17 @@ export function useColumnWidths<K extends string>(
 
   const reset = useCallback(() => setWidths(defaults), [defaults]);
 
-  return { widths, startResize, reset };
+  /** Replace the widths wholesale — used when loading a saved view.
+   *  Falls back to the per-key default for any keys the saved value
+   *  doesn't cover (so adding a new column doesn't break old views). */
+  const replaceAll = useCallback(
+    (next: Partial<Record<K, number>>) => {
+      setWidths({ ...defaults, ...next });
+    },
+    [defaults],
+  );
+
+  return { widths, startResize, reset, replaceAll };
 }
 
 /**

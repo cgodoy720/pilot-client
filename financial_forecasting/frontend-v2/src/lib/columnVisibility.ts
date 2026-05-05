@@ -27,5 +27,14 @@ export function useColumnVisibility<K extends string>(
     });
   };
 
-  return { visible, toggle };
+  /** Replace the visible list wholesale — used by saved views.
+   *  Filters out unknown keys so a stale view won't poison the table. */
+  const replaceAll = (next: K[]) => {
+    const valid = next.filter((k) => allColumns.includes(k));
+    if (valid.length === 0) return;
+    setVisible(valid);
+    try { localStorage.setItem(storageKey, JSON.stringify(valid)); } catch {}
+  };
+
+  return { visible, toggle, replaceAll };
 }

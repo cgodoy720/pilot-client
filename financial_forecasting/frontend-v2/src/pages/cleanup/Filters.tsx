@@ -234,11 +234,11 @@ export function AddFilterButton<F extends string>({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-7 items-center gap-1 rounded border border-border-strong bg-surface px-2 text-[12.5px] text-ink-2 hover:bg-surface-2"
+        className="inline-flex h-7 flex-shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-strong bg-surface px-2 text-[12.5px] text-ink-2 hover:bg-surface-2"
       >
-        <FilterIcon size={12} />
+        <FilterIcon size={12} aria-hidden="true" />
         <span>Add filter</span>
-        <ChevronDown size={12} />
+        <ChevronDown size={12} aria-hidden="true" />
       </button>
 
       {open ? (

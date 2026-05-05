@@ -2,7 +2,8 @@
 
 Backed by `bedrock.saved_view`. The `filters` payload is opaque JSONB —
 the frontend serializes a per-page filter shape into it (chip rules,
-search query, sort, scope) and re-applies on load.
+search query, sort, scope, column visibility, column widths) and
+re-applies on load.
 
 Visibility rules:
   - A user sees their own saved views (owner_email matches their JWT email)
@@ -19,6 +20,7 @@ Endpoints:
 """
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Optional
 
@@ -53,6 +55,16 @@ def _serialize(row: dict[str, Any]) -> dict[str, Any]:
         out["created_at"] = out["created_at"].isoformat()
     if out.get("updated_at") is not None:
         out["updated_at"] = out["updated_at"].isoformat()
+    # asyncpg returns JSONB columns as strings by default. Parse to a
+    # dict before sending so the frontend doesn't have to JSON.parse
+    # `view.filters` itself — and so `useSavedViews<F>()` callers can
+    # treat the field as the typed shape, not `string`.
+    f = out.get("filters")
+    if isinstance(f, str):
+        try:
+            out["filters"] = json.loads(f)
+        except json.JSONDecodeError:
+            out["filters"] = {}
     return out
 
 
@@ -116,7 +128,7 @@ async def create_saved_view(
         owner_email,
         body.is_global,
         # asyncpg auto-encodes dicts to JSON via the ::jsonb cast.
-        __import__("json").dumps(body.filters),
+        json.dumps(body.filters),
     )
     return _serialize(dict(row))
 
@@ -157,7 +169,7 @@ async def update_saved_view(
         args.append(body.name)
         sets.append(f"name = ${len(args)}")
     if body.filters is not None:
-        args.append(__import__("json").dumps(body.filters))
+        args.append(json.dumps(body.filters))
         sets.append(f"filters = ${len(args)}::jsonb")
     if body.is_global is not None:
         args.append(body.is_global)

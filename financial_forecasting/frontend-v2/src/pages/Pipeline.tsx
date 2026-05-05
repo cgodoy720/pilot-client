@@ -93,12 +93,19 @@ const PIPELINE_FILTERABLE = {
 type PipelineField = keyof typeof PIPELINE_FILTERABLE;
 
 /** Persisted shape stored in `bedrock.saved_view.filters` for the
- *  Pipeline page. Older saved views from before chip-rules existed
- *  may be missing `rules` — the loader tolerates that. */
+ *  Pipeline page. Each field is optional — the loader gracefully
+ *  defaults missing values, so older saved views (pre-rules,
+ *  pre-columns) still load cleanly. */
 interface PipelineSavedView {
   scope?: Scope;
   recordType?: RecordType;
   rules?: FilterRule<PipelineField>[];
+  /** Visible column keys, in display order. */
+  visibleCols?: ColKey[];
+  /** Per-column pixel widths. Keys not in the map fall back to the
+   *  page-level DEFAULT_WIDTHS, so adding a new column doesn't
+   *  break previously-saved views. */
+  widths?: Partial<Record<ColKey, number>>;
 }
 
 // NextStep was dropped — Pursuit uses Tasks as the system of record
@@ -179,13 +186,11 @@ export function PipelinePage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const canEdit = usePerm("edit_all_opportunities");
 
-  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
-    "bedrock-v2:vis:pipeline",
-    COLUMN_ORDER,
-  );
+  const { visible: visibleCols, toggle: toggleCol, replaceAll: replaceVisibleCols } =
+    useColumnVisibility("bedrock-v2:vis:pipeline", COLUMN_ORDER);
 
   const { sort, toggle } = useSort<ColKey>({ key: "close", direction: "asc" });
-  const { widths, startResize } = useColumnWidths<ColKey>(
+  const { widths, startResize, replaceAll: replaceWidths } = useColumnWidths<ColKey>(
     "bedrock-v2:cols:pipeline",
     DEFAULT_WIDTHS,
   );
@@ -409,6 +414,8 @@ export function PipelinePage() {
         onStageClick={(s) => setStageFilter((cur) => (cur === s ? null : s))}
       />
 
+      {/* Row 1 — primary scope pills + record-type pills + count.
+          Save / load / column-chooser sit at the right edge. */}
       <Toolbar className="mt-4">
         <ButtonGroup
           value={scope}
@@ -424,13 +431,52 @@ export function PipelinePage() {
           <button
             type="button"
             onClick={() => setStageFilter(null)}
-            className="inline-flex items-center gap-1 rounded border border-accent bg-accent/10 px-2 py-0.5 text-[11.5px] text-ink hover:bg-accent/20"
+            className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-accent bg-accent/10 px-2 py-0.5 text-[11.5px] text-ink hover:bg-accent/20"
             title="Clear stage filter"
           >
             Stage: {stageFilter}
             <X size={11} />
           </button>
         ) : null}
+        <span className="ml-auto whitespace-nowrap text-[11.5px] text-ink-3">
+          {filtered.length.toLocaleString()} of {opps.length.toLocaleString()}
+        </span>
+        <SavedViewsPicker<PipelineSavedView>
+          scopeKey="pipeline"
+          currentFilters={{
+            scope,
+            recordType,
+            rules,
+            visibleCols,
+            widths,
+          }}
+          onLoad={(v) => {
+            // Tolerate older saved views that pre-date the rules /
+            // visibleCols / widths fields by defaulting to current.
+            setScope(v.scope ?? "open");
+            setRecordType(v.recordType ?? "All");
+            setRules(v.rules ?? []);
+            setStageFilter(null);
+            if (v.visibleCols && v.visibleCols.length > 0) {
+              replaceVisibleCols(v.visibleCols);
+            }
+            if (v.widths && Object.keys(v.widths).length > 0) {
+              replaceWidths(v.widths);
+            }
+          }}
+        />
+        <ColumnChooser
+          allColumns={COLUMN_ORDER}
+          labels={COL_LABELS}
+          visible={visibleCols}
+          required={["name"]}
+          onToggle={toggleCol}
+        />
+      </Toolbar>
+
+      {/* Row 2 — search + chip filter. Dedicated row so the Add-filter
+          button doesn't get squeezed and chip rendering has room. */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search
             size={13}
@@ -440,7 +486,7 @@ export function PipelinePage() {
             placeholder="Search opps, accounts, owner"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="h-7 w-80 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
+            className="h-7 w-72 rounded border border-border-strong bg-surface pl-7 pr-3 text-[12.5px] text-ink outline-none focus:border-accent"
           />
         </div>
         <AddFilterButton<PipelineField>
@@ -453,49 +499,25 @@ export function PipelinePage() {
           }}
           onAdd={(r) => setRules((prev) => [...prev, r])}
         />
-        <span className="ml-auto text-[11.5px] text-ink-3">
-          {filtered.length.toLocaleString()} of {opps.length.toLocaleString()}
-        </span>
-        <SavedViewsPicker<PipelineSavedView>
-          scopeKey="pipeline"
-          currentFilters={{ scope, recordType, rules }}
-          onLoad={(v) => {
-            // Tolerate older saved views that pre-date the rules field.
-            setScope(v.scope ?? "open");
-            setRecordType(v.recordType ?? "All");
-            setRules(v.rules ?? []);
-            setStageFilter(null);
-          }}
-        />
-        <ColumnChooser
-          allColumns={COLUMN_ORDER}
-          labels={COL_LABELS}
-          visible={visibleCols}
-          required={["name"]}
-          onToggle={toggleCol}
-        />
-      </Toolbar>
-
-      {rules.length > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {rules.map((r) => (
-            <FilterChip
-              key={r.id}
-              label={describeRule(r, PIPELINE_FILTERABLE, (field, v) =>
-                field === "owner" ? ownerLabelLookup(v) : v,
-              )}
-              onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
-            />
-          ))}
+        {rules.map((r) => (
+          <FilterChip
+            key={r.id}
+            label={describeRule(r, PIPELINE_FILTERABLE, (field, v) =>
+              field === "owner" ? ownerLabelLookup(v) : v,
+            )}
+            onRemove={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+          />
+        ))}
+        {rules.length > 0 ? (
           <button
             type="button"
             onClick={() => setRules([])}
-            className="text-[11.5px] text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
+            className="ml-1 whitespace-nowrap text-[11.5px] text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline"
           >
             Clear all
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {/*
         Single scroll container. Header is sticky, body is virtualized via
