@@ -21,7 +21,7 @@ import { useAccountEnrichment, useAccounts, useUpdateAccount } from "@/services/
 import { useAccountFullActivities } from "@/services/activities";
 import { useContacts, useCreateContact, useUpdateContact } from "@/services/contacts";
 import { useAwards, type Award, type AwardStatus } from "@/services/awards";
-import { useCreateOpportunity, useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/services/opportunities";
+import { useCreateOpportunity, useOppRecordTypes, useOpportunities, useOpportunityPriorStages, type PriorStage } from "@/services/opportunities";
 import { useActiveUsers } from "@/services/users";
 import type { SfContact, SfOpportunity } from "@/types/salesforce";
 
@@ -1622,12 +1622,14 @@ function CreateOpportunityForAccountModal({
   onCreated: (id: string) => void;
 }) {
   const createOpp = useCreateOpportunity();
+  const { data: recordTypes = [] } = useOppRecordTypes();
   const [form, setForm] = useState({
     Name: "",
     StageName: "New Lead",
     CloseDate: "",
     Amount: "",
     OwnerId: "",
+    RecordTypeId: "",
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -1647,6 +1649,7 @@ function CreateOpportunityForAccountModal({
         AccountId: accountId,
         Amount: form.Amount ? Number(form.Amount.replace(/[^0-9.]/g, "")) : undefined,
         OwnerId: form.OwnerId || undefined,
+        RecordTypeId: form.RecordTypeId || undefined,
       });
       onCreated(result.id);
     } catch (err) {
@@ -1671,6 +1674,17 @@ function CreateOpportunityForAccountModal({
             <label className="text-[11.5px] font-medium text-ink-3">Name *</label>
             <input value={form.Name} onChange={set("Name")} placeholder="Opportunity name" required className={oppInputCls} />
           </div>
+          {recordTypes.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-[11.5px] font-medium text-ink-3">Record type</label>
+              <select value={form.RecordTypeId} onChange={set("RecordTypeId")} className={oppInputCls}>
+                <option value="">— default —</option>
+                {recordTypes.map((rt) => (
+                  <option key={rt.id} value={rt.id}>{rt.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex flex-col gap-1">
             <label className="text-[11.5px] font-medium text-ink-3">Stage</label>
             <select value={form.StageName} onChange={set("StageName")} className={oppInputCls}>

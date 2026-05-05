@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { useAccounts, useAccountsEnrichment } from "@/services/accounts";
 import {
   useCreateOpportunity,
+  useOppRecordTypes,
   useOpportunities,
   useUpdateOpportunity,
   useUpdateOpportunityStage,
@@ -695,6 +696,7 @@ function CreateOpportunityModal({
   onCreated: (id: string) => void;
 }) {
   const createOpp = useCreateOpportunity();
+  const { data: recordTypes = [] } = useOppRecordTypes();
   const [form, setForm] = useState({
     Name: "",
     StageName: "New Lead",
@@ -702,6 +704,7 @@ function CreateOpportunityModal({
     AccountId: "",
     Amount: "",
     OwnerId: "",
+    RecordTypeId: "",
   });
   const [accountQ, setAccountQ] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -727,6 +730,7 @@ function CreateOpportunityModal({
         AccountId: form.AccountId,
         Amount: form.Amount ? Number(form.Amount.replace(/[^0-9.]/g, "")) : undefined,
         OwnerId: form.OwnerId || undefined,
+        RecordTypeId: form.RecordTypeId || undefined,
       });
       onCreated(result.id);
     } catch (err) {
@@ -788,6 +792,16 @@ function CreateOpportunityModal({
               </div>
             ) : null}
           </ModalField>
+          {recordTypes.length > 0 && (
+            <ModalField label="Record type">
+              <select value={form.RecordTypeId} onChange={set("RecordTypeId")} className={modalInputCls}>
+                <option value="">— default —</option>
+                {recordTypes.map((rt) => (
+                  <option key={rt.id} value={rt.id}>{rt.name}</option>
+                ))}
+              </select>
+            </ModalField>
+          )}
           <ModalField label="Stage">
             <select value={form.StageName} onChange={set("StageName")} className={modalInputCls}>
               {SF_STAGE_OPTIONS.map((s: { value: string; label: string }) => (

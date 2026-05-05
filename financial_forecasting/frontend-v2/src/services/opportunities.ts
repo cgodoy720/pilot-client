@@ -182,6 +182,19 @@ export function useOpportunityTasks(oppId: string | undefined) {
   });
 }
 
+export function useOppRecordTypes() {
+  return useQuery({
+    queryKey: ["opp-record-types"],
+    queryFn: async (): Promise<{ id: string; name: string }[]> => {
+      const { data } = await api.get<{ id: string; name: string }[]>(
+        "/api/salesforce/opportunities/record-types",
+      );
+      return data;
+    },
+    staleTime: 60 * 60_000,
+  });
+}
+
 export interface CreateOpportunityBody {
   Name: string;
   StageName: string;
@@ -189,6 +202,7 @@ export interface CreateOpportunityBody {
   AccountId: string;
   Amount?: number | null;
   OwnerId?: string | null;
+  RecordTypeId?: string | null;
   Description?: string | null;
 }
 

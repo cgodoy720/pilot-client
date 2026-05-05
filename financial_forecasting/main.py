@@ -390,6 +390,27 @@ async def get_opportunities(
 
 
 
+@app.get("/api/salesforce/opportunities/record-types")
+async def get_opportunity_record_types(
+    client: UnifiedMCPClient = Depends(get_mcp_client),
+    user=Depends(require_auth),
+):
+    """Return active Opportunity RecordTypes as [{id, name}]."""
+    cached = cache.get("opp_record_types")
+    if cached is not None:
+        return cached
+    salesforce = client.salesforce
+    result = await salesforce.query(
+        "SELECT Id, Name FROM RecordType "
+        "WHERE SObjectType = 'Opportunity' AND IsActive = true "
+        "ORDER BY Name"
+    )
+    records = result.get("records", [])
+    out = [{"id": r["Id"], "name": r["Name"]} for r in records]
+    cache.set("opp_record_types", out, 3600)
+    return out
+
+
 @app.post("/api/salesforce/opportunities")
 async def create_opportunity(
     opp_data: Dict[str, Any],
