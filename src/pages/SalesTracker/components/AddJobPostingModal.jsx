@@ -12,11 +12,8 @@ import { Input } from '../../../components/ui/input';
 import { Textarea } from '../../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { Badge } from '../../../components/ui/badge';
-import { X, Plus, Wand2 } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { createJobPosting } from '../../../services/salesTrackerApi';
-import useAuthStore from '../../../stores/authStore';
-
-const API_URL = import.meta.env.VITE_API_URL;
 
 const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -37,37 +34,8 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isScraping, setIsScraping] = useState(false);
   const [error, setError] = useState(null);
   const [newSector, setNewSector] = useState('');
-  const token = useAuthStore((s) => s.token);
-
-  const handleAutoFill = async () => {
-    if (!formData.job_url.trim()) return;
-    try {
-      setIsScraping(true);
-      setError(null);
-      const response = await fetch(`${API_URL}/api/pathfinder/scrape-job`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: formData.job_url.trim() })
-      });
-      if (!response.ok) throw new Error('Could not fetch job details');
-      const { data } = await response.json();
-      setFormData(prev => ({
-        ...prev,
-        company_name: data.companyName || prev.company_name,
-        job_title: data.roleTitle || prev.job_title,
-        location: data.location || prev.location,
-        salary_range: data.salary || prev.salary_range,
-        description: data.description || prev.description,
-      }));
-    } catch (err) {
-      setError('Auto-fill failed — please fill in the details manually.');
-    } finally {
-      setIsScraping(false);
-    }
-  };
 
   const experienceLevels = [
     'Entry-Level',
@@ -304,27 +272,13 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
               <label htmlFor="job_url" className="block text-sm font-medium text-gray-700 mb-1">
                 Job URL
               </label>
-              <div className="flex gap-2">
-                <Input
-                  id="job_url"
-                  type="url"
-                  value={formData.job_url}
-                  onChange={(e) => handleInputChange('job_url', e.target.value)}
-                  placeholder="https://company.com/job/123"
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAutoFill}
-                  disabled={isScraping || !formData.job_url.trim()}
-                  title="Auto-fill from URL"
-                >
-                  <Wand2 className="w-4 h-4 mr-1" />
-                  {isScraping ? 'Filling...' : 'Auto-fill'}
-                </Button>
-              </div>
+              <Input
+                id="job_url"
+                type="url"
+                value={formData.job_url}
+                onChange={(e) => handleInputChange('job_url', e.target.value)}
+                placeholder="https://company.com/job/123"
+              />
             </div>
             <div>
               <label htmlFor="source" className="block text-sm font-medium text-gray-700 mb-1">
