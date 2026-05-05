@@ -189,6 +189,10 @@ async def ensure_for_opp(
 
     # 2. Eligibility gate
     if not is_award_eligible(stage_name, record_type_name):
+        logger.info(
+            "awards.ensure_for_opp: opp=%s not eligible (stage=%r, record_type=%r)",
+            opp_id, stage_name, record_type_name,
+        )
         return None
 
     # 3. Existing? Return as-is.
@@ -202,7 +206,7 @@ async def ensure_for_opp(
         """
         INSERT INTO bedrock.award (opportunity_id, award_status, award_date, notes)
         VALUES ($1, $2, $3, $4)
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (opportunity_id) WHERE deleted_at IS NULL DO NOTHING
         RETURNING id, opportunity_id, award_status, award_date, period_end_date,
                   notes, created_at, updated_at
         """,

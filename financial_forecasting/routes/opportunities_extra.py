@@ -465,16 +465,16 @@ async def update_opportunity_stage(
         cache.invalidate_prefix("opps:")
         cache.invalidate_prefix("stage_history")
 
-        # Side effect: auto-create Award row for Philanthropy opps that
-        # have reached an award-eligible stage. Idempotent. Best-effort —
+        # Side effect: auto-create Award row for eligible opps that have
+        # reached an award-eligible stage. Idempotent. Best-effort —
         # never fails the SF write.
+        award_created = False
         try:
-            await ensure_award_for_opp(
+            award = await ensure_award_for_opp(
                 conn, salesforce, opp_id,
                 stage_name_hint=new_stage,
-                # record_type unknown without an extra SF read; let the
-                # service fetch it when needed.
             )
+            award_created = award is not None
         except Exception:
             logger.exception(
                 "awards.ensure_for_opp failed for opp=%s after stage update; "
@@ -487,6 +487,7 @@ async def update_opportunity_stage(
             "message": f"Opportunity stage updated to '{new_stage}'",
             "stage": new_stage,
             "validation": validation_result,
+            "award_created": award_created,
         }
 
     except HTTPException:

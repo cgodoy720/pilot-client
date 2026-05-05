@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { api } from "@/lib/api";
 import type { SfOpportunity, SfPayment, SfTask } from "@/types/salesforce";
@@ -580,7 +581,10 @@ export function useUpdateOpportunityStage() {
         qc.setQueryData(key, data);
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data?.award_created) {
+        toast.success("Award created");
+      }
       qc.invalidateQueries({ queryKey: ["opportunities"] });
       qc.invalidateQueries({ queryKey: ["awards"] });
     },
