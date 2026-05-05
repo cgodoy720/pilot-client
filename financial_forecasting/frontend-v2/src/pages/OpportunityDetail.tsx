@@ -104,7 +104,30 @@ export function OpportunityDetailPage() {
   // Whether to show the payment-schedule modal — controlled at the
   // page level so the action button on the Payments section can open
   // it and the modal can dismiss back to the page cleanly.
+  // Also auto-opens when a stage change triggers award creation, or
+  // when the backend requires a schedule before allowing the stage change.
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  // When the backend blocks a stage change with "create_payment_schedule",
+  // we store the intended stage here so we can retry it after the user
+  // saves the schedule.
+  const [pendingStage, setPendingStage] = useState<string | null>(null);
+
+  const handleStageChange = async (newStage: string) => {
+    // Moving to "Collecting / In Effect" always requires the user to
+    // review and confirm the payment schedule first. Open the builder
+    // modal and store the intended stage; the stage mutation fires after
+    // the user saves the schedule via onSaved.
+    if (newStage === "Collecting / In Effect") {
+      setPendingStage(newStage);
+      setScheduleModalOpen(true);
+      return;
+    }
+
+    const result = await updateStage.mutateAsync({ id, newStage });
+    if (result?.award_created) {
+      setScheduleModalOpen(true);
+    }
+  };
 
   const award = useMemo(
     () => awards.find((a) => a.opportunity_id === id) ?? null,
@@ -169,9 +192,7 @@ export function OpportunityDetailPage() {
             <InlineSelect
               value={opp.StageName}
               options={SF_STAGE_OPTIONS}
-              onSave={(v) =>
-                updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
-              }
+              onSave={handleStageChange}
               renderValue={(v) => <StageChip stage={v ?? opp.StageName} status={stageStatus({ ...opp, StageName: v ?? opp.StageName })} />}
             />
             {opp.RecordType?.Name ? <Tag>{opp.RecordType.Name}</Tag> : null}
@@ -319,9 +340,7 @@ export function OpportunityDetailPage() {
             <InlineSelect
               value={opp.StageName}
               options={SF_STAGE_OPTIONS}
-              onSave={(v) =>
-                updateStage.mutateAsync({ id: opp.Id, newStage: v }).then(() => undefined)
-              }
+              onSave={handleStageChange}
               renderValue={(v) => <StageChip stage={v ?? opp.StageName} status={stageStatus({ ...opp, StageName: v ?? opp.StageName })} />}
             />
           </EditField>
@@ -345,9 +364,30 @@ export function OpportunityDetailPage() {
         <PaymentScheduleBuilder
           opportunityId={opp.Id}
           oppAmount={opp.Amount ?? null}
-          existingCount={payments.length}
+          existingPayments={payments}
           initialFirstDate={opp.PaymentDate__c ?? null}
-          onClose={() => setScheduleModalOpen(false)}
+          prompt={
+            pendingStage
+              ? `Review and confirm the payment schedule below. Once saved, the stage will move to "${pendingStage}" and the award record will be created.`
+              : null
+          }
+          onSaved={
+            pendingStage
+              ? () => {
+                  const stage = pendingStage;
+                  setPendingStage(null);
+                  void updateStage.mutateAsync({ id, newStage: stage }).then((result) => {
+                    if (result?.award_created) {
+                      // Award was created — modal is already closing, nothing extra needed
+                    }
+                  });
+                }
+              : undefined
+          }
+          onClose={() => {
+            setScheduleModalOpen(false);
+            setPendingStage(null);
+          }}
         />
       ) : null}
 

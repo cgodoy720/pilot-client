@@ -360,7 +360,7 @@ async def _validate_stage_change_logic(
         raise HTTPException(status_code=404, detail="Opportunity not found")
 
     opp = opp_result["records"][0]
-    opp_amount = float(opp.get("Amount", 0))
+    opp_amount = float(opp.get("Amount") or 0)
 
     # Check for payment schedule
     payment_result = await salesforce.query(

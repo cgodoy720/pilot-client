@@ -115,7 +115,10 @@ export function useCreatePaymentSchedule(opportunityId: string) {
       return data;
     },
     onSuccess: () => {
+      // Invalidate both query keys — the expand panels use "opp-payments"
+      // while OpportunityDetail uses "opportunity-payments".
       qc.invalidateQueries({ queryKey: ["opp-payments", opportunityId] });
+      qc.invalidateQueries({ queryKey: ["opportunity-payments", opportunityId] });
       qc.invalidateQueries({ queryKey: ["opportunities"] });
       qc.invalidateQueries({ queryKey: ["awards"] });
     },

@@ -40,35 +40,68 @@ const FREQ_MONTHS: Record<Frequency, number> = {
   annual: 12,
 };
 
+export interface ExistingPayment {
+  Id: string;
+  npe01__Payment_Amount__c?: number | null;
+  npe01__Scheduled_Date__c?: string | null;
+  npe01__Paid__c?: boolean | null;
+  npe01__Payment_Date__c?: string | null;
+}
+
 export interface PaymentScheduleBuilderProps {
   opportunityId: string;
   /** Required for total-validation — the schedule must sum to this. */
   oppAmount: number | null;
-  /** Whether this opp already has scheduled payments. Surfaces a
-   *  "Replace existing N payments?" warning when true. */
-  existingCount?: number;
+  /** Existing payments from SF — pre-populates custom mode for review/edit. */
+  existingPayments?: ExistingPayment[];
   /** Pre-fill the first scheduled date (e.g. opp.PaymentDate__c). */
   initialFirstDate?: string | null;
+  /** Optional banner message shown at the top of the modal. */
+  prompt?: string | null;
+  /** Called after a schedule is successfully saved, before onClose. */
+  onSaved?: () => void;
   onClose: () => void;
 }
 
 export function PaymentScheduleBuilder({
   opportunityId,
   oppAmount,
-  existingCount = 0,
+  existingPayments = [],
   initialFirstDate,
+  prompt,
+  onSaved,
   onClose,
 }: PaymentScheduleBuilderProps) {
   const create = useCreatePaymentSchedule(opportunityId);
 
-  const [mode, setMode] = useState<"even" | "custom">("even");
+  const hasExisting = existingPayments.length > 0;
+
+  // When existing payments are present, start in custom mode pre-filled with them.
+  const [mode, setMode] = useState<"even" | "custom">(hasExisting ? "custom" : "even");
   const [count, setCount] = useState<number>(4);
   const [frequency, setFrequency] = useState<Frequency>("quarterly");
   const [firstDate, setFirstDate] = useState<string>(
     initialFirstDate ?? todayIso(),
   );
-  const [deleteExisting, setDeleteExisting] = useState<boolean>(true);
-  const [customRows, setCustomRows] = useState<PaymentScheduleItem[]>([]);
+  const deleteExisting = true;
+
+  // Pre-populate custom rows from existing payments on first render.
+  const [customRows, setCustomRows] = useState<PaymentScheduleItem[]>(() =>
+    hasExisting
+      ? existingPayments.map((p) => ({
+          amount: p.npe01__Payment_Amount__c ?? 0,
+          scheduled_date: p.npe01__Scheduled_Date__c ?? todayIso(),
+        }))
+      : [],
+  );
+
+  // Track which rows are already-paid (read-only).
+  const paidIds = new Set(
+    existingPayments.filter((p) => p.npe01__Paid__c).map((p) => p.Id),
+  );
+  // Map custom row index → SF payment Id (for locking paid rows).
+  const existingIds = existingPayments.map((p) => p.Id);
+
   const [error, setError] = useState<string | null>(null);
 
   // Generated even-split rows. Recomputes whenever the inputs change.
@@ -80,13 +113,13 @@ export function PaymentScheduleBuilder({
   // Whichever mode is active is what we'll submit.
   const activeRows = mode === "even" ? evenRows : customRows;
 
-  // Initialize custom rows from the even-split so the user can tweak
-  // rather than start from scratch.
+  // When switching to custom mode with no rows yet (and no existing payments),
+  // seed from the even-split so the user can tweak rather than start blank.
   useEffect(() => {
-    if (mode === "custom" && customRows.length === 0 && evenRows.length > 0) {
+    if (mode === "custom" && customRows.length === 0 && evenRows.length > 0 && !hasExisting) {
       setCustomRows(evenRows);
     }
-  }, [mode, evenRows, customRows.length]);
+  }, [mode, evenRows, customRows.length, hasExisting]);
 
   const total = activeRows.reduce((s, r) => s + r.amount, 0);
   const diff = oppAmount != null ? round2(total - oppAmount) : 0;
@@ -113,6 +146,7 @@ export function PaymentScheduleBuilder({
         payments: activeRows,
         delete_existing: deleteExisting,
       });
+      onSaved?.();
       onClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save schedule";
@@ -130,7 +164,7 @@ export function PaymentScheduleBuilder({
       <div className="w-full max-w-xl rounded-lg bg-surface shadow-xl">
         <header className="flex items-center justify-between border-b border-border-strong px-5 py-3">
           <h2 className="text-[15px] font-semibold text-ink">
-            {existingCount > 0 ? "Replace payment schedule" : "Create payment schedule"}
+            {hasExisting ? "Review payment schedule" : "Create payment schedule"}
           </h2>
           <button
             onClick={onClose}
@@ -142,20 +176,18 @@ export function PaymentScheduleBuilder({
         </header>
 
         <div className="px-5 py-4">
-          {existingCount > 0 ? (
-            <div className="mb-3 flex items-center gap-2 rounded border border-amber/40 bg-amber-soft px-3 py-2 text-[12.5px] text-ink-2">
+          {prompt ? (
+            <div className="mb-3 rounded border border-accent/30 bg-accent/5 px-3 py-2 text-[12.5px] text-ink-2">
+              {prompt}
+            </div>
+          ) : null}
+          {hasExisting ? (
+            <div className="mb-3 flex items-center gap-2 rounded border border-border-strong bg-surface-2 px-3 py-2 text-[12px] text-ink-3">
               <span>
-                This opp already has {existingCount} scheduled payment{existingCount === 1 ? "" : "s"}.
+                Showing {existingPayments.length} existing payment{existingPayments.length === 1 ? "" : "s"}.
+                {paidIds.size > 0 && ` ${paidIds.size} already paid (locked).`}
+                {" "}Edit amounts or dates, add rows, then save to replace the schedule.
               </span>
-              <label className="ml-auto flex cursor-pointer items-center gap-1 text-[12px]">
-                <input
-                  type="checkbox"
-                  checked={deleteExisting}
-                  onChange={(e) => setDeleteExisting(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-accent"
-                />
-                Replace
-              </label>
             </div>
           ) : null}
 
@@ -244,58 +276,77 @@ export function PaymentScheduleBuilder({
                   </tr>
                 </thead>
                 <tbody>
-                  {activeRows.map((r, i) => (
-                    <tr key={i} className="border-b border-border-strong last:border-b-0">
-                      <td className="px-3 py-1.5 text-[12px] text-ink-3">{i + 1}</td>
-                      <td className="px-3 py-1.5">
-                        {mode === "even" ? (
-                          <span className="mono text-[12.5px] text-ink-2 tabular-nums">
-                            {r.scheduled_date}
-                          </span>
-                        ) : (
-                          <input
-                            type="date"
-                            value={r.scheduled_date}
-                            onChange={(e) =>
-                              updateCustomRow(setCustomRows, i, { scheduled_date: e.target.value })
-                            }
-                            className="w-full bg-transparent text-[12.5px] text-ink outline-none"
-                          />
+                  {activeRows.map((r, i) => {
+                    const sfId = existingIds[i];
+                    const isPaid = sfId ? paidIds.has(sfId) : false;
+                    return (
+                      <tr
+                        key={i}
+                        className={cn(
+                          "border-b border-border-strong last:border-b-0",
+                          isPaid && "opacity-50",
                         )}
-                      </td>
-                      <td className="mono px-3 py-1.5 text-right text-[12.5px] tabular-nums">
-                        {mode === "even" ? (
-                          fmtMoneyFull(r.amount, true)
-                        ) : (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={r.amount}
-                            onChange={(e) =>
-                              updateCustomRow(setCustomRows, i, {
-                                amount: Number(e.target.value) || 0,
-                              })
-                            }
-                            className="w-28 bg-transparent text-right outline-none"
-                          />
-                        )}
-                      </td>
-                      {mode === "custom" ? (
-                        <td className="px-2 py-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCustomRows((rows) => rows.filter((_, idx) => idx !== i))
-                            }
-                            className="rounded p-0.5 text-ink-3 hover:bg-surface-2 hover:text-red"
-                            aria-label="Remove"
-                          >
-                            <Trash2 size={11} />
-                          </button>
+                      >
+                        <td className="px-3 py-1.5 text-[12px] text-ink-3">
+                          {i + 1}
+                          {isPaid && (
+                            <span className="ml-1.5 rounded bg-green/15 px-1 py-0.5 text-[10px] font-medium text-green">
+                              paid
+                            </span>
+                          )}
                         </td>
-                      ) : null}
-                    </tr>
-                  ))}
+                        <td className="px-3 py-1.5">
+                          {mode === "even" || isPaid ? (
+                            <span className="mono text-[12.5px] text-ink-2 tabular-nums">
+                              {r.scheduled_date}
+                            </span>
+                          ) : (
+                            <input
+                              type="date"
+                              value={r.scheduled_date}
+                              onChange={(e) =>
+                                updateCustomRow(setCustomRows, i, { scheduled_date: e.target.value })
+                              }
+                              className="w-full bg-transparent text-[12.5px] text-ink outline-none"
+                            />
+                          )}
+                        </td>
+                        <td className="mono px-3 py-1.5 text-right text-[12.5px] tabular-nums">
+                          {mode === "even" || isPaid ? (
+                            fmtMoneyFull(r.amount, true)
+                          ) : (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={r.amount}
+                              onChange={(e) =>
+                                updateCustomRow(setCustomRows, i, {
+                                  amount: Number(e.target.value) || 0,
+                                })
+                              }
+                              className="w-28 bg-transparent text-right outline-none"
+                            />
+                          )}
+                        </td>
+                        {mode === "custom" ? (
+                          <td className="px-2 py-1.5">
+                            {!isPaid && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCustomRows((rows) => rows.filter((_, idx) => idx !== i))
+                                }
+                                className="rounded p-0.5 text-ink-3 hover:bg-surface-2 hover:text-red"
+                                aria-label="Remove"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -357,8 +408,8 @@ export function PaymentScheduleBuilder({
           >
             {create.isPending
               ? "Saving…"
-              : existingCount > 0 && deleteExisting
-                ? `Replace ${existingCount} → ${activeRows.length}`
+              : hasExisting
+                ? `Save ${activeRows.length} payment${activeRows.length === 1 ? "" : "s"}`
                 : `Create ${activeRows.length} payment${activeRows.length === 1 ? "" : "s"}`}
           </button>
         </footer>

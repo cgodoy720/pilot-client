@@ -17,6 +17,7 @@ Public surface:
 from __future__ import annotations
 
 import logging
+from datetime import date as date_type
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -186,6 +187,13 @@ async def ensure_for_opp(
         # Caller supplied both — still need CloseDate for award_date proxy.
         # If they don't have it, we'll set None and the user can edit later.
         close_date = None
+
+    # asyncpg expects datetime.date, not a string. SF returns "YYYY-MM-DD".
+    if isinstance(close_date, str):
+        try:
+            close_date = date_type.fromisoformat(close_date)
+        except (ValueError, TypeError):
+            close_date = None
 
     # 2. Eligibility gate
     if not is_award_eligible(stage_name, record_type_name):

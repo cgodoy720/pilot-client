@@ -11,6 +11,7 @@ from dependencies import get_mcp_client
 from mcp_client import UnifiedMCPClient
 from routes.permissions import check_permission
 from security import validate_salesforce_id, escape_soql_string
+from services.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +156,10 @@ async def create_payment_schedule(
                 "ScheduledDate": payment.scheduled_date,
                 "Number": i + 1,
             })
+
+        # Bust backend payment caches so the next fetch sees the new schedule.
+        cache.invalidate_prefix(f"opp-payments:{request.opportunity_id}")
+        cache.invalidate_prefix("payments:")
 
         return {
             "success": True,

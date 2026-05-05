@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
 
 const persister = createSyncStoragePersister({
   storage: window.localStorage,
-  key: "bedrock-v2:rq-cache",
+  key: "bedrock-v3:rq-cache",
   // 5 MiB cap (default is 5 MB). Accounts + opps payloads can be large.
   throttleTime: 1000,
 });
@@ -40,16 +40,18 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         // (prior-stage map, IsClosed/IsWon, ISA exclusion, etc.). Older
         // persisted caches were triggering "promise.then is not a function"
         // during hydrate.
-        buster: "v2",
+        // v3 — 2026-05-05: Exclude permissions from persisted cache so
+        // manage_users_roles never comes from a stale localStorage snapshot.
+        buster: "v3",
         dehydrateOptions: {
           // Only persist queries that finished successfully — pending /
           // error states carry a state.promise field that doesn't survive
           // JSON.stringify, which causes "promise.then is not a function"
-          // during hydrate. Also skip auth-related queries so cookies/JWT
-          // stay fresh on reload.
+          // during hydrate. Skip auth and permissions — those must always
+          // be fresh on reload so permission changes take effect immediately.
           shouldDehydrateQuery: (q) => {
             const k = q.queryKey;
-            if (Array.isArray(k) && k[0] === "auth") return false;
+            if (Array.isArray(k) && (k[0] === "auth" || k[0] === "permissions")) return false;
             return q.state.status === "success" && q.state.data !== undefined;
           },
         },

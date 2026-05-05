@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
 
 import { AppShell } from "./components/AppShell";
 import { AuthGate } from "./components/AuthGate";
@@ -21,6 +22,8 @@ import { CashFlowPage } from "./pages/CashFlow";
 
 export default function App() {
   return (
+    <>
+    <Toaster position="bottom-right" richColors closeButton />
     <Routes>
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
@@ -56,5 +59,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
+    </>
   );
 }

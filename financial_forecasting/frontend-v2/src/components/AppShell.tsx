@@ -19,22 +19,32 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { cn } from "@/lib/utils";
 import { useCurrentUser, useSalesforceStatus } from "@/services/auth";
 
-const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/accounts", label: "Accounts", icon: Building2 },
-  { to: "/contacts", label: "Contacts", icon: Users },
-  { to: "/pipeline", label: "Pipeline", icon: GitBranch },
-  { to: "/cashflow", label: "Cash Flow", icon: TrendingUp },
-  { to: "/awards", label: "Awards", icon: Trophy },
-  { to: "/projects", label: "Projects", icon: FolderOpen },
-  { to: "/cleanup", label: "Cleanup", icon: Sparkles },
-  // Tasks page hidden 2026-05-04 — pending a Salesforce data-hygiene
-  // pass to close the years-old open-task backlog. Tasks remain
-  // visible on the per-record expand panels and detail pages, where
-  // scoping makes the noise tractable. To restore the global page,
-  // re-add `{ to: "/tasks", label: "Tasks", icon: CheckSquare }` and
-  // re-import CheckSquare from lucide-react. Route at App.tsx is
-  // still wired so direct URLs continue to work.
+const NAV_GROUPS = [
+  {
+    label: "Performance",
+    items: [
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/cashflow",  label: "Cash Flow", icon: TrendingUp },
+    ],
+  },
+  {
+    label: "Portfolio",
+    items: [
+      { to: "/accounts", label: "Accounts", icon: Building2 },
+      { to: "/contacts", label: "Contacts", icon: Users },
+      { to: "/pipeline", label: "Pipeline", icon: GitBranch },
+      { to: "/awards",   label: "Awards",   icon: Trophy },
+      { to: "/projects", label: "Projects", icon: FolderOpen },
+      { to: "/cleanup",  label: "Cleanup",  icon: Sparkles },
+      // Tasks page hidden 2026-05-04 — pending a Salesforce data-hygiene
+      // pass to close the years-old open-task backlog. Tasks remain
+      // visible on the per-record expand panels and detail pages, where
+      // scoping makes the noise tractable. To restore the global page,
+      // re-add `{ to: "/tasks", label: "Tasks", icon: CheckSquare }` and
+      // re-import CheckSquare from lucide-react. Route at App.tsx is
+      // still wired so direct URLs continue to work.
+    ],
+  },
 ] as const;
 
 const NAV_COLLAPSED_W = 52;
@@ -163,32 +173,37 @@ function Sidebar({
         </button>
       )}
 
-      {!collapsed && (
-        <div className="px-2 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
-          Workspace
-        </div>
-      )}
-
-      <nav className="flex flex-col gap-px">
-        {NAV.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            title={collapsed ? item.label : undefined}
-            className={({ isActive }) =>
-              cn(
-                "flex select-none items-center rounded-md text-[13px] font-medium text-ink-2 hover:bg-black/[0.04] hover:text-ink",
-                collapsed
-                  ? "h-9 w-9 justify-center"
-                  : "gap-2.5 px-2.5 py-1.5",
-                isActive &&
-                  "border border-border-strong bg-surface text-ink shadow-sm",
-              )
-            }
-          >
-            <item.icon size={16} className="flex-shrink-0 opacity-70" />
-            {!collapsed && <span>{item.label}</span>}
-          </NavLink>
+      <nav className="flex flex-col">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            {!collapsed && (
+              <div className="px-2 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+                {group.label}
+              </div>
+            )}
+            <div className="flex flex-col gap-px">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  title={collapsed ? item.label : undefined}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex select-none items-center rounded-md text-[13px] font-medium text-ink-2 hover:bg-black/[0.04] hover:text-ink",
+                      collapsed
+                        ? "h-9 w-9 justify-center"
+                        : "gap-2.5 px-2.5 py-1.5",
+                      isActive &&
+                        "border border-border-strong bg-surface text-ink shadow-sm",
+                    )
+                  }
+                >
+                  <item.icon size={16} className="flex-shrink-0 opacity-70" />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
