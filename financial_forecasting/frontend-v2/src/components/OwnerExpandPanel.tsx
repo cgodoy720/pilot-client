@@ -15,8 +15,6 @@ import {
   useOpportunities,
   useUserTasks,
 } from "@/services/opportunities";
-import type { SfOpportunity } from "@/types/salesforce";
-
 export const OWNER_PANEL_HEIGHT = ROW_EXPAND_HEIGHT;
 
 /**

@@ -84,11 +84,15 @@ class TestInitialAwardStatus:
             assert initial_award_status(stage) == "Closing"
 
     def test_active_stages_default_to_active(self):
-        # Anything not in CLOSING_PHILANTHROPY_STAGES → Active
-        active_stages = WON_PHILANTHROPY_STAGES - CLOSING_PHILANTHROPY_STAGES
-        assert active_stages, "test fixture: expected at least one active stage"
-        for stage in active_stages:
+        for stage in ("Collecting / In Effect", "Collecting", "In Effect"):
             assert initial_award_status(stage) == "Active"
+
+    def test_closed_stages_default_to_closed(self):
+        for stage in ("Closed / Completed", "Closed Won", "closed-won"):
+            assert initial_award_status(stage) == "Closed"
+
+    def test_did_not_fulfill_stages(self):
+        assert initial_award_status("Closed / Did not Fulfill") == "Did Not Fulfill"
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +111,7 @@ def mock_conn():
 @pytest.fixture
 def mock_sf():
     sf = MagicMock()
-    sf.query = MagicMock(return_value={"records": []})
+    sf.query = AsyncMock(return_value={"records": []})
     return sf
 
 

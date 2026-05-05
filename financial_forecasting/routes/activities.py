@@ -16,7 +16,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from auth import require_auth
 from db import get_db
-from dependencies import _sync_lock, get_data_sync_service, get_mcp_client
+from dependencies import _sync_lock, get_data_sync_service, get_mcp_client, require_sf_mcp_client
 from mcp_client import UnifiedMCPClient
 from data_sync import DataSyncService
 from models import (

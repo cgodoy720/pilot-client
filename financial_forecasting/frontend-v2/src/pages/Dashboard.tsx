@@ -8,7 +8,6 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { fmtMoney } from "@/lib/format";
 import { isOpen, isWon } from "@/lib/stages";
 import { cn } from "@/lib/utils";
-import { useAwards } from "@/services/awards";
 import { useCurrentUser } from "@/services/auth";
 import { useOpportunities } from "@/services/opportunities";
 import { useACVSummary } from "@/services/payments";
@@ -28,7 +27,6 @@ function yearOf(iso: string): number | null {
 export function DashboardPage() {
   const { data: user } = useCurrentUser();
   const { data: opps = [] } = useOpportunities();
-  const { data: awards = [] } = useAwards();
   const { data: ownerGoals = [] } = useOwnerGoals();
   const { data: activeUsers = [] } = useActiveUsers();
 

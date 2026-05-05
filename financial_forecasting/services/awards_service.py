@@ -79,6 +79,8 @@ _DID_NOT_FULFILL_STAGES: frozenset[str] = frozenset({
 _CLOSING_STAGES: frozenset[str] = frozenset({
     "Closed / Fulfilled",
 })
+# Public alias used by tests and external callers.
+CLOSING_PHILANTHROPY_STAGES = _CLOSING_STAGES
 
 _CLOSED_STAGES: frozenset[str] = frozenset({
     "Closed / Completed",
