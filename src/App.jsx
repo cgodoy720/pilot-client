@@ -47,6 +47,7 @@ import MockInterviewSession from './pages/MockInterview/MockInterviewSession';
 import MockInterviewFeedback from './pages/MockInterview/MockInterviewFeedback';
 import MockInterviewHistory from './pages/MockInterview/MockInterviewHistory';
 import InterviewRubricAdmin from './pages/MockInterview/InterviewRubricAdmin';
+import PathfinderCompass from './pages/PathfinderCompass';
 import StaffNetworkDashboard from './pages/StaffNetworkDashboard';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
@@ -440,6 +441,7 @@ function App() {
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
+          <Route path="compass" element={<PathfinderCompass />} />
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
