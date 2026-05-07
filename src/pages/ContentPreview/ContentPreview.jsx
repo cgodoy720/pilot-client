@@ -711,7 +711,7 @@ function ContentPreview() {
 
       // Agenda items — no bolding, plain text
       const cappedAgenda = agendaItems.slice(0, 10);
-      const agendaItemH = Math.min(3.89 / Math.max(cappedAgenda.length, 1), 0.52);
+      const agendaItemH = Math.min(3.89 / Math.max(cappedAgenda.length, 1), 0.35);
       cappedAgenda.forEach((item, i) => {
         const yPos = 1.0 + i * agendaItemH;
         slide2.addText(`${i + 1}.`, {
