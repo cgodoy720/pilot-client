@@ -498,10 +498,33 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const statusRef = useRef(status);
   const cycleEndedRef = useRef(cycleEnded);
   const sendMessageRef = useRef(null);
+  // Tracks the in-flight SSE fetch so we can abort it on unmount or when the
+  // user navigates away mid-stream. Without this the decoder loop keeps
+  // running against a closed connection and `updateMessages` keeps firing
+  // against unmounted state — a real memory leak that also pollutes logs
+  // with "Can't perform a React state update on an unmounted component".
+  const streamAbortRef = useRef(null);
+  // Tracks whether the component is still mounted. We check this before
+  // every state update issued by the streaming reader so a late chunk
+  // arriving after unmount can't trigger a setState.
+  const isMountedRef = useRef(true);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const userScrolledUpRef = useRef(false);
+
+  // Unmount cleanup: abort any in-flight Compass stream and mark the
+  // component as unmounted so the streaming reader bails out at the next
+  // chunk boundary instead of writing to dead state.
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (streamAbortRef.current) {
+        try { streamAbortRef.current.abort(); } catch { /* ignore */ }
+        streamAbortRef.current = null;
+      }
+    };
+  }, []);
 
   // Sync status / cycleEnded refs SYNCHRONOUSLY during render. Doing this in
   // a useEffect leaves a one-frame window where a completion payload arriving
@@ -698,11 +721,22 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
 
     const mode = (statusRef.current?.enrolled || cycleEndedRef.current) ? 'coaching' : 'onboarding';
 
+    // Bind a fresh AbortController to this request and stash it on the ref
+    // so the unmount cleanup can cancel us. Aborting any prior controller
+    // first guards against the case where two sends overlap (shouldn't
+    // happen — `isStreaming` gates new sends — but defensive).
+    if (streamAbortRef.current) {
+      try { streamAbortRef.current.abort(); } catch { /* ignore */ }
+    }
+    const abortController = new AbortController();
+    streamAbortRef.current = abortController;
+
     try {
       const res = await fetch(`${API_URL}/api/pathfinder/compass/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ message: messageText, history: historyForApi, mode }),
+        signal: abortController.signal,
       });
 
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -722,6 +756,13 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       };
 
       while (true) {
+        // Bail out if the user navigated away. The unmount cleanup also
+        // calls abortController.abort(), which causes reader.read() to
+        // reject — but checking isMountedRef here means we stop processing
+        // any in-flight chunk immediately rather than waiting for the
+        // reject to propagate.
+        if (!isMountedRef.current) break;
+
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -745,8 +786,11 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         }
       }
 
-      // Flush any remaining content not yet rendered
+      // Flush any remaining content not yet rendered. Skip post-unmount —
+      // setting state on a dead component does nothing useful and just
+      // logs a warning.
       if (rafId) cancelAnimationFrame(rafId);
+      if (!isMountedRef.current) return;
       flushDisplay();
 
       // Check for completion signals
@@ -763,15 +807,31 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         await handleAddGoalsPayload(addGoalsPayload);
       }
     } catch (err) {
+      // AbortError is expected when the user navigates away mid-stream.
+      // Don't surface a "something went wrong" message — there's no UI to
+      // surface it on, and the next page load will recover from server
+      // history anyway. Any other error is a real failure.
+      const isAbort = err?.name === 'AbortError' || abortController.signal.aborted;
+      if (isAbort) {
+        return;
+      }
       console.error('Compass chat error:', err);
-      updateMessages(prev =>
-        prev.map(m =>
-          m.id === streamMsgId
-            ? { ...m, content: 'Something went wrong on my end. Give it a moment and try again.', streaming: false }
-            : m
-        )
-      );
+      if (isMountedRef.current) {
+        updateMessages(prev =>
+          prev.map(m =>
+            m.id === streamMsgId
+              ? { ...m, content: 'Something went wrong on my end. Give it a moment and try again.', streaming: false }
+              : m
+          )
+        );
+      }
     } finally {
+      // Clear the ref only if it still points at THIS controller — a newer
+      // send may have already replaced it.
+      if (streamAbortRef.current === abortController) {
+        streamAbortRef.current = null;
+      }
+      if (!isMountedRef.current) return;
       setIsStreaming(false);
       setIsCompleting(false); // safety net — clears banner if no handler ran
     }
