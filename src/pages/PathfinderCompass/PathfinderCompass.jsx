@@ -13,7 +13,6 @@ const PROFILE_LABELS = {
   builder_entrepreneur: 'The Builder-Entrepreneur',
 };
 
-<<<<<<< HEAD
 // Stable unique ID counter
 let _msgId = 0;
 const nextId = () => `${Date.now()}-${++_msgId}`;
@@ -30,11 +29,6 @@ function attachStableClientKeys(messages) {
     };
   });
 }
-=======
-// Stable unique ID counter — seeded from timestamp so IDs never collide across page loads
-let _msgId = Date.now();
-const nextId = () => ++_msgId;
->>>>>>> 4b44bd1 (fix(compass): always refresh right panel after cycle/new, reset cycle-end sentinel on new cycle)
 
 // ── Signal parsers ─────────────────────────────────────────────────────────────
 
