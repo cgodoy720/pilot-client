@@ -226,8 +226,9 @@
   font-family: inherit;
   color: #1a1a1a;
   background: #ffffff;
-  max-height: 140px;
+  max-height: 168px;
   min-height: 42px;
+  overflow-y: auto;
   transition: border-color 0.15s;
 }
 

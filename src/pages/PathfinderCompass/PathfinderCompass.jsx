@@ -13,8 +13,8 @@ const PROFILE_LABELS = {
   builder_entrepreneur: 'The Builder-Entrepreneur',
 };
 
-// Stable unique ID counter
-let _msgId = 0;
+// Stable unique ID counter — seeded from timestamp so IDs never collide across page loads
+let _msgId = Date.now();
 const nextId = () => ++_msgId;
 
 // ── Signal parsers ─────────────────────────────────────────────────────────────
@@ -369,6 +369,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const [isCompleting, setIsCompleting] = useState(false);
   const initDoneRef = useRef(messagesRef.current.length > 0);
   const cycleEndSentRef = useRef(false);
+  const lastCycleIdRef = useRef(null);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -401,6 +402,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     sendMessage('__init__', true, '__init__');
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reset cycle-end sentinel when a new cycle starts
+  useEffect(() => {
+    const cycleId = status?.enrollment?.cycle_id ?? null;
+    if (cycleId && cycleId !== lastCycleIdRef.current) {
+      lastCycleIdRef.current = cycleId;
+      cycleEndSentRef.current = false;
+    }
+  }, [status]);
+
   // Cycle-end check-in (fires independently whenever a cycle has ended)
   useEffect(() => {
     if (!cycleEnded || cycleEndSentRef.current) return;
@@ -427,12 +437,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           flags: payload.flags || [],
         }),
       });
-      if (res.ok) {
-        const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error('Compass completion endpoint returned error:', res.status, errBody);
       }
+      // Always refresh status so the right panel reflects DB state
+      const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
     } catch (err) {
       console.error('Failed to complete onboarding/new cycle:', err);
     } finally {
@@ -448,12 +461,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ goals: payload.goals }),
       });
-      if (res.ok) {
-        const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error('Compass goals/add endpoint returned error:', res.status, errBody);
       }
+      // Always refresh status so the right panel reflects DB state
+      const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
     } catch (err) {
       console.error('Failed to add goals:', err);
     } finally {
@@ -490,13 +506,11 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       { role: 'assistant', content: '', id: streamMsgId, streaming: true },
     ]);
 
-    const mode = (status?.enrolled || cycleEnded) ? 'coaching' : 'onboarding';
-
     try {
       const res = await fetch(`${API_URL}/api/pathfinder/compass/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: messageText, history: historyForApi, mode }),
+        body: JSON.stringify({ message: messageText, history: historyForApi }),
       });
 
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -505,15 +519,6 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
-      let rafId = null;
-
-      const flushDisplay = () => {
-        rafId = null;
-        const displayContent = stripForDisplay(fullContent);
-        updateMessages(prev =>
-          prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
-        );
-      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -532,16 +537,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
               if (fullContent.includes(COMPLETE_START) || fullContent.includes(ADD_GOALS_START)) {
                 setIsCompleting(true);
               }
-              // Batch display updates to animation frames — smooth 60fps render
-              if (!rafId) rafId = requestAnimationFrame(flushDisplay);
+              // Feed each chunk directly — useStreamingText handles smooth animation
+              const displayContent = stripForDisplay(fullContent);
+              updateMessages(prev =>
+                prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
+              );
             }
           } catch { /* ignore parse errors */ }
         }
       }
-
-      // Flush any remaining content not yet rendered
-      if (rafId) cancelAnimationFrame(rafId);
-      flushDisplay();
 
       // Check for completion signals
       const completionPayload = extractBetween(fullContent, COMPLETE_START, COMPLETE_END);
@@ -618,7 +622,11 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           <textarea
             className="compass__input"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => {
+              setInput(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 7 * 24) + 'px';
+            }}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={isDisabled}
