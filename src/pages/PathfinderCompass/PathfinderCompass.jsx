@@ -499,6 +499,9 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     }
 
     setInput('');
+    // Reset textarea height back to single line
+    const textarea = document.querySelector('.compass__input');
+    if (textarea) textarea.style.height = '';
     setIsStreaming(true);
 
     updateMessages(prev => [
