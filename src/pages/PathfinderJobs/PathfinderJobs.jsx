@@ -64,27 +64,28 @@ export default function PathfinderJobs() {
 
   useEffect(() => { fetchJobs(1, search, experienceLevel); }, [token, search, experienceLevel]);
 
-  useEffect(() => {
+  const fetchAppliedIds = useCallback(async () => {
     if (!token) return;
-    (async () => {
-      try {
-        const res = await fetch(`${API}/api/pathfinder/applications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const apps = await res.json();
-          const urls = new Set(
-            apps
-              .filter(a => a.job_url)
-              .map(a => a.job_url)
-          );
-          setAppliedIds(urls);
-        }
-      } catch (err) {
-        console.error('Failed to load existing applications:', err);
-      }
-    })();
+    try {
+      const res = await fetch(`${API}/api/pathfinder/applications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const apps = await res.json();
+      const urls = new Set(
+        apps
+          .filter(a => a.job_url)
+          .map(a => a.job_url)
+      );
+      setAppliedIds(urls);
+    } catch (err) {
+      console.error('Failed to load existing applications:', err);
+    }
   }, [token]);
+
+  useEffect(() => {
+    fetchAppliedIds();
+  }, [fetchAppliedIds]);
 
   const handleMarkApplied = async (job) => {
     if (appliedIds.has(job.job_url) || applyingId === job.id) return;
@@ -110,7 +111,7 @@ export default function PathfinderJobs() {
         }),
       });
       if (res.ok) {
-        setAppliedIds(prev => new Set([...prev, job.job_url]));
+        await fetchAppliedIds();
       }
     } catch (err) {
       console.error('Failed to mark as applied:', err);

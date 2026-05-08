@@ -6,6 +6,11 @@ export function isCompassEligibleUser(user) {
   if (!isBuilder) return false;
 
   const cohort = typeof user.cohort === 'string' ? user.cohort.trim() : '';
+  const normalizeCohort = (value) => value
+    .toLowerCase()
+    .replace(/[^\w+\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  return cohort === 'March 2025 L3+';
+  return normalizeCohort(cohort) === normalizeCohort('March 2025 L3+');
 }
