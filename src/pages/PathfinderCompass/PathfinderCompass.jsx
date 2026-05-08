@@ -580,6 +580,11 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   useEffect(() => {
     if (initDoneRef.current) return;
     if (status === null) return;
+    // If the status fetch failed (network blip / 5xx), don't fire the
+    // onboarding greeting yet — wait for the next successful refresh. The
+    // refreshStatus catch block sets fetchError: true precisely so we can
+    // distinguish this from a genuine "not enrolled" state.
+    if (status?.fetchError) return;
     if (status?.enrolled) { initDoneRef.current = true; return; }
     initDoneRef.current = true;
     sendMessageRef.current?.('__init__', true, '__init__');
@@ -589,6 +594,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   useEffect(() => {
     if (!cycleEnded || cycleEndSentRef.current) return;
     if (status === null || !status?.enrolled) return;
+    if (status?.fetchError) return;
     cycleEndSentRef.current = true;
     sendMessageRef.current?.('__cycle_end__', true, '__cycle_end__');
   }, [cycleEnded, status]);
@@ -695,9 +701,20 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       return;
     }
 
+    // Cap history we send up to the server. localStorage is already capped
+    // at 50 messages by safeWriteCompassHistory, but messagesRef.current is
+    // not — once a session rehydrates server-stored history (up to 60 turns)
+    // and keeps chatting, the in-memory list grows unbounded and every send
+    // would push more bytes. The server independently truncates to its own
+    // MAX_HISTORY_MESSAGES, but matching the cap here keeps payloads small,
+    // makes our UI behavior predictable, and avoids a silent context-shape
+    // mismatch where the client thinks it sent 80 turns and the server
+    // actually used 40.
+    const MAX_HISTORY_TO_SEND = 40;
     const historyForApi = messagesRef.current
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .filter(m => !m.streaming && m.content)
+      .slice(-MAX_HISTORY_TO_SEND)
       .map(m => ({ role: m.role, content: m.content }));
 
     const userMsgId = nextId();
@@ -932,8 +949,16 @@ export default function PathfinderCompass() {
       });
       if (!response.ok) throw new Error(`status fetch failed: ${response.status}`);
       setStatus(await response.json());
-    } catch {
-      setStatus({ enrolled: false });
+    } catch (err) {
+      // CRITICAL: previously this collapsed every network/5xx to
+      // `{ enrolled: false }`, which the init effect (`if (status?.enrolled)`)
+      // could not distinguish from a genuine "not enrolled yet" state. The
+      // builder would see the __init__ onboarding greeting fire every time
+      // their connection blipped, and a stray enrollment write could be
+      // triggered if they engaged with the chat. Surface a distinct
+      // `fetchError: true` flag so the init effect can wait it out instead.
+      console.warn('Compass status fetch failed; suppressing onboarding trigger:', err?.message || err);
+      setStatus({ enrolled: false, fetchError: true });
     }
   }, [token]);
 
