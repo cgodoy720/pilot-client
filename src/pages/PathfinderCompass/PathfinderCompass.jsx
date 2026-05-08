@@ -33,9 +33,19 @@ function extractBetween(text, start, end) {
 }
 
 function stripForDisplay(text) {
-  const cuts = [text.indexOf(COMPLETE_START), text.indexOf(ADD_GOALS_START)].filter(i => i !== -1);
-  if (!cuts.length) return text;
-  return text.slice(0, Math.min(...cuts)).trimEnd();
+  const signals = [COMPLETE_START, ADD_GOALS_START];
+  const cuts = signals.map(s => text.indexOf(s)).filter(i => i !== -1);
+  let result = cuts.length ? text.slice(0, Math.min(...cuts)).trimEnd() : text;
+  // Strip any partial signal prefix at the tail (streaming artifact)
+  for (const signal of signals) {
+    for (let len = signal.length - 1; len > 0; len--) {
+      if (result.endsWith(signal.slice(0, len))) {
+        result = result.slice(0, -len).trimEnd();
+        break;
+      }
+    }
+  }
+  return result;
 }
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────
@@ -326,15 +336,15 @@ function CompassDashboard({ status, cycleEnded, onGoalProgress }) {
 
 // ── CompassChat ───────────────────────────────────────────────────────────────
 
-const SESSION_KEY = 'compass_messages';
-
 function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const token = useAuthStore(s => s.token);
   const user = useAuthStore(s => s.user);
 
+  const storageKey = `compass_messages_${user?.userId || 'anon'}`;
+
   const [messages, setMessages] = useState(() => {
     try {
-      const stored = sessionStorage.getItem(SESSION_KEY);
+      const stored = localStorage.getItem(`compass_messages_${user?.userId || 'anon'}`);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -348,11 +358,11 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       messagesRef.current = next;
       try {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(next.filter(m => !m.streaming)));
+        localStorage.setItem(storageKey, JSON.stringify(next.filter(m => !m.streaming)));
       } catch { /* ignore */ }
       return next;
     });
-  }, []);
+  }, [storageKey]);
 
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -361,9 +371,25 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const cycleEndSentRef = useRef(false);
 
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const userScrolledUpRef = useRef(false);
+
+  // Track whether user has scrolled away from the bottom
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      userScrolledUpRef.current = el.scrollHeight - el.scrollTop - el.clientHeight > 80;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    if (userScrolledUpRef.current) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // Initial onboarding greeting (only fires when not enrolled and no messages)
@@ -449,6 +475,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     const streamMsgId = nextId();
 
     if (!isInit) {
+      userScrolledUpRef.current = false;
       updateMessages(prev => [
         ...prev,
         { role: 'user', content: text.trim(), id: userMsgId },
@@ -478,6 +505,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
+      let rafId = null;
+
+      const flushDisplay = () => {
+        rafId = null;
+        const displayContent = stripForDisplay(fullContent);
+        updateMessages(prev =>
+          prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
+        );
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -493,19 +529,19 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
             const data = JSON.parse(line.slice(6));
             if (data.type === 'text') {
               fullContent += data.content;
-              // Show completing banner as soon as signal appears in stream
               if (fullContent.includes(COMPLETE_START) || fullContent.includes(ADD_GOALS_START)) {
                 setIsCompleting(true);
               }
-              // Strip any signal block from display in real-time
-              const displayContent = stripForDisplay(fullContent);
-              updateMessages(prev =>
-                prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
-              );
+              // Batch display updates to animation frames — smooth 60fps render
+              if (!rafId) rafId = requestAnimationFrame(flushDisplay);
             }
           } catch { /* ignore parse errors */ }
         }
       }
+
+      // Flush any remaining content not yet rendered
+      if (rafId) cancelAnimationFrame(rafId);
+      flushDisplay();
 
       // Check for completion signals
       const completionPayload = extractBetween(fullContent, COMPLETE_START, COMPLETE_END);
@@ -558,7 +594,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         </div>
       </div>
 
-      <div className="compass__messages">
+      <div className="compass__messages" ref={messagesContainerRef}>
         {messages
           .filter(m => m.role === 'user' || m.role === 'assistant')
           .map(m => (
