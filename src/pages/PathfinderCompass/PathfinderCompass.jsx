@@ -383,7 +383,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const [isCompleting, setIsCompleting] = useState(false);
   const initDoneRef = useRef(messagesRef.current.length > 0);
   const cycleEndSentRef = useRef(false);
-  const lastCycleIdRef = useRef(null);
+  const serverHistoryHydratedRef = useRef(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -407,6 +407,37 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  // Hydrate persisted server-side history once (fallbacks to localStorage-first behavior).
+  useEffect(() => {
+    if (serverHistoryHydratedRef.current) return;
+    if (!status || !Array.isArray(status.chatHistory)) return;
+
+    // If local history already exists, keep it and mark hydration complete.
+    if (messagesRef.current.length > 0) {
+      serverHistoryHydratedRef.current = true;
+      return;
+    }
+
+    const normalizedServerHistory = status.chatHistory
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+      .map((m, idx) => ({
+        id: `srv-${m.id ?? idx}`,
+        role: m.role,
+        content: m.content,
+      }));
+
+    if (normalizedServerHistory.length === 0) return;
+
+    const hydrated = attachStableClientKeys(normalizedServerHistory);
+    messagesRef.current = hydrated;
+    initDoneRef.current = true;
+    setMessages(hydrated);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(hydrated));
+    } catch { /* ignore */ }
+    serverHistoryHydratedRef.current = true;
+  }, [status, storageKey]);
+
   // Initial onboarding greeting (only fires when not enrolled and no messages)
   useEffect(() => {
     if (initDoneRef.current) return;
@@ -415,15 +446,6 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     initDoneRef.current = true;
     sendMessage('__init__', true, '__init__');
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset cycle-end sentinel when a new cycle starts
-  useEffect(() => {
-    const cycleId = status?.enrollment?.cycle_id ?? null;
-    if (cycleId && cycleId !== lastCycleIdRef.current) {
-      lastCycleIdRef.current = cycleId;
-      cycleEndSentRef.current = false;
-    }
-  }, [status]);
 
   // Cycle-end check-in (fires independently whenever a cycle has ended)
   useEffect(() => {
@@ -451,15 +473,12 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           flags: payload.flags || [],
         }),
       });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        console.error('Compass completion endpoint returned error:', res.status, errBody);
+      if (res.ok) {
+        const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
       }
-      // Always refresh status so the right panel reflects DB state
-      const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
     } catch (err) {
       console.error('Failed to complete onboarding/new cycle:', err);
     } finally {
@@ -475,15 +494,12 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ goals: payload.goals }),
       });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        console.error('Compass goals/add endpoint returned error:', res.status, errBody);
+      if (res.ok) {
+        const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
       }
-      // Always refresh status so the right panel reflects DB state
-      const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
     } catch (err) {
       console.error('Failed to add goals:', err);
     } finally {
@@ -513,9 +529,6 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     }
 
     setInput('');
-    // Reset textarea height back to single line
-    const textarea = document.querySelector('.compass__input');
-    if (textarea) textarea.style.height = '';
     setIsStreaming(true);
 
     updateMessages(prev => [
@@ -523,11 +536,13 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       { role: 'assistant', content: '', id: streamMsgId, streaming: true },
     ]);
 
+    const mode = (status?.enrolled || cycleEnded) ? 'coaching' : 'onboarding';
+
     try {
       const res = await fetch(`${API_URL}/api/pathfinder/compass/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: messageText, history: historyForApi }),
+        body: JSON.stringify({ message: messageText, history: historyForApi, mode }),
       });
 
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -536,6 +551,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
+      let rafId = null;
+
+      const flushDisplay = () => {
+        rafId = null;
+        const displayContent = stripForDisplay(fullContent);
+        updateMessages(prev =>
+          prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
+        );
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -554,15 +578,16 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
               if (fullContent.includes(COMPLETE_START) || fullContent.includes(ADD_GOALS_START)) {
                 setIsCompleting(true);
               }
-              // Feed each chunk directly — useStreamingText handles smooth animation
-              const displayContent = stripForDisplay(fullContent);
-              updateMessages(prev =>
-                prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
-              );
+              // Batch display updates to animation frames — smooth 60fps render
+              if (!rafId) rafId = requestAnimationFrame(flushDisplay);
             }
           } catch { /* ignore parse errors */ }
         }
       }
+
+      // Flush any remaining content not yet rendered
+      if (rafId) cancelAnimationFrame(rafId);
+      flushDisplay();
 
       // Check for completion signals
       const completionPayload = extractBetween(fullContent, COMPLETE_START, COMPLETE_END);
@@ -639,11 +664,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           <textarea
             className="compass__input"
             value={input}
-            onChange={e => {
-              setInput(e.target.value);
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.min(e.target.scrollHeight, 7 * 24) + 'px';
-            }}
+            onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={isDisabled}
