@@ -7,6 +7,16 @@
   padding: 0 24px 40px;
 }
 
+.compass__chat,
+.compass__dashboard {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.compass--loading .compass__chat,
+.compass--loading .compass__dashboard {
+  opacity: 0.98;
+}
+
 /* ── Chat panel ──────────────────────────────────────────────────────────── */
 
 .compass__chat {
@@ -286,11 +296,59 @@
   overflow-y: auto;
 }
 
+.compass__dashboard--loading {
+  pointer-events: none;
+}
+
 .compass__card {
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 12px;
   padding: 20px;
+}
+
+.compass__skeleton-line,
+.compass__skeleton-bar,
+.compass__skeleton-goal-row {
+  background: linear-gradient(90deg, #f1f1f1 25%, #f7f7f7 37%, #f1f1f1 63%);
+  background-size: 400% 100%;
+  animation: compassSkeleton 1.4s ease infinite;
+  border-radius: 8px;
+}
+
+.compass__skeleton-line {
+  height: 12px;
+  margin-bottom: 10px;
+}
+
+.compass__skeleton-line--lg {
+  height: 18px;
+  width: 70%;
+}
+
+.compass__skeleton-line--md {
+  width: 50%;
+}
+
+.compass__skeleton-line--short {
+  width: 38%;
+  margin-bottom: 0;
+}
+
+.compass__skeleton-bar {
+  height: 8px;
+  border-radius: 999px;
+  margin: 14px 0 10px;
+}
+
+.compass__skeleton-goal-row {
+  height: 16px;
+  margin-bottom: 10px;
+}
+
+.compass__skeleton-goal-row:last-child {
+  margin-bottom: 0;
+  width: 84%;
 }
 
 .compass__card-title {
@@ -437,6 +495,11 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes compassSkeleton {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 
 /* Past cycles card header with toggle */

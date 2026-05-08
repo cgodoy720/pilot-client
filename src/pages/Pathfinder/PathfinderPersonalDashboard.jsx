@@ -3,7 +3,6 @@ import useAuthStore from '../../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { Badge } from '../../components/ui/badge';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -698,6 +697,9 @@ function PathfinderPersonalDashboard() {
 
   return (
     <div className="pathfinder-personal-dashboard">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading dashboard...</div>
+      )}
       {error && (
         <div className="pathfinder-personal-dashboard__error">{error}</div>
       )}
@@ -882,7 +884,6 @@ function PathfinderPersonalDashboard() {
         </DialogContent>
       </Dialog>
 
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

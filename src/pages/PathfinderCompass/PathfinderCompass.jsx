@@ -173,9 +173,32 @@ function GoalProgress({ goal, onProgress }) {
 
 // ── CompassDashboard ──────────────────────────────────────────────────────────
 
-function CompassDashboard({ status, cycleEnded, onGoalProgress }) {
+function CompassDashboard({ status, cycleEnded, onGoalProgress, isLoading = false }) {
   const [pastCycleIdx, setPastCycleIdx] = useState(0);
-  if (!status) return null;
+  if (isLoading || !status) {
+    return (
+      <div className="compass__dashboard compass__dashboard--loading" aria-busy="true" aria-live="polite">
+        <div className="compass__card">
+          <div className="compass__card-title">Your Current Strategy</div>
+          <div className="compass__skeleton-line compass__skeleton-line--lg" />
+          <div className="compass__skeleton-line" />
+          <div className="compass__skeleton-line compass__skeleton-line--short" />
+        </div>
+        <div className="compass__card">
+          <div className="compass__card-title">Current Cycle</div>
+          <div className="compass__skeleton-line compass__skeleton-line--md" />
+          <div className="compass__skeleton-bar" />
+          <div className="compass__skeleton-line compass__skeleton-line--short" />
+        </div>
+        <div className="compass__card">
+          <div className="compass__card-title">Cycle Goals</div>
+          <div className="compass__skeleton-goal-row" />
+          <div className="compass__skeleton-goal-row" />
+          <div className="compass__skeleton-goal-row" />
+        </div>
+      </div>
+    );
+  }
 
   if (!status.enrolled) {
     return (
@@ -694,6 +717,7 @@ function isCycleEnded(enrollment) {
 export default function PathfinderCompass() {
   const token = useAuthStore(s => s.token);
   const [status, setStatus] = useState(null);
+  const isStatusLoading = status === null;
 
   useEffect(() => {
     fetch(`${API_URL}/api/pathfinder/compass/status`, {
@@ -743,9 +767,14 @@ export default function PathfinderCompass() {
   const cycleEnded = status?.enrolled ? isCycleEnded(status.enrollment) : false;
 
   return (
-    <div className="compass">
+    <div className={`compass${isStatusLoading ? ' compass--loading' : ''}`}>
       <CompassChat status={status} cycleEnded={cycleEnded} onEnrollmentComplete={setStatus} />
-      <CompassDashboard status={status} cycleEnded={cycleEnded} onGoalProgress={handleGoalProgress} />
+      <CompassDashboard
+        status={status}
+        cycleEnded={cycleEnded}
+        onGoalProgress={handleGoalProgress}
+        isLoading={isStatusLoading}
+      />
     </div>
   );
 }

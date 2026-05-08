@@ -65,6 +65,11 @@
 /* ── Header ───────────────────────────────────────────────────────────────── */
 .pf-network__header {
   margin-bottom: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .pf-network__title {
@@ -78,6 +83,41 @@
   color: #666;
   font-size: 0.95rem;
   margin: 0;
+}
+
+.pf-network__view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+}
+
+.pf-network__view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.pf-network__view-toggle-btn:hover {
+  color: #1a1a1a;
+  background: rgba(66, 66, 234, 0.05);
+}
+
+.pf-network__view-toggle-btn--active {
+  background: rgba(66, 66, 234, 0.1);
+  color: #4242ea;
 }
 
 /* ── Search ───────────────────────────────────────────────────────────────── */

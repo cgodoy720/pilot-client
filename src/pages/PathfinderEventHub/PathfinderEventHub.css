@@ -1,0 +1,57 @@
+.pf-eventhub {
+  width: 100%;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.pf-eventhub__content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.pf-eventhub__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pf-eventhub__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+}
+
+.pf-eventhub__subtitle {
+  color: #666;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.pf-eventhub__loading {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.pf-eventhub__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 0.9rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.pf-eventhub__search {
+  width: 280px;
+}
+
+.pf-eventhub__select {
+  width: 160px;
+}

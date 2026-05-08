@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import useAuthStore from '../../stores/authStore';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import WorkIcon from '@mui/icons-material/Work';
 import SearchIcon from '@mui/icons-material/Search';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -195,7 +194,9 @@ export default function PathfinderJobs() {
         </div>
 
         {isLoading ? (
-          <LoadingCurtain isLoading />
+          <div className="pf-jobs__empty">
+            <p>Loading jobs...</p>
+          </div>
         ) : jobs.length === 0 ? (
           <div className="pf-jobs__empty">
             <WorkIcon style={{ fontSize: 48, color: '#ccc' }} />

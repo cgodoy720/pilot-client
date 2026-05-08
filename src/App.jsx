@@ -83,6 +83,7 @@ import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog'
 import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
+import { isCompassEligibleUser } from './utils/pathfinderAccess';
 import { Toaster } from './components/ui/sonner';
 import {
   PermissionRoute,
@@ -96,6 +97,7 @@ import './App.css';
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
   
   // Modal state
   const [modalConfig, setModalConfig] = useState({
@@ -441,7 +443,10 @@ function App() {
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
-          <Route path="compass" element={<PathfinderCompass />} />
+          <Route
+            path="compass"
+            element={isCompassEligibleUser(user) ? <PathfinderCompass /> : <Navigate to="/pathfinder/dashboard" replace />}
+          />
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
@@ -449,6 +454,14 @@ function App() {
           <Route path="events/:eventId" element={<EventDetailPage />} />
           <Route path="network" element={<PathfinderNetwork />} />
           <Route path="jobs" element={<PathfinderJobs />} />
+          <Route
+            path="staff-network"
+            element={
+              <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER_ADMIN}>
+                <StaffNetworkDashboard />
+              </PermissionRoute>
+            }
+          />
           <Route path="mock-interview" element={<MockInterviewSetup />} />
           <Route path="mock-interview/session/:interviewId" element={<MockInterviewSession />} />
           <Route path="mock-interview/feedback/:interviewId" element={<MockInterviewFeedback />} />
@@ -473,15 +486,6 @@ function App() {
           </Layout>
         } />
 
-        {/* Employment Engine - Staff Network Dashboard */}
-        <Route path="/pathfinder/staff-network" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER_ADMIN}>
-              <StaffNetworkDashboard />
-            </PermissionRoute>
-          </Layout>
-        } />
-        
         {/* Volunteering Dashboard (volunteer-facing: Schedule, Check In, Feedback) */}
         <Route path="/volunteering" element={
           <Layout>

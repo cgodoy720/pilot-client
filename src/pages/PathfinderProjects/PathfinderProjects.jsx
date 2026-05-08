@@ -3,7 +3,6 @@ import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -727,6 +726,9 @@ function PathfinderProjects() {
 
   return (
     <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading projects...</div>
+      )}
       <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
         <div className="flex justify-between items-center mb-4 gap-4 flex-wrap max-w-full w-full">
           <Button 
@@ -1423,8 +1425,6 @@ function PathfinderProjects() {
         </div>
       )}
       
-      {/* Loading Curtain */}
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

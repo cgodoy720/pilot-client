@@ -3,7 +3,6 @@ import useAuthStore from '../../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import SendIcon from '@mui/icons-material/Send';
 import BusinessIcon from '@mui/icons-material/Business';
 import CheckIcon from '@mui/icons-material/Check';
@@ -184,32 +183,31 @@ export default function StaffNetworkDashboard() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="snd">
-      {/* Page header */}
-      <div className="snd__page-header">
-        <h1 className="snd__page-title">Staff Inbox</h1>
-        <p className="snd__page-subtitle">Manage intro requests and your network.</p>
-      </div>
-
-      {/* Tabs */}
-      <div className="snd__tabs">
-        <button
-          className={`snd__tab ${activeTab === 'requests' ? 'snd__tab--active' : ''}`}
-          onClick={() => setActiveTab('requests')}
-        >
-          <SendIcon fontSize="small" /> Intro Requests
-          {pendingCount > 0 && <span className="snd__tab-badge">{pendingCount}</span>}
-        </button>
-        <button
-          className={`snd__tab ${activeTab === 'network' ? 'snd__tab--active' : ''}`}
-          onClick={() => setActiveTab('network')}
-        >
-          <CloudUploadIcon fontSize="small" /> My Network
-        </button>
-      </div>
-
       {/* ── INTRO REQUESTS TAB ── */}
       {activeTab === 'requests' && (
         <div className="snd__content">
+          <div className="snd__header">
+            <div>
+              <h1 className="snd__title">Staff Inbox</h1>
+              <p className="snd__subtitle">Manage intro requests and your network.</p>
+            </div>
+            <div className="snd__view-toggle">
+              <button
+                className={`snd__view-toggle-btn ${activeTab === 'requests' ? 'snd__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('requests')}
+              >
+                <SendIcon fontSize="small" /> Intro Requests
+                {pendingCount > 0 && <span className="snd__tab-badge">{pendingCount}</span>}
+              </button>
+              <button
+                className={`snd__view-toggle-btn ${activeTab === 'network' ? 'snd__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('network')}
+              >
+                <CloudUploadIcon fontSize="small" /> My Network
+              </button>
+            </div>
+          </div>
+
           {/* Status filter */}
           <div className="snd__status-filter">
             {['pending', 'approved', 'completed', 'declined', ''].map(s => (
@@ -224,7 +222,7 @@ export default function StaffNetworkDashboard() {
           </div>
 
           {isLoadingRequests ? (
-            <LoadingCurtain isLoading />
+            <div className="snd__loading">Loading intro requests...</div>
           ) : requests.length === 0 ? (
             <div className="snd__empty">
               <SendIcon style={{ fontSize: 48, color: '#ccc' }} />
@@ -334,6 +332,28 @@ export default function StaffNetworkDashboard() {
       {/* ── MY NETWORK TAB ── */}
       {activeTab === 'network' && (
         <div className="snd__content">
+          <div className="snd__header">
+            <div>
+              <h1 className="snd__title">My Network</h1>
+              <p className="snd__subtitle">Upload LinkedIn exports and enrich companies for builder discovery.</p>
+            </div>
+            <div className="snd__view-toggle">
+              <button
+                className={`snd__view-toggle-btn ${activeTab === 'requests' ? 'snd__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('requests')}
+              >
+                <SendIcon fontSize="small" /> Intro Requests
+                {pendingCount > 0 && <span className="snd__tab-badge">{pendingCount}</span>}
+              </button>
+              <button
+                className={`snd__view-toggle-btn ${activeTab === 'network' ? 'snd__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('network')}
+              >
+                <CloudUploadIcon fontSize="small" /> My Network
+              </button>
+            </div>
+          </div>
+
           {/* Upload card */}
           <Card className="snd__network-card">
             <CardHeader>

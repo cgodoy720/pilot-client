@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../stores/authStore';
 import { useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -656,6 +655,9 @@ function PathfinderNetworking() {
 
   return (
     <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading hustles...</div>
+      )}
       <div className="max-w-full mx-auto">
         <div className="flex justify-start items-center mb-8 gap-4">
           <Button 
@@ -1483,8 +1485,6 @@ function PathfinderNetworking() {
         )}
       </div>
       
-      {/* Loading Curtain */}
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

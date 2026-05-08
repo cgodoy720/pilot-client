@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import Swal from 'sweetalert2';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -12,6 +11,7 @@ import { Checkbox } from '../../components/ui/checkbox';
 import EventCard from './EventCard';
 import EventCalendar from './EventCalendar';
 import AddEventDialog from './AddEventDialog';
+import './PathfinderEventHub.css';
 
 // Icons
 import ViewListIcon from '@mui/icons-material/ViewList';
@@ -105,14 +105,13 @@ function PathfinderEventHub() {
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <LoadingCurtain isLoading={isLoading} />
-      
+    <div className="pf-eventhub">
+      <div className="pf-eventhub__content">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="pf-eventhub__header">
         <div>
-          <h1 className="text-2xl font-bold text-[#1a1a1a]">EventHub</h1>
-          <p className="text-[#666666] text-sm mt-1">
+          <h1 className="pf-eventhub__title">EventHub</h1>
+          <p className="pf-eventhub__subtitle">
             Discover and attend tech events to grow your network
           </p>
         </div>
@@ -124,10 +123,14 @@ function PathfinderEventHub() {
         </Button>
       </div>
 
+      {isLoading && (
+        <div className="pf-eventhub__loading">Loading events...</div>
+      )}
+
       {/* View Toggle & Filters */}
-      <div className="flex flex-col sm:flex-row flex-wrap gap-4 mb-6">
+      <div className="pf-eventhub__filters">
         {/* Search Input */}
-        <div className="w-64">
+        <div className="pf-eventhub__search">
           <Input
             type="text"
             placeholder="Search events..."
@@ -179,7 +182,7 @@ function PathfinderEventHub() {
         </div>
 
         {/* My Events Filter */}
-        <div className="w-40">
+        <div className="pf-eventhub__select">
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="bg-white border-[#e0e0e0]">
               <SelectValue placeholder="My Events" />
@@ -193,7 +196,7 @@ function PathfinderEventHub() {
         </div>
 
         {/* Location Filter */}
-        <div className="w-40">
+        <div className="pf-eventhub__select">
           <Select value={locationFilter} onValueChange={setLocationFilter}>
             <SelectTrigger className="bg-white border-[#e0e0e0]">
               <SelectValue placeholder="Location" />
@@ -208,7 +211,7 @@ function PathfinderEventHub() {
         </div>
 
         {/* Type Filter */}
-        <div className="w-40">
+        <div className="pf-eventhub__select">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="bg-white border-[#e0e0e0]">
               <SelectValue placeholder="Event Type" />
@@ -283,6 +286,7 @@ function PathfinderEventHub() {
           fetchEvents();
         }}
       />
+      </div>
     </div>
   );
 }
