@@ -10,9 +10,12 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import PersonIcon from '@mui/icons-material/Person';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import './PathfinderJobs.css';
 
 const API = import.meta.env.VITE_API_URL;
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 
 const EXPERIENCE_LEVELS = [
   { value: '', label: 'All levels' },
@@ -20,6 +23,12 @@ const EXPERIENCE_LEVELS = [
   { value: 'mid', label: 'Mid level' },
   { value: 'senior', label: 'Senior' },
 ];
+
+function isStale(job) {
+  const posted = job.shared_date || job.created_at;
+  if (!posted) return false;
+  return Date.now() - new Date(posted).getTime() > TWO_WEEKS_MS;
+}
 
 export default function PathfinderJobs() {
   const token = useAuthStore((s) => s.token);
@@ -31,6 +40,8 @@ export default function PathfinderJobs() {
   const [search, setSearch] = useState('');
   const [experienceLevel, setExperienceLevel] = useState('');
   const [interestedIds, setInterestedIds] = useState(new Set());
+  const [appliedIds, setAppliedIds] = useState(new Set());
+  const [applyingId, setApplyingId] = useState(null);
 
   const fetchJobs = useCallback(async (page = 1, searchTerm = search, level = experienceLevel) => {
     try {
@@ -53,6 +64,61 @@ export default function PathfinderJobs() {
   }, [token, search, experienceLevel]);
 
   useEffect(() => { fetchJobs(1, search, experienceLevel); }, [token, search, experienceLevel]);
+
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/pathfinder/applications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const apps = await res.json();
+          const urls = new Set(
+            apps
+              .filter(a => a.job_url)
+              .map(a => a.job_url)
+          );
+          setAppliedIds(urls);
+        }
+      } catch (err) {
+        console.error('Failed to load existing applications:', err);
+      }
+    })();
+  }, [token]);
+
+  const handleMarkApplied = async (job) => {
+    if (appliedIds.has(job.job_url) || applyingId === job.id) return;
+    setApplyingId(job.id);
+    try {
+      const res = await fetch(`${API}/api/pathfinder/applications`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: job.company_name,
+          roleTitle: job.job_title,
+          stage: 'applied',
+          dateApplied: new Date().toISOString().split('T')[0],
+          jobUrl: job.job_url || '',
+          location: job.location || '',
+          salaryRange: job.salary_range || '',
+          source: 'Jobs Feed',
+          sourceType: 'staff_sourced',
+          internalReferral: true,
+        }),
+      });
+      if (res.ok) {
+        setAppliedIds(prev => new Set([...prev, job.job_url]));
+      }
+    } catch (err) {
+      console.error('Failed to mark as applied:', err);
+    } finally {
+      setApplyingId(null);
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -139,8 +205,11 @@ export default function PathfinderJobs() {
         ) : (
           <>
             <div className="pf-jobs__list">
-              {jobs.map(job => (
-                <Card key={job.id} className="pf-jobs__card">
+              {jobs.map(job => {
+                const stale = isStale(job);
+                const alreadyApplied = job.job_url && appliedIds.has(job.job_url);
+                return (
+                <Card key={job.id} className={`pf-jobs__card${stale ? ' pf-jobs__card--stale' : ''}`}>
                   <CardContent className="pf-jobs__card-content">
                     <div className="pf-jobs__card-main">
                       <div className="pf-jobs__card-icon">
@@ -162,8 +231,11 @@ export default function PathfinderJobs() {
                             <PersonIcon fontSize="inherit" /> via {job.posted_by_name}
                           </span>
                           <span className="pf-jobs__date">
-                            {new Date(job.created_at).toLocaleDateString()}
+                            {new Date(job.shared_date || job.created_at).toLocaleDateString()}
                           </span>
+                          {stale && (
+                            <span className="pf-jobs__stale-label">2+ weeks ago</span>
+                          )}
                         </div>
                         {job.notes && (
                           <p className="pf-jobs__notes">{job.notes}</p>
@@ -172,6 +244,19 @@ export default function PathfinderJobs() {
                     </div>
 
                     <div className="pf-jobs__card-actions">
+                      <button
+                        className={`pf-jobs__applied-btn ${alreadyApplied ? 'pf-jobs__applied-btn--active' : ''}`}
+                        onClick={() => handleMarkApplied(job)}
+                        disabled={alreadyApplied || applyingId === job.id}
+                        title={alreadyApplied ? 'Already applied' : 'Mark as applied'}
+                      >
+                        {alreadyApplied
+                          ? <CheckCircleIcon fontSize="small" />
+                          : <CheckCircleOutlineIcon fontSize="small" />
+                        }
+                        <span>{alreadyApplied ? 'Applied' : applyingId === job.id ? 'Saving…' : 'Applied?'}</span>
+                      </button>
+
                       <button
                         className={`pf-jobs__interest-btn ${interestedIds.has(job.id) ? 'pf-jobs__interest-btn--active' : ''}`}
                         onClick={() => handleInterest(job.id)}
@@ -197,7 +282,8 @@ export default function PathfinderJobs() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
 
             {pagination.totalPages > 1 && (

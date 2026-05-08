@@ -207,8 +207,8 @@ const JobApplicationsTab = ({
   return (
     <div className="w-full space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-4">
+      <div className="flex justify-between items-start gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-1">Job Applications</h2>
             <p className="text-sm text-gray-600">View all job applications submitted by builders</p>
@@ -235,6 +235,11 @@ const JobApplicationsTab = ({
           </Button>
           
           {/* Clear Filter Button */}
+          {selectedBuilderFilter && (
+            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
+              {selectedBuilderFilter.first_name} {selectedBuilderFilter.last_name}
+            </Badge>
+          )}
           {selectedBuilderFilter && (
             <Button
               variant="outline"
@@ -282,7 +287,7 @@ const JobApplicationsTab = ({
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-gray-50/70">
                     <SortableHeader sortKey="builder_name">Builder</SortableHeader>
                     <SortableHeader sortKey="company_name">Company</SortableHeader>
                     <SortableHeader sortKey="role_title">Role</SortableHeader>
@@ -297,17 +302,17 @@ const JobApplicationsTab = ({
                 </TableHeader>
                 <TableBody>
                   {getSortedJobApplications().map((application) => (
-                    <TableRow 
+                    <TableRow
                       key={application.job_application_id}
                       onClick={() => setSelectedJobApplication(application)}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className="cursor-pointer hover:bg-[#f6f7ff] transition-colors"
                     >
-                      <TableCell>
+                      <TableCell className="py-3">
                         <strong className="text-sm">
                           {application.builder_first_name} {application.builder_last_name}
                         </strong>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           {application.company_logo && (
                             <img 
@@ -319,17 +324,17 @@ const JobApplicationsTab = ({
                           <strong className="text-sm">{application.company_name}</strong>
                         </div>
                       </TableCell>
-                      <TableCell>{application.role_title}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">{application.role_title}</TableCell>
+                      <TableCell className="py-3">
                         <Badge variant={getStageBadgeVariant(application.stage)}>
                           {getStageLabel(application.stage)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{application.location || '—'}</TableCell>
-                      <TableCell>{formatSalary(application) || '—'}</TableCell>
-                      <TableCell>{new Date(application.date_applied).toLocaleDateString()}</TableCell>
-                      <TableCell>{application.source_type || '—'}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">{application.location || '—'}</TableCell>
+                      <TableCell className="py-3">{formatSalary(application) || '—'}</TableCell>
+                      <TableCell className="py-3">{new Date(application.date_applied).toLocaleDateString()}</TableCell>
+                      <TableCell className="py-3">{application.source_type || '—'}</TableCell>
+                      <TableCell className="py-3">
                         {application.internal_referral ? (
                           <Badge variant="secondary" className="bg-green-100 text-green-700">
                             ✓ Yes
@@ -338,7 +343,7 @@ const JobApplicationsTab = ({
                           '—'
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">
                         {application.interview_count > 0 ? (
                           <Badge variant="secondary" className="bg-orange-100 text-orange-700">
                             {application.interview_count}

@@ -5,6 +5,25 @@ import { Button } from '../../../../components/ui/button';
 import { Badge } from '../../../../components/ui/badge';
 import { getStageLabel } from './utils';
 
+const toBrowserResumeUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+
+  if (url.startsWith('gs://')) {
+    const withoutScheme = url.replace('gs://', '');
+    const slashIndex = withoutScheme.indexOf('/');
+    if (slashIndex === -1) return null;
+    const bucket = withoutScheme.slice(0, slashIndex);
+    const objectPath = withoutScheme.slice(slashIndex + 1);
+    return `https://storage.cloud.google.com/${bucket}/${objectPath}`;
+  }
+
+  return null;
+};
+
 const BuilderDetailModal = ({ 
   builder, 
   builderDetails, 
@@ -62,6 +81,34 @@ const BuilderDetailModal = ({
               </>
             )}
           </div>
+
+          {/* Primary Resume */}
+          {builderDetails.primaryResume && (
+            <div className="p-4 bg-gray-50 rounded-lg flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-gray-900">Primary Resume: </span>
+                <span className="text-sm text-gray-700">{builderDetails.primaryResume.name}</span>
+                {builderDetails.primaryResume.tagged_interest && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {builderDetails.primaryResume.tagged_interest}
+                  </Badge>
+                )}
+                <span className="text-xs text-gray-400 ml-2">
+                  Uploaded {new Date(builderDetails.primaryResume.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              {toBrowserResumeUrl(builderDetails.primaryResume.downloadUrl || builderDetails.primaryResume.file_url) && (
+                <a
+                  href={toBrowserResumeUrl(builderDetails.primaryResume.downloadUrl || builderDetails.primaryResume.file_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#4242ea] underline ml-4 flex-shrink-0"
+                >
+                  Download
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Three Column Layout */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -162,8 +209,8 @@ const BuilderDetailModal = ({
               {builderDetails.applications && builderDetails.applications.length > 0 ? (
                 <div className="space-y-3">
                   {getFilteredApplications(builderDetails.applications).slice(0, 10).map(app => (
-                    <div 
-                      key={app.application_id} 
+                    <div
+                      key={app.job_application_id || app.application_id || `${app.company_name}-${app.date_applied}`}
                       className="p-3 bg-gray-50 rounded-lg border-l-4 border-amber-500"
                     >
                       <div className="font-semibold mb-1 text-sm">
@@ -177,6 +224,23 @@ const BuilderDetailModal = ({
                           </Badge>
                         </div>
                         <div>{new Date(app.date_applied).toLocaleDateString()}</div>
+                        {app.resume_name && (
+                          <div className="flex items-center gap-1 pt-1">
+                            <span className="text-gray-500">Resume:</span>
+                            {toBrowserResumeUrl(app.resumeDownloadUrl || app.resume_file_url) ? (
+                              <a
+                                href={toBrowserResumeUrl(app.resumeDownloadUrl || app.resume_file_url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#4242ea] underline truncate"
+                              >
+                                {app.resume_name}
+                              </a>
+                            ) : (
+                              <span>{app.resume_name}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

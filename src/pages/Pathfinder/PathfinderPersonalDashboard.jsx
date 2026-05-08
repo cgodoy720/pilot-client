@@ -7,6 +7,7 @@ import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { ExternalLink } from 'lucide-react';
 import './PathfinderPersonalDashboard.css';
 
 // ── Label maps for strategy tags ──────────────────────────────────────────────
@@ -66,6 +67,7 @@ function PathfinderPersonalDashboard() {
   const [goalInput, setGoalInput] = useState('');
   const [isSavingGoal, setIsSavingGoal] = useState(false);
   const [resumeCount, setResumeCount] = useState(null);
+  const [sharedJobs, setSharedJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showLogJobModal, setShowLogJobModal] = useState(false);
@@ -99,14 +101,14 @@ function PathfinderPersonalDashboard() {
       const headers = { Authorization: `Bearer ${token}` };
       const base = import.meta.env.VITE_API_URL;
 
-      const [interestsRes, goalRes, suggestionRes, eventsRes, dashRes, resumesRes] = await Promise.all([
+      const [interestsRes, goalRes, suggestionRes, eventsRes, dashRes, resumesRes, jobsRes] = await Promise.all([
         fetch(`${base}/api/pathfinder/interests`, { headers }),
         fetch(`${base}/api/pathfinder/weekly-goal`, { headers }),
         fetch(`${base}/api/pathfinder/weekly-goal/suggestion`, { headers }),
         fetch(`${base}/api/pathfinder/events`, { headers }),
-        // Dashboard endpoint used for streak data only — non-critical
         fetch(`${base}/api/pathfinder/applications/dashboard`, { headers }),
         fetch(`${base}/api/pathfinder/resumes`, { headers }),
+        fetch(`${base}/api/employment-engine/jobs?limit=6`, { headers }),
       ]);
 
       if (interestsRes.ok) {
@@ -143,6 +145,11 @@ function PathfinderPersonalDashboard() {
         setResumeCount(resumesData.length);
       } else {
         setResumeCount(0);
+      }
+
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json();
+        setSharedJobs(jobsData.jobs || []);
       }
     } catch (err) {
       console.error('Error loading dashboard:', err);
@@ -601,6 +608,67 @@ function PathfinderPersonalDashboard() {
     );
   };
 
+  const renderSharedJobs = () => {
+    if (!sharedJobs.length) return null;
+
+    return (
+      <div className="pathfinder-personal-dashboard__events">
+        <div className="pathfinder-personal-dashboard__events-header">
+          <h3 className="pathfinder-personal-dashboard__events-title">Job Opportunities</h3>
+          <Link to="/pathfinder/jobs" className="pathfinder-personal-dashboard__events-link">
+            View All →
+          </Link>
+        </div>
+        <div className="pathfinder-personal-dashboard__events-list">
+          {sharedJobs.map(job => (
+            <Card
+              key={job.job_posting_id}
+              className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <CardContent className="p-4">
+                <div className="font-semibold text-[#1a1a1a] mb-1">{job.job_title}</div>
+                <div className="text-sm text-[#666666] mb-2">{job.company_name}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {job.experience_level && (
+                    <Badge className="bg-purple-100 text-purple-700 text-[10px]">
+                      {job.experience_level.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                  {job.location && (
+                    <Badge className="bg-gray-100 text-gray-600 text-[10px]">
+                      {job.location}
+                    </Badge>
+                  )}
+                  {job.salary && (
+                    <Badge className="bg-green-100 text-green-700 text-[10px]">
+                      {job.salary}
+                    </Badge>
+                  )}
+                  {job.shared_date && (
+                    <span className="text-[10px] text-[#999]">
+                      Posted {new Date(job.shared_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+                {job.application_url && (
+                  <a
+                    href={job.application_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 mt-2 text-xs text-[#4242ea] hover:underline"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    Apply <ExternalLink size={11} />
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderQuickActions = () => (
     <div className="pathfinder-personal-dashboard__actions">
       <div className="pathfinder-personal-dashboard__action-cards">
@@ -637,6 +705,7 @@ function PathfinderPersonalDashboard() {
       {renderGoalStatementCard()}
       {renderResumeCta()}
       {renderFeaturedEvents()}
+      {renderSharedJobs()}
       {renderProgressSection()}
       {renderQuickActions()}
 
