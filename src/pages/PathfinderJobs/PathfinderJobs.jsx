@@ -64,6 +64,12 @@ export default function PathfinderJobs() {
 
   useEffect(() => { fetchJobs(1, search, experienceLevel); }, [token, search, experienceLevel]);
 
+  // Track applied jobs in two namespaces so double-click protection works
+  // regardless of whether the posting has a job_url:
+  //   - `job:<id>` is set optimistically on click (always available, prevents
+  //     duplicate POST in the same browser session even if job_url is empty).
+  //   - `url:<job_url>` is what the server can reconcile against on the next
+  //     fetch (job_applications stores job_url, not the source_job posting id).
   const fetchAppliedIds = useCallback(async () => {
     if (!token) return;
     try {
@@ -72,12 +78,18 @@ export default function PathfinderJobs() {
       });
       if (!res.ok) return;
       const apps = await res.json();
-      const urls = new Set(
-        apps
-          .filter(a => a.job_url)
-          .map(a => a.job_url)
-      );
-      setAppliedIds(urls);
+      setAppliedIds(prev => {
+        // Preserve any optimistic `job:<id>` marks while reconciling
+        // `url:<job_url>` from the server response.
+        const next = new Set();
+        for (const key of prev) {
+          if (key.startsWith('job:')) next.add(key);
+        }
+        for (const a of apps) {
+          if (a.job_url) next.add(`url:${a.job_url}`);
+        }
+        return next;
+      });
     } catch (err) {
       console.error('Failed to load existing applications:', err);
     }
@@ -87,9 +99,24 @@ export default function PathfinderJobs() {
     fetchAppliedIds();
   }, [fetchAppliedIds]);
 
+  const isJobApplied = useCallback((job) => {
+    if (!job) return false;
+    if (job.id != null && appliedIds.has(`job:${job.id}`)) return true;
+    if (job.job_url && appliedIds.has(`url:${job.job_url}`)) return true;
+    return false;
+  }, [appliedIds]);
+
   const handleMarkApplied = async (job) => {
-    if (appliedIds.has(job.job_url) || applyingId === job.id) return;
+    if (isJobApplied(job) || applyingId === job.id) return;
     setApplyingId(job.id);
+    // Pre-mark locally on job.id so a fast double-click can't fire twice
+    // even before the server round-trip resolves.
+    setAppliedIds(prev => {
+      const next = new Set(prev);
+      if (job.id != null) next.add(`job:${job.id}`);
+      if (job.job_url) next.add(`url:${job.job_url}`);
+      return next;
+    });
     try {
       const res = await fetch(`${API}/api/pathfinder/applications`, {
         method: 'POST',
@@ -112,9 +139,23 @@ export default function PathfinderJobs() {
       });
       if (res.ok) {
         await fetchAppliedIds();
+      } else {
+        // Roll back the optimistic mark on server failure.
+        setAppliedIds(prev => {
+          const next = new Set(prev);
+          if (job.id != null) next.delete(`job:${job.id}`);
+          if (job.job_url) next.delete(`url:${job.job_url}`);
+          return next;
+        });
       }
     } catch (err) {
       console.error('Failed to mark as applied:', err);
+      setAppliedIds(prev => {
+        const next = new Set(prev);
+        if (job.id != null) next.delete(`job:${job.id}`);
+        if (job.job_url) next.delete(`url:${job.job_url}`);
+        return next;
+      });
     } finally {
       setApplyingId(null);
     }
@@ -209,7 +250,7 @@ export default function PathfinderJobs() {
             <div className="pf-jobs__list">
               {jobs.map(job => {
                 const stale = isStale(job);
-                const alreadyApplied = job.job_url && appliedIds.has(job.job_url);
+                const alreadyApplied = isJobApplied(job);
                 return (
                 <Card key={job.id} className={`pf-jobs__card${stale ? ' pf-jobs__card--stale' : ''}`}>
                   <CardContent className="pf-jobs__card-content">

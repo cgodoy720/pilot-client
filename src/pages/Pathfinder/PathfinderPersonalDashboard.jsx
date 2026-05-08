@@ -7,6 +7,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { ExternalLink } from 'lucide-react';
+import { safeExternalUrl } from '../../utils/safeUrl';
 import './PathfinderPersonalDashboard.css';
 
 // ── Label maps for strategy tags ──────────────────────────────────────────────
@@ -649,17 +650,21 @@ function PathfinderPersonalDashboard() {
                     </span>
                   )}
                 </div>
-                {job.application_url && (
-                  <a
-                    href={job.application_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 mt-2 text-xs text-[#4242ea] hover:underline"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    Apply <ExternalLink size={11} />
-                  </a>
-                )}
+                {(() => {
+                  const safeApplyHref = safeExternalUrl(job.application_url);
+                  if (!safeApplyHref) return null;
+                  return (
+                    <a
+                      href={safeApplyHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-2 text-xs text-[#4242ea] hover:underline"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      Apply <ExternalLink size={11} />
+                    </a>
+                  );
+                })()}
               </CardContent>
             </Card>
           ))}

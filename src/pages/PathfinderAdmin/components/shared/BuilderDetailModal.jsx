@@ -4,25 +4,11 @@ import { Input } from '../../../../components/ui/input';
 import { Button } from '../../../../components/ui/button';
 import { Badge } from '../../../../components/ui/badge';
 import { getStageLabel } from './utils';
+import { toSafeBrowserUrl } from '../../../../utils/safeUrl';
 
-const toBrowserResumeUrl = (url) => {
-  if (!url || typeof url !== 'string') return null;
-
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-
-  if (url.startsWith('gs://')) {
-    const withoutScheme = url.replace('gs://', '');
-    const slashIndex = withoutScheme.indexOf('/');
-    if (slashIndex === -1) return null;
-    const bucket = withoutScheme.slice(0, slashIndex);
-    const objectPath = withoutScheme.slice(slashIndex + 1);
-    return `https://storage.cloud.google.com/${bucket}/${objectPath}`;
-  }
-
-  return null;
-};
+// Bucket / object segments are encoded inside toSafeBrowserUrl so a bucket
+// or path with `..`, `?`, `#`, or whitespace cannot escape the URL shape.
+const toBrowserResumeUrl = toSafeBrowserUrl;
 
 const BuilderDetailModal = ({ 
   builder, 

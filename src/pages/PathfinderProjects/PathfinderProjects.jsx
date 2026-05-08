@@ -3,6 +3,7 @@ import useAuthStore from '../../stores/authStore';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
+import { safeExternalUrl } from '../../utils/safeUrl';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -1316,10 +1317,13 @@ function PathfinderProjects() {
                                 </div>
                               )}
                               
-                              {project.prd_link && (
+                              {(() => {
+                                const prdHref = safeExternalUrl(project.prd_link);
+                                if (!prdHref) return null;
+                                return (
                                 <div className="flex flex-col gap-1">
                                   <a 
-                                    href={project.prd_link} 
+                                    href={prdHref} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
@@ -1359,7 +1363,8 @@ function PathfinderProjects() {
                                     </Button>
                                   )}
                                 </div>
-                              )}
+                                );
+                              })()}
                               
                               {/* No PRD indicator for Planning stage */}
                               {!project.prd_link && project.stage === 'planning' && (

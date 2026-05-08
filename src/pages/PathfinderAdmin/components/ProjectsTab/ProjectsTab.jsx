@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsList, TabsTrigger } from '../../../../components/ui/tabs';
 import KanbanBoard from '../shared/KanbanBoard';
 import { getStageLabel } from '../shared/utils';
+import { safeExternalUrl } from '../../../../utils/safeUrl';
 
 const ProjectsTab = ({
   projects,
@@ -93,28 +94,34 @@ const ProjectsTab = ({
           </div>
           
           <div className="flex gap-2 flex-wrap">
-            {project.prd_link && (
-              <a
-                href={project.prd_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
-                title="View PRD"
-              >
-                📄 PRD
-              </a>
-            )}
-            {project.deployment_url && (
-              <a
-                href={project.deployment_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
-                title="View Deployment"
-              >
-                🚀 Live
-              </a>
-            )}
+            {(() => {
+              const prdHref = safeExternalUrl(project.prd_link);
+              return prdHref ? (
+                <a
+                  href={prdHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
+                  title="View PRD"
+                >
+                  📄 PRD
+                </a>
+              ) : null;
+            })()}
+            {(() => {
+              const deployHref = safeExternalUrl(project.deployment_url);
+              return deployHref ? (
+                <a
+                  href={deployHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
+                  title="View Deployment"
+                >
+                  🚀 Live
+                </a>
+              ) : null;
+            })()}
           </div>
         </CardContent>
       </Card>
@@ -252,30 +259,36 @@ const ProjectsTab = ({
                           <TableCell className="py-3">{new Date(project.created_at).toLocaleDateString()}</TableCell>
                           <TableCell className="py-3">
                             <div className="flex gap-2">
-                              {project.prd_link && (
-                                <a
-                                  href={project.prd_link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:border-[#4242ea] hover:text-[#4242ea] transition-colors"
-                                  title="View PRD"
-                                >
-                                  <span>📄</span>
-                                  <span>PRD</span>
-                                </a>
-                              )}
-                              {project.deployment_url && (
-                                <a
-                                  href={project.deployment_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:border-[#4242ea] hover:text-[#4242ea] transition-colors"
-                                  title="View Deployment"
-                                >
-                                  <span>🚀</span>
-                                  <span>Live</span>
-                                </a>
-                              )}
+                              {(() => {
+                                const prdHref = safeExternalUrl(project.prd_link);
+                                return prdHref ? (
+                                  <a
+                                    href={prdHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:border-[#4242ea] hover:text-[#4242ea] transition-colors"
+                                    title="View PRD"
+                                  >
+                                    <span>📄</span>
+                                    <span>PRD</span>
+                                  </a>
+                                ) : null;
+                              })()}
+                              {(() => {
+                                const deployHref = safeExternalUrl(project.deployment_url);
+                                return deployHref ? (
+                                  <a
+                                    href={deployHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:border-[#4242ea] hover:text-[#4242ea] transition-colors"
+                                    title="View Deployment"
+                                  >
+                                    <span>🚀</span>
+                                    <span>Live</span>
+                                  </a>
+                                ) : null;
+                              })()}
                             </div>
                           </TableCell>
                         </TableRow>

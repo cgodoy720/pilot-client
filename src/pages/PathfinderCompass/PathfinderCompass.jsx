@@ -411,15 +411,52 @@ function CompassDashboard({ status, cycleEnded, onGoalProgress, isLoading = fals
 
 // ── CompassChat ───────────────────────────────────────────────────────────────
 
+// Cap persisted local message count so a long-running session can't blow
+// past the browser's 5-10 MB localStorage quota. Tuned generously: even at
+// ~4 KB per message this stays well under 250 KB.
+const MAX_PERSISTED_COMPASS_MESSAGES = 50;
+
+// Match the auth store shape across all known login responses. The /unified-auth
+// payload uses `user_id`; older code paths used `userId`/`id`. Falling back to
+// `anon` is a leak (two users on the same browser would share a key), so we
+// verify all three before giving up.
+function compassStorageKeyForUser(user) {
+  const id = user?.user_id ?? user?.userId ?? user?.id;
+  if (id == null || id === '') return 'compass_messages_anon';
+  return `compass_messages_${id}`;
+}
+
+function safeWriteCompassHistory(storageKey, messages) {
+  // Drop streaming placeholders before persisting and cap to the most recent
+  // MAX_PERSISTED_COMPASS_MESSAGES. If the browser still throws QuotaExceeded
+  // (tab is sharing storage with other apps), retry with a half-sized window
+  // before giving up — and surface the failure in the console rather than
+  // silently swallowing it the way the old `catch { /* ignore */ }` did.
+  const persisted = messages.filter(m => !m.streaming);
+  const trimmed = persisted.slice(-MAX_PERSISTED_COMPASS_MESSAGES);
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(trimmed));
+    return;
+  } catch (err) {
+    // QuotaExceededError name differs by browser; fall back to a smaller window.
+    try {
+      const halved = trimmed.slice(-Math.max(10, Math.floor(trimmed.length / 2)));
+      localStorage.setItem(storageKey, JSON.stringify(halved));
+    } catch (innerErr) {
+      console.warn('Compass: failed to persist chat history (quota?):', innerErr?.message || innerErr);
+    }
+  }
+}
+
 function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const token = useAuthStore(s => s.token);
   const user = useAuthStore(s => s.user);
 
-  const storageKey = `compass_messages_${user?.userId || 'anon'}`;
+  const storageKey = compassStorageKeyForUser(user);
 
   const [messages, setMessages] = useState(() => {
     try {
-      const stored = localStorage.getItem(`compass_messages_${user?.userId || 'anon'}`);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return attachStableClientKeys(parsed);
@@ -433,9 +470,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       const nextRaw = typeof updater === 'function' ? updater(prev) : updater;
       const next = attachStableClientKeys(nextRaw);
       messagesRef.current = next;
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(next.filter(m => !m.streaming)));
-      } catch { /* ignore */ }
+      safeWriteCompassHistory(storageKey, next);
       return next;
     });
   }, [storageKey]);
@@ -454,6 +489,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const messagesContainerRef = useRef(null);
   const userScrolledUpRef = useRef(false);
 
+  // Sync status / cycleEnded refs SYNCHRONOUSLY during render. Doing this in
+  // a useEffect leaves a one-frame window where a completion payload arriving
+  // during the first render would observe stale `false` and call
+  // /onboarding/complete a second time, creating a duplicate enrollment.
+  // React lets us mutate refs during render as long as the value is derived
+  // from props (no scheduling, no observable side effect).
+  statusRef.current = status;
+  cycleEndedRef.current = cycleEnded;
+
   // Track whether user has scrolled away from the bottom
   useEffect(() => {
     const el = messagesContainerRef.current;
@@ -471,14 +515,6 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     if (userScrolledUpRef.current) return;
     el.scrollTop = el.scrollHeight;
   }, [messages]);
-
-  useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
-
-  useEffect(() => {
-    cycleEndedRef.current = cycleEnded;
-  }, [cycleEnded]);
 
   // Hydrate persisted server-side history once (fallbacks to localStorage-first behavior).
   useEffect(() => {
@@ -499,9 +535,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     messagesRef.current = hydrated;
     initDoneRef.current = true;
     setMessages(hydrated);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(hydrated));
-    } catch { /* ignore */ }
+    safeWriteCompassHistory(storageKey, hydrated);
     serverHistoryHydratedRef.current = true;
   }, [status, storageKey]);
 
@@ -813,17 +847,21 @@ export default function PathfinderCompass() {
   const handleGoalProgress = useCallback(async (goal, newProgressCount) => {
     const currentStatus = statusRef.current;
     if (!currentStatus?.enrolled) return;
-    const originalGoal = currentStatus.goals?.find((g) => g.id === goal.id);
+    // Defensive: server may shape `goals` differently in future versions; never
+    // assume it's an array.
+    const goalsList = Array.isArray(currentStatus.goals) ? currentStatus.goals : [];
+    const originalGoal = goalsList.find((g) => g.id === goal.id);
     if (!originalGoal) return;
 
     const target = originalGoal.target_count || 1;
     const clamped = Math.min(newProgressCount, target);
     const newCompleted = clamped >= target;
 
-    // Optimistic update
+    // Optimistic update — guard against an undefined or non-array `goals`
+    // shape so a server schema drift doesn't crash the dashboard.
     setStatus(prev => ({
       ...prev,
-      goals: prev.goals.map(g =>
+      goals: (prev?.goals ?? []).map(g =>
         g.id === goal.id
           ? { ...g, progress_count: clamped, is_completed: newCompleted }
           : g
