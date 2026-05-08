@@ -5,6 +5,25 @@ import { Button } from '../../../../components/ui/button';
 import { Badge } from '../../../../components/ui/badge';
 import { getStageLabel } from './utils';
 
+const toBrowserResumeUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+
+  if (url.startsWith('gs://')) {
+    const withoutScheme = url.replace('gs://', '');
+    const slashIndex = withoutScheme.indexOf('/');
+    if (slashIndex === -1) return null;
+    const bucket = withoutScheme.slice(0, slashIndex);
+    const objectPath = withoutScheme.slice(slashIndex + 1);
+    return `https://storage.cloud.google.com/${bucket}/${objectPath}`;
+  }
+
+  return null;
+};
+
 const BuilderDetailModal = ({ 
   builder, 
   builderDetails, 
@@ -78,9 +97,9 @@ const BuilderDetailModal = ({
                   Uploaded {new Date(builderDetails.primaryResume.created_at).toLocaleDateString()}
                 </span>
               </div>
-              {builderDetails.primaryResume.downloadUrl && (
+              {toBrowserResumeUrl(builderDetails.primaryResume.downloadUrl || builderDetails.primaryResume.file_url) && (
                 <a
-                  href={builderDetails.primaryResume.downloadUrl}
+                  href={toBrowserResumeUrl(builderDetails.primaryResume.downloadUrl || builderDetails.primaryResume.file_url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-[#4242ea] underline ml-4 flex-shrink-0"
@@ -191,7 +210,7 @@ const BuilderDetailModal = ({
                 <div className="space-y-3">
                   {getFilteredApplications(builderDetails.applications).slice(0, 10).map(app => (
                     <div
-                      key={app.application_id}
+                      key={app.job_application_id || app.application_id || `${app.company_name}-${app.date_applied}`}
                       className="p-3 bg-gray-50 rounded-lg border-l-4 border-amber-500"
                     >
                       <div className="font-semibold mb-1 text-sm">
@@ -208,9 +227,9 @@ const BuilderDetailModal = ({
                         {app.resume_name && (
                           <div className="flex items-center gap-1 pt-1">
                             <span className="text-gray-500">Resume:</span>
-                            {app.resumeDownloadUrl ? (
+                            {toBrowserResumeUrl(app.resumeDownloadUrl || app.resume_file_url) ? (
                               <a
-                                href={app.resumeDownloadUrl}
+                                href={toBrowserResumeUrl(app.resumeDownloadUrl || app.resume_file_url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-[#4242ea] underline truncate"

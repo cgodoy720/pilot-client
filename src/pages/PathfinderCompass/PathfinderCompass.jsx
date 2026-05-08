@@ -15,7 +15,20 @@ const PROFILE_LABELS = {
 
 // Stable unique ID counter
 let _msgId = 0;
-const nextId = () => ++_msgId;
+const nextId = () => `${Date.now()}-${++_msgId}`;
+
+function attachStableClientKeys(messages) {
+  const seen = new Map();
+  return messages.map((m, idx) => {
+    const base = String(m?.id ?? `${m?.role || 'msg'}-${idx}`);
+    const n = (seen.get(base) || 0) + 1;
+    seen.set(base, n);
+    return {
+      ...m,
+      clientKey: m?.clientKey || (n === 1 ? base : `${base}-${n}`),
+    };
+  });
+}
 
 // ── Signal parsers ─────────────────────────────────────────────────────────────
 
@@ -347,7 +360,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       const stored = localStorage.getItem(`compass_messages_${user?.userId || 'anon'}`);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return attachStableClientKeys(parsed);
       }
     } catch { /* ignore */ }
     return [];
@@ -355,7 +368,8 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const messagesRef = useRef(messages);
   const updateMessages = useCallback((updater) => {
     setMessages(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
+      const nextRaw = typeof updater === 'function' ? updater(prev) : updater;
+      const next = attachStableClientKeys(nextRaw);
       messagesRef.current = next;
       try {
         localStorage.setItem(storageKey, JSON.stringify(next.filter(m => !m.streaming)));
@@ -598,7 +612,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         {messages
           .filter(m => m.role === 'user' || m.role === 'assistant')
           .map(m => (
-            <ChatMessage key={m.id} message={m} userName={user?.firstName} />
+            <ChatMessage key={m.clientKey} message={m} userName={user?.firstName} />
           ))}
         <div ref={messagesEndRef} />
       </div>

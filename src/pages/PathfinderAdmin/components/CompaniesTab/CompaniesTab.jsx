@@ -41,8 +41,14 @@ const CompaniesTab = ({
 
   return (
     <div className="w-full space-y-4">
-      {/* View Mode Toggle */}
-      <div className="flex gap-2 justify-end">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-1">Company Performance</h2>
+          <p className="text-sm text-gray-600">
+            Compare application outcomes by employer.
+            <span className="ml-2 font-medium text-gray-700">{companies.length} companies</span>
+          </p>
+        </div>
         <Tabs value={companiesViewMode} onValueChange={setCompaniesViewMode}>
           <TabsList>
             <TabsTrigger value="table" className="flex items-center gap-2">
@@ -78,26 +84,26 @@ const CompaniesTab = ({
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Company Name</TableHead>
-                      <TableHead>Total Applications</TableHead>
-                      <TableHead>Interviews</TableHead>
-                      <TableHead>Offers</TableHead>
-                      <TableHead>Rejections</TableHead>
+                    <TableRow className="bg-gray-50/70">
+                      <TableHead className="font-semibold text-gray-700">Company Name</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Total Applications</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Interviews</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Offers</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Rejections</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedCompanies.map((company, index) => (
-                      <TableRow 
+                      <TableRow
                         key={index}
-                        className="cursor-pointer hover:bg-gray-50"
+                        className="cursor-pointer hover:bg-[#f6f7ff] transition-colors"
                         onClick={() => handleCompanyClick(company)}
                       >
-                        <TableCell className="font-medium">{company.company_name}</TableCell>
-                        <TableCell>{company.application_count || 0}</TableCell>
-                        <TableCell>{company.interview_count || 0}</TableCell>
-                        <TableCell>{company.offer_count || 0}</TableCell>
-                        <TableCell>{company.rejected_count || 0}</TableCell>
+                        <TableCell className="font-medium py-3">{company.company_name}</TableCell>
+                        <TableCell className="py-3">{company.application_count || 0}</TableCell>
+                        <TableCell className="py-3">{company.interview_count || 0}</TableCell>
+                        <TableCell className="py-3">{company.offer_count || 0}</TableCell>
+                        <TableCell className="py-3">{company.rejected_count || 0}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

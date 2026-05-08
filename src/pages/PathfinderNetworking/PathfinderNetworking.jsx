@@ -720,37 +720,39 @@ function PathfinderNetworking() {
         {/* Add/Edit Form Modal */}
         <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
           <DialogContent className="max-w-2xl w-[calc(100vw-6rem)] p-0 flex flex-col max-h-[90vh] overflow-hidden">
-            <DialogHeader className="flex flex-row justify-between items-center p-6 border-b-2 border-[#e0e0e0] flex-shrink-0">
-              <DialogTitle className="m-0 text-[#1a1a1a] text-2xl font-semibold">
+            <DialogHeader className="flex flex-row justify-between items-center px-5 py-3 border-b border-[#e0e0e0] flex-shrink-0">
+              <DialogTitle className="m-0 text-[#1a1a1a] text-base font-semibold">
                 {isEditing ? 'Edit Activity' : 'Add New Activity'}
               </DialogTitle>
               
               {/* Type selector buttons in header */}
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-1.5 items-center">
                 <Button
                   type="button"
                   variant="outline"
-                  className={`px-4 py-2 bg-white border-2 border-[#e5e7eb] rounded-md text-sm font-medium cursor-pointer transition-all duration-200 flex items-center whitespace-nowrap text-[#4b5563] ${
+                  size="sm"
+                  className={`h-8 px-3 text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
                     formData.type === 'digital' 
-                      ? 'bg-[#4242ea] text-white border-[#4242ea] hover:bg-[#3333d1] hover:border-[#3333d1]' 
-                      : 'hover:border-[#4242ea] hover:bg-[rgba(66,66,234,0.05)] hover:text-[#4242ea]'
+                      ? 'bg-[#4242ea] text-white border-[#4242ea] hover:bg-[#3333d1]' 
+                      : 'text-[#4b5563] hover:border-[#4242ea] hover:text-[#4242ea]'
                   }`}
                   onClick={() => setFormData(prev => ({ ...prev, type: 'digital', subType: '', eventName: '', eventOrganizer: '' }))}
                 >
-                  <ComputerIcon sx={{ fontSize: 16 }} className={formData.type === 'digital' ? 'text-white' : 'text-[#4b5563]'} />
+                  <ComputerIcon sx={{ fontSize: 14 }} className={formData.type === 'digital' ? 'text-white' : 'text-[#4b5563]'} />
                   Digital
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  className={`px-4 py-2 bg-white border-2 border-[#e5e7eb] rounded-md text-sm font-medium cursor-pointer transition-all duration-200 flex items-center whitespace-nowrap text-[#4b5563] ${
+                  size="sm"
+                  className={`h-8 px-3 text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
                     formData.type === 'irl' 
-                      ? 'bg-[#4242ea] text-white border-[#4242ea] hover:bg-[#3333d1] hover:border-[#3333d1]' 
-                      : 'hover:border-[#4242ea] hover:bg-[rgba(66,66,234,0.05)] hover:text-[#4242ea]'
+                      ? 'bg-[#4242ea] text-white border-[#4242ea] hover:bg-[#3333d1]' 
+                      : 'text-[#4b5563] hover:border-[#4242ea] hover:text-[#4242ea]'
                   }`}
                   onClick={() => setFormData(prev => ({ ...prev, type: 'irl', subType: '', direction: '' }))}
                 >
-                  <HandshakeIcon sx={{ fontSize: 16 }} className={formData.type === 'irl' ? 'text-white' : 'text-[#4b5563]'} />
+                  <HandshakeIcon sx={{ fontSize: 14 }} className={formData.type === 'irl' ? 'text-white' : 'text-[#4b5563]'} />
                   IRL
                 </Button>
               </div>
@@ -758,115 +760,55 @@ function PathfinderNetworking() {
             
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-y-auto">
               <div className="grid grid-cols-1 flex-1 min-h-0">
-                {/* Left Panel - URL Quick Add */}
-                <Card className="rounded-none border-none shadow-none bg-[#f9f9f9] border-r-2 border-[#e0e0e0] p-6 flex flex-col flex-shrink-0">
-                  <CardContent className="p-0">
-                    <div className="flex items-center gap-2 mb-4">
-                      <LinkIcon sx={{ fontSize: 18 }} />
-                      <h4 className="text-lg font-semibold text-[#1a1a1a]">Quick Add from URL</h4>
+                {/* Quick Add from URL — compact inline */}
+                <div className="px-5 py-3 bg-[#f9f9f9] border-b border-[#e0e0e0]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <LinkIcon sx={{ fontSize: 14 }} />
+                    <span className="text-xs font-semibold text-[#1a1a1a] uppercase tracking-wide">Quick Add from URL</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      name="url"
+                      value={formData.url}
+                      onChange={handleUrlChange}
+                      placeholder={formData.type === 'digital'
+                        ? "https://linkedin.com/in/... or https://x.com/..."
+                        : "https://linkedin.com/events/... or event URL"
+                      }
+                      className="flex-1 h-9 text-sm"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleFetchDetails}
+                      disabled={!formData.url || formData.url.trim() === '' || isParsingUrl}
+                      size="sm"
+                      className="bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50 flex items-center gap-1 h-9 px-3 text-xs"
+                    >
+                      <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+                      {isParsingUrl ? 'Fetching…' : 'Fetch'}
+                    </Button>
+                  </div>
+                  {parsedUrlData && parsedUrlData.parsed && (
+                    <div className="flex items-center gap-1 mt-1.5 text-xs text-green-700">
+                      <CheckCircleIcon sx={{ fontSize: 12 }} className="text-green-600" />
+                      Detected: {parsedUrlData.platform}
                     </div>
-                    {formData.type === 'digital' ? (
-                      <div>
-                        <p className="text-sm text-[#666666] mb-4 leading-relaxed">
-                          Paste a LinkedIn profile, X/Twitter post, or other URL to auto-fill details
-                        </p>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Paste URL</label>
-                            <textarea
-                              name="url"
-                              value={formData.url}
-                              onChange={handleUrlChange}
-                              placeholder="https://linkedin.com/in/john-smith or https://x.com/username/status/123"
-                              rows="5"
-                              className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            onClick={handleFetchDetails}
-                            disabled={!formData.url || formData.url.trim() === '' || isParsingUrl}
-                            className="w-full bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50 flex items-center justify-center gap-2"
-                          >
-                            <AutoAwesomeIcon sx={{ fontSize: 16 }} />
-                            {isParsingUrl ? 'Fetching Details...' : 'Fetch Details'}
-                          </Button>
-                          {parsedUrlData && parsedUrlData.parsed && (
-                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md">
-                              <CheckCircleIcon sx={{ fontSize: 14 }} className="text-green-600" />
-                              <span className="text-sm text-green-700">Detected: {parsedUrlData.platform}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                          <div className="text-sm text-[#1a1a1a] font-medium mb-2">Supported:</div>
-                          <ul className="text-xs text-[#666666] space-y-1">
-                            <li>• LinkedIn profiles & posts</li>
-                            <li>• X/Twitter profiles & tweets</li>
-                            <li>• Company websites</li>
-                          </ul>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-sm text-[#666666] mb-4 leading-relaxed">
-                          Paste an event website, LinkedIn event, or LinkedIn profile
-                        </p>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Paste URL</label>
-                            <textarea
-                              name="url"
-                              value={formData.url}
-                              onChange={handleUrlChange}
-                              placeholder="https://linkedin.com/events/... or https://eventbrite.com/e/..."
-                              rows="5"
-                              className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            onClick={handleFetchDetails}
-                            disabled={!formData.url || formData.url.trim() === '' || isParsingUrl}
-                            className="w-full bg-[#4242ea] text-white hover:bg-[#3333d1] disabled:opacity-50 flex items-center justify-center gap-2"
-                          >
-                            <AutoAwesomeIcon sx={{ fontSize: 16 }} />
-                            {isParsingUrl ? 'Fetching Details...' : 'Fetch Details'}
-                          </Button>
-                          {parsedUrlData && parsedUrlData.parsed && (
-                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md">
-                              <CheckCircleIcon sx={{ fontSize: 14 }} className="text-green-600" />
-                              <span className="text-sm text-green-700">Detected: {parsedUrlData.platform}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                          <div className="text-sm text-[#1a1a1a] font-medium mb-2">Supported:</div>
-                          <ul className="text-xs text-[#666666] space-y-1">
-                            <li>• LinkedIn events & profiles</li>
-                            <li>• Eventbrite event pages</li>
-                            <li>• Company event websites</li>
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
 
-                {/* Right Panel - Form Fields */}
-                <Card className="rounded-none border-none shadow-none bg-white p-6 flex flex-col overflow-y-auto min-h-0">
-                  <CardContent className="p-0">
+                {/* Form Fields */}
+                <div className="bg-white px-5 py-4 flex flex-col overflow-y-auto min-h-0">
                   {/* ===== DIGITAL ACTIVITY FIELDS ===== */}
                   {formData.type === 'digital' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       {/* Channel/Medium & Date Row */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Channel/Medium *</label>
-                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Channel/Medium *</label>
+                            <div className="space-y-0.5">
                               {getDigitalChannelOptions().map(option => (
-                                <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
+                                <label key={option.value} className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-[#f5f5f5] transition-colors">
                                   <input
                                     type="radio"
                                     name="subType"
@@ -874,9 +816,9 @@ function PathfinderNetworking() {
                                     checked={formData.subType === option.value}
                                     onChange={handleInputChange}
                                     required
-                                    className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
+                                    className="w-3.5 h-3.5 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-1"
                                   />
-                                  <span className="text-sm text-[#1a1a1a]">{option.label}</span>
+                                  <span className="text-xs text-[#1a1a1a]">{option.label}</span>
                                 </label>
                               ))}
                             </div>
@@ -884,67 +826,63 @@ function PathfinderNetworking() {
 
                           {/* Direction */}
                           <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Direction</label>
-                            <div className="space-y-2">
-                              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
+                            <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Direction</label>
+                            <div className="space-y-0.5">
+                              <label className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-[#f5f5f5] transition-colors">
                                 <input
                                   type="radio"
                                   name="direction"
                                   value="outbound"
                                   checked={formData.direction === 'outbound'}
                                   onChange={handleInputChange}
-                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
+                                  className="w-3.5 h-3.5 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-1"
                                 />
-                                <span className="text-sm text-[#1a1a1a]">
-                                  Outbound (I reached out)
-                                </span>
+                                <span className="text-xs text-[#1a1a1a]">Outbound (I reached out)</span>
                               </label>
-                              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
+                              <label className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-[#f5f5f5] transition-colors">
                                 <input
                                   type="radio"
                                   name="direction"
                                   value="inbound"
                                   checked={formData.direction === 'inbound'}
                                   onChange={handleInputChange}
-                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
+                                  className="w-3.5 h-3.5 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-1"
                                 />
-                                <span className="text-sm text-[#1a1a1a]">
-                                  Inbound (They reached out)
-                                </span>
+                                <span className="text-xs text-[#1a1a1a]">Inbound (They reached out)</span>
                               </label>
                             </div>
                           </div>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Date *</label>
+                            <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Date *</label>
                             <Input
                               type="date"
                               name="date"
                               value={formData.date}
                               onChange={handleInputChange}
                               required
-                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                              className="h-9 text-sm"
                             />
                           </div>
 
                           {/* Link to Job */}
                           <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Link to Job</label>
+                            <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Link to Job</label>
                             <div className="relative">
                               <Input
                                 type="text"
                                 value={jobSearchQuery}
                                 onChange={(e) => setJobSearchQuery(e.target.value)}
                                 onFocus={() => jobSearchQuery && setShowJobDropdown(true)}
-                                placeholder="Search by job title or company..."
-                                className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                                placeholder="Search job title or company…"
+                                className="h-9 text-sm"
                               />
                               {selectedJob && (
                                 <button
                                   type="button"
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#1a1a1a] text-lg font-bold leading-none"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#1a1a1a] text-sm font-bold leading-none"
                                   onClick={handleJobSearchClear}
                                   title="Clear selection"
                                 >
@@ -952,47 +890,44 @@ function PathfinderNetworking() {
                                 </button>
                               )}
                               {showJobDropdown && filteredJobs.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg max-h-48 overflow-y-auto">
                                   {filteredJobs.map(job => (
                                     <div
                                       key={job.job_application_id}
-                                      className="p-3 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#e0e0e0] last:border-b-0"
+                                      className="px-2 py-1.5 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#e0e0e0] last:border-b-0"
                                       onClick={() => handleJobSelect(job)}
                                     >
-                                      <div className="font-medium text-[#1a1a1a] text-sm">{job.role_title}</div>
-                                      <div className="text-xs text-[#666666] mt-1">{job.company_name}</div>
+                                      <div className="font-medium text-[#1a1a1a] text-xs">{job.role_title}</div>
+                                      <div className="text-[11px] text-[#666666]">{job.company_name}</div>
                                     </div>
                                   ))}
                                 </div>
                               )}
                               {showJobDropdown && jobSearchQuery && filteredJobs.length === 0 && (
                                 <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg">
-                                  <div className="p-3 text-sm text-[#666666] text-center">
+                                  <div className="p-2 text-xs text-[#666666] text-center">
                                     No jobs found matching "{jobSearchQuery}"
                                   </div>
                                 </div>
                               )}
                             </div>
-                            <p className="mt-2 text-xs text-[#666666]">
-                              Connect this activity to a job application in your Job Tracker
-                            </p>
                           </div>
 
                           {/* Connection Type */}
                           <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Connection Type</label>
-                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Connection Type</label>
+                            <div className="space-y-0.5">
                               {getConnectionTypeOptions(formData.type).map(option => (
-                                <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
+                                <label key={option.value} className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-[#f5f5f5] transition-colors">
                                   <input
                                     type="radio"
                                     name="connectionStrength"
                                     value={option.value}
                                     checked={formData.connectionStrength === option.value}
                                     onChange={handleInputChange}
-                                    className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
+                                    className="w-3.5 h-3.5 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-1"
                                   />
-                                  <span className="text-sm text-[#1a1a1a]">{option.label}</span>
+                                  <span className="text-xs text-[#1a1a1a]">{option.label}</span>
                                 </label>
                               ))}
                             </div>
@@ -1001,52 +936,52 @@ function PathfinderNetworking() {
                       </div>
 
                       {/* Contact Name, Company & Email */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-[#e0e0e0] pb-6 border-b border-[#e0e0e0]">
+                      <div className="grid grid-cols-3 gap-3 pt-3 border-t border-[#e0e0e0]">
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Name</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Contact Name</label>
                           <Input
                             type="text"
                             name="contactName"
                             value={formData.contactName}
                             onChange={handleInputChange}
                             placeholder="John Smith"
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            className="h-9 text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Company</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Company</label>
                           <Input
                             type="text"
                             name="company"
                             value={formData.company}
                             onChange={handleInputChange}
                             placeholder="Company name"
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            className="h-9 text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Email</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Email</label>
                           <Input
                             type="email"
                             name="contactEmail"
                             value={formData.contactEmail}
                             onChange={handleInputChange}
                             placeholder="email@example.com"
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            className="h-9 text-sm"
                           />
                         </div>
                       </div>
 
                       {/* Outcome & Follow-up Date */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Outcome</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Outcome</label>
                           <Select
                             name="outcome"
                             value={formData.outcome}
                             onValueChange={(value) => handleInputChange({ target: { name: 'outcome', value } })}
                           >
-                            <SelectTrigger className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent">
+                            <SelectTrigger className="h-9 text-sm">
                               <SelectValue placeholder="Select outcome" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1061,13 +996,13 @@ function PathfinderNetworking() {
                           </Select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Follow-up Date</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Follow-up Date</label>
                           <Input
                             type="date"
                             name="followUpDate"
                             value={formData.followUpDate}
                             onChange={handleInputChange}
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            className="h-9 text-sm"
                           />
                         </div>
                       </div>
@@ -1076,14 +1011,14 @@ function PathfinderNetworking() {
 
                   {/* ===== IRL ACTIVITY FIELDS ===== */}
                   {formData.type === 'irl' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       {/* Event Type & Date Row */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Event/Meeting Type *</label>
-                          <div className="space-y-2">
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Event/Meeting Type *</label>
+                          <div className="space-y-0.5">
                             {getIRLEventOptions().map(option => (
-                              <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
+                              <label key={option.value} className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-[#f5f5f5] transition-colors">
                                 <input
                                   type="radio"
                                   name="subType"
@@ -1091,43 +1026,43 @@ function PathfinderNetworking() {
                                   checked={formData.subType === option.value}
                                   onChange={handleInputChange}
                                   required
-                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
+                                  className="w-3.5 h-3.5 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-1"
                                 />
-                                <span className="text-sm text-[#1a1a1a]">{option.label}</span>
+                                <span className="text-xs text-[#1a1a1a]">{option.label}</span>
                               </label>
                             ))}
                           </div>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Date *</label>
+                            <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Date *</label>
                             <Input
                               type="date"
                               name="date"
                               value={formData.date}
                               onChange={handleInputChange}
                               required
-                              className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                              className="h-9 text-sm"
                             />
                           </div>
 
                           {/* Link to Job */}
                           <div>
-                            <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Link to Job</label>
+                            <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Link to Job</label>
                             <div className="relative">
                               <Input
                                 type="text"
                                 value={jobSearchQuery}
                                 onChange={(e) => setJobSearchQuery(e.target.value)}
                                 onFocus={() => jobSearchQuery && setShowJobDropdown(true)}
-                                placeholder="Search by job title or company..."
-                                className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                                placeholder="Search job title or company…"
+                                className="h-9 text-sm"
                               />
                               {selectedJob && (
                                 <button
                                   type="button"
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#1a1a1a] text-lg font-bold leading-none"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#1a1a1a] text-sm font-bold leading-none"
                                   onClick={handleJobSearchClear}
                                   title="Clear selection"
                                 >
@@ -1135,114 +1070,111 @@ function PathfinderNetworking() {
                                 </button>
                               )}
                               {showJobDropdown && filteredJobs.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg max-h-48 overflow-y-auto">
                                   {filteredJobs.map(job => (
                                     <div
                                       key={job.job_application_id}
-                                      className="p-3 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#e0e0e0] last:border-b-0"
+                                      className="px-2 py-1.5 cursor-pointer hover:bg-[#f5f5f5] border-b border-[#e0e0e0] last:border-b-0"
                                       onClick={() => handleJobSelect(job)}
                                     >
-                                      <div className="font-medium text-[#1a1a1a] text-sm">{job.role_title}</div>
-                                      <div className="text-xs text-[#666666] mt-1">{job.company_name}</div>
+                                      <div className="font-medium text-[#1a1a1a] text-xs">{job.role_title}</div>
+                                      <div className="text-[11px] text-[#666666]">{job.company_name}</div>
                                     </div>
                                   ))}
                                 </div>
                               )}
                               {showJobDropdown && jobSearchQuery && filteredJobs.length === 0 && (
                                 <div className="absolute z-10 w-full mt-1 bg-white border border-[#d0d0d0] rounded-md shadow-lg">
-                                  <div className="p-3 text-sm text-[#666666] text-center">
+                                  <div className="p-2 text-xs text-[#666666] text-center">
                                     No jobs found matching "{jobSearchQuery}"
                                   </div>
                                 </div>
                               )}
                             </div>
-                            <p className="mt-2 text-xs text-[#666666]">
-                              Connect this activity to a job application in your Job Tracker
-                            </p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Event/Location Name */}
-                      <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Event/Location Name *</label>
-                        <Input
-                          type="text"
-                          name="eventName"
-                          value={formData.eventName}
-                          onChange={handleInputChange}
-                          placeholder="TechCrunch Disrupt, Blue Bottle Coffee, etc."
-                          required
-                          className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Event Organizer/Host */}
-                      <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Event Organizer/Host</label>
-                        <Input
-                          type="text"
-                          name="eventOrganizer"
-                          value={formData.eventOrganizer}
-                          onChange={handleInputChange}
-                          placeholder="Company or organization hosting the event"
-                          className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Contact Name, Company & Email (Optional for IRL) */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-[#e0e0e0]">
+                      {/* Event/Location Name + Organizer */}
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Name</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Event/Location *</label>
+                          <Input
+                            type="text"
+                            name="eventName"
+                            value={formData.eventName}
+                            onChange={handleInputChange}
+                            placeholder="TechCrunch Disrupt, etc."
+                            required
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Organizer/Host</label>
+                          <Input
+                            type="text"
+                            name="eventOrganizer"
+                            value={formData.eventOrganizer}
+                            onChange={handleInputChange}
+                            placeholder="Hosting org"
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Contact Name, Company & Email */}
+                      <div className="grid grid-cols-3 gap-3 pt-3 border-t border-[#e0e0e0]">
+                        <div>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Contact Name</label>
                           <Input
                             type="text"
                             name="contactName"
                             value={formData.contactName}
                             onChange={handleInputChange}
                             placeholder="Person you met"
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            className="h-9 text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Their Company</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Company</label>
                           <Input
                             type="text"
                             name="company"
                             value={formData.company}
                             onChange={handleInputChange}
                             placeholder="Their company"
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            className="h-9 text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Contact Email</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Email</label>
                           <Input
                             type="email"
                             name="contactEmail"
                             value={formData.contactEmail}
                             onChange={handleInputChange}
-                            placeholder="Collected later is fine"
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            placeholder="Optional"
+                            className="h-9 text-sm"
                           />
                         </div>
                       </div>
 
                       {/* Connection Type - Only show if there's a contact */}
                       {formData.contactName && (
-                        <div className="pb-6 border-b border-[#e0e0e0]">
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-3">Connection Type</label>
-                          <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1.5">Connection Type</label>
+                          <div className="space-y-0.5">
                             {getConnectionTypeOptions(formData.type).map(option => (
-                              <label key={option.value} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#f5f5f5] transition-colors">
+                              <label key={option.value} className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-[#f5f5f5] transition-colors">
                                 <input
                                   type="radio"
                                   name="connectionStrength"
                                   value={option.value}
                                   checked={formData.connectionStrength === option.value}
                                   onChange={handleInputChange}
-                                  className="w-4 h-4 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-2"
+                                  className="w-3.5 h-3.5 text-[#4242ea] border-[#d0d0d0] focus:ring-[#4242ea] focus:ring-1"
                                 />
-                                <span className="text-sm text-[#1a1a1a]">{option.label}</span>
+                                <span className="text-xs text-[#1a1a1a]">{option.label}</span>
                               </label>
                             ))}
                           </div>
@@ -1250,15 +1182,15 @@ function PathfinderNetworking() {
                       )}
 
                       {/* Outcome & Follow-up Date */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Outcome</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Outcome</label>
                           <Select
                             name="outcome"
                             value={formData.outcome}
                             onValueChange={(value) => handleInputChange({ target: { name: 'outcome', value } })}
                           >
-                            <SelectTrigger className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent">
+                            <SelectTrigger className="h-9 text-sm">
                               <SelectValue placeholder="Select outcome" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1273,13 +1205,13 @@ function PathfinderNetworking() {
                           </Select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Follow-up Date</label>
+                          <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Follow-up Date</label>
                           <Input
                             type="date"
                             name="followUpDate"
                             value={formData.followUpDate}
                             onChange={handleInputChange}
-                            className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                            className="h-9 text-sm"
                           />
                         </div>
                       </div>
@@ -1287,21 +1219,20 @@ function PathfinderNetworking() {
                   )}
 
                   {/* ===== COMMON FIELDS ===== */}
-                  <div>
-                    <label className="block text-sm font-medium text-[#1a1a1a] mb-2">Notes</label>
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-[#1a1a1a] mb-1">Notes</label>
                     <textarea
                       name="notes"
                       value={formData.notes}
                       onChange={handleInputChange}
-                      rows="4"
+                      rows="2"
                       placeholder="Add details about the activity..."
-                      className="w-full p-3 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
+                      className="w-full p-2 border border-[#d0d0d0] rounded-md bg-white text-[#1a1a1a] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
                     />
                   </div>
-                  </CardContent>
-                </Card>
+                </div>
               </div>
-              <DialogFooter className="flex justify-end p-6 border-t-2 border-[#e0e0e0] bg-white flex-shrink-0">
+              <DialogFooter className="flex justify-end px-5 py-3 border-t border-[#e0e0e0] bg-white flex-shrink-0">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancel
                 </Button>

@@ -191,7 +191,7 @@ const ProjectsTab = ({
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-gray-50/70">
                       <SortableHeader sortKey="builder_name">Builder</SortableHeader>
                       <SortableHeader sortKey="builder_cohort">Cohort</SortableHeader>
                       <SortableHeader sortKey="project_name">Project Name</SortableHeader>
@@ -208,19 +208,19 @@ const ProjectsTab = ({
                       const isOverdue = new Date(project.target_date) < new Date() && project.stage !== 'launch';
                       
                       return (
-                        <TableRow key={project.project_id}>
-                          <TableCell>
+                        <TableRow key={project.project_id} className="hover:bg-[#f6f7ff] transition-colors">
+                          <TableCell className="py-3">
                             <div className="flex flex-col">
                               <strong className="text-sm">{project.builder_first_name} {project.builder_last_name}</strong>
                               <span className="text-xs text-gray-500">{project.builder_email}</span>
                             </div>
                           </TableCell>
-                          <TableCell>{project.builder_cohort || '—'}</TableCell>
-                          <TableCell className="font-medium">{project.project_name}</TableCell>
-                          <TableCell>
+                          <TableCell className="py-3">{project.builder_cohort || '—'}</TableCell>
+                          <TableCell className="font-medium py-3">{project.project_name}</TableCell>
+                          <TableCell className="py-3">
                             <Badge variant="secondary">{getStageLabel(project.stage)}</Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3">
                             <div className="flex items-center gap-2">
                               {new Date(project.target_date).toLocaleDateString()}
                               {isOverdue && (
@@ -228,7 +228,7 @@ const ProjectsTab = ({
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3">
                             {project.prd_approved ? (
                               <Badge className="bg-green-100 text-green-700">✓ Approved</Badge>
                             ) : project.prd_submitted ? (
@@ -239,7 +239,7 @@ const ProjectsTab = ({
                               '—'
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3">
                             {project.linked_job_company ? (
                               <div className="flex flex-col">
                                 <strong className="text-sm">{project.linked_job_company}</strong>
@@ -249,18 +249,19 @@ const ProjectsTab = ({
                               '—'
                             )}
                           </TableCell>
-                          <TableCell>{new Date(project.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
+                          <TableCell className="py-3">{new Date(project.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="py-3">
                             <div className="flex gap-2">
                               {project.prd_link && (
                                 <a
                                   href={project.prd_link}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-lg hover:opacity-70 transition-opacity"
+                                  className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:border-[#4242ea] hover:text-[#4242ea] transition-colors"
                                   title="View PRD"
                                 >
-                                  📄
+                                  <span>📄</span>
+                                  <span>PRD</span>
                                 </a>
                               )}
                               {project.deployment_url && (
@@ -268,10 +269,11 @@ const ProjectsTab = ({
                                   href={project.deployment_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-lg hover:opacity-70 transition-opacity"
+                                  className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:border-[#4242ea] hover:text-[#4242ea] transition-colors"
                                   title="View Deployment"
                                 >
-                                  🚀
+                                  <span>🚀</span>
+                                  <span>Live</span>
                                 </a>
                               )}
                             </div>
