@@ -65,11 +65,16 @@ function stripForDisplay(text) {
 
 function renderInline(text) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((p, i) =>
-    p.startsWith('**') && p.endsWith('**')
-      ? <strong key={i}>{p.slice(2, -2)}</strong>
-      : p
-  );
+  const seen = new Map();
+  return parts.map((p) => {
+    const keyBase = `inline:${p}`;
+    const n = (seen.get(keyBase) || 0) + 1;
+    seen.set(keyBase, n);
+    const key = `${keyBase}:${n}`;
+    return p.startsWith('**') && p.endsWith('**')
+      ? <strong key={key}>{p.slice(2, -2)}</strong>
+      : <React.Fragment key={key}>{p}</React.Fragment>;
+  });
 }
 
 function renderMarkdown(text) {
@@ -84,23 +89,40 @@ function renderMarkdown(text) {
       lines.push(line);
     }
   }
-  return lines.map((line, i) => {
+  const seen = new Map();
+  return lines.map((line) => {
+    const kind = line.startsWith('### ')
+      ? 'h3'
+      : line.startsWith('## ')
+      ? 'h2'
+      : line.startsWith('# ')
+      ? 'h1'
+      : line.match(/^[-*] /)
+      ? 'li'
+      : !line.trim()
+      ? 'gap'
+      : 'p';
+    const keyBase = `md:${kind}:${line}`;
+    const n = (seen.get(keyBase) || 0) + 1;
+    seen.set(keyBase, n);
+    const key = `${keyBase}:${n}`;
+
     if (line.startsWith('### ')) {
-      return <div key={i} className="compass__md-h3">{renderInline(line.slice(4))}</div>;
+      return <div key={key} className="compass__md-h3">{renderInline(line.slice(4))}</div>;
     }
     if (line.startsWith('## ')) {
-      return <div key={i} className="compass__md-h3">{renderInline(line.slice(3))}</div>;
+      return <div key={key} className="compass__md-h3">{renderInline(line.slice(3))}</div>;
     }
     if (line.startsWith('# ')) {
-      return <div key={i} className="compass__md-h3">{renderInline(line.slice(2))}</div>;
+      return <div key={key} className="compass__md-h3">{renderInline(line.slice(2))}</div>;
     }
     if (line.match(/^[-*] /)) {
-      return <div key={i} className="compass__md-li">{renderInline(line.slice(2))}</div>;
+      return <div key={key} className="compass__md-li">{renderInline(line.slice(2))}</div>;
     }
     if (!line.trim()) {
-      return <div key={i} className="compass__md-gap" />;
+      return <div key={key} className="compass__md-gap" />;
     }
-    return <div key={i}>{renderInline(line)}</div>;
+    return <div key={key}>{renderInline(line)}</div>;
   });
 }
 
@@ -157,7 +179,7 @@ function GoalProgress({ goal, onProgress }) {
     <div className="compass__goal-dots">
       {Array.from({ length: target }, (_, i) => (
         <div
-          key={i}
+          key={`goal-${goal.id || goal.goal_key || 'x'}-dot-${i + 1}`}
           className={`compass__goal-dot${progress > i ? ' compass__goal-dot--filled' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
@@ -496,11 +518,22 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           flags: payload.flags || [],
         }),
       });
-      if (res.ok) {
+      if (!res.ok) {
+        console.error('Compass completion endpoint returned non-ok:', res.status);
+        return;
+      }
+
+      try {
         const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
+        if (!statusRes.ok) {
+          console.error('Compass status refresh returned non-ok:', statusRes.status);
+          return;
+        }
+        onEnrollmentComplete(await statusRes.json());
+      } catch (statusErr) {
+        console.error('Compass status refresh failed:', statusErr);
       }
     } catch (err) {
       console.error('Failed to complete onboarding/new cycle:', err);
@@ -517,11 +550,22 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ goals: payload.goals }),
       });
-      if (res.ok) {
+      if (!res.ok) {
+        console.error('Compass add-goals endpoint returned non-ok:', res.status);
+        return;
+      }
+
+      try {
         const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (statusRes.ok) onEnrollmentComplete(await statusRes.json());
+        if (!statusRes.ok) {
+          console.error('Compass status refresh returned non-ok:', statusRes.status);
+          return;
+        }
+        onEnrollmentComplete(await statusRes.json());
+      } catch (statusErr) {
+        console.error('Compass status refresh failed:', statusErr);
       }
     } catch (err) {
       console.error('Failed to add goals:', err);
