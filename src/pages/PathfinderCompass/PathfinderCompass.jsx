@@ -417,16 +417,29 @@ function CompassDashboard({ status, cycleEnded, onGoalProgress, isLoading = fals
 const MAX_PERSISTED_COMPASS_MESSAGES = 50;
 
 // Match the auth store shape across all known login responses. The /unified-auth
-// payload uses `user_id`; older code paths used `userId`/`id`. Falling back to
-// `anon` is a leak (two users on the same browser would share a key), so we
-// verify all three before giving up.
+// payload uses `user_id`; older code paths used `userId`/`id`. If NONE of those
+// resolves we return null — the caller MUST treat null as "no persistence" and
+// skip both reads and writes. The previous `compass_messages_anon` fallback
+// silently shared a single localStorage key across every authenticated user
+// whose payload happened to omit all three id fields, which would leak chat
+// history across accounts on shared devices.
 function compassStorageKeyForUser(user) {
   const id = user?.user_id ?? user?.userId ?? user?.id;
-  if (id == null || id === '') return 'compass_messages_anon';
+  if (id == null || id === '') return null;
   return `compass_messages_${id}`;
 }
 
+// Hard ceiling on a single chat message before we send it to the LLM. This is
+// a UX/cost guard, not a security boundary — the server enforces its own
+// (shorter, currently 4 000) limit. We pick a slightly smaller value so the
+// client gives a friendly "shorten this" error instead of letting the server
+// truncate silently.
+const MAX_CLIENT_MESSAGE_CHARS = 3500;
+
 function safeWriteCompassHistory(storageKey, messages) {
+  // Caller passes null when there's no resolvable user id — skip persistence
+  // entirely rather than fall back to a shared key.
+  if (!storageKey) return;
   // Drop streaming placeholders before persisting and cap to the most recent
   // MAX_PERSISTED_COMPASS_MESSAGES. If the browser still throws QuotaExceeded
   // (tab is sharing storage with other apps), retry with a half-sized window
@@ -455,6 +468,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const storageKey = compassStorageKeyForUser(user);
 
   const [messages, setMessages] = useState(() => {
+    if (!storageKey) return [];
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -559,7 +573,13 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const handleCompletionPayload = useCallback(async (payload) => {
     setIsCompleting(true);
     try {
-      // If cycle ended, start a new cycle; otherwise complete initial onboarding
+      // Read from `cycleEndedRef` (kept in sync with the `cycleEnded` prop
+      // synchronously during render — see `cycleEndedRef.current = cycleEnded`
+      // above) instead of closing over the prop. Doing it this way means we
+      // can leave `cycleEnded` OUT of this useCallback's dep array: if the
+      // prop flipped between render and this callback firing, the ref already
+      // has the new value, and we avoid recreating the callback (and any
+      // dependent effects) on every cycle-end transition.
       const endpoint = cycleEndedRef.current
         ? `${API_URL}/api/pathfinder/compass/cycle/new`
         : `${API_URL}/api/pathfinder/compass/onboarding/complete`;
@@ -596,7 +616,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     } finally {
       setIsCompleting(false);
     }
-  }, [token, cycleEnded, onEnrollmentComplete]);
+  }, [token, onEnrollmentComplete]);
 
   const handleAddGoalsPayload = useCallback(async (payload) => {
     setIsCompleting(true);
@@ -634,6 +654,23 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     const messageText = isInit ? initText : text.trim();
     if (!messageText) return;
     if (isStreaming) return;
+
+    // Client-side length guard. The server's MAX_CHAT_MESSAGE_CHARS would
+    // truncate silently; we'd rather show the builder a clear "too long"
+    // message in the chat stream so they know to shorten it. Skip this for
+    // server-side trigger messages (`__init__`, `__cycle_end__`).
+    if (!isInit && messageText.length > MAX_CLIENT_MESSAGE_CHARS) {
+      const errorId = nextId();
+      updateMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `That message is a bit long for me to read in one go (${messageText.length.toLocaleString()} chars). Try splitting it into chunks under ${MAX_CLIENT_MESSAGE_CHARS.toLocaleString()} characters.`,
+          id: errorId,
+        },
+      ]);
+      return;
+    }
 
     const historyForApi = messagesRef.current
       .filter(m => m.role === 'user' || m.role === 'assistant')
