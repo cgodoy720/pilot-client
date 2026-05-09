@@ -26,6 +26,24 @@ const useAuthStore = create(
       isAuthenticated: false,
       isLoading: true,
       _hasHydrated: false,
+      // Tracks whether the post-rehydration `_fetchAndSetUserFields` +
+      // `_fetchAndSetPermissions` Promise.all has resolved. `isLoading`
+      // alone is NOT a sufficient signal for "auth is fully ready":
+      // `onRehydrateStorage` flips `isLoading: false` immediately after
+      // STARTING the background refresh, so consumers that gate on
+      // `isLoading` will read stale persisted-only fields (e.g. a
+      // pre-cohort `user` from localStorage) for the duration of the
+      // network round-trip. Consumers that need the freshest server
+      // state — most importantly access guards that decide based on
+      // user.cohort or user.role — should wait on
+      // `_userFieldsHydrated === true` AS WELL.
+      // We deliberately did not change `isLoading` itself because
+      // ProtectedRoute and other top-level routes use it as a generic
+      // "auth has settled enough to render persisted state" gate, and
+      // making them wait an extra HTTP round-trip on every hard reload
+      // would add a visible loading screen across the whole app for the
+      // sake of one specific guard.
+      _userFieldsHydrated: false,
 
       // Internal action: fetch and set permissions
       _fetchAndSetPermissions: async (currentToken, currentUser) => {
@@ -199,7 +217,10 @@ const useAuthStore = create(
 
         if (error) {
           console.error('Error rehydrating auth store:', error);
-          storeSet({ isLoading: false, _hasHydrated: true });
+          // No background refresh on error — mark hydration "done" so
+          // guards that wait on _userFieldsHydrated don't deadlock on
+          // a missing localStorage payload.
+          storeSet({ isLoading: false, _hasHydrated: true, _userFieldsHydrated: true });
           return;
         }
 
@@ -223,12 +244,25 @@ const useAuthStore = create(
                   effectivePermissions: userWithPerms.effectivePermissions,
                   customPermissions: userWithPerms.customPermissions,
                 };
-                storeSet({ user: mergedUser });
+                storeSet({ user: mergedUser, _userFieldsHydrated: true });
               })
               .catch((err) => {
                 console.error('Error refreshing user data on rehydration:', err);
+                // Even on failure, flip the flag so access guards
+                // (CompassRouteGuard, etc.) can fall back to whatever
+                // persisted state we have rather than waiting forever
+                // for a fetch that won't succeed.
+                storeSet({ _userFieldsHydrated: true });
               });
+          } else {
+            // No valid persisted user/token — nothing to fetch, mark
+            // the hydration flag immediately so guards proceed to the
+            // unauthenticated branch.
+            storeSet({ _userFieldsHydrated: true });
           }
+        } else {
+          // No persisted state at all — same as above.
+          storeSet({ _userFieldsHydrated: true });
         }
 
         storeSet({ isLoading: false, _hasHydrated: true });

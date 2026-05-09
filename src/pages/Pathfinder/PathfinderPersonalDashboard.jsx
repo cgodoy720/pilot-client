@@ -400,7 +400,15 @@ function PathfinderPersonalDashboard() {
         )}
         {(() => {
           const lookbookUrl = buildLookbookUrl();
-          const hasLinks = lookbookUrl || interests.portfolio_url;
+          // SECURITY: portfolio_url is builder-edited free text from the
+          // interests profile and ends up in an `href` attribute. Without
+          // sanitization a `javascript:` payload here is a clickable XSS
+          // vector. `safeExternalUrl` enforces an http/https allowlist
+          // (same helper used everywhere else in this file for
+          // application_url, etc.) and returns null for anything else,
+          // which we then treat as "no link to render".
+          const safePortfolioUrl = safeExternalUrl(interests.portfolio_url);
+          const hasLinks = lookbookUrl || safePortfolioUrl;
           if (!hasLinks) return null;
           return (
             <div className="pathfinder-personal-dashboard__goal-statement-links">
@@ -414,12 +422,12 @@ function PathfinderPersonalDashboard() {
                   🔗 Lookbook
                 </a>
               )}
-              {lookbookUrl && interests.portfolio_url && (
+              {lookbookUrl && safePortfolioUrl && (
                 <span className="pathfinder-personal-dashboard__profile-link-sep">·</span>
               )}
-              {interests.portfolio_url && (
+              {safePortfolioUrl && (
                 <a
-                  href={interests.portfolio_url}
+                  href={safePortfolioUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="pathfinder-personal-dashboard__profile-link"
