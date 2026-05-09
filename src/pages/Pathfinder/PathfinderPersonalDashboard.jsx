@@ -637,7 +637,13 @@ function PathfinderPersonalDashboard() {
         <div className="pathfinder-personal-dashboard__events-list">
           {sharedJobs.map(job => (
             <Card
-              key={job.job_posting_id}
+              // The /api/employment-engine/jobs payload returns `id`, not
+              // `job_posting_id`. Keying on `job_posting_id` alone collapsed
+              // every card to `key={undefined}` → React reconciliation
+              // collisions → wrong card animations / state on update. Fall
+              // through to `id`, then to `job_url`, before giving up to the
+              // index — same shape as PathfinderJobs.jsx uses for its grid.
+              key={job.job_posting_id ?? job.id ?? job.job_url}
               className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               <CardContent className="p-4">

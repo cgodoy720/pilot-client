@@ -11,6 +11,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import PersonIcon from '@mui/icons-material/Person';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { safeExternalUrl } from '../../utils/safeUrl';
 import './PathfinderJobs.css';
 
 const API = import.meta.env.VITE_API_URL;
@@ -319,16 +320,20 @@ export default function PathfinderJobs() {
                         <span>{job.builder_interest_count}</span>
                       </button>
 
-                      {job.job_url && (
-                        <a
-                          href={job.job_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="pf-jobs__apply-link"
-                        >
-                          View role <OpenInNewIcon fontSize="inherit" />
-                        </a>
-                      )}
+                      {(() => {
+                        const safeJobUrl = safeExternalUrl(job.job_url);
+                        if (!safeJobUrl) return null;
+                        return (
+                          <a
+                            href={safeJobUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="pf-jobs__apply-link"
+                          >
+                            View role <OpenInNewIcon fontSize="inherit" />
+                          </a>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
