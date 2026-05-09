@@ -94,6 +94,42 @@ import { PAGE_PERMISSIONS } from './constants/permissions';
 
 import './App.css';
 
+// Guards the /pathfinder/compass route against the auth-rehydration race.
+//
+// Previous behavior: `<Navigate to="/pathfinder/dashboard" />` was emitted
+// any time `isCompassEligibleUser(user)` returned false. On a hard reload
+// (e.g., a builder bookmarked /pathfinder/compass), the auth store
+// rehydrates in two phases:
+//   1. `_hasHydrated` flips true with whatever `user` was persisted in
+//      localStorage (may be missing `cohort` for users who logged in on
+//      an older build that didn't persist that field)
+//   2. `_fetchAndSetUserFields` runs in the background and merges fresh
+//      fields (including `cohort`) into `user`
+// If the redirect fired between phase 1 and phase 2, an eligible builder
+// got bounced every time they hard-reloaded the bookmark.
+//
+// Guard rules:
+//   - while `isLoading` (auth store still hydrating), render a quiet
+//     loading state — never redirect during this window
+//   - once `isLoading` is false and the user is hydrated, evaluate
+//     eligibility once and either render Compass or redirect
+function CompassRouteGuard() {
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
+
+  if (isLoading) {
+    return (
+      <div className="px-6 py-12 text-sm text-[#666666]">Loading Compass…</div>
+    );
+  }
+
+  if (!isCompassEligibleUser(user)) {
+    return <Navigate to="/pathfinder/dashboard" replace />;
+  }
+
+  return <PathfinderCompass />;
+}
+
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
@@ -443,10 +479,7 @@ function App() {
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
-          <Route
-            path="compass"
-            element={isCompassEligibleUser(user) ? <PathfinderCompass /> : <Navigate to="/pathfinder/dashboard" replace />}
-          />
+          <Route path="compass" element={<CompassRouteGuard />} />
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />

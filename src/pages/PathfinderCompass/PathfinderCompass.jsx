@@ -498,6 +498,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const statusRef = useRef(status);
   const cycleEndedRef = useRef(cycleEnded);
   const sendMessageRef = useRef(null);
+  // Mirror of isStreaming for use INSIDE sendMessage. The `isStreaming` state
+  // is here because the UI needs to react to it (button disabled, banner
+  // text), but if we close over it inside sendMessage we have to include it
+  // in useCallback deps. That recreates sendMessage on every flip, schedules
+  // a useEffect to update sendMessageRef.current, and leaves a one-frame
+  // window where the cycle-end / init effects can call the previous closure
+  // through the ref. Reading from a ref inside sendMessage avoids the dep
+  // entirely (same pattern as statusRef / cycleEndedRef).
+  const isStreamingRef = useRef(false);
   // Tracks the in-flight SSE fetch so we can abort it on unmount or when the
   // user navigates away mid-stream. Without this the decoder loop keeps
   // running against a closed connection and `updateMessages` keeps firing
@@ -526,14 +535,16 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     };
   }, []);
 
-  // Sync status / cycleEnded refs SYNCHRONOUSLY during render. Doing this in
-  // a useEffect leaves a one-frame window where a completion payload arriving
-  // during the first render would observe stale `false` and call
-  // /onboarding/complete a second time, creating a duplicate enrollment.
-  // React lets us mutate refs during render as long as the value is derived
-  // from props (no scheduling, no observable side effect).
+  // Sync status / cycleEnded / isStreaming refs SYNCHRONOUSLY during render.
+  // Doing this in a useEffect leaves a one-frame window where a completion
+  // payload arriving during the first render would observe stale `false`
+  // and call /onboarding/complete a second time, creating a duplicate
+  // enrollment. React lets us mutate refs during render as long as the
+  // value is derived from state/props (no scheduling, no observable side
+  // effect).
   statusRef.current = status;
   cycleEndedRef.current = cycleEnded;
+  isStreamingRef.current = isStreaming;
 
   // Track whether user has scrolled away from the bottom
   useEffect(() => {
@@ -636,14 +647,20 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           console.error('Compass status refresh returned non-ok:', statusRes.status);
           return;
         }
-        onEnrollmentComplete(await statusRes.json());
+        const statusJson = await statusRes.json();
+        // The user may have navigated away during the POST + status round-trip.
+        // onEnrollmentComplete is `setStatus` on the parent — calling it after
+        // unmount triggers a setState-on-unmounted warning and can mask state
+        // resets if the parent remounts.
+        if (!isMountedRef.current) return;
+        onEnrollmentComplete(statusJson);
       } catch (statusErr) {
         console.error('Compass status refresh failed:', statusErr);
       }
     } catch (err) {
       console.error('Failed to complete onboarding/new cycle:', err);
     } finally {
-      setIsCompleting(false);
+      if (isMountedRef.current) setIsCompleting(false);
     }
   }, [token, onEnrollmentComplete]);
 
@@ -668,21 +685,24 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           console.error('Compass status refresh returned non-ok:', statusRes.status);
           return;
         }
-        onEnrollmentComplete(await statusRes.json());
+        const statusJson = await statusRes.json();
+        // Same unmount-guard rationale as in handleCompletionPayload above.
+        if (!isMountedRef.current) return;
+        onEnrollmentComplete(statusJson);
       } catch (statusErr) {
         console.error('Compass status refresh failed:', statusErr);
       }
     } catch (err) {
       console.error('Failed to add goals:', err);
     } finally {
-      setIsCompleting(false);
+      if (isMountedRef.current) setIsCompleting(false);
     }
   }, [token, onEnrollmentComplete]);
 
   const sendMessage = useCallback(async (text, isInit = false, initText = '__init__') => {
     const messageText = isInit ? initText : text.trim();
     if (!messageText) return;
-    if (isStreaming) return;
+    if (isStreamingRef.current) return;
 
     // Client-side length guard. The server's MAX_CHAT_MESSAGE_CHARS would
     // truncate silently; we'd rather show the builder a clear "too long"
@@ -852,7 +872,11 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       setIsStreaming(false);
       setIsCompleting(false); // safety net — clears banner if no handler ran
     }
-  }, [isStreaming, token, handleCompletionPayload, handleAddGoalsPayload, updateMessages]);
+    // isStreaming intentionally NOT in deps — see isStreamingRef declaration
+    // above. Including it would recreate sendMessage on every flip, schedule
+    // a useEffect to update sendMessageRef, and leave a one-frame window
+    // where the cycle-end / init effects fire through the previous closure.
+  }, [token, handleCompletionPayload, handleAddGoalsPayload, updateMessages]);
 
   useEffect(() => {
     sendMessageRef.current = sendMessage;

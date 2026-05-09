@@ -76,7 +76,14 @@ export default function PathfinderJobs() {
       const res = await fetch(`${API}/api/pathfinder/applications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // Without this log a 4xx/5xx silently leaves appliedIds empty,
+        // making every "Applied?" button render as un-applied until the
+        // next successful fetch. Logging at warn so operators can spot
+        // intermittent 5xx storms in production logs.
+        console.warn(`Failed to fetch applied jobs: ${res.status} ${res.statusText}`);
+        return;
+      }
       const apps = await res.json();
       setAppliedIds(prev => {
         // Preserve any optimistic `job:<id>` marks while reconciling

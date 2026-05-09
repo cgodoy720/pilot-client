@@ -19,8 +19,12 @@ export function isCompassEligibleUser(user) {
   if (!user) return false;
   if (user.role === 'staff' || user.role === 'admin') return true;
 
-  const isBuilder = user.role === 'builder' || user.userType === 'builder';
-  if (!isBuilder) return false;
+  // Only check `user.role`. The previous fallback of `user.userType === 'builder'`
+  // was wider than intended: `userType` is not enforced by the auth store and a
+  // volunteer payload with a stale or crafted `userType: 'builder'` would have
+  // passed this gate. The server-side guard on every Compass endpoint is the
+  // real source of truth — this UI gate just controls tab visibility.
+  if (user.role !== 'builder') return false;
 
   const cohort = typeof user.cohort === 'string' ? user.cohort.trim() : '';
   if (!cohort) return false;

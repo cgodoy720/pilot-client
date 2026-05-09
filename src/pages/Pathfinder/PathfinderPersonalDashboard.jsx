@@ -150,6 +150,13 @@ function PathfinderPersonalDashboard() {
       if (jobsRes.ok) {
         const jobsData = await jobsRes.json();
         setSharedJobs(jobsData.jobs || []);
+      } else {
+        // Every other branch in this Promise.all has an error path; the
+        // jobs fetch silently dropped non-ok responses, leaving the
+        // "Recommended Jobs" panel empty with no console signal. Match
+        // the rest of the block by logging at warn level.
+        console.warn(`Jobs fetch returned non-ok: ${jobsRes.status} ${jobsRes.statusText}`);
+        setSharedJobs([]);
       }
     } catch (err) {
       console.error('Error loading dashboard:', err);
