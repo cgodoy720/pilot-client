@@ -525,7 +525,18 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   // Unmount cleanup: abort any in-flight Compass stream and mark the
   // component as unmounted so the streaming reader bails out at the next
   // chunk boundary instead of writing to dead state.
+  //
+  // We MUST re-assign isMountedRef.current = true on every setup, not just
+  // rely on `useRef(true)`'s initial value. In React StrictMode (enabled in
+  // dev via main.jsx), every component is mounted, the cleanup is invoked,
+  // and the component is mounted again on the very first render. The first
+  // cleanup flips isMountedRef.current to false, and `useRef` returns the
+  // SAME ref object on the second mount — so without re-arming it here the
+  // ref stays false forever, which makes every `if (!isMountedRef.current)`
+  // gate in the SSE reader trigger immediately and silently drop the entire
+  // chat response.
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       if (streamAbortRef.current) {
