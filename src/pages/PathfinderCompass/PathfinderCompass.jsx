@@ -811,8 +811,14 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           // the generic catch-block "Something went wrong on my end."
           // string instead, hiding the crafted server message.
           // Other non-ok statuses (5xx, 401, etc.) still throw and route
-          // through the catch block as before.
-          if (!res.ok && res.status !== 429) throw new Error(`Request failed: ${res.status}`);
+          // through the catch block as before. Stash the status on the
+          // error so the retry decision can skip 4xx (auth, permission,
+          // not-found) — those will never become valid by retrying.
+          if (!res.ok && res.status !== 429) {
+            const httpErr = new Error(`Request failed: ${res.status}`);
+            httpErr.status = res.status;
+            throw httpErr;
+          }
 
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
@@ -915,7 +921,17 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           // covers Render proxy timeouts, transient LLM 5xx, and brief
           // network blips between client and Render that all share
           // the failure mode of "stream died before any chunk arrived".
-          if (!firstChunkReceived && attempt < MAX_ATTEMPTS) {
+          //
+          // Skip retry on HTTP 4xx (auth, permission, not-found, bad
+          // request). A 401 won't have a fresh token in 1.5 seconds and
+          // a 404 won't materialize a new endpoint — retrying just
+          // delays the inevitable error message and wastes the round
+          // trip. 5xx and network/abort-style errors (no `status` field)
+          // still get the retry. 429 never reaches here because it
+          // routes into the SSE reader as a server-emitted error event,
+          // which sets firstChunkReceived=true and exits this branch.
+          const isClient4xx = err?.status >= 400 && err?.status < 500;
+          if (!firstChunkReceived && attempt < MAX_ATTEMPTS && !isClient4xx) {
             console.warn(`[compass-chat-retry] attempt ${attempt}/${MAX_ATTEMPTS} failed (${err?.message || err?.name}), retrying once`);
             // Reset the abort controller for the retry — the previous
             // one may have been signal-aborted in the failure path or
