@@ -787,7 +787,16 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         signal: abortController.signal,
       });
 
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      // Allow 429 (rate-limit) to fall through into the SSE reader
+      // below. The server emits a `text/event-stream` body with one
+      // `type:'error'` event whose `error` field carries a friendly
+      // user-facing message ("You're sending messages too quickly...").
+      // Throwing here on 429 — as the prior code did — would surface
+      // the generic catch-block "Something went wrong on my end."
+      // string at line ~871 instead, hiding the crafted server message.
+      // Other non-ok statuses (5xx, 401, etc.) still throw and route
+      // through the catch block as before.
+      if (!res.ok && res.status !== 429) throw new Error(`Request failed: ${res.status}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -828,6 +837,22 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
                 setIsCompleting(true);
               }
               // Batch display updates to animation frames — smooth 60fps render
+              if (!rafId) rafId = requestAnimationFrame(flushDisplay);
+            } else if (data.type === 'error') {
+              // Surface server-emitted SSE errors instead of silently
+              // dropping them. The server emits these from two paths
+              // today: rate-limit (compassChatRateLimit handler →
+              // HTTP 429) and role-denial (requireBuilderRoleForChat
+              // → HTTP 200, intentional so the global fetch
+              // interceptor doesn't auto-logout). Both ship with a
+              // user-facing `error` string.
+              //
+              // Overwrite (not append) fullContent — partial AI text
+              // followed by "rate limited" mid-stream would be
+              // confusing. Replacing the bubble content with the
+              // error message is what the user expects when the
+              // stream terminates with an error.
+              fullContent = data.error || 'Something went wrong.';
               if (!rafId) rafId = requestAnimationFrame(flushDisplay);
             }
           } catch { /* ignore parse errors */ }
