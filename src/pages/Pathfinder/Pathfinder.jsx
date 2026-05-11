@@ -1,11 +1,13 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
+import { isCompassEligibleUser } from '../../utils/pathfinderAccess';
 
 function Pathfinder() {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const isStaff = user?.role === 'staff' || user?.role === 'admin';
+  const canAccessCompass = isCompassEligibleUser(user);
   
   // Redirect to dashboard if on /pathfinder root
   if (location.pathname === '/pathfinder' || location.pathname === '/pathfinder/') {
@@ -15,11 +17,11 @@ function Pathfinder() {
   return (
     <div className="w-full max-w-full mx-auto overflow-x-hidden bg-[#f5f5f5] min-h-screen text-[#1a1a1a]">
       {/* Secondary Navigation */}
-      <nav className="h-[45px] flex gap-0 border-b-2 border-[#e0e0e0] mb-8 bg-[#f5f5f5]">
+      <nav className="h-[45px] flex gap-0 border-b-2 border-[#e0e0e0] mb-8 bg-[#f5f5f5] overflow-x-auto scrollbar-hide">
         <NavLink
           to="/pathfinder/dashboard"
           className={({ isActive }) =>
-            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
               isActive 
                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
@@ -28,10 +30,24 @@ function Pathfinder() {
         >
           Dashboard
         </NavLink>
+        {canAccessCompass && (
+          <NavLink
+            to="/pathfinder/compass"
+            className={({ isActive }) =>
+              `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
+                isActive
+                  ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                  : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+              }`
+            }
+          >
+            Compass
+          </NavLink>
+        )}
         <NavLink
           to="/pathfinder/networking"
           className={({ isActive }) =>
-            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
               isActive 
                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
@@ -43,7 +59,7 @@ function Pathfinder() {
         <NavLink
           to="/pathfinder/projects"
           className={({ isActive }) =>
-            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
               isActive 
                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
@@ -55,7 +71,7 @@ function Pathfinder() {
         <NavLink
           to="/pathfinder/applications"
           className={({ isActive }) =>
-            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
               isActive 
                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
@@ -67,7 +83,7 @@ function Pathfinder() {
         <NavLink
           to="/pathfinder/events"
           className={({ isActive }) =>
-            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
               isActive
                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
@@ -77,9 +93,21 @@ function Pathfinder() {
           EventHub
         </NavLink>
         <NavLink
+          to="/pathfinder/jobs"
+          className={({ isActive }) =>
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
+              isActive
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
+          }
+        >
+          Jobs Feed
+        </NavLink>
+        <NavLink
           to="/pathfinder/network"
           className={({ isActive }) =>
-            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
               isActive
                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
@@ -88,25 +116,11 @@ function Pathfinder() {
         >
           Network
         </NavLink>
-        {/* Mock Interview tab hidden — still in development */}
-        {/* <NavLink
-          to="/pathfinder/mock-interview"
-          className={({ isActive }) =>
-            `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
-              isActive
-                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
-                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
-            }`
-          }
-        >
-          Mock Interview
-        </NavLink> */}
-        {/* Jobs tab hidden for now — re-enable when ready */}
         {isStaff && (
           <NavLink
             to="/pathfinder/staff-network"
             className={({ isActive }) =>
-              `h-full px-6 text-base font-semibold transition-all duration-200 border-b-[3px] flex items-center ${
+              `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
                 isActive
                   ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
                   : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'

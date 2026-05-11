@@ -431,8 +431,13 @@ const EventsTab = () => {
 
   return (
     <div className="w-full">
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold text-gray-900 mb-1">Events Management</h2>
+        <p className="text-sm text-gray-600">Manage upcoming events, registrations, and featured visibility.</p>
+      </div>
+
       {/* Controls */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Checkbox
             id="showPastEvents"
@@ -473,16 +478,25 @@ const EventsTab = () => {
       <Card className="bg-white">
         <CardContent className="p-0">
           {filteredEvents.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p>No events found</p>
+            <div className="text-center py-12 text-gray-500 space-y-2">
+              <p className="font-medium text-gray-700">No events found</p>
               {!showPastEvents && events.length > 0 && (
-                <p className="text-sm mt-2">Try enabling "Show past events" to see more</p>
+                <p className="text-sm">Try enabling "Show past events" to see more</p>
               )}
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/pathfinder/events', { state: { openAddDialog: true } })}
+                >
+                  Create an event
+                </Button>
+              </div>
             </div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-gray-50/70">
                   <SortableHeader sortKey="title">Title</SortableHeader>
                   <SortableHeader sortKey="event_date">Date</SortableHeader>
                   <TableHead>Type</TableHead>
@@ -494,9 +508,9 @@ const EventsTab = () => {
               </TableHeader>
               <TableBody>
                 {filteredEvents.map((event) => (
-                  <TableRow key={event.event_id} className="hover:bg-gray-50">
+                  <TableRow key={event.event_id} className="hover:bg-[#f6f7ff] transition-colors">
                     {/* Title */}
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium py-3">
                       <div className="flex items-center gap-2">
                         {event.title}
                         {event.is_featured && (
@@ -509,27 +523,27 @@ const EventsTab = () => {
                     </TableCell>
 
                     {/* Date */}
-                    <TableCell>{formatDate(event.event_date)}</TableCell>
+                    <TableCell className="py-3">{formatDate(event.event_date)}</TableCell>
 
                     {/* Type */}
-                    <TableCell>
+                    <TableCell className="py-3">
                       <Badge variant="outline" className="capitalize">
                         {event.event_type || '-'}
                       </Badge>
                     </TableCell>
 
                     {/* Location */}
-                    <TableCell>
+                    <TableCell className="py-3">
                       <Badge className={getLocationColor(event.location_type)}>
                         {getLocationLabel(event.location_type)}
                       </Badge>
                     </TableCell>
 
                     {/* RSVPs */}
-                    <TableCell>{event.registration_count || 0}</TableCell>
+                    <TableCell className="py-3">{event.registration_count || 0}</TableCell>
 
                     {/* Status */}
-                    <TableCell>
+                    <TableCell className="py-3">
                       {isPastEvent(event.event_date) ? (
                         <Badge variant="outline" className="text-gray-500 border-gray-300">
                           Past
@@ -542,7 +556,7 @@ const EventsTab = () => {
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="text-right">
+                    <TableCell className="text-right py-3">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"
