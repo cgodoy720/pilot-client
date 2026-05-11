@@ -776,137 +776,181 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     if (streamAbortRef.current) {
       try { streamAbortRef.current.abort(); } catch { /* ignore */ }
     }
-    const abortController = new AbortController();
+    let abortController = new AbortController();
     streamAbortRef.current = abortController;
 
+    // Single-retry on transient stream failures. Mirrors the server-side
+    // anthropic retry — covers Render proxy timeouts, network blips, and
+    // server crashes that drop the SSE connection BEFORE any chunk
+    // reached the browser. We only retry on the abrupt-failure path
+    // (no SSE chunks received). Once any text has rendered into the
+    // assistant bubble, retrying would either duplicate the partial
+    // text or clobber it — neither is a good UX. Capped at 2 attempts
+    // total so a genuinely-down server doesn't double the wait time.
+    const MAX_ATTEMPTS = 2;
+    let attempt = 0;
+    let succeeded = false;
+
     try {
-      const res = await fetch(`${API_URL}/api/pathfinder/compass/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: messageText, history: historyForApi, mode }),
-        signal: abortController.signal,
-      });
+      while (attempt < MAX_ATTEMPTS && !succeeded) {
+        attempt++;
+        let firstChunkReceived = false;
+        try {
+          const res = await fetch(`${API_URL}/api/pathfinder/compass/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ message: messageText, history: historyForApi, mode }),
+            signal: abortController.signal,
+          });
 
-      // Allow 429 (rate-limit) to fall through into the SSE reader
-      // below. The server emits a `text/event-stream` body with one
-      // `type:'error'` event whose `error` field carries a friendly
-      // user-facing message ("You're sending messages too quickly...").
-      // Throwing here on 429 — as the prior code did — would surface
-      // the generic catch-block "Something went wrong on my end."
-      // string at line ~871 instead, hiding the crafted server message.
-      // Other non-ok statuses (5xx, 401, etc.) still throw and route
-      // through the catch block as before.
-      if (!res.ok && res.status !== 429) throw new Error(`Request failed: ${res.status}`);
+          // Allow 429 (rate-limit) to fall through into the SSE reader
+          // below. The server emits a `text/event-stream` body with one
+          // `type:'error'` event whose `error` field carries a friendly
+          // user-facing message ("You're sending messages too quickly...").
+          // Throwing here on 429 — as the prior code did — would surface
+          // the generic catch-block "Something went wrong on my end."
+          // string instead, hiding the crafted server message.
+          // Other non-ok statuses (5xx, 401, etc.) still throw and route
+          // through the catch block as before.
+          if (!res.ok && res.status !== 429) throw new Error(`Request failed: ${res.status}`);
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
-      let rafId = null;
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let fullContent = '';
+          let rafId = null;
 
-      const flushDisplay = () => {
-        rafId = null;
-        const displayContent = stripForDisplay(fullContent);
-        updateMessages(prev =>
-          prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
-        );
-      };
+          const flushDisplay = () => {
+            rafId = null;
+            const displayContent = stripForDisplay(fullContent);
+            updateMessages(prev =>
+              prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent } : m)
+            );
+          };
 
-      while (true) {
-        // Bail out if the user navigated away. The unmount cleanup also
-        // calls abortController.abort(), which causes reader.read() to
-        // reject — but checking isMountedRef here means we stop processing
-        // any in-flight chunk immediately rather than waiting for the
-        // reject to propagate.
-        if (!isMountedRef.current) break;
+          while (true) {
+            // Bail out if the user navigated away. The unmount cleanup also
+            // calls abortController.abort(), which causes reader.read() to
+            // reject — but checking isMountedRef here means we stop processing
+            // any in-flight chunk immediately rather than waiting for the
+            // reject to propagate.
+            if (!isMountedRef.current) break;
 
-        const { done, value } = await reader.read();
-        if (done) break;
+            const { done, value } = await reader.read();
+            if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.type === 'text') {
-              fullContent += data.content;
-              if (fullContent.includes(COMPLETE_START) || fullContent.includes(ADD_GOALS_START)) {
-                setIsCompleting(true);
-              }
-              // Batch display updates to animation frames — smooth 60fps render
-              if (!rafId) rafId = requestAnimationFrame(flushDisplay);
-            } else if (data.type === 'error') {
-              // Surface server-emitted SSE errors instead of silently
-              // dropping them. The server emits these from two paths
-              // today: rate-limit (compassChatRateLimit handler →
-              // HTTP 429) and role-denial (requireBuilderRoleForChat
-              // → HTTP 200, intentional so the global fetch
-              // interceptor doesn't auto-logout). Both ship with a
-              // user-facing `error` string.
-              //
-              // Overwrite (not append) fullContent — partial AI text
-              // followed by "rate limited" mid-stream would be
-              // confusing. Replacing the bubble content with the
-              // error message is what the user expects when the
-              // stream terminates with an error.
-              fullContent = data.error || 'Something went wrong.';
-              if (!rafId) rafId = requestAnimationFrame(flushDisplay);
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.type === 'text') {
+                  firstChunkReceived = true;
+                  fullContent += data.content;
+                  if (fullContent.includes(COMPLETE_START) || fullContent.includes(ADD_GOALS_START)) {
+                    setIsCompleting(true);
+                  }
+                  // Batch display updates to animation frames — smooth 60fps render
+                  if (!rafId) rafId = requestAnimationFrame(flushDisplay);
+                } else if (data.type === 'error') {
+                  // Surface server-emitted SSE errors instead of silently
+                  // dropping them. The server emits these from two paths
+                  // today: rate-limit (compassChatRateLimit handler →
+                  // HTTP 429) and role-denial (requireBuilderRoleForChat
+                  // → HTTP 200, intentional so the global fetch
+                  // interceptor doesn't auto-logout). Both ship with a
+                  // user-facing `error` string. A graceful server-emitted
+                  // error counts as a successful round-trip from the
+                  // retry's perspective — we have a real reply for the
+                  // bubble; retrying would either duplicate it or
+                  // clobber it on the next attempt.
+                  firstChunkReceived = true;
+                  fullContent = data.error || 'Something went wrong.';
+                  if (!rafId) rafId = requestAnimationFrame(flushDisplay);
+                }
+              } catch { /* ignore parse errors */ }
             }
-          } catch { /* ignore parse errors */ }
+          }
+
+          // Flush any remaining content not yet rendered. Skip post-unmount —
+          // setting state on a dead component does nothing useful and just
+          // logs a warning.
+          if (rafId) cancelAnimationFrame(rafId);
+          if (!isMountedRef.current) return;
+          flushDisplay();
+
+          // Check for completion signals
+          const completionPayload = extractBetween(fullContent, COMPLETE_START, COMPLETE_END);
+          const addGoalsPayload = extractBetween(fullContent, ADD_GOALS_START, ADD_GOALS_END);
+          const displayContent = stripForDisplay(fullContent);
+          updateMessages(prev =>
+            prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent, streaming: false } : m)
+          );
+
+          if (completionPayload) {
+            await handleCompletionPayload(completionPayload);
+          } else if (addGoalsPayload) {
+            await handleAddGoalsPayload(addGoalsPayload);
+          }
+          succeeded = true;
+        } catch (err) {
+          // AbortError is expected when the user navigates away mid-stream.
+          // Don't surface a "something went wrong" message — there's no UI to
+          // surface it on, and the next page load will recover from server
+          // history anyway. Any other error is a real failure. Returning
+          // here still runs the OUTER finally below, which clears
+          // streaming flags and the abort ref — JS guarantees finally
+          // runs after a return inside a try/catch.
+          const isAbort = err?.name === 'AbortError' || abortController.signal.aborted;
+          if (isAbort) {
+            return;
+          }
+          // Retry only when nothing reached the user yet AND we have
+          // attempts left. Once any text rendered into the bubble, a
+          // retry would either duplicate or clobber the partial reply —
+          // both worse than just surfacing the error. The retry path
+          // covers Render proxy timeouts, transient LLM 5xx, and brief
+          // network blips between client and Render that all share
+          // the failure mode of "stream died before any chunk arrived".
+          if (!firstChunkReceived && attempt < MAX_ATTEMPTS) {
+            console.warn(`[compass-chat-retry] attempt ${attempt}/${MAX_ATTEMPTS} failed (${err?.message || err?.name}), retrying once`);
+            // Reset the abort controller for the retry — the previous
+            // one may have been signal-aborted in the failure path or
+            // by upstream cleanup. Stash the new one on the ref so
+            // unmount cleanup can still cancel us mid-retry.
+            abortController = new AbortController();
+            streamAbortRef.current = abortController;
+            await new Promise((r) => setTimeout(r, 1500));
+            continue;
+          }
+          console.error('Compass chat error:', err);
+          if (isMountedRef.current) {
+            updateMessages(prev =>
+              prev.map(m =>
+                m.id === streamMsgId
+                  ? { ...m, content: 'Something went wrong on my end. Give it a moment and try again.', streaming: false }
+                  : m
+              )
+            );
+          }
+          break;
         }
       }
-
-      // Flush any remaining content not yet rendered. Skip post-unmount —
-      // setting state on a dead component does nothing useful and just
-      // logs a warning.
-      if (rafId) cancelAnimationFrame(rafId);
-      if (!isMountedRef.current) return;
-      flushDisplay();
-
-      // Check for completion signals
-      const completionPayload = extractBetween(fullContent, COMPLETE_START, COMPLETE_END);
-      const addGoalsPayload = extractBetween(fullContent, ADD_GOALS_START, ADD_GOALS_END);
-      const displayContent = stripForDisplay(fullContent);
-      updateMessages(prev =>
-        prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent, streaming: false } : m)
-      );
-
-      if (completionPayload) {
-        await handleCompletionPayload(completionPayload);
-      } else if (addGoalsPayload) {
-        await handleAddGoalsPayload(addGoalsPayload);
-      }
-    } catch (err) {
-      // AbortError is expected when the user navigates away mid-stream.
-      // Don't surface a "something went wrong" message — there's no UI to
-      // surface it on, and the next page load will recover from server
-      // history anyway. Any other error is a real failure.
-      const isAbort = err?.name === 'AbortError' || abortController.signal.aborted;
-      if (isAbort) {
-        return;
-      }
-      console.error('Compass chat error:', err);
-      if (isMountedRef.current) {
-        updateMessages(prev =>
-          prev.map(m =>
-            m.id === streamMsgId
-              ? { ...m, content: 'Something went wrong on my end. Give it a moment and try again.', streaming: false }
-              : m
-          )
-        );
-      }
     } finally {
-      // Clear the ref only if it still points at THIS controller — a newer
-      // send may have already replaced it.
+      // Cleanup runs on every exit path — success, retry-exhausted
+      // failure, abort, and any return inside the try block above.
+      // Clear the ref only if it still points at THIS controller —
+      // a newer send may have already replaced it.
       if (streamAbortRef.current === abortController) {
         streamAbortRef.current = null;
       }
-      if (!isMountedRef.current) return;
-      setIsStreaming(false);
-      setIsCompleting(false); // safety net — clears banner if no handler ran
+      if (isMountedRef.current) {
+        setIsStreaming(false);
+        setIsCompleting(false); // safety net — clears banner if no handler ran
+      }
     }
     // isStreaming intentionally NOT in deps — see isStreamingRef declaration
     // above. Including it would recreate sendMessage on every flip, schedule
