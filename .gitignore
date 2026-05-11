@@ -8,6 +8,10 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# iCloud Drive periodically replaces `node_modules` with a `.nosync`
+# symlink/dir on macOS. Same intent as `node_modules` — never commit
+# vendored dependencies, regardless of which path iCloud chose this hour.
+node_modules.nosync
 dist
 dist-ssr
 *.local

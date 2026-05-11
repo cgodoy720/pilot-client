@@ -142,7 +142,18 @@ export default function PathfinderJobs() {
           salaryRange: job.salary_range || '',
           source: 'Jobs Feed',
           sourceType: 'staff_sourced',
-          internalReferral: true,
+          // Jobs in the Jobs Feed are staff-shared listings from the
+          // job_postings table — they are NOT internal referrals.
+          // An "internal referral" in job_applications.internal_referral
+          // means the builder personally knows someone at the company
+          // who referred them (a very different signal that staff use
+          // to measure relationship-driven outcomes). The prior
+          // unconditional `true` was tagging every Jobs Feed
+          // application as an internal referral, corrupting the
+          // tracking data staff rely on. Builders can still mark a
+          // referral after the fact via the editable application
+          // form on /pathfinder/applications.
+          internalReferral: false,
         }),
       });
       if (res.ok) {

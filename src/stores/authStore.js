@@ -121,7 +121,22 @@ const useAuthStore = create(
               data.token,
               data.user
             );
-            set({ token: data.token, isAuthenticated: true, user: userWithPerms });
+            // Mark _userFieldsHydrated true HERE in addition to the
+            // rehydration path. CompassRouteGuard waits on this flag
+            // before checking eligibility — without it, fresh logins
+            // (no prior localStorage session: first-time login,
+            // incognito, after explicit logout) would render
+            // "Loading Compass…" forever because the guard never
+            // resolved. The login response already carries the user
+            // fields (cohort, etc.) and _fetchAndSetPermissions has
+            // merged in permissions, so the user is fully hydrated
+            // by this point.
+            set({
+              token: data.token,
+              isAuthenticated: true,
+              user: userWithPerms,
+              _userFieldsHydrated: true,
+            });
             localStorage.setItem('token', data.token);
           } else {
             // Applicant portal reads user from localStorage and token from applicantToken
@@ -173,7 +188,12 @@ const useAuthStore = create(
       },
 
       logout: () => {
-        set({ user: null, token: null, isAuthenticated: false });
+        // Reset _userFieldsHydrated alongside the auth state so the
+        // next login starts from a clean slate. Not strictly required
+        // (CompassRouteGuard checks user via isCompassEligibleUser
+        // which returns false for null user) but keeps the flag
+        // semantically honest — "false until a real user is loaded."
+        set({ user: null, token: null, isAuthenticated: false, _userFieldsHydrated: false });
         // Belt-and-suspenders: explicitly remove all auth data from localStorage
         localStorage.removeItem('user');
         localStorage.removeItem('token');
@@ -188,7 +208,17 @@ const useAuthStore = create(
       },
 
       setAuthState: (userData, userToken) => {
-        set({ user: userData, token: userToken, isAuthenticated: true });
+        // Same hydration-flag flip as login() — external auth flows
+        // (SSO callback, etc.) call setAuthState directly to seed the
+        // store. Without setting _userFieldsHydrated: true here too,
+        // those flows would also hit the CompassRouteGuard "Loading
+        // Compass…" trap.
+        set({
+          user: userData,
+          token: userToken,
+          isAuthenticated: true,
+          _userFieldsHydrated: true,
+        });
         localStorage.setItem('user', JSON.stringify(userData));
         if (userToken) localStorage.setItem('token', userToken);
       },
