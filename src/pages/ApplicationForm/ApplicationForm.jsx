@@ -66,6 +66,14 @@ const ApplicationForm = () => {
   const [cohortOptions, setCohortOptions] = useState([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
   const [isUpdatingCohort, setIsUpdatingCohort] = useState(false);
+  // Surfaces the most recent auto-save failure to the applicant. Previously
+  // the catch in the debounced save just console.error'd, which meant any
+  // server-side gate (e.g., assertEditableApplication, expired token) would
+  // silently swallow the user's edits — they'd keep typing into a form that
+  // wasn't persisting anything, then hit "Submit" and see a generic error.
+  // We hold the message until the next save succeeds, at which point it
+  // clears. Non-blocking so applicants can still try to recover.
+  const [autoSaveError, setAutoSaveError] = useState(null);
 
   useEffect(() => {
     const initializeApplication = async () => {
@@ -343,7 +351,7 @@ const ApplicationForm = () => {
             if (value !== null && value !== undefined && value !== '') {
               const responseValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
               console.log(`Saving response: Q${questionId} = ${responseValue}`);
-              
+
               await databaseService.saveResponse(
                 currentSession.application.application_id,
                 questionId,
@@ -353,11 +361,20 @@ const ApplicationForm = () => {
             }
           }
           console.log(`Auto-save completed: ${savedCount} responses saved to database`);
+          if (savedCount > 0) {
+            setAutoSaveError((prev) => (prev ? null : prev));
+          }
       } else {
           console.warn('No application ID available for database save');
         }
       } catch (error) {
         console.error('Error auto-saving:', error);
+        const message = error?.message?.trim();
+        setAutoSaveError(
+          message && !/^HTTP error/i.test(message)
+            ? `Your changes weren't saved: ${message}`
+            : "Your changes weren't saved. Please check your connection and try again, or contact admissions if this keeps happening."
+        );
       }
     }, 1000);
     
@@ -909,10 +926,19 @@ const ApplicationForm = () => {
       }
     } catch (error) {
       console.error('Error submitting application:', error);
+      // Surface the server-supplied reason whenever it's user-meaningful
+      // (the new databaseService.submitApplication propagates the parsed
+      // body.error). Fall back to the generic message only when we have
+      // nothing useful to show.
+      const rawMessage = error?.message?.trim();
+      const friendlyMessage =
+        rawMessage && !/^HTTP error/i.test(rawMessage) && !/^Submit failed/i.test(rawMessage)
+          ? rawMessage
+          : 'Error submitting application. Please try again.';
       await Swal.fire({
         icon: 'error',
         title: 'Submission Failed',
-        text: 'Error submitting application. Please try again.',
+        text: friendlyMessage,
         confirmButtonColor: '#4242ea',
         confirmButtonText: 'Try Again'
       });
@@ -1398,6 +1424,22 @@ const ApplicationForm = () => {
 
       {/* Main Content */}
       <div className="max-w-[1200px] mx-auto px-8 py-8">
+          {autoSaveError && (
+            <div
+              role="alert"
+              className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 flex items-start justify-between gap-3 text-sm text-red-900"
+            >
+              <span className="flex-1">{autoSaveError}</span>
+              <button
+                type="button"
+                onClick={() => setAutoSaveError(null)}
+                className="text-red-700 hover:text-red-900 font-medium"
+                aria-label="Dismiss"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {/* Section Navigation */}
           <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
             <button 

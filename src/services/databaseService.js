@@ -227,7 +227,18 @@ class DatabaseService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Surface the server's actual error message (e.g., "Application
+        // cannot be edited once a decision is final") so the form can
+        // display it in its auto-save banner. The previous `HTTP error!
+        // status: 400` swallowed every meaningful reason from the user.
+        const body = await response.json().catch(() => ({}));
+        const message =
+          body?.error ||
+          body?.message ||
+          `Save failed (HTTP ${response.status})`;
+        const err = new Error(message);
+        err.status = response.status;
+        throw err;
       }
 
       return await response.json();
@@ -251,7 +262,17 @@ class DatabaseService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Same pattern as saveResponse: read the server's error body so
+        // the submit confirmation dialog can show the real reason instead
+        // of a generic "Submission Failed".
+        const body = await response.json().catch(() => ({}));
+        const message =
+          body?.error ||
+          body?.message ||
+          `Submit failed (HTTP ${response.status})`;
+        const err = new Error(message);
+        err.status = response.status;
+        throw err;
       }
 
       return await response.json();
