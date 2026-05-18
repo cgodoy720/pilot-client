@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import { useOverviewStats, useOverviewDemographics, useComparisonStats } from '../../hooks/useOverviewStats';
+import { useOverviewStats, useOverviewDemographics, useComparisonStats, useFunnelHeatmap } from '../../hooks/useOverviewStats';
+import FunnelHeatmap from './FunnelHeatmap';
 
 const OverviewTab = ({
   error,
@@ -56,9 +57,62 @@ const OverviewTab = ({
     return null;
   }, [overviewQuickView, cohorts]);
   
-  const { 
-    data: comparisonStats 
+  const {
+    data: comparisonStats
   } = useComparisonStats(previousCohortId, compareEnabled, token);
+
+  const {
+    data: funnelHeatmap,
+    isLoading: funnelLoading,
+  } = useFunnelHeatmap(cohortParam, token);
+
+  // Local UI-only filter state for the two heatmaps. These narrow the *display*
+  // of the same dataset — we don't re-fetch per filter change.
+  const [activitySourceFilter, setActivitySourceFilter] = useState('_all');
+  const [sourceRecencyFilter, setSourceRecencyFilter] = useState('_all');
+
+  // Apply UI filters by zeroing out rows that don't match — keeps row/col structure
+  // intact so the heatmap shape doesn't change shape when filters apply.
+  const filteredByActivity = useMemo(() => {
+    if (!funnelHeatmap) return null;
+    if (activitySourceFilter === '_all') return funnelHeatmap.byActivity;
+    // Need raw rows to filter by source × bucket — backend currently returns
+    // pre-aggregated data, so when a source is selected we approximate by the
+    // share of that source in each stage row.
+    const result = {};
+    funnelHeatmap.stages.forEach(stage => {
+      const stageTotal = funnelHeatmap.activityBuckets.reduce(
+        (sum, b) => sum + (funnelHeatmap.byActivity[stage]?.[b] || 0),
+        0
+      );
+      const sourceVal = funnelHeatmap.bySource[stage]?.[activitySourceFilter] || 0;
+      const ratio = stageTotal > 0 ? sourceVal / stageTotal : 0;
+      result[stage] = {};
+      funnelHeatmap.activityBuckets.forEach(b => {
+        result[stage][b] = Math.round((funnelHeatmap.byActivity[stage]?.[b] || 0) * ratio);
+      });
+    });
+    return result;
+  }, [funnelHeatmap, activitySourceFilter]);
+
+  const filteredBySource = useMemo(() => {
+    if (!funnelHeatmap) return null;
+    if (sourceRecencyFilter === '_all') return funnelHeatmap.bySource;
+    const result = {};
+    Object.keys(funnelHeatmap.bySource).forEach(stage => {
+      const stageActivityTotal = funnelHeatmap.activityBuckets.reduce(
+        (sum, b) => sum + (funnelHeatmap.byActivity[stage]?.[b] || 0),
+        0
+      );
+      const bucketVal = funnelHeatmap.byActivity[stage]?.[sourceRecencyFilter] || 0;
+      const ratio = stageActivityTotal > 0 ? bucketVal / stageActivityTotal : 0;
+      result[stage] = {};
+      funnelHeatmap.sources.forEach(s => {
+        result[stage][s] = Math.round((funnelHeatmap.bySource[stage]?.[s] || 0) * ratio);
+      });
+    });
+    return result;
+  }, [funnelHeatmap, sourceRecencyFilter]);
   
   // Use the fetched stats or fall back to prop stats
   const displayStats = overviewStats || stats;
@@ -470,6 +524,73 @@ const OverviewTab = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Activity Recency bar — totals across the whole pipeline by days since last activity */}
+      <Card className="bg-white border border-gray-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold text-[#1a1a1a] font-proxima-bold">
+            Activity Recency
+          </CardTitle>
+          <p className="text-sm text-gray-500 font-proxima">
+            Latest applicant activity from signup, event registration/attendance, application start/submission, or response updates.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {funnelLoading || !funnelHeatmap ? (
+            <p className="text-sm text-gray-500 font-proxima">Loading…</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3">
+              {funnelHeatmap.activityBuckets.map(bucket => {
+                const count = funnelHeatmap.activityRecencyTotals?.[bucket] ?? 0;
+                const max = Math.max(...Object.values(funnelHeatmap.activityRecencyTotals || { x: 1 }));
+                const pct = max > 0 ? (count / max) * 100 : 0;
+                return (
+                  <div key={bucket}>
+                    <div className="flex justify-between text-sm font-proxima">
+                      <span className="text-gray-700">{bucket} days</span>
+                      <span className="font-semibold text-gray-900">{count}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 bg-gray-100 rounded overflow-hidden">
+                      <div className="h-full bg-[#4242ea]" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Heatmap 1: Funnel by Activity Recency */}
+      {funnelHeatmap && (
+        <FunnelHeatmap
+          title="Full Funnel by Activity Recency"
+          subtitle="Candidate count by funnel stage × days since last activity. Use this to identify where to re-engage stale candidates."
+          stages={funnelHeatmap.stages}
+          columns={funnelHeatmap.activityBuckets}
+          data={filteredByActivity}
+          filterLabel="All Sources"
+          filterOptions={funnelHeatmap.sources}
+          filterValue={activitySourceFilter}
+          onFilterChange={setActivitySourceFilter}
+        />
+      )}
+
+      {/* Heatmap 2: Funnel by Referral Source — Lead row excluded */}
+      {funnelHeatmap && (
+        <FunnelHeatmap
+          title="Full Funnel by Referral Source"
+          subtitle="Candidate count by funnel stage × where they came from. Use this to see which channels move people through, not just which channels drive volume."
+          stages={funnelHeatmap.stages.filter(s => s !== 'lead_no_account')}
+          columns={funnelHeatmap.sources}
+          data={filteredBySource}
+          filterLabel="All Recency"
+          filterOptions={funnelHeatmap.activityBuckets}
+          filterValue={sourceRecencyFilter}
+          onFilterChange={setSourceRecencyFilter}
+        />
+      )}
+
     </div>
   );
 };
