@@ -14,7 +14,6 @@ export const PAGE_PERMISSIONS = {
   PERFORMANCE: 'page:performance',
   PATHFINDER: 'page:pathfinder',
   ASSESSMENT: 'page:assessment',
-  PAST_SESSION: 'page:past_session',
   ACCOUNT: 'page:account',
   PAYMENT: 'page:payment',
   
@@ -39,19 +38,24 @@ export const PAGE_PERMISSIONS = {
   ASSESSMENT_GRADES: 'page:assessment_grades',
   ADMIN_VOLUNTEER_FEEDBACK: 'page:admin_volunteer_feedback',
   VOLUNTEER_MANAGEMENT: 'page:volunteer_management',
-  
+  TEMPLATE_MANAGEMENT: 'page:template_management',
+
   // Admin only section
   ADMIN_SECTION: 'page:admin_section',
   ADMIN_PROMPTS: 'page:admin_prompts',
   ORGANIZATION_MANAGEMENT: 'page:organization_management',
   WEEKLY_REPORTS: 'page:weekly_reports',
   PLATFORM_ANALYTICS: 'page:platform_analytics',
+  DEMO_COHORT: 'page:demo_cohort',
   
   // Workshop admin
   WORKSHOP_ADMIN: 'page:workshop_admin',
-  
+
   // Cohort/Enterprise admin
   COHORT_ADMIN: 'page:cohort_admin',
+
+  // Platform Intake — available to all authenticated roles
+  PLATFORM_INTAKE: 'page:platform_intake',
 };
 
 // Feature-level permission keys (for future use)
@@ -88,9 +92,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.PERFORMANCE,
     PAGE_PERMISSIONS.PATHFINDER,
     PAGE_PERMISSIONS.ASSESSMENT,
-    PAGE_PERMISSIONS.PAST_SESSION,
     PAGE_PERMISSIONS.ACCOUNT,
     PAGE_PERMISSIONS.PAYMENT,
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
     // Note: volunteer_feedback, staff, and admin pages are NOT included here.
     // Builders only see these nav items when granted custom permissions.
   ],
@@ -104,7 +108,6 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.PERFORMANCE,
     PAGE_PERMISSIONS.PATHFINDER,
     PAGE_PERMISSIONS.ASSESSMENT,
-    PAGE_PERMISSIONS.PAST_SESSION,
     PAGE_PERMISSIONS.ACCOUNT,
     PAGE_PERMISSIONS.PAYMENT,
     PAGE_PERMISSIONS.VOLUNTEER_FEEDBACK,
@@ -133,6 +136,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.WORKSHOP_ADMIN,
     PAGE_PERMISSIONS.COHORT_ADMIN,
 
+    // Platform Intake
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
+
     // Feature permissions
     FEATURE_PERMISSIONS.EDIT_CURRICULUM,
   ],
@@ -150,30 +156,34 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.VOLUNTEER_SECTION,
     PAGE_PERMISSIONS.MY_SCHEDULE,
     PAGE_PERMISSIONS.CONTENT_PREVIEW, // Can preview content they'll help with
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
   ],
-  
+
   workshop_participant: [
     // Limited builder experience
     PAGE_PERMISSIONS.DASHBOARD,
     PAGE_PERMISSIONS.LEARNING,
     PAGE_PERMISSIONS.AI_CHAT,
     PAGE_PERMISSIONS.CALENDAR,
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
   ],
-  
+
   workshop_admin: [
     // Workshop management only
     PAGE_PERMISSIONS.DASHBOARD,
     PAGE_PERMISSIONS.WORKSHOP_ADMIN,
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
   ],
-  
+
   enterprise_builder: [
     // Limited builder experience for external cohorts
     PAGE_PERMISSIONS.DASHBOARD,
     PAGE_PERMISSIONS.LEARNING,
     PAGE_PERMISSIONS.AI_CHAT,
     PAGE_PERMISSIONS.CALENDAR,
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
   ],
-  
+
   enterprise_admin: [
     // Enterprise builder access + cohort management
     PAGE_PERMISSIONS.DASHBOARD,
@@ -181,8 +191,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.AI_CHAT,
     PAGE_PERMISSIONS.CALENDAR,
     PAGE_PERMISSIONS.COHORT_ADMIN,
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
   ],
-  
+
   candidate: [
     // Builder-style experience + selected staff tools
     PAGE_PERMISSIONS.DASHBOARD,
@@ -192,6 +203,7 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.ADMIN_ATTENDANCE,
     PAGE_PERMISSIONS.ASSESSMENT_GRADES,
     PAGE_PERMISSIONS.ADMIN_DASHBOARD,
+    PAGE_PERMISSIONS.PLATFORM_INTAKE,
   ],
   
   applicant: [

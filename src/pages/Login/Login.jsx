@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -15,7 +15,9 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated, setAuthState } = useAuth();
+  const login = useAuthStore((s) => s.login);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setAuthState = useAuthStore((s) => s.setAuthState);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -42,8 +44,8 @@ const Login = () => {
         // Use the redirectTo from unified auth response
         const redirectPath = result.redirectTo || '/dashboard';
         
-        // For builder users, the AuthContext will handle the state
-        // For applicants, we redirect but don't set AuthContext state
+        // For builder users, the authStore will handle the state
+        // For applicants, we redirect but don't set authStore state
         if (result.userType === 'builder') {
           // Navigate to the path specified by the backend (could be /dashboard or /volunteer-feedback)
           navigate(redirectPath);

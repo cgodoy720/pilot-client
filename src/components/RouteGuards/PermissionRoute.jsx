@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 
 /**
@@ -19,7 +19,8 @@ export function PermissionRoute({
   fallback = '/dashboard',
   requireActive = false 
 }) {
-  const { user, isLoading } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const isLoading = useAuthStore((s) => s.isLoading);
   const { hasPermission } = usePermissions();
   
   // Show loading state while auth is being verified
@@ -54,7 +55,7 @@ export function MultiPermissionRoute({
   children, 
   fallback = '/dashboard' 
 }) {
-  const { isLoading } = useAuth();
+  const isLoading = useAuthStore((s) => s.isLoading);
   const { hasAnyPermission } = usePermissions();
   
   if (isLoading) {
@@ -78,12 +79,13 @@ export function MultiPermissionRoute({
  * @param {string} fallback - Redirect path if inactive
  */
 export function ActiveUserRoute({ children, fallback = '/dashboard' }) {
-  const { user, isLoading } = useAuth();
-  
+  const user = useAuthStore((s) => s.user);
+  const isLoading = useAuthStore((s) => s.isLoading);
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
-  
+
   if (user?.active === false) {
     return <Navigate to={fallback} replace />;
   }
@@ -113,7 +115,7 @@ export function AdminOnlyRoute({ children }) {
 }
 
 export function BuilderRoute({ children }) {
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   const { canAccessPage } = usePermissions();
   
   // BuilderRoute excludes workshop/enterprise users from builder-specific pages

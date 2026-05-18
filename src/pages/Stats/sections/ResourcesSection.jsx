@@ -20,12 +20,12 @@ import {
   IconButton
 } from '@mui/material';
 import { Search, Link as LinkIcon, VideoLibrary, MenuBook, Article, FilterList, Close } from '@mui/icons-material';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { fetchUserResources } from '../../../utils/statsApi';
 import { formatDate } from '../../../utils/dateHelpers';
 
 const ResourcesSection = ({ cohortMonth }) => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [taskResources, setTaskResources] = useState([]);
   const [flattenedResources, setFlattenedResources] = useState([]);
   const [filteredResources, setFilteredResources] = useState([]);

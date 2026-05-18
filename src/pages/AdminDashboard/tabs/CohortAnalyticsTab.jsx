@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { getCohortPerformance, getCohortDailyBreakdown } from '../../../services/adminApi';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -39,12 +39,14 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const CohortAnalyticsTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [period, setPeriod] = useState('last-30-days');
   const [performance, setPerformance] = useState(null);
   const [trendData, setTrendData] = useState([]);
   const [loadingPerf, setLoadingPerf] = useState(true);
   const [loadingTrend, setLoadingTrend] = useState(false);
+  const [todayAttendance, setTodayAttendance] = useState(null);
+  const [loadingToday, setLoadingToday] = useState(true);
 
   // Fetch cohort performance (also contains riskAssessment)
   useEffect(() => {
@@ -84,14 +86,114 @@ const CohortAnalyticsTab = () => {
       .finally(() => setLoadingPerf(false));
   }, [token, period]);
 
+  // Fetch today's attendance for cross-cohort breakdown
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/api/admin/attendance/dashboard/today`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(json => setTodayAttendance(json))
+      .catch(console.error)
+      .finally(() => setLoadingToday(false));
+  }, [token]);
+
   const cohorts = performance?.cohorts ?? [];
   const riskBuilders = Array.isArray(performance?.riskAssessment)
     ? performance.riskAssessment
     : [];
   const cohortNames = cohorts.map((c) => c.cohort);
 
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  const todayTotals = todayAttendance?.cohorts?.reduce(
+    (acc, c) => {
+      acc.present += c.present || 0;
+      acc.late += c.late || 0;
+      acc.absent += c.absent || 0;
+      acc.excused += c.excused || 0;
+      acc.total += (c.present || 0) + (c.late || 0) + (c.absent || 0) + (c.excused || 0);
+      return acc;
+    },
+    { present: 0, late: 0, absent: 0, excused: 0, total: 0 }
+  ) ?? null;
+
   return (
     <div className="space-y-6">
+
+      {/* Today's cross-cohort attendance */}
+      <Card className="bg-white border border-[#E3E3E3]">
+        <CardHeader className="pb-3 border-b border-[#E3E3E3]">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold text-[#1E1E1E]">Today's Attendance</CardTitle>
+            <span className="text-xs text-slate-400">{today}</span>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {loadingToday ? (
+            <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-8 bg-[#EFEFEF] rounded animate-pulse" />)}</div>
+          ) : !todayAttendance?.cohorts?.length ? (
+            <p className="text-sm text-slate-400 text-center py-4">No attendance data for today.</p>
+          ) : (
+            <>
+              {/* Summary tiles */}
+              {todayTotals && (
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  {[
+                    { label: 'Present', count: todayTotals.present, color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
+                    { label: 'Late', count: todayTotals.late, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-100' },
+                    { label: 'Absent', count: todayTotals.absent, color: 'text-red-500', bg: 'bg-red-50 border-red-100' },
+                    { label: 'Excused', count: todayTotals.excused, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-100' },
+                  ].map(({ label, count, color, bg }) => (
+                    <div key={label} className={`rounded-lg border p-3 ${bg}`}>
+                      <p className={`text-2xl font-bold ${color}`}>{count}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Per-cohort breakdown */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-slate-400 text-xs uppercase tracking-wide border-b border-[#E3E3E3]">
+                      <th className="pb-2 pr-4 font-medium">Cohort</th>
+                      <th className="pb-2 px-3 font-medium text-center">Present</th>
+                      <th className="pb-2 px-3 font-medium text-center">Late</th>
+                      <th className="pb-2 px-3 font-medium text-center">Absent</th>
+                      <th className="pb-2 px-3 font-medium text-center">Excused</th>
+                      <th className="pb-2 pl-3 font-medium text-right">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#EFEFEF]">
+                    {todayAttendance.cohorts.map((cohort) => {
+                      const total = (cohort.present || 0) + (cohort.late || 0) + (cohort.absent || 0) + (cohort.excused || 0);
+                      const rate = total > 0 ? Math.round(((cohort.present || 0) + (cohort.late || 0)) / total * 100) : 0;
+                      return (
+                        <tr key={cohort.cohort} className="hover:bg-[#EFEFEF]/50 transition-colors">
+                          <td className="py-2.5 pr-4 font-medium text-[#1E1E1E] truncate max-w-[200px]">{cohort.cohort}</td>
+                          <td className="py-2.5 px-3 text-center text-green-600 font-semibold">{cohort.present || 0}</td>
+                          <td className="py-2.5 px-3 text-center text-yellow-600 font-semibold">{cohort.late || 0}</td>
+                          <td className="py-2.5 px-3 text-center text-red-500 font-semibold">{cohort.absent || 0}</td>
+                          <td className="py-2.5 px-3 text-center text-blue-500 font-semibold">{cohort.excused || 0}</td>
+                          <td className="py-2.5 pl-3 text-right">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              rate >= 80 ? 'bg-green-100 text-green-700' :
+                              rate >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-600'
+                            }`}>{rate}%</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Period selector */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-slate-500 font-medium">Period:</span>

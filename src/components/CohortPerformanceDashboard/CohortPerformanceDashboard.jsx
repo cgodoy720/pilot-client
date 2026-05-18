@@ -20,13 +20,13 @@ import {
   TableRow,
 } from '../ui/table';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { getErrorMessage } from '../../utils/retryUtils';
 import CohortDailyBreakdown from './CohortDailyBreakdown';
 import DayBuilderStatusModal from './DayBuilderStatusModal';
 
 const CohortPerformanceDashboard = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -426,7 +426,10 @@ const CohortPerformanceDashboard = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredRiskData.map((builder, index) => {
-                      const isAtRisk = builder.attendanceRate < requirement;
+                      // attendanceRate can be null (e.g. holiday-only slice) —
+                      // treat as 100% for risk comparison and render a dash.
+                      const rate = typeof builder.attendanceRate === 'number' ? builder.attendanceRate : null;
+                      const isAtRisk = rate != null && rate < requirement;
                       
                       return (
                         <TableRow key={index} className="border-b border-slate-200">
@@ -442,7 +445,7 @@ const CohortPerformanceDashboard = () => {
                             </div>
                           </TableCell>
                           <TableCell className={`text-right font-semibold ${isAtRisk ? 'text-red-600' : 'text-slate-900'}`}>
-                            {builder.attendanceRate.toFixed(1)}%
+                            {rate != null ? `${rate.toFixed(1)}%` : '—'}
                           </TableCell>
                           <TableCell className="text-right text-slate-600">{requirement}%</TableCell>
                           <TableCell className="text-center">
@@ -472,6 +475,13 @@ const CohortPerformanceDashboard = () => {
         onClose={handleModalClose}
         dayData={dayBuilders}
         loading={dayBuildersLoading}
+        onRefresh={async () => {
+          if (!selectedCohort || !selectedDay?.date) return;
+          try {
+            const response = await cachedAdminApi.getCachedDayBuilderStatus(selectedCohort, selectedDay.date, token, { forceRefresh: true });
+            setDayBuilders(response.data);
+          } catch (err) { console.error('Refresh failed:', err); }
+        }}
       />
     </div>
   );

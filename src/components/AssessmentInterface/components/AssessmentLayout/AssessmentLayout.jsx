@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaInfoCircle } from 'react-icons/fa';
 import Swal from 'sweetalert2';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import AssessmentLLMChat from '../AssessmentLLMChat/AssessmentLLMChat';
 import AssessmentSubmissionPanel from '../AssessmentSubmissionPanel/AssessmentSubmissionPanel';
 import AssessmentSubmissionDisplay from '../AssessmentSubmissionDisplay/AssessmentSubmissionDisplay';
@@ -12,7 +12,8 @@ import './AssessmentLayout.css';
 function AssessmentLayout({ readonly = false }) {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   
   // Assessment data
   const [assessment, setAssessment] = useState(null);

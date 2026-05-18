@@ -3,10 +3,10 @@ import { Users, RefreshCw, Clock, CheckCircle, AlertTriangle, ChevronDown, Chevr
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { cachedAdminApi } from '../../services/cachedAdminApi';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 
 const TodaysAttendanceOverview = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

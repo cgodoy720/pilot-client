@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Camera, CheckCircle2, Clock, AlertCircle, RefreshCw, X } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import * as volunteerApi from '../../services/volunteerApi';
 
 function VolunteerCheckIn({ embedded = false }) {
-    const { user, token } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const { canAccessPage } = usePermissions();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);

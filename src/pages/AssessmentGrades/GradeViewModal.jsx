@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import useAuthStore from '../../stores/authStore';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ResponsiveContainer, Tooltip,
+} from 'recharts';
 import SubmissionContent from './components/SubmissionContent';
 
 const GradeViewModal = ({ 
@@ -25,13 +29,19 @@ const GradeViewModal = ({
   setEditingStrengths,
   setEditingGrowthAreas
 }) => {
-  const { token: authToken } = useAuth();
+  const authToken = useAuthStore((s) => s.token);
   const [tabValue, setTabValue] = useState("overview");
   const [userSubmissions, setUserSubmissions] = useState([]);
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
+  const [expandedPeriods, setExpandedPeriods] = useState(new Set());
+  const [expandedTypes, setExpandedTypes] = useState(new Set());
+
+  const [editingKey, setEditingKey] = useState(null);
+  const [saving, setSaving] = useState(false);
+
   // Website preview states
   const [previewMode, setPreviewMode] = useState('desktop');
   const [showCode, setShowCode] = useState(true);
@@ -187,8 +197,58 @@ const GradeViewModal = ({
       }
     };
     
+    setExpandedPeriods(new Set());
+    setExpandedTypes(new Set());
+    setEditingKey(null);
+    setTabValue('overview');
     fetchUserData();
   }, [grade?.user_id, grade?.assessment_period, grade?.level, authToken, isOpen]);
+
+  const rounds = useMemo(() => {
+    const analysisById = {};
+    comprehensiveAnalysis.forEach(a => {
+      analysisById[a.submission_id] = a;
+    });
+
+    const roundMap = {};
+    userSubmissions.forEach(sub => {
+      const key = `${sub.assessment_period}|${sub.level}`;
+      if (!roundMap[key]) {
+        roundMap[key] = {
+          assessment_period: sub.assessment_period,
+          level: sub.level,
+          trigger_day_number: sub.trigger_day_number || 0,
+          submissions: []
+        };
+      }
+      roundMap[key].submissions.push({ ...sub, analysis: analysisById[sub.submission_id] || null });
+      if ((sub.trigger_day_number || 0) > roundMap[key].trigger_day_number) {
+        roundMap[key].trigger_day_number = sub.trigger_day_number || 0;
+      }
+    });
+
+    const sorted = Object.values(roundMap).sort((a, b) => {
+      const levelCmp = (b.level || '').localeCompare(a.level || '');
+      if (levelCmp !== 0) return levelCmp;
+      return b.trigger_day_number - a.trigger_day_number;
+    });
+
+    return sorted.map(round => {
+      const key = `${round.assessment_period}|${round.level}`;
+      const scores = round.submissions
+        .filter(s => s.analysis?.overall_score != null)
+        .map(s => s.analysis.overall_score);
+      const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+
+      return { ...round, key, avgScore };
+    });
+  }, [userSubmissions, comprehensiveAnalysis]);
+
+  useEffect(() => {
+    if (rounds.length > 0 && expandedPeriods.size === 0) {
+      setExpandedPeriods(new Set([rounds[0].key]));
+    }
+  }, [rounds.length]);
 
   // Generate website preview when technical submission data is available
   useEffect(() => {
@@ -207,113 +267,134 @@ const GradeViewModal = ({
   }, [userSubmissions]);
   
   // Group comprehensive analysis by our assessment types (case-insensitive matching)
-  const analysisByType = comprehensiveAnalysis.reduce((acc, analysis) => {
-    const typeKey = (analysis.assessment_type || '').toLowerCase();
-    const mappedType = assessmentTypeMapping[typeKey] || typeKey;
-    console.log('🔍 Analysis mapping:', { original: analysis.assessment_type, typeKey, mappedType });
-    if (!acc[mappedType]) {
-      acc[mappedType] = [];
-    }
-    acc[mappedType].push(analysis);
-    return acc;
-  }, {});
-
-  // Group user submissions by assessment type for easier access (case-insensitive)
-  const submissionsByType = userSubmissions.reduce((acc, submission) => {
+  const submissionsByType = useMemo(() => userSubmissions.reduce((acc, submission) => {
     const type = (submission.assessment_type || 'unknown').toLowerCase();
-    if (!acc[type]) {
-      acc[type] = [];
-    }
-    acc[type].push(submission);
+    const mapped = assessmentTypeMapping[type] || type;
+    if (!acc[mapped]) acc[mapped] = [];
+    acc[mapped].push(submission);
     return acc;
-  }, {});
-  
-  // Debug logging
-  console.log('📊 analysisByType keys:', Object.keys(analysisByType));
-  console.log('📊 submissionsByType keys:', Object.keys(submissionsByType));
-  
-  // Filter assessment types to only show tabs that have submissions or analysis data
+  }, {}), [userSubmissions]);
+
+  const analysisByType = useMemo(() => comprehensiveAnalysis.reduce((acc, a) => {
+    const rawType = (a.assessment_type || 'unknown').toLowerCase();
+    const mapped = assessmentTypeMapping[rawType] || rawType;
+    if (!acc[mapped]) acc[mapped] = [];
+    acc[mapped].push(a);
+    return acc;
+  }, {}), [comprehensiveAnalysis]);
+
   const assessmentTypesWithData = allAssessmentTypes.filter(type => {
     const hasSubmission = submissionsByType[type] && submissionsByType[type].length > 0;
     const hasAnalysis = analysisByType[type] && analysisByType[type].length > 0;
     return hasSubmission || hasAnalysis;
   });
-  
-  // Create tabs: Overview + individual assessment types that have data
+
   const availableTabs = ['overview', ...assessmentTypesWithData];
   
-  // Get the current tab's analysis data
-  const currentAnalysis = analysisByType[tabValue] || [];
-  
-  // Function to render analysis feedback
+  // Render analysis feedback for individual assessment tabs
   const renderAnalysisFeedback = (analysis) => {
-    if (!analysis) return <p className="text-muted-foreground">No feedback available for this assessment type</p>;
-    
+    if (!analysis) return <p className="text-sm text-muted-foreground">No feedback available.</p>;
+
+    const score = analysis.overall_score != null ? Math.round(analysis.overall_score * 100) : null;
+    let insights = [];
+    try {
+      const tsd = JSON.parse(analysis.type_specific_data || '{}');
+      if (tsd.key_insights) insights = tsd.key_insights;
+    } catch {}
+
     return (
-      <div className="space-y-6">
-        <div className="bg-card border border-border rounded-lg p-6 text-center">
-          <h4 className="text-2xl font-bold text-primary">Overall Score: {(analysis.overall_score * 100).toFixed(1)}%</h4>
-        </div>
-        
-        <div className="bg-card border border-border rounded-lg p-6">
-          <h4 className="text-lg font-semibold mb-4">Detailed Feedback</h4>
-          <div className="bg-muted/50 p-4 rounded-lg border whitespace-pre-wrap">
-            {analysis.feedback}
+      <div className="space-y-4">
+        {/* Score badge */}
+        {score != null && (
+          <div className="flex items-center gap-3">
+            <span className={`text-3xl font-bold ${
+              score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-red-500'
+            }`}>{score}%</span>
+            <span className="text-sm text-muted-foreground">overall score</span>
           </div>
-        </div>
-        
-        {/* Show strengths and growth areas if available */}
+        )}
+
+        {/* Feedback */}
+        {analysis.feedback && (
+          <div>
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Feedback</h4>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{analysis.feedback}</p>
+          </div>
+        )}
+
+        {/* Key insights */}
+        {insights.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Key Insights</h4>
+            <ul className="space-y-1.5">
+              {insights.map((insight, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <span className="text-primary mt-0.5 flex-shrink-0">•</span>
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Strengths + growth side by side */}
         {(analysis.strengths_summary || analysis.growth_areas_summary) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             {analysis.strengths_summary && (
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h4 className="text-lg font-semibold mb-4 text-green-600">Strengths</h4>
-                <div className="bg-muted/50 p-4 rounded-lg border whitespace-pre-wrap">
-                  {analysis.strengths_summary}
-                </div>
+              <div>
+                <h4 className="text-sm font-semibold text-green-600 uppercase tracking-wide mb-1">Strengths</h4>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{analysis.strengths_summary}</p>
               </div>
             )}
-            
             {analysis.growth_areas_summary && (
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h4 className="text-lg font-semibold mb-4 text-amber-600">Areas for Growth</h4>
-                <div className="bg-muted/50 p-4 rounded-lg border whitespace-pre-wrap">
-                  {analysis.growth_areas_summary}
-                </div>
+              <div>
+                <h4 className="text-sm font-semibold text-amber-600 uppercase tracking-wide mb-1">Growth Areas</h4>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{analysis.growth_areas_summary}</p>
               </div>
             )}
           </div>
         )}
-
-        {/* Show type-specific insights */}
-        {(() => {
-          try {
-            const typeSpecificData = JSON.parse(analysis.type_specific_data || '{}');
-            
-            if (typeSpecificData.key_insights) {
-              return (
-                <div className="bg-card border border-border rounded-lg p-6">
-                  <h4 className="text-lg font-semibold mb-4">Key Insights</h4>
-                  <ul className="space-y-2">
-                    {typeSpecificData.key_insights.map((insight, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-primary mt-1">•</span>
-                        <span>{insight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            }
-            
-            return null;
-          } catch (parseError) {
-            console.warn('Failed to parse type_specific_data for analysis:', parseError);
-            return null;
-          }
-        })()}
       </div>
     );
+  };
+
+  // Build radar chart data from per-type analysis scores
+  const radarData = useMemo(() => {
+    const typeLabels = { self: 'Self Assessment', technical: 'Technical', business: 'Business', professional: 'Professional' };
+    return ['self', 'technical', 'business', 'professional'].map(type => {
+      const analyses = analysisByType[type] || [];
+      const score = analyses.length > 0 && analyses[0].overall_score != null
+        ? Math.round(analyses[0].overall_score * 100)
+        : null;
+      return { category: typeLabels[type], score };
+    });
+  }, [analysisByType]);
+
+  const hasRadarData = radarData.some(d => d.score != null);
+
+  const togglePeriod = (key) => {
+    setExpandedPeriods(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const startEditing = (round) => {
+    setEditingKey(round.key);
+    setEditingStrengths(grade.strengths_summary || '');
+    setEditingGrowthAreas(grade.growth_areas_summary || '');
+  };
+
+  const cancelEditing = () => setEditingKey(null);
+
+  const saveEditing = async (round) => {
+    setSaving(true);
+    try {
+      await onSaveOverview?.();
+    } catch { /* ignore */ }
+    setSaving(false);
+    setEditingKey(null);
   };
 
   if (!isOpen || !grade) return null;
@@ -378,204 +459,158 @@ const GradeViewModal = ({
               ) : (
                 <>
                   <TabsContent value="overview" className="mt-0 p-6 h-full overflow-y-auto">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-full">
-                      {/* Detailed Feedback Section */}
-                      <div className="space-y-6">
-                        <h3 className="text-xl font-bold">Detailed Feedback by Assessment</h3>
-                        {userSubmissions.length > 0 ? (
-                          <div className="space-y-6">
-                            {/* Show submissions by assessment type */}
-                            {Object.entries(submissionsByType).map(([type, submissions]) => {
-                              const latestSubmission = submissions[0]; // Most recent submission
-                              const latestAnalysis = analysisByType[type]?.[0]; // Most recent analysis if available
-                              
-                              return (
-                                <div key={type} className="bg-card border border-border rounded-lg p-6">
-                                  <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-lg font-semibold">
-                                      {type.charAt(0).toUpperCase() + type.slice(1)} Assessment
-                                    </h4>
-                                    <div className="flex items-center gap-4">
-                                      {latestAnalysis && (
-                                        <span className="font-semibold text-primary">
-                                          Score: {(latestAnalysis.overall_score * 100).toFixed(1)}%
-                                        </span>
-                                      )}
-                                      <span className="text-sm text-muted-foreground">
-                                        {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {latestAnalysis ? (
-                                    <div className="space-y-4">
-                                      <div>
-                                        <h5 className="font-medium mb-2">Detailed Feedback</h5>
-                                        <div className="bg-muted/50 p-3 rounded border text-sm whitespace-pre-wrap">
-                                          {latestAnalysis.feedback}
-                                        </div>
-                                      </div>
-                                      {(() => {
-                                        try {
-                                          const typeSpecificData = JSON.parse(latestAnalysis.type_specific_data || '{}');
-                                          if (typeSpecificData.key_insights) {
-                                            return (
-                                              <div>
-                                                <h5 className="font-medium mb-2">Key Insights</h5>
-                                                <ul className="space-y-1 text-sm">
-                                                  {typeSpecificData.key_insights.map((insight, i) => (
-                                                    <li key={i} className="flex items-start gap-2">
-                                                      <span className="text-primary mt-0.5">•</span>
-                                                      <span>{insight}</span>
-                                                    </li>
-                                                  ))}
-                                                </ul>
-                                              </div>
-                                            );
-                                          }
-                                          return null;
-                                        } catch (parseError) {
-                                          console.warn('Failed to parse type_specific_data for', type, ':', parseError);
-                                          return null;
-                                        }
-                                      })()}
-                                    </div>
-                                  ) : (
-                                    <p className="text-muted-foreground">No detailed feedback available</p>
+                    {/* Radar chart + scores */}
+                    {hasRadarData && (
+                      <div className="bg-card border border-border rounded-lg p-5 mb-6">
+                        <div className="flex items-center justify-center gap-8">
+                          <div className="w-[300px] h-[240px] flex-shrink-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="60%">
+                                <PolarGrid stroke="#E3E3E3" />
+                                <PolarAngleAxis dataKey="category" tick={{ fontSize: 12, fill: '#1E1E1E' }} />
+                                <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                                <Radar dataKey="score" stroke="#4242EA" fill="#4242EA" fillOpacity={0.2} strokeWidth={2} dot={{ r: 3, fill: '#4242EA' }} />
+                              </RadarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="space-y-2">
+                            {radarData.map(d => (
+                              <div key={d.category} className="flex items-center gap-3">
+                                <span className={`text-xl font-bold w-12 text-right ${
+                                  d.score >= 80 ? 'text-green-600' : d.score >= 60 ? 'text-yellow-600' : d.score != null ? 'text-red-500' : 'text-slate-300'
+                                }`}>{d.score != null ? `${d.score}%` : '—'}</span>
+                                <span className="text-sm text-muted-foreground">{d.category}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-6">
+                      {rounds.map(round => {
+                        const isExpanded = expandedPeriods.has(round.key);
+                        const isEditing = editingKey === round.key;
+                        return (
+                          <div key={round.key} className="bg-card border border-border rounded-lg overflow-hidden">
+                            <button onClick={() => togglePeriod(round.key)}
+                              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left">
+                              <div>
+                                <span className="text-sm font-semibold">{round.assessment_period}</span>
+                                <span className="text-xs text-muted-foreground ml-2">{round.level}</span>
+                              </div>
+                              {round.avgScore != null && (
+                                <span className={`text-sm font-bold ${round.avgScore >= 0.8 ? 'text-green-600' : round.avgScore >= 0.6 ? 'text-yellow-600' : 'text-red-500'}`}>
+                                  {Math.round(round.avgScore * 100)}%
+                                </span>
+                              )}
+                            </button>
+                            {isExpanded && (
+                              <div className="p-4 pt-0 border-t border-border space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-semibold">Overall Feedback</h4>
+                                  {!isEditing && (
+                                    <Button variant="outline" size="sm" onClick={() => startEditing(round)}>Edit</Button>
                                   )}
                                 </div>
-                              );
-                            })}
+                                {isEditing ? (
+                                  <div className="space-y-3">
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1">Strengths</h5>
+                                      <Textarea value={editingStrengths} onChange={e => setEditingStrengths(e.target.value)}
+                                        className="min-h-[80px] resize-none" placeholder="Enter strengths..." />
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1">Growth Areas</h5>
+                                      <Textarea value={editingGrowthAreas} onChange={e => setEditingGrowthAreas(e.target.value)}
+                                        className="min-h-[80px] resize-none" placeholder="Enter growth areas..." />
+                                    </div>
+                                    <div className="flex gap-2 justify-end">
+                                      <Button variant="outline" size="sm" onClick={cancelEditing} disabled={saving}>Cancel</Button>
+                                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => saveEditing(round)} disabled={saving}>
+                                        {saving ? 'Saving...' : 'Save'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1 text-green-600 uppercase tracking-wide">Strengths</h5>
+                                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                        {grade.strengths_summary || 'No strengths summary available'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold mb-1 text-amber-600 uppercase tracking-wide">Growth Areas</h5>
+                                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                        {grade.growth_areas_summary || 'No growth areas summary available'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <p className="text-muted-foreground">No detailed feedback available</p>
-                        )}
-                      </div>
-                      
-                      {/* Overall Feedback Section */}
-                      <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-xl font-bold">Overall Feedback</h3>
-                          {!isEditingOverview && (
-                            <Button 
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onStartEditing(grade)}
-                              title="Edit feedback"
-                            >
-                              ✏️ Edit
-                            </Button>
-                          )}
+                        );
+                      })}
+                      {rounds.length === 0 && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-green-600 uppercase tracking-wide">Strengths</h4>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {grade.strengths_summary || 'No strengths summary available'}
+                            </p>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-amber-600 uppercase tracking-wide">Growth Areas</h4>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {grade.growth_areas_summary || 'No growth areas summary available'}
+                            </p>
+                          </div>
                         </div>
-
-                        {isEditingOverview ? (
-                          <div className="bg-card border-2 border-primary rounded-lg p-6 space-y-6">
-                            <div className="space-y-3">
-                              <h4 className="font-semibold">Strengths Summary</h4>
-                              <Textarea
-                                value={editingStrengths}
-                                onChange={(e) => setEditingStrengths(e.target.value)}
-                                className="min-h-[100px] resize-none"
-                                placeholder="Enter strengths summary..."
-                              />
-                            </div>
-
-                            <div className="space-y-3">
-                              <h4 className="font-semibold">Growth Areas Summary</h4>
-                              <Textarea
-                                value={editingGrowthAreas}
-                                onChange={(e) => setEditingGrowthAreas(e.target.value)}
-                                className="min-h-[100px] resize-none"
-                                placeholder="Enter growth areas summary..."
-                              />
-                            </div>
-
-                            <div className="flex gap-4 justify-end pt-4 border-t border-border">
-                              <Button 
-                                variant="outline"
-                                onClick={onCancelEditing}
-                                disabled={savingOverview}
-                              >
-                                ❌ Cancel
-                              </Button>
-                              <Button 
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => onSaveOverview(grade.user_id)}
-                                disabled={savingOverview}
-                              >
-                                {savingOverview ? 'Saving...' : '💾 Save'}
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-6">
-                            <div className="bg-card border border-border rounded-lg p-6">
-                              <h4 className="text-lg font-semibold mb-4 text-green-600">Strengths Summary</h4>
-                              <div className="bg-muted/50 p-4 rounded border whitespace-pre-wrap">
-                                {grade.strengths_summary || 'No strengths summary available'}
-                              </div>
-                            </div>
-
-                            <div className="bg-card border border-border rounded-lg p-6">
-                              <h4 className="text-lg font-semibold mb-4 text-amber-600">Growth Areas Summary</h4>
-                              <div className="bg-muted/50 p-4 rounded border whitespace-pre-wrap">
-                                {grade.growth_areas_summary || 'No growth areas summary available'}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </TabsContent>
 
-                  {/* Individual Assessment Tabs - only render tabs that have data */}
-                  {assessmentTypesWithData.map((assessmentType) => (
-                    <TabsContent key={assessmentType} value={assessmentType} className="mt-0 p-6 h-full overflow-y-auto">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-full">
-                        {/* Student Submission Content */}
-                        <div>
-                          <h3 className="text-xl font-bold mb-6">Student Submission</h3>
-                          <SubmissionContent
-                            currentTabType={assessmentType}
-                            userSubmissions={userSubmissions}
-                            assessmentTypeMapping={assessmentTypeMapping}
-                            previewMode={previewMode}
-                            setPreviewMode={setPreviewMode}
-                            showCode={showCode}
-                            setShowCode={setShowCode}
-                            websitePreview={websitePreview}
-                            setWebsitePreview={setWebsitePreview}
-                            createWebsitePreview={createWebsitePreview}
-                          />
+                  {/* Individual Assessment Tabs */}
+                  {assessmentTypesWithData.map((assessmentType) => {
+                    const tabAnalysis = analysisByType[assessmentType] || [];
+                    const tabScore = tabAnalysis[0]?.overall_score != null
+                      ? Math.round(tabAnalysis[0].overall_score * 100) : null;
+
+                    return (
+                      <TabsContent key={assessmentType} value={assessmentType} className="mt-0 p-6 h-full overflow-y-auto">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                          {/* Left: Submission */}
+                          <div className="bg-card border border-border rounded-lg p-5">
+                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Submission</h3>
+                            <SubmissionContent
+                              currentTabType={assessmentType}
+                              userSubmissions={userSubmissions}
+                              assessmentTypeMapping={assessmentTypeMapping}
+                              previewMode={previewMode}
+                              setPreviewMode={setPreviewMode}
+                              showCode={showCode}
+                              setShowCode={setShowCode}
+                              websitePreview={websitePreview}
+                              setWebsitePreview={setWebsitePreview}
+                              createWebsitePreview={createWebsitePreview}
+                            />
+                          </div>
+
+                          {/* Right: AI Feedback */}
+                          <div className="bg-card border border-border rounded-lg p-5">
+                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">AI Feedback</h3>
+                            {tabAnalysis.length > 0 ? (
+                              renderAnalysisFeedback(tabAnalysis[0])
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No AI feedback available for this assessment yet.</p>
+                            )}
+                          </div>
                         </div>
-                        
-                        {/* AI Analysis & Feedback */}
-                        <div>
-                          <h3 className="text-xl font-bold mb-6">AI Analysis & Feedback</h3>
-                          {currentAnalysis.length > 0 ? (
-                            renderAnalysisFeedback(currentAnalysis[0])
-                          ) : (
-                            <div className="bg-card border border-border rounded-lg p-6">
-                              <p className="text-muted-foreground mb-4">No specific feedback available for {assessmentType} assessment.</p>
-                              <div className="space-y-4">
-                                <div>
-                                  <h5 className="font-medium mb-2 text-green-600">Overall Strengths</h5>
-                                  <div className="bg-muted/50 p-3 rounded border text-sm whitespace-pre-wrap">
-                                    {grade.strengths_summary || 'No strengths summary available'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <h5 className="font-medium mb-2 text-amber-600">Areas for Continued Focus</h5>
-                                  <div className="bg-muted/50 p-3 rounded border text-sm whitespace-pre-wrap">
-                                    {grade.growth_areas_summary || 'No growth areas summary available'}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TabsContent>
-                  ))}
+                      </TabsContent>
+                    );
+                  })}
                 </>
               )}
             </div>

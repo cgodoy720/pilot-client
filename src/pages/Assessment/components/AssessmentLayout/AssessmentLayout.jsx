@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaInfoCircle } from 'react-icons/fa';
 import Swal from 'sweetalert2';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import AssessmentLLMChat from '../AssessmentLLMChat/AssessmentLLMChat';
 import AssessmentSubmissionPanel from '../AssessmentSubmissionPanel/AssessmentSubmissionPanel';
 import AssessmentSubmissionDisplay from '../AssessmentSubmissionDisplay/AssessmentSubmissionDisplay';
@@ -12,7 +12,8 @@ import './AssessmentLayout.css';
 function AssessmentLayout({ readonly = false }) {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   
   // Assessment data
   const [assessment, setAssessment] = useState(null);
@@ -220,10 +221,24 @@ function AssessmentLayout({ readonly = false }) {
     }
   };
 
+  const readSubmitErrorMessage = async (response) => {
+    if (response.status === 413) {
+      return 'Your submission is too large. Try removing or trimming uploaded files and resubmit.';
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        const errorData = await response.json();
+        if (errorData?.error) return errorData.error;
+      } catch { /* fall through */ }
+    }
+    return `Server error (${response.status}). Please try again or contact support.`;
+  };
+
   const saveSubmissionData = async (submissionData, status = 'submitted') => {
     try {
       console.log('AssessmentLayout: Saving submission data to backend:', { submissionData, status });
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/assessments/${assessmentId}/submissions`, {
         method: 'POST',
         headers: {
@@ -235,17 +250,17 @@ function AssessmentLayout({ readonly = false }) {
           status: status
         })
       });
-      
+
       if (response.ok) {
         console.log('AssessmentLayout: Submission data saved successfully');
-        return true;
-      } else {
-        console.error('AssessmentLayout: Failed to save submission data:', response.status);
-        return false;
+        return { ok: true };
       }
+      const message = await readSubmitErrorMessage(response);
+      console.error('AssessmentLayout: Failed to save submission data:', response.status, message);
+      return { ok: false, message };
     } catch (error) {
       console.error('Error saving submission:', error);
-      return false;
+      return { ok: false, message: error.message || 'Network error. Please check your connection and try again.' };
     }
   };
 
@@ -253,14 +268,14 @@ function AssessmentLayout({ readonly = false }) {
     try {
       setSubmissionState(prev => ({ ...prev, isLoading: true }));
       
-      const success = await saveSubmissionData(submissionData, 'submitted');
-      
-      if (!success) {
+      const result = await saveSubmissionData(submissionData, 'submitted');
+
+      if (!result.ok) {
         setSubmissionState(prev => ({ ...prev, isLoading: false }));
-        
+
         Swal.fire({
           title: 'Submission Failed',
-          text: 'There was an error submitting your assessment. Please try again.',
+          text: result.message || 'There was an error submitting your assessment. Please try again.',
           icon: 'error',
           confirmButtonColor: '#dc3545',
           background: '#1A1F2C',
@@ -347,8 +362,8 @@ function AssessmentLayout({ readonly = false }) {
         // Navigate back to assessments list
         navigate('/assessment');
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Resubmission failed');
+        const message = await readSubmitErrorMessage(response);
+        throw new Error(message);
       }
     } catch (error) {
       console.error('Error submitting resubmission:', error);

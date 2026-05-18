@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ const FieldHistoryDialog = ({
   onRevert,
   canEdit = true 
 }) => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [isReverting, setIsReverting] = useState(false);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ const FieldHistoryDialog = ({
     try {
       setLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/curriculum/history/${entityType}/${entityId}?fieldName=${fieldName}`,
+        `${import.meta.env.VITE_API_URL}/api/curriculum/history/${entityType}/${entityId}?fieldName=${fieldName}&t=${Date.now()}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }

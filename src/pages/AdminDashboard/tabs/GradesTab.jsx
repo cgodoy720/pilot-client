@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import useAuthStore from '../../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
@@ -39,10 +39,15 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const GradesTab = () => {
-  const { token } = useAuth();
+const GradesTab = ({ selectedCohortId, cohorts = [] }) => {
+  const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   const [grades, setGrades] = useState(null);
+
+  const selectedCohortName = useMemo(
+    () => cohorts.find(c => c.cohort_id === selectedCohortId)?.name || '',
+    [cohorts, selectedCohortId]
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -66,9 +71,12 @@ const GradesTab = () => {
     fetchGrades();
   }, [token]);
 
-  const summary = React.useMemo(() => {
+  const summary = useMemo(() => {
     if (!grades) return null;
-    const rows = grades.data ?? [];
+    const allRows = grades.data ?? [];
+    const rows = selectedCohortName
+      ? allRows.filter(r => r.cohort === selectedCohortName)
+      : allRows;
     if (!rows.length) return null;
 
     const graded = rows.filter((r) => r.average_score !== null && r.average_score !== undefined);
@@ -111,7 +119,7 @@ const GradesTab = () => {
       chartData,
       cohortData,
     };
-  }, [grades]);
+  }, [grades, selectedCohortName]);
 
   return (
     <div className="space-y-6">

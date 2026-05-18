@@ -12,13 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import { fetchTasksWithFeedback, getTaskCompletionStatus, markFeedbackAsViewed } from '../../../utils/performanceInboxService';
 import { createThread } from '../../../utils/api';
 
 const FeedbackInbox = ({ userId, month, year }) => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   
   // State for real task data

@@ -2,18 +2,30 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import Layout from '../Layout';
-import { AuthContext } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 
-// Mock lucide-react icons
+// Mock lucide-react icons (all icons used by Layout)
 vi.mock('lucide-react', () => ({
   LogOut: () => <div data-testid="logout-icon">LogOut</div>,
   Settings: () => <div data-testid="settings-icon">Settings</div>,
   Award: () => <div data-testid="award-icon">Award</div>,
   Users: () => <div data-testid="users-icon">Users</div>,
-  Bug: () => <div data-testid="bug-icon">Bug</div>,
+  FileText: () => <div data-testid="filetext-icon">FileText</div>,
   Brain: () => <div data-testid="brain-icon">Brain</div>,
-  MessageCircle: () => <div data-testid="message-circle-icon">MessageCircle</div>,
   X: () => <div data-testid="x-icon">X</div>,
+  ArrowRight: () => <div data-testid="arrowright-icon">ArrowRight</div>,
+  Briefcase: () => <div data-testid="briefcase-icon">Briefcase</div>,
+  Calendar: () => <div data-testid="calendar-icon">Calendar</div>,
+  Target: () => <div data-testid="target-icon">Target</div>,
+  ClipboardList: () => <div data-testid="clipboardlist-icon">ClipboardList</div>,
+  Heart: () => <div data-testid="heart-icon">Heart</div>,
+  Building2: () => <div data-testid="building2-icon">Building2</div>,
+  Rocket: () => <div data-testid="rocket-icon">Rocket</div>,
+  Shield: () => <div data-testid="shield-icon">Shield</div>,
+  BarChart3: () => <div data-testid="barchart3-icon">BarChart3</div>,
+  BookOpen: () => <div data-testid="bookopen-icon">BookOpen</div>,
+  ChevronDown: () => <div data-testid="chevrondown-icon">ChevronDown</div>,
+  ChevronRight: () => <div data-testid="chevronright-icon">ChevronRight</div>,
 }));
 
 // Mock the logo import
@@ -38,26 +50,28 @@ const mockWindowInnerWidth = (width) => {
   });
 };
 
-// Helper to render Layout with mocked AuthContext
-const renderLayout = (authProps = {}, initialPath = '/dashboard') => {
-  const defaultAuthProps = {
+// Helper to render Layout with Zustand auth store
+const renderLayout = (storeState = {}, initialPath = '/dashboard') => {
+  const defaultState = {
     token: 'mock-token',
     user: {
       firstName: 'Test',
-      role: 'student',
+      role: 'builder',
       active: true,
     },
+    isAuthenticated: true,
+    isLoading: false,
+    _hasHydrated: true,
     logout: vi.fn(),
-    ...authProps,
   };
+
+  useAuthStore.setState({ ...defaultState, ...storeState });
 
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <AuthContext.Provider value={defaultAuthProps}>
-        <Layout>
-          <div data-testid="child-component">Child Component</div>
-        </Layout>
-      </AuthContext.Provider>
+      <Layout>
+        <div data-testid="child-component">Child Component</div>
+      </Layout>
     </MemoryRouter>
   );
 };
@@ -67,6 +81,16 @@ describe('Layout Component', () => {
     // Reset window width to desktop by default
     mockWindowInnerWidth(1024);
     vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    // Reset Zustand auth store
+    useAuthStore.setState({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      _hasHydrated: true,
+      logout: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -100,80 +124,99 @@ describe('Layout Component', () => {
       mockWindowInnerWidth(600);
       window.dispatchEvent(new Event('resize'));
 
+      useAuthStore.setState({
+        token: 'mock-token',
+        user: { firstName: 'Test', role: 'builder', active: true },
+        isAuthenticated: true,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       rerender(
         <MemoryRouter>
-          <AuthContext.Provider value={{
-            token: 'mock-token',
-            user: { firstName: 'Test', role: 'student', active: true },
-            logout: vi.fn(),
-          }}>
-            <Layout>
-              <div data-testid="child-component">Child Component</div>
-            </Layout>
-          </AuthContext.Provider>
+          <Layout>
+            <div data-testid="child-component">Child Component</div>
+          </Layout>
         </MemoryRouter>
       );
     });
   });
 
   describe('Navigation Links', () => {
-    it('should render standard navigation links for students', () => {
-      renderLayout({ user: { role: 'student', active: true } });
+    it('should render standard navigation links for builders', () => {
+      renderLayout({ user: { role: 'builder', active: true } });
 
       expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Learning/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /AI Chat/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Calendar/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Progress/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Assessment/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Account/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Pathfinder/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Performance/i })).toBeInTheDocument();
     });
 
-    it('should render admin navigation links for admin users', () => {
+    it('should render admin navigation elements for admin users', () => {
       renderLayout({ user: { role: 'admin', active: true } });
 
-      expect(screen.getByRole('link', { name: /Admin Dashboard/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Assessment Grades/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Admissions/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Content Generation/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /AI Prompts/i })).toBeInTheDocument();
+      // Admin sees standard links (use getAllByRole since 'Dashboard' matches 'Admissions Dashboard' too)
+      const dashboardLinks = screen.getAllByRole('link', { name: /Dashboard/i });
+      expect(dashboardLinks.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByRole('link', { name: /Learning/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Admissions Dashboard/i })).toBeInTheDocument();
+
+      // Admin sees dropdown trigger buttons (not links)
+      expect(screen.getByText('Program')).toBeInTheDocument();
+      expect(screen.getByText('Employment')).toBeInTheDocument();
+      expect(screen.getByText('Staff')).toBeInTheDocument();
+      expect(screen.getByText('Admin')).toBeInTheDocument();
     });
 
-    it('should render admin navigation links for staff users', () => {
+    it('should render staff navigation elements for staff users', () => {
       renderLayout({ user: { role: 'staff', active: true } });
 
-      expect(screen.getByRole('link', { name: /Admin Dashboard/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Assessment Grades/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Admissions/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Content Generation/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /AI Prompts/i })).toBeInTheDocument();
+      // Staff sees standard links
+      const dashboardLinks = screen.getAllByRole('link', { name: /Dashboard/i });
+      expect(dashboardLinks.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Admissions Dashboard/i })).toBeInTheDocument();
+
+      // Staff sees dropdown trigger buttons
+      expect(screen.getByText('Program')).toBeInTheDocument();
+      expect(screen.getByText('Employment')).toBeInTheDocument();
+      expect(screen.getByText('Staff')).toBeInTheDocument();
     });
 
-    it('should render volunteer feedback link for volunteers', () => {
+    it('should render volunteers link for volunteers', () => {
       renderLayout({ user: { role: 'volunteer', active: true } });
 
-      expect(screen.getByRole('link', { name: /Volunteer Feedback/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Learning/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Volunteers/i })).toBeInTheDocument();
     });
 
-    it('should render admin volunteer feedback link for admin users', () => {
+    it('should not render volunteer link for admin users (admin uses Staff dropdown)', () => {
       renderLayout({ user: { role: 'admin', active: true } });
 
-      const volunteerFeedbackLinks = screen.getAllByRole('link', { name: /Volunteer Feedback/i });
-      expect(volunteerFeedbackLinks.length).toBeGreaterThan(0);
+      // Volunteers nav link is only shown for non-staff/admin roles
+      // Admin manages volunteers via Staff dropdown instead
+      const volunteerLinks = screen.queryAllByRole('link', { name: /^Volunteers$/i });
+      expect(volunteerLinks.length).toBe(0);
     });
 
-    it('should not render admin links for student users', () => {
-      renderLayout({ user: { role: 'student', active: true } });
+    it('should not render admin elements for builder users', () => {
+      renderLayout({ user: { role: 'builder', active: true } });
 
-      expect(screen.queryByRole('link', { name: /Admin Dashboard/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: /Assessment Grades/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: /Admissions/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Enterprise Admin/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Admissions Dashboard/i })).not.toBeInTheDocument();
+      expect(screen.queryByText('Program')).not.toBeInTheDocument();
+      expect(screen.queryByText('Employment')).not.toBeInTheDocument();
+      expect(screen.queryByText('Admin')).not.toBeInTheDocument();
     });
 
-    it('should not render volunteer feedback for non-volunteer users', () => {
-      renderLayout({ user: { role: 'student', active: true } });
+    it('should not render volunteers link for non-volunteer non-staff users', () => {
+      renderLayout({ user: { role: 'builder', active: true } });
 
-      expect(screen.queryByRole('link', { name: /Volunteer Feedback/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Volunteers/i })).not.toBeInTheDocument();
     });
   });
 
@@ -216,20 +259,22 @@ describe('Layout Component', () => {
       expect(dashboardLink).toHaveAttribute('href', '/dashboard');
     });
 
-    it('should show admin links in mobile navbar for admin users', () => {
+    it('should show admin navigation in mobile navbar for admin users', () => {
       renderLayout({ user: { role: 'admin', active: true } });
 
       const menuButton = screen.getByRole('button');
       fireEvent.click(menuButton);
 
-      // Check that admin navigation links are available
-      // (The exact number may vary between mobile and desktop views)
-      const links = screen.getAllByRole('link');
-      const hasAdminLinks = links.some(link =>
-        link.textContent.includes('Admin Dashboard') ||
-        link.textContent.includes('Assessment Grades')
-      );
-      expect(hasAdminLinks).toBe(true);
+      // Check that admin nav elements are available after opening mobile menu
+      // Admin sees dropdown trigger buttons for Program, Employment, Staff, Admin
+      expect(screen.getByText('Program')).toBeInTheDocument();
+      expect(screen.getByText('Employment')).toBeInTheDocument();
+      expect(screen.getByText('Staff')).toBeInTheDocument();
+      expect(screen.getByText('Admin')).toBeInTheDocument();
+
+      // Admin also sees standard links
+      expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Admissions Dashboard/i })).toBeInTheDocument();
     });
   });
 
@@ -264,55 +309,63 @@ describe('Layout Component', () => {
     it('should handle undefined user role gracefully', () => {
       renderLayout({ user: { firstName: 'Test', role: undefined } });
 
-      // Should render standard navigation for undefined role
+      // Should render Dashboard (always shown) but no admin elements
       expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: /Admin Dashboard/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Enterprise Admin/i })).not.toBeInTheDocument();
+      expect(screen.queryByText('Program')).not.toBeInTheDocument();
+      expect(screen.queryByText('Admin')).not.toBeInTheDocument();
     });
   });
 
   describe('Route-based Icon Rendering', () => {
-    it('should show correct icon for dashboard route', () => {
+    it('should show correct link for dashboard route', () => {
       renderLayout({}, '/dashboard');
 
       const dashboardLink = screen.getByRole('link', { name: /Dashboard/i });
       expect(dashboardLink).toBeInTheDocument();
     });
 
-    it('should show settings icon for admin dashboard route', () => {
+    it('should show settings icon via Admin dropdown trigger for admin users', () => {
       renderLayout({ user: { role: 'admin' } }, '/admin-dashboard');
 
-      // Should show settings icon for admin dashboard
+      // Settings icon is the Admin dropdown trigger icon (rendered by NavDropdown)
       expect(screen.getByTestId('settings-icon')).toBeInTheDocument();
     });
 
-    it('should show award icon for assessment grades route', () => {
+    it('should show bookopen icon via Program dropdown trigger for admin users', () => {
       renderLayout({ user: { role: 'admin' } }, '/admin/assessment-grades');
 
-      expect(screen.getByTestId('award-icon')).toBeInTheDocument();
+      // BookOpen icon is the Program dropdown trigger icon
+      expect(screen.getByTestId('bookopen-icon')).toBeInTheDocument();
     });
 
-    it('should show users icon for admissions route', () => {
+    it('should show users icon for admissions dashboard link', () => {
       renderLayout({ user: { role: 'admin' } }, '/admissions-dashboard');
 
-      expect(screen.getByTestId('users-icon')).toBeInTheDocument();
+      // Users icon appears for both the Admissions Dashboard link and the Staff dropdown trigger
+      const usersIcons = screen.getAllByTestId('users-icon');
+      expect(usersIcons.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should show bug icon for content routes', () => {
-      renderLayout({ user: { role: 'admin' } }, '/content');
+    it('should show building2 icon for enterprise admin route', () => {
+      renderLayout({ user: { role: 'admin' } }, '/cohort-admin-dashboard');
 
-      expect(screen.getByTestId('bug-icon')).toBeInTheDocument();
+      // Building2 icon is rendered for the Enterprise Admin nav link
+      expect(screen.getByTestId('building2-icon')).toBeInTheDocument();
     });
 
-    it('should show brain icon for AI prompts route', () => {
-      renderLayout({ user: { role: 'admin' } }, '/admin-prompts');
+    it('should show briefcase icon via Employment dropdown trigger for admin users', () => {
+      renderLayout({ user: { role: 'admin' } }, '/sputnik');
 
-      expect(screen.getByTestId('brain-icon')).toBeInTheDocument();
+      // Briefcase icon is the Employment dropdown trigger icon
+      expect(screen.getByTestId('briefcase-icon')).toBeInTheDocument();
     });
 
-    it('should show message circle icon for volunteer feedback routes', () => {
-      renderLayout({ user: { role: 'volunteer' } }, '/volunteer-feedback');
+    it('should show heart icon for volunteers link for volunteer users', () => {
+      renderLayout({ user: { role: 'volunteer' } }, '/volunteering');
 
-      expect(screen.getByTestId('message-circle-icon')).toBeInTheDocument();
+      // Heart icon is rendered for the Volunteers nav link
+      expect(screen.getByTestId('heart-icon')).toBeInTheDocument();
     });
   });
 
@@ -340,8 +393,8 @@ describe('Layout Component', () => {
       const learningLink = screen.getByRole('link', { name: /Learning/i });
       fireEvent.mouseEnter(learningLink);
 
-      // Should have hover class
-      expect(learningLink).toHaveClass('hover:bg-gray-800');
+      // Should have hover class (non-active links get hover:bg-white/10)
+      expect(learningLink.className).toContain('hover:bg-white/10');
     });
   });
 
@@ -404,17 +457,19 @@ describe('Layout Component', () => {
       const { rerender } = renderLayout();
 
       // Rerender with same props should not cause issues
+      useAuthStore.setState({
+        token: 'mock-token',
+        user: { firstName: 'Test', role: 'builder', active: true },
+        isAuthenticated: true,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       rerender(
         <MemoryRouter>
-          <AuthContext.Provider value={{
-            token: 'mock-token',
-            user: { firstName: 'Test', role: 'student', active: true },
-            logout: vi.fn(),
-          }}>
-            <Layout>
-              <div data-testid="child-component">Child Component</div>
-            </Layout>
-          </AuthContext.Provider>
+          <Layout>
+            <div data-testid="child-component">Child Component</div>
+          </Layout>
         </MemoryRouter>
       );
 
@@ -519,17 +574,19 @@ describe('Layout Component', () => {
       expect(initialLinks.length).toBeGreaterThan(0);
 
       // Rerender with same props
+      useAuthStore.setState({
+        token: 'mock-token',
+        user: { firstName: 'Test', role: 'builder', active: true },
+        isAuthenticated: true,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       rerender(
         <MemoryRouter>
-          <AuthContext.Provider value={{
-            token: 'mock-token',
-            user: { firstName: 'Test', role: 'student', active: true },
-            logout: vi.fn(),
-          }}>
-            <Layout>
-              <div data-testid="child-component">Child Component</div>
-            </Layout>
-          </AuthContext.Provider>
+          <Layout>
+            <div data-testid="child-component">Child Component</div>
+          </Layout>
         </MemoryRouter>
       );
 
@@ -545,17 +602,19 @@ describe('Layout Component', () => {
       expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
 
       // Simulate navigation to learning
+      useAuthStore.setState({
+        token: 'mock-token',
+        user: { firstName: 'Test', role: 'builder', active: true },
+        isAuthenticated: true,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       rerender(
         <MemoryRouter initialEntries={['/learning']}>
-          <AuthContext.Provider value={{
-            token: 'mock-token',
-            user: { firstName: 'Test', role: 'student', active: true },
-            logout: vi.fn(),
-          }}>
-            <Layout>
-              <div data-testid="child-component">Child Component</div>
-            </Layout>
-          </AuthContext.Provider>
+          <Layout>
+            <div data-testid="child-component">Child Component</div>
+          </Layout>
         </MemoryRouter>
       );
 
@@ -570,17 +629,19 @@ describe('Layout Component', () => {
       expect(screen.getByText(/Logout/i)).toBeInTheDocument();
 
       // Change to unauthenticated
+      useAuthStore.setState({
+        token: null,
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       rerender(
         <MemoryRouter>
-          <AuthContext.Provider value={{
-            token: null,
-            user: null,
-            logout: vi.fn(),
-          }}>
-            <Layout>
-              <div data-testid="child-component">Child Component</div>
-            </Layout>
-          </AuthContext.Provider>
+          <Layout>
+            <div data-testid="child-component">Child Component</div>
+          </Layout>
         </MemoryRouter>
       );
 
@@ -594,17 +655,19 @@ describe('Layout Component', () => {
       const { rerender } = renderLayout();
 
       // Update child content
+      useAuthStore.setState({
+        token: 'mock-token',
+        user: { firstName: 'Test', role: 'builder', active: true },
+        isAuthenticated: true,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       rerender(
         <MemoryRouter>
-          <AuthContext.Provider value={{
-            token: 'mock-token',
-            user: { firstName: 'Test', role: 'student', active: true },
-            logout: vi.fn(),
-          }}>
-            <Layout>
-              <div data-testid="child-component">Updated Child Component</div>
-            </Layout>
-          </AuthContext.Provider>
+          <Layout>
+            <div data-testid="child-component">Updated Child Component</div>
+          </Layout>
         </MemoryRouter>
       );
 
@@ -624,22 +687,24 @@ describe('Layout Component', () => {
 
     it('should handle multiple layout instances', () => {
       // This tests that multiple Layout components don't interfere
+      useAuthStore.setState({
+        token: 'mock-token',
+        user: { firstName: 'Test', role: 'builder', active: true },
+        isAuthenticated: true,
+        isLoading: false,
+        _hasHydrated: true,
+        logout: vi.fn(),
+      });
       render(
         <MemoryRouter>
-          <AuthContext.Provider value={{
-            token: 'mock-token',
-            user: { firstName: 'Test', role: 'student', active: true },
-            logout: vi.fn(),
-          }}>
-            <div>
-              <Layout>
-                <div data-testid="child-1">Child 1</div>
-              </Layout>
-              <Layout>
-                <div data-testid="child-2">Child 2</div>
-              </Layout>
-            </div>
-          </AuthContext.Provider>
+          <div>
+            <Layout>
+              <div data-testid="child-1">Child 1</div>
+            </Layout>
+            <Layout>
+              <div data-testid="child-2">Child 2</div>
+            </Layout>
+          </div>
         </MemoryRouter>
       );
 
@@ -673,7 +738,7 @@ describe('Layout Component', () => {
       window.localStorage = originalLocalStorage;
     });
 
-    it('should handle missing addEventListener', () => {
+    it.skip('should handle missing addEventListener', () => {
       // Mock missing addEventListener
       const originalAddEventListener = window.addEventListener;
       delete window.addEventListener;
@@ -682,7 +747,7 @@ describe('Layout Component', () => {
 
       // Restore
       window.addEventListener = originalAddEventListener;
-    }).skip; // Skip this test as it's causing issues
+    });
   });
 
   describe('Memory Management', () => {
@@ -703,17 +768,19 @@ describe('Layout Component', () => {
 
       // Rapid re-renders
       for (let i = 0; i < 10; i++) {
+        useAuthStore.setState({
+          token: 'mock-token',
+          user: { firstName: 'Test', role: 'builder', active: true },
+          isAuthenticated: true,
+          isLoading: false,
+          _hasHydrated: true,
+          logout: vi.fn(),
+        });
         rerender(
           <MemoryRouter>
-            <AuthContext.Provider value={{
-              token: 'mock-token',
-              user: { firstName: 'Test', role: 'student', active: true },
-              logout: vi.fn(),
-            }}>
-              <Layout>
-                <div data-testid="child-component">Child Component {i}</div>
-              </Layout>
-            </AuthContext.Provider>
+            <Layout>
+              <div data-testid="child-component">Child Component {i}</div>
+            </Layout>
           </MemoryRouter>
         );
       }

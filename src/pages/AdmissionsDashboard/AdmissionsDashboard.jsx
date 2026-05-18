@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import NotesModal from '../../components/NotesModal';
 import BulkActionsModal from '../../components/BulkActionsModal';
@@ -16,9 +16,10 @@ const InfoSessionsTab = lazy(() => import('./components/InfoSessionsTab/InfoSess
 const WorkshopsTab = lazy(() => import('./components/WorkshopsTab/WorkshopsTab'));
 const LeadsTab = lazy(() => import('./components/LeadsTab/LeadsTab'));
 const EmailsTab = lazy(() => import('./components/EmailsTab/EmailsTab'));
+const SettingsTab = lazy(() => import('./components/SettingsTab/SettingsTab'));
 
 const AdmissionsDashboard = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,13 +31,15 @@ const AdmissionsDashboard = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops', 'leads', 'emails'].includes(tabParam)) {
+    if (tabParam && ['overview', 'applications', 'info-sessions', 'workshops', 'leads', 'emails', 'settings'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [location.search]);
 
   // Data state
   const [stats, setStats] = useState(null);
+  // Applicant list is one row per applicant from the API. With a cohort selected, the server joins the
+  // latest application row for that applicant within that cohort (newest created_at / application_id).
   const [applications, setApplications] = useState([]);
   const [infoSessions, setInfoSessions] = useState([]);
   const [workshops, setWorkshops] = useState([]);
@@ -102,17 +105,28 @@ const AdmissionsDashboard = () => {
       const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
       if (saved) {
         const parsed = JSON.parse(saved);
+        // Migrate legacy string filters to arrays
+        const toArray = (val) => {
+          if (Array.isArray(val)) return val;
+          if (typeof val === 'string' && val !== '') return [val];
+          return [];
+        };
         return {
-          status: parsed.applicationFilters?.status || '',
-          final_status: parsed.applicationFilters?.final_status || '',
-          info_session_status: parsed.applicationFilters?.info_session_status || '',
-          workshop_status: parsed.applicationFilters?.workshop_status || '',
-          program_admission_status: parsed.applicationFilters?.program_admission_status || '',
-          structured_task_grade: parsed.applicationFilters?.structured_task_grade || '',
+          status: toArray(parsed.applicationFilters?.status),
+          final_status: toArray(parsed.applicationFilters?.final_status),
+          info_session_status: toArray(parsed.applicationFilters?.info_session_status),
+          workshop_status: toArray(parsed.applicationFilters?.workshop_status),
+          program_admission_status: toArray(parsed.applicationFilters?.program_admission_status),
+          enrollment_status: toArray(parsed.applicationFilters?.enrollment_status),
+          source_bucket: toArray(parsed.applicationFilters?.source_bucket),
+          account_age_bucket: toArray(parsed.applicationFilters?.account_age_bucket),
+          application_age_bucket: toArray(parsed.applicationFilters?.application_age_bucket),
+          last_activity_bucket: toArray(parsed.applicationFilters?.last_activity_bucket),
+          structured_task_grade: toArray(parsed.applicationFilters?.structured_task_grade),
           ready_for_workshop_invitation: false,
           name_search: '',
           cohort_id: parsed.applicationFilters?.cohort_id || '',
-          deliberation: parsed.applicationFilters?.deliberation || '',
+          deliberation: toArray(parsed.applicationFilters?.deliberation),
           limit: PAGE_SIZE,
           offset: 0
         };
@@ -121,16 +135,21 @@ const AdmissionsDashboard = () => {
       console.error('Error loading saved filters:', error);
     }
     return {
-      status: '',
-      final_status: '',
-      info_session_status: '',
-      workshop_status: '',
-      program_admission_status: '',
-      structured_task_grade: '',
+      status: [],
+      final_status: [],
+      info_session_status: [],
+      workshop_status: [],
+      program_admission_status: [],
+      enrollment_status: [],
+      source_bucket: [],
+      account_age_bucket: [],
+      application_age_bucket: [],
+      last_activity_bucket: [],
+      structured_task_grade: [],
       ready_for_workshop_invitation: false,
       name_search: '',
       cohort_id: '',
-      deliberation: '',
+      deliberation: [],
       limit: PAGE_SIZE,
       offset: 0
     };
@@ -161,6 +180,12 @@ const AdmissionsDashboard = () => {
     workshop: true,
     structured_task_grade: true,
     admission: true,
+    enrollment: true,
+    cohort: true,
+    source_bucket: false,
+    account_age_bucket: false,
+    application_age_bucket: false,
+    last_activity_bucket: true,
     notes: true,
     deliberation: true,
     age: false,
@@ -230,7 +255,7 @@ const AdmissionsDashboard = () => {
     capacity: 50,
     is_online: false,
     meeting_link: '',
-    cohort_name: 'December 2025 - Workshop',
+    cohort_name: 'Admissions Workshop',
     workshop_type: 'admissions',
     access_window_days: 0,
     allow_early_access: false
@@ -301,6 +326,33 @@ const AdmissionsDashboard = () => {
   }, [openFilterColumn]);
 
   // Helper: map overview quick view to a cohort_id or 'deferred'
+  const getCurrentActiveCohort = (candidateCohorts = []) => {
+    const now = new Date();
+    return [...candidateCohorts]
+      .filter((cohort) => {
+        if (!cohort?.cohort_id) return false;
+        const name = (cohort.name || '').toLowerCase();
+        if (!name.includes('l1')) return false;
+        const cutoffOrStart = cohort.cutoff_date || cohort.start_date;
+        return cutoffOrStart && new Date(cutoffOrStart) >= now;
+      })
+      .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))[0] || null;
+  };
+
+  const applyCurrentCycleDefault = (candidateCohorts = []) => {
+    const currentActive = getCurrentActiveCohort(candidateCohorts);
+    if (!currentActive?.cohort_id) return;
+
+    if (!overviewQuickView) {
+      setOverviewQuickView(currentActive.cohort_id);
+    }
+
+    setApplicationFilters(prev => {
+      if (prev.cohort_id) return prev;
+      return { ...prev, cohort_id: currentActive.cohort_id, offset: 0 };
+    });
+  };
+
   const getOverviewCohortParam = () => {
     if (!overviewQuickView || overviewQuickView === 'all_time') return '';
     if (overviewQuickView === 'deferred') return 'deferred';
@@ -413,7 +465,7 @@ const AdmissionsDashboard = () => {
       
       // Calculate offset and limit based on load all mode
       const offset = loadAllMode ? 0 : (currentPage - 1) * PAGE_SIZE;
-      const limit = loadAllMode ? 1000 : PAGE_SIZE;
+      const limit = loadAllMode ? 10000 : PAGE_SIZE;
       
       // Add filter parameters (skip limit and offset as we calculate them above)
       Object.entries(applicationFilters).forEach(([key, value]) => {
@@ -421,7 +473,12 @@ const AdmissionsDashboard = () => {
           // Skip - we calculate these separately based on loadAllMode
           return;
         }
-        if (value !== '' && value !== false) {
+        // Array filters: send as comma-separated values
+        if (Array.isArray(value)) {
+          if (value.length > 0) {
+            params.append(key, value.join(','));
+          }
+        } else if (value !== '' && value !== false) {
           params.append(key, value);
         }
       });
@@ -489,7 +546,7 @@ const AdmissionsDashboard = () => {
       setAvailableCohorts(data.workshopCohorts.map(c => c.name));
     } catch (error) {
       console.error('Error fetching workshops data:', error);
-      setAvailableCohorts(['Admissions Workshop Experience']);
+      setAvailableCohorts(['Admissions Workshop']);
     } finally {
       setLoading(false);
       setLoadingCohorts(false);
@@ -566,6 +623,14 @@ const AdmissionsDashboard = () => {
     }
   }, [token, hasAdminAccess]);
 
+  // Apply the current-cycle default once cohorts are known. Centralized here so
+  // the three tab fetchers can't race each other on first render.
+  useEffect(() => {
+    if (cohorts && cohorts.length > 0) {
+      applyCurrentCycleDefault(cohorts);
+    }
+  }, [cohorts]);
+
   // Tab-specific data loading - lazy load when switching tabs
   useEffect(() => {
     if (!hasAdminAccess || !token) return;
@@ -636,6 +701,11 @@ const AdmissionsDashboard = () => {
           info_session_status: applicationFilters.info_session_status,
           workshop_status: applicationFilters.workshop_status,
           program_admission_status: applicationFilters.program_admission_status,
+          enrollment_status: applicationFilters.enrollment_status,
+          source_bucket: applicationFilters.source_bucket,
+          account_age_bucket: applicationFilters.account_age_bucket,
+          application_age_bucket: applicationFilters.application_age_bucket,
+          last_activity_bucket: applicationFilters.last_activity_bucket,
           structured_task_grade: applicationFilters.structured_task_grade,
           cohort_id: applicationFilters.cohort_id,
           deliberation: applicationFilters.deliberation
@@ -831,20 +901,6 @@ const AdmissionsDashboard = () => {
 
   return (
     <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-hidden flex flex-col font-proxima">
-      {/* Header with Back Button */}
-      <div className="flex justify-between items-center px-6 py-4 bg-white border-b border-gray-200">
-        <h1 className="text-2xl font-semibold text-[#1a1a1a] font-proxima-bold">
-          Admissions Dashboard
-        </h1>
-        <Button
-          variant="outline"
-          onClick={() => navigate('/dashboard')}
-          className="font-proxima"
-        >
-          ← Back to Dashboard
-        </Button>
-      </div>
-
       {/* Error Message */}
       {error && (
         <div className="mx-6 mt-4 p-4 bg-red-50 text-red-600 border border-red-200 rounded-lg font-proxima flex justify-between items-center">
@@ -862,7 +918,7 @@ const AdmissionsDashboard = () => {
       <div className="flex-1 overflow-hidden flex flex-col">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
           <div className="px-6 pt-4 pb-0 shrink-0">
-            <TabsList className="grid w-full grid-cols-6 bg-white border border-gray-200">
+            <TabsList className="grid w-full grid-cols-7 bg-white border border-gray-200">
             <TabsTrigger 
               value="overview" 
               className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
@@ -893,11 +949,17 @@ const AdmissionsDashboard = () => {
             >
               Leads
             </TabsTrigger>
-            <TabsTrigger 
-              value="emails" 
+            <TabsTrigger
+              value="emails"
               className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
             >
               Emails
+            </TabsTrigger>
+            <TabsTrigger
+              value="settings"
+              className="font-proxima data-[state=active]:bg-[#4242ea] data-[state=active]:text-white"
+            >
+              Settings
             </TabsTrigger>
             </TabsList>
           </div>
@@ -1112,6 +1174,16 @@ const AdmissionsDashboard = () => {
                 fetchEmailMappings={fetchEmailMappings}
                 token={token}
               />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="settings" className="flex-1 overflow-auto">
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <div className="text-gray-500 font-proxima">Loading Settings...</div>
+              </div>
+            }>
+              <SettingsTab />
             </Suspense>
           </TabsContent>
         </Tabs>

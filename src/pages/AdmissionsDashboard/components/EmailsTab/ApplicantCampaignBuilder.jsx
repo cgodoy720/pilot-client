@@ -13,7 +13,7 @@ const API = import.meta.env.VITE_API_URL;
 const APP_STATUSES      = ['no_application', 'in_progress', 'submitted', 'withdrawn'];
 const STAGES            = ['account_created', 'app_in_progress', 'app_submitted', 'info_session_invited',
                            'info_session_attended', 'workshop_invited', 'workshop_attended'];
-const ADMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'waitlisted'];
+const ADMISSION_STATUSES = ['pending', 'accepted', 'rejected', 'withdrawn'];
 const ASSESSMENT_RECS   = ['strong_recommend', 'recommend', 'maybe', 'reject'];
 const BOOLEAN_OPTIONS   = [
   { label: 'Any', value: '' },
@@ -87,8 +87,12 @@ export default function ApplicantCampaignBuilder({ token, campaign, onClose, onS
       if (res.ok) {
         const data = await res.json();
         setPreviewCount(data.count);
+      } else {
+        setPreviewCount(null);
       }
-    } catch {}
+    } catch {
+      setPreviewCount(null);
+    }
   };
 
   const handleSave = async (sendNow = false, schedule = false) => {

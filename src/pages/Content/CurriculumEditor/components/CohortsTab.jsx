@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../../context/AuthContext';
+import useAuthStore from '../../../../stores/authStore';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
@@ -33,7 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../components
 import Swal from 'sweetalert2';
 
 const CohortsTab = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [cohorts, setCohorts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');

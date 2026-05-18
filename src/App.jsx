@@ -6,9 +6,9 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import GPT from './pages/GPT/GPT';
 import Calendar from './pages/Calendar/Calendar';
 import Learning from './pages/Learning/Learning';
-import PastSession from './pages/PastSession/PastSession';
 import AdminDashboard from './pages/AdminDashboard/AdminDashboard';
 import AdminAttendanceDashboard from './pages/AdminAttendanceDashboard/AdminAttendanceDashboard';
+import ProgramAnalytics from './pages/ProgramAnalytics/ProgramAnalytics';
 import AdmissionsDashboard from './pages/AdmissionsDashboard';
 import ApplicationDetail from './pages/AdmissionsDashboard/ApplicationDetail';
 import Content from './pages/Content';
@@ -42,6 +42,12 @@ import PathfinderAdminDashboard from './pages/PathfinderDashboard';
 import PathfinderAdmin from './pages/PathfinderAdmin';
 import PathfinderNetwork from './pages/PathfinderNetwork';
 import PathfinderJobs from './pages/PathfinderJobs';
+import MockInterviewSetup from './pages/MockInterview/MockInterviewSetup';
+import MockInterviewSession from './pages/MockInterview/MockInterviewSession';
+import MockInterviewFeedback from './pages/MockInterview/MockInterviewFeedback';
+import MockInterviewHistory from './pages/MockInterview/MockInterviewHistory';
+import InterviewRubricAdmin from './pages/MockInterview/InterviewRubricAdmin';
+import PathfinderCompass from './pages/PathfinderCompass';
 import StaffNetworkDashboard from './pages/StaffNetworkDashboard';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
@@ -49,7 +55,11 @@ import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalC
 import CohortAdminDashboard from './pages/CohortAdminDashboard/CohortAdminDashboard';
 import OrganizationManagement from './pages/Admin/OrganizationManagement/OrganizationManagement';
 import PermissionManagement from './pages/Admin/PermissionManagement';
+import DemoCohortRefresh from './pages/Admin/DemoCohortRefresh/DemoCohortRefresh';
 import ContentPreview from './pages/ContentPreview';
+
+// Template Management page
+import TemplateManagement from './pages/TemplateManagement';
 
 // Form Builder pages
 import FormBuilderDashboard from './pages/FormBuilder/FormBuilderDashboard';
@@ -66,9 +76,14 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 
-import { useAuth } from './context/AuthContext';
+// Platform Intake pages
+import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
+import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog';
+
+import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
+import { isCompassEligibleUser } from './utils/pathfinderAccess';
 import { Toaster } from './components/ui/sonner';
 import {
   PermissionRoute,
@@ -79,8 +94,57 @@ import { PAGE_PERMISSIONS } from './constants/permissions';
 
 import './App.css';
 
+// Guards the /pathfinder/compass route against the auth-rehydration race.
+//
+// Original behavior: `<Navigate to="/pathfinder/dashboard" />` was emitted
+// any time `isCompassEligibleUser(user)` returned false. On a hard reload
+// (e.g., a builder bookmarked /pathfinder/compass), the auth store
+// rehydrates in two phases:
+//   1. `onRehydrateStorage` synchronously flips `isLoading: false` with
+//      whatever `user` was persisted in localStorage. That `user` may
+//      lack `cohort` if it was persisted by an older build before
+//      `cohort` was added to the store, or if the persisted snapshot
+//      pre-dates the latest L3+ cohort assignment.
+//   2. A background `Promise.all([_fetchAndSetUserFields, _fetchAndSetPermissions])`
+//      kicked off by step 1 fetches `/api/users/me` and merges the fresh
+//      `cohort` (and any other server-side fields) into `user`. This
+//      resolves anywhere from a few milliseconds to several hundred ms
+//      after `isLoading: false`.
+//   3. authStore sets `_userFieldsHydrated: true` when (2) finishes,
+//      including in the failure path so the gate never deadlocks.
+//
+// Gating on `isLoading` ALONE is insufficient: it flips false at the end
+// of step 1, leaving a window where eligible builders read with a stale
+// user object and get bounced to /pathfinder/dashboard. We must wait on
+// `_userFieldsHydrated` too.
+//
+// Guard rules:
+//   - while either `isLoading` is true OR `_userFieldsHydrated` is false,
+//     render a quiet loading state — never redirect during this window
+//   - once both signals are settled, evaluate eligibility once and
+//     either render Compass or redirect
+function CompassRouteGuard() {
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const userFieldsHydrated = useAuthStore((s) => s._userFieldsHydrated);
+  const user = useAuthStore((s) => s.user);
+
+  if (isLoading || !userFieldsHydrated) {
+    return (
+      <div className="px-6 py-12 text-sm text-[#666666]">Loading Compass…</div>
+    );
+  }
+
+  if (!isCompassEligibleUser(user)) {
+    return <Navigate to="/pathfinder/dashboard" replace />;
+  }
+
+  return <PathfinderCompass />;
+}
+
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
   
   // Modal state
   const [modalConfig, setModalConfig] = useState({
@@ -139,6 +203,8 @@ function App() {
     // Force immediate redirect regardless of type
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('auth-storage');
+    localStorage.removeItem('applicantToken');
     window.location.href = '/login';
   };
 
@@ -190,13 +256,6 @@ function App() {
             </PermissionRoute>
           </Layout>
         } />
-        <Route path="/past-session" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.PAST_SESSION}>
-              <PastSession />
-            </PermissionRoute>
-          </Layout>
-        } />
         <Route path="/assessment" element={
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.ASSESSMENT}>
@@ -235,6 +294,13 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
               <AdminDashboard />
+            </PermissionRoute>
+          </Layout>
+        } />
+        <Route path="/program-analytics" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_DASHBOARD}>
+              <ProgramAnalytics />
             </PermissionRoute>
           </Layout>
         } />
@@ -329,6 +395,15 @@ function App() {
           </Layout>
         } />
         
+        {/* Demo Cohort Manager (Admin only) */}
+        <Route path="/admin/demo-cohort-refresh" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.DEMO_COHORT}>
+              <DemoCohortRefresh />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Permission Management (Admin only) */}
         <Route path="/admin/permissions" element={
           <Layout>
@@ -338,6 +413,15 @@ function App() {
           </Layout>
         } />
         
+        {/* Interview Rubric Management (Admin) */}
+        <Route path="/admin/interview-rubrics" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.ADMIN_SECTION}>
+              <InterviewRubricAdmin />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Weekly Reports Management (Admin + custom permission) */}
         <Route path="/admin/weekly-reports" element={
           <Layout>
@@ -406,6 +490,7 @@ function App() {
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
+          <Route path="compass" element={<CompassRouteGuard />} />
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
@@ -413,6 +498,18 @@ function App() {
           <Route path="events/:eventId" element={<EventDetailPage />} />
           <Route path="network" element={<PathfinderNetwork />} />
           <Route path="jobs" element={<PathfinderJobs />} />
+          <Route
+            path="staff-network"
+            element={
+              <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER_ADMIN}>
+                <StaffNetworkDashboard />
+              </PermissionRoute>
+            }
+          />
+          <Route path="mock-interview" element={<MockInterviewSetup />} />
+          <Route path="mock-interview/session/:interviewId" element={<MockInterviewSession />} />
+          <Route path="mock-interview/feedback/:interviewId" element={<MockInterviewFeedback />} />
+          <Route path="mock-interview/history" element={<MockInterviewHistory />} />
         </Route>
         
         {/* Pathfinder admin dashboard - separate route */}
@@ -433,15 +530,6 @@ function App() {
           </Layout>
         } />
 
-        {/* Employment Engine - Staff Network Dashboard */}
-        <Route path="/pathfinder/staff-network" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER_ADMIN}>
-              <StaffNetworkDashboard />
-            </PermissionRoute>
-          </Layout>
-        } />
-        
         {/* Volunteering Dashboard (volunteer-facing: Schedule, Check In, Feedback) */}
         <Route path="/volunteering" element={
           <Layout>
@@ -458,6 +546,15 @@ function App() {
         <Route path="/volunteer-list" element={<Navigate to="/volunteer-management?tab=list" replace />} />
         <Route path="/volunteer-roster" element={<Navigate to="/volunteer-management?tab=calendar" replace />} />
         <Route path="/volunteer-attendance" element={<Navigate to="/volunteer-management?tab=attendance" replace />} />
+
+        {/* Template Management (Staff/Admin) */}
+        <Route path="/template-management" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.TEMPLATE_MANAGEMENT}>
+              <TemplateManagement />
+            </PermissionRoute>
+          </Layout>
+        } />
 
         {/* Form Builder routes (Admin/Staff only) */}
         <Route path="/forms" element={
@@ -503,6 +600,20 @@ function App() {
               <SalesTracker />
             </PermissionRoute>
           </Layout>
+        } />
+
+        {/* Platform Intake — all authenticated users */}
+        <Route path="/platform-intake" element={
+          <ProtectedRoute>
+            <PlatformIntake />
+          </ProtectedRoute>
+        } />
+
+        {/* Platform Intake Backlog — all authenticated users */}
+        <Route path="/platform-intake/backlog" element={
+          <ProtectedRoute>
+            <PlatformIntakeBacklog />
+          </ProtectedRoute>
         } />
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

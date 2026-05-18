@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { useNavContext } from '../../../context/NavContext';
+import useAuthStore from '../../../stores/authStore';
+import useNavStore from '../../../stores/navStore';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import OrganizationsTab from './components/OrganizationsTab';
@@ -16,9 +16,10 @@ import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
  * Organizations → Programs → Courses → Cohorts + Enrollments
  */
 function OrganizationManagement() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
-  const { isSecondaryNavPage } = useNavContext();
+  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
   const [activeTab, setActiveTab] = useState('organizations');
   const [loading, setLoading] = useState(false);
 

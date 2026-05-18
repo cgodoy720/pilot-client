@@ -124,7 +124,7 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                 const completionStatus = taskCompletionMap[task.id];
                 const completed = completionStatus?.isComplete || false;
                 const requiresDeliverable = completionStatus?.requiresDeliverable || false;
-                const shouldAnalyze = completionStatus?.shouldAnalyze || false;
+                
                 const isBreakTask = task.task_type === 'break';
                 
                 return (
@@ -145,12 +145,12 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                         // Completed: Purple | Incomplete Past Day with Deliverable/Analysis: Pink | Incomplete (no deliverable/analysis or current day): White
                         background: completed 
                           ? 'var(--color-pursuit-purple)' 
-                          : (isPastDay && (requiresDeliverable || shouldAnalyze))
+                          : (isPastDay && requiresDeliverable)
                             ? 'var(--color-mastery-pink)' 
                             : 'white',
                         border: completed 
                           ? '1px solid var(--color-pursuit-purple)' 
-                          : (isPastDay && (requiresDeliverable || shouldAnalyze))
+                          : (isPastDay && requiresDeliverable)
                             ? '1px solid var(--color-mastery-pink)' 
                             : '1px solid white'
                       }}
@@ -169,7 +169,7 @@ const DailyOverview = ({ currentDay, tasks, taskCompletionMap = {}, isPastDay = 
                         }}>
                           <polyline points="2.5,6 5.5,9 11.5,3" />
                         </svg>
-                      ) : (isPastDay && (requiresDeliverable || shouldAnalyze)) ? (
+                      ) : (isPastDay && requiresDeliverable) ? (
                         // Pink X for incomplete past day tasks WITH deliverables or analysis
                         <svg viewBox="0 0 8 8" style={{
                           width: '8px',

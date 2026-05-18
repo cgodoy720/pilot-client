@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
 import SendIcon from '@mui/icons-material/Send';
@@ -63,7 +62,7 @@ const emptyForm = {
 };
 
 export default function PathfinderNetwork() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('network'); // 'network' | 'my-requests'
@@ -231,31 +230,11 @@ export default function PathfinderNetwork() {
   const contextLen = formData.request_context.trim().length;
   const prepLen = formData.builder_preparation.trim().length;
   const allReady = Object.values(formData.readiness_checks).every(Boolean);
+  const approvedIntroCount = myRequests.filter(r => r.status === 'approved').length;
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="pf-network">
-      {/* Tab bar */}
-      <div className="pf-network__tabs">
-        <button
-          className={`pf-network__tab ${activeTab === 'network' ? 'pf-network__tab--active' : ''}`}
-          onClick={() => setActiveTab('network')}
-        >
-          <PeopleIcon fontSize="small" /> Staff Network
-        </button>
-        <button
-          className={`pf-network__tab ${activeTab === 'my-requests' ? 'pf-network__tab--active' : ''}`}
-          onClick={() => setActiveTab('my-requests')}
-        >
-          <SendIcon fontSize="small" /> My Intro Requests
-          {myRequests.filter(r => r.status === 'approved').length > 0 && (
-            <span className="pf-network__badge">
-              {myRequests.filter(r => r.status === 'approved').length}
-            </span>
-          )}
-        </button>
-      </div>
-
       {/* ── NETWORK TAB ── */}
       {activeTab === 'network' && (
         <div className="pf-network__content">
@@ -266,6 +245,23 @@ export default function PathfinderNetwork() {
                 Browse {pagination.total.toLocaleString()} contacts across the Pursuit staff network.
                 Find a warm intro path to your target companies.
               </p>
+            </div>
+            <div className="pf-network__view-toggle">
+              <button
+                className={`pf-network__view-toggle-btn ${activeTab === 'network' ? 'pf-network__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('network')}
+              >
+                <PeopleIcon fontSize="small" /> Staff Network
+              </button>
+              <button
+                className={`pf-network__view-toggle-btn ${activeTab === 'my-requests' ? 'pf-network__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('my-requests')}
+              >
+                <SendIcon fontSize="small" /> My Intro Requests
+                {approvedIntroCount > 0 && (
+                  <span className="pf-network__badge">{approvedIntroCount}</span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -309,7 +305,9 @@ export default function PathfinderNetwork() {
           </div>
 
           {isLoadingContacts ? (
-            <LoadingCurtain isLoading />
+            <div className="pf-network__empty">
+              <p>Loading contacts...</p>
+            </div>
           ) : contacts.length === 0 ? (
             <div className="pf-network__empty">
               <PeopleIcon style={{ fontSize: 48, color: '#ccc' }} />
@@ -381,10 +379,32 @@ export default function PathfinderNetwork() {
       {activeTab === 'my-requests' && (
         <div className="pf-network__content">
           <div className="pf-network__header">
-            <h1 className="pf-network__title">My Intro Requests</h1>
+            <div>
+              <h1 className="pf-network__title">My Intro Requests</h1>
+              <p className="pf-network__subtitle">Track intro outcomes and follow up with staff support.</p>
+            </div>
+            <div className="pf-network__view-toggle">
+              <button
+                className={`pf-network__view-toggle-btn ${activeTab === 'network' ? 'pf-network__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('network')}
+              >
+                <PeopleIcon fontSize="small" /> Staff Network
+              </button>
+              <button
+                className={`pf-network__view-toggle-btn ${activeTab === 'my-requests' ? 'pf-network__view-toggle-btn--active' : ''}`}
+                onClick={() => setActiveTab('my-requests')}
+              >
+                <SendIcon fontSize="small" /> My Intro Requests
+                {approvedIntroCount > 0 && (
+                  <span className="pf-network__badge">{approvedIntroCount}</span>
+                )}
+              </button>
+            </div>
           </div>
           {isLoadingRequests ? (
-            <LoadingCurtain isLoading />
+            <div className="pf-network__empty">
+              <p>Loading intro requests...</p>
+            </div>
           ) : myRequests.length === 0 ? (
             <div className="pf-network__empty">
               <SendIcon style={{ fontSize: 48, color: '#ccc' }} />

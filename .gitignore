@@ -8,10 +8,15 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# iCloud Drive periodically replaces `node_modules` with a `.nosync`
+# symlink/dir on macOS. Same intent as `node_modules` — never commit
+# vendored dependencies, regardless of which path iCloud chose this hour.
+node_modules.nosync
 dist
 dist-ssr
 *.local
 .env
+.env.*
 .stryker.tmp
 
 # Editor directories and files
@@ -28,6 +33,28 @@ dist-ssr
 # stryker temp files
 .stryker-tmp
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # Visual guides and visual-explainer tool
 /visual-guides/
 /visual-explainer/
+
+# Test artifacts
+playwright-report/
+test-results/
+test-ui.js
+
+# QA and tooling artifacts
+.gstack/
+
+# Submodule pointers (nested repos)
+/pilot-client
+/test-pilot-server
+
+# Misc
+package-lock\ 2.json
+COHORT_NAMING_ISSUE.md
+
+# Local analysis files
+src/pages/PathfinderJobs/jobs-db-analysis.md

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaTimes, FaSpinner, FaClipboardList, FaExclamationCircle, FaCheckCircle, FaEye, FaEdit } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import Swal from 'sweetalert2';
 import './BuilderFeedbackForm.css';
 
 const BuilderFeedbackForm = ({ taskId, dayNumber, cohort, surveyType = 'weekly', onComplete, onCancel }) => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isActive = user?.active !== false;
 
   // Determine initial form state based on survey type

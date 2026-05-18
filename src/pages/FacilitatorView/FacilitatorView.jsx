@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import './FacilitatorView.css';
 
 const FacilitatorView = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const [facilitatorNotes, setFacilitatorNotes] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

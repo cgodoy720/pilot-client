@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import Swal from 'sweetalert2';
 
 // Icons
@@ -19,7 +19,7 @@ import StarIcon from '@mui/icons-material/Star';
 const API_URL = import.meta.env.VITE_API_URL;
 
 function EventCard({ event, onUpdate }) {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   const [isUpdating, setIsUpdating] = useState(false);
 

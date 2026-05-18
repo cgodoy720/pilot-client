@@ -7,7 +7,7 @@ import {
   Tab,
   Container
 } from '@mui/material';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { fetchUserStats } from '../../utils/statsApi';
 import FeedbackSection from './sections/FeedbackSection';
 import WorkProductSection from './sections/WorkProductSection';
@@ -16,7 +16,8 @@ import ResourcesSection from './sections/ResourcesSection';
 import './Stats.css';
 
 const Stats = () => {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);

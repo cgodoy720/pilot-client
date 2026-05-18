@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
+import { safeExternalUrl } from '../../utils/safeUrl';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
 import CompanyAutocomplete from '../../components/CompanyAutocomplete';
 import RichTextEditor from '../../components/RichTextEditor';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -39,7 +39,8 @@ const formatShortDate = (dateString) => {
 };
 
 function PathfinderApplications() {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const location = useLocation();
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1077,6 +1078,9 @@ function PathfinderApplications() {
 
   return (
     <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading applications...</div>
+      )}
       <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
         <MyStrategy />
         <MyResumes />
@@ -1085,7 +1089,7 @@ function PathfinderApplications() {
             className="px-6 py-4 bg-[#4242ea] text-white border-none rounded-md font-semibold cursor-pointer transition-all duration-300 shadow-[0_2px_8px_rgba(66,66,234,0.2)] relative overflow-hidden flex-shrink-0 whitespace-nowrap hover:bg-[#3333d1] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_6px_20px_rgba(66,66,234,0.4)] active:translate-y-0 active:scale-100 active:shadow-[0_2px_8px_rgba(66,66,234,0.2)]"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? 'Cancel' : '+ Add Job'}
+            {showForm ? 'Cancel' : '+ Track Application'}
           </Button>
           
           <div className="flex items-center gap-4 flex-1 min-w-min justify-end">
@@ -1873,10 +1877,13 @@ function PathfinderApplications() {
                                   Target: {new Date(build.target_date).toLocaleDateString()}
                                 </div>
                               )}
-                              {build.deployment_url && (
+                              {(() => {
+                                const buildHref = safeExternalUrl(build.deployment_url);
+                                if (!buildHref) return null;
+                                return (
                                 <div className="pathfinder-applications__build-link">
                                   <a 
-                                    href={build.deployment_url} 
+                                    href={buildHref} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
@@ -1884,7 +1891,8 @@ function PathfinderApplications() {
                                     🔗 View Live App
                                   </a>
                                 </div>
-                              )}
+                                );
+                              })()}
                               {build.notes && (
                                 <div className="pathfinder-applications__build-notes">
                                   {build.notes}
@@ -2090,7 +2098,7 @@ function PathfinderApplications() {
           <div className="flex gap-4 overflow-x-auto pb-4">
             {sortedAndFilteredApplications.length === 0 ? (
               <div className="text-center p-8 text-[#666666]">
-                <p>No applications yet. Click "+ Add Job" to add your first one!</p>
+                <p>No applications yet. Click "+ Track Application" to add your first one!</p>
               </div>
             ) : (
               <>
@@ -2484,8 +2492,6 @@ function PathfinderApplications() {
         </div>
       )}
       
-      {/* Loading Curtain */}
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

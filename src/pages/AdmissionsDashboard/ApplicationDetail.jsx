@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import NotesSidebar from '../../components/NotesSidebar';
 import BulkActionsModal from '../../components/BulkActionsModal';
 import AttendedEventModal from './components/shared/AttendedEventModal';
@@ -219,12 +219,15 @@ const getQuestionCategory = (prompt) => {
 
 const ApplicationDetail = () => {
     const { applicantId } = useParams();
-    const { token } = useAuth();
+    const token = useAuthStore((s) => s.token);
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [applicationData, setApplicationData] = useState(null);
+    const [cohortOptions, setCohortOptions] = useState([]);
+    const [selectedCohortId, setSelectedCohortId] = useState('');
+    const [cohortUpdating, setCohortUpdating] = useState(false);
 
     // Notes modal management
     const [notesModalOpen, setNotesModalOpen] = useState(false);
@@ -270,9 +273,8 @@ const ApplicationDetail = () => {
 
             const data = await response.json();
             console.log('📋 Applicant Detail Data:', data);
-            console.log('🔍 Deferred status:', data.application?.deferred);
-            console.log('📅 Deferred at:', data.application?.deferred_at);
             setApplicationData(data);
+            setSelectedCohortId(data?.application?.cohort_id || '');
             
             // Also fetch email tracking data
             if (data.applicant?.applicant_id) {
@@ -283,6 +285,22 @@ const ApplicationDetail = () => {
             setError('Failed to load applicant details. Please try again.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchCohortOptions = async () => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/cohorts`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            setCohortOptions(data || []);
+        } catch (error) {
+            console.error('Error fetching cohort options for applicant detail:', error);
         }
     };
 
@@ -315,8 +333,53 @@ const ApplicationDetail = () => {
     useEffect(() => {
         if (applicantId && token) {
             fetchApplicationDetail();
+            fetchCohortOptions();
         }
     }, [applicantId, token]);
+
+    const handleUpdateApplicantCohort = async () => {
+        if (!applicationData?.applicant?.applicant_id || !selectedCohortId) return;
+        setCohortUpdating(true);
+        try {
+            const response = await fetch(
+                `${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicationData.applicant.applicant_id}/cohort`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cohort_id: selectedCohortId,
+                        application_id: applicationData?.application?.application_id || null
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to update applicant cohort');
+            }
+
+            await fetchApplicationDetail();
+            Swal.fire({
+                icon: 'success',
+                title: 'Cohort Updated',
+                text: 'Applicant cohort assignment has been updated.',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error updating applicant cohort:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Failed to update applicant cohort'
+            });
+        } finally {
+            setCohortUpdating(false);
+        }
+    };
 
     // Handle notes modal
     const openNotesSidebar = () => {
@@ -630,7 +693,7 @@ const ApplicationDetail = () => {
         );
     }
 
-    const { applicant, application, assessment, responses, questions } = applicationData;
+    const { applicant, application, applications, assessment, responses, questions } = applicationData;
 
     return (
         <div className="w-full h-full bg-[#f5f5f5] overflow-auto font-proxima">
@@ -820,12 +883,48 @@ const ApplicationDetail = () => {
                                         ⚡ Actions
                                     </Button>
                                 </div>
+
+                                {application && (
+                                    <Card className="border-blue-200 bg-blue-50">
+                                        <CardContent className="p-4">
+                                            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                                                <div className="min-w-[220px]">
+                                                    <p className="text-xs text-gray-500 font-proxima mb-1">Assigned Cohort</p>
+                                                    <Select
+                                                        value={selectedCohortId || '_none'}
+                                                        onValueChange={(value) => setSelectedCohortId(value === '_none' ? '' : value)}
+                                                    >
+                                                        <SelectTrigger className="font-proxima bg-white">
+                                                            <SelectValue placeholder="Select cohort" />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="font-proxima">
+                                                            <SelectItem value="_none">No Cohort Assigned</SelectItem>
+                                                            {cohortOptions.map((cohort) => (
+                                                                <SelectItem key={cohort.cohort_id} value={cohort.cohort_id}>
+                                                                    {cohort.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={handleUpdateApplicantCohort}
+                                                    disabled={!selectedCohortId || cohortUpdating}
+                                                    className="font-proxima"
+                                                >
+                                                    {cohortUpdating ? 'Updating...' : 'Update Cohort'}
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
                                 
                                 {/* Deferral Status & Deliberation Section - Side by Side */}
                                 {application?.status === 'submitted' && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {/* Deferral Status Display (Read-only) */}
-                                        {application?.deferred && (
+                                        {application?.enrollment_status === 'deferred' && (
                                             <Card className="border-yellow-400 bg-yellow-50">
                                                 <CardContent className="p-4">
                                                     <div className="space-y-2">
@@ -847,7 +946,7 @@ const ApplicationDetail = () => {
                                         )}
                                         
                                         {/* Deliberation Section */}
-                                        <Card className={`border-purple-200 bg-purple-50 ${!application?.deferred ? 'md:col-span-2' : ''}`}>
+                                        <Card className={`border-purple-200 bg-purple-50 ${application?.enrollment_status !== 'deferred' ? 'md:col-span-2' : ''}`}>
                                             <CardContent className="p-4 space-y-3">
                                                 <strong className="font-proxima-bold text-sm">Deliberation Status</strong>
                                                 <Select
@@ -1266,6 +1365,47 @@ const ApplicationDetail = () => {
                                     ))}
                                 </div>
                             )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Application Attempts History */}
+                {applications && applications.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="font-proxima-bold">Application Attempts</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                {applications.map((attempt) => (
+                                    <div
+                                        key={attempt.application_id}
+                                        className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 md:flex-row md:items-center md:justify-between"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Badge className={`${getStatusBadgeClasses(attempt.status)} font-proxima`}>
+                                                {formatStatus(attempt.status)}
+                                            </Badge>
+                                            <span className="text-xs text-gray-600 font-proxima">
+                                                Created {attempt.created_at ? new Date(attempt.created_at).toLocaleDateString() : 'N/A'}
+                                            </span>
+                                            {attempt.submitted_at && (
+                                                <span className="text-xs text-gray-500 font-proxima">
+                                                    Submitted {new Date(attempt.submitted_at).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-gray-500 font-proxima">
+                                                {attempt.cohort_name || 'No cohort assigned'}
+                                            </span>
+                                            {application?.application_id === attempt.application_id && (
+                                                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 font-proxima">Current</Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </CardContent>
                     </Card>
                 )}

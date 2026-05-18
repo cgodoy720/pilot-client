@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import {
@@ -23,7 +23,8 @@ import ConversationViewer from '../../components/ConversationViewer';
 import TaskConversationList from '../../components/TaskConversationList';
 
 const CohortAdminDashboard = () => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [cohorts, setCohorts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCohort, setSelectedCohort] = useState(null);

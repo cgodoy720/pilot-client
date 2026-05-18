@@ -143,10 +143,18 @@ export const invalidateTodaysAttendanceCache = () => {
 /**
  * Invalidate all attendance-related caches
  * Call this when excuses are processed or attendance data changes
+ *
+ * IMPORTANT: Must clear every cache key that's read on the attendance
+ * surfaces — including day-builder-status and cohort-daily-breakdown —
+ * otherwise sibling components keep serving stale data even after a
+ * mutation. The forceRefresh path only bypasses cache reads for the
+ * single call that asks for it; it does not clear the underlying entry.
  */
 export const invalidateAllAttendanceCaches = () => {
   invalidateCohortPerformanceCache();
   invalidateTodaysAttendanceCache();
+  cacheService.clearPattern('/api/admin/attendance/dashboard/day-builder-status');
+  cacheService.clearPattern('/api/admin/attendance/dashboard/cohort-daily-breakdown');
   console.log('🗑️ All attendance caches invalidated');
 };
 

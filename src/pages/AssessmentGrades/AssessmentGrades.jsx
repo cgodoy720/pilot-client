@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { toast } from 'sonner';
 
@@ -10,8 +10,9 @@ import GradesTable from './components/GradesTable';
 import GradeViewModal from './GradeViewModal';
 import MassEmailModal from './MassEmailModal';
 
-const AssessmentGrades = () => {
-  const { user, token: authToken } = useAuth();
+const AssessmentGrades = ({ initialCohort = '', embedded = false, hideStatusBar = false }) => {
+  const user = useAuthStore((s) => s.user);
+  const authToken = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const [assessmentGrades, setAssessmentGrades] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,18 +23,15 @@ const AssessmentGrades = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
 
   // Editing states for Overview tab
-  const [isEditingOverview, setIsEditingOverview] = useState(false);
-  const [editingStrengths, setEditingStrengths] = useState('');
-  const [editingGrowthAreas, setEditingGrowthAreas] = useState('');
-  const [savingOverview, setSavingOverview] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
-    cohort: '',
+    cohort: initialCohort,
     assessmentPeriod: ''
   });
-  const filtersRef = useRef(filters);
-  const appliedFiltersRef = useRef(filters);
+  const filtersRef = useRef({ cohort: initialCohort, assessmentPeriod: '' });
+  const appliedFiltersRef = useRef({ cohort: initialCohort, assessmentPeriod: '' });
+  const prevInitialCohortRef = useRef(initialCohort);
   const latestGradesRequestIdRef = useRef(0);
   const activeGradesRequestControllerRef = useRef(null);
   const [availableCohorts, setAvailableCohorts] = useState([]);
@@ -54,7 +52,8 @@ const AssessmentGrades = () => {
       setLoading(false);
       return;
     }
-    
+
+    setError(null);
     fetchInitialData();
   }, [user, authToken, canAccessPage]);
 
@@ -65,6 +64,17 @@ const AssessmentGrades = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (initialCohort !== prevInitialCohortRef.current) {
+      prevInitialCohortRef.current = initialCohort;
+      const nextFilters = { ...filters, cohort: initialCohort };
+      setFilters(nextFilters);
+      filtersRef.current = nextFilters;
+      appliedFiltersRef.current = nextFilters;
+      fetchAssessmentGrades(true, nextFilters);
+    }
+  }, [initialCohort]);
 
   const fetchInitialData = async () => {
     try {
@@ -394,23 +404,8 @@ const AssessmentGrades = () => {
     !!appliedFiltersRef.current.cohort &&
     renderedCohorts.some((cohortName) => cohortName !== appliedFiltersRef.current.cohort);
 
-  // Overview editing functions
-  const handleStartEditing = (grade) => {
-    setIsEditingOverview(true);
-    setEditingStrengths(grade.strengths_summary || '');
-    setEditingGrowthAreas(grade.growth_areas_summary || '');
-  };
-
-  const handleCancelEditing = () => {
-    setIsEditingOverview(false);
-    setEditingStrengths('');
-    setEditingGrowthAreas('');
-  };
-
-  const handleSaveOverview = async (userId) => {
+  const handleSaveOverview = async (userId, assessmentPeriod, level, strengths, growthAreas) => {
     try {
-      setSavingOverview(true);
-      
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/assessment-grades/update-feedback`, {
         method: 'POST',
         headers: {
@@ -418,9 +413,11 @@ const AssessmentGrades = () => {
           'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({
-          userId: userId,
-          strengths_summary: editingStrengths,
-          growth_areas_summary: editingGrowthAreas
+          userId,
+          strengths_summary: strengths,
+          growth_areas_summary: growthAreas,
+          assessment_period: assessmentPeriod,
+          level
         })
       });
 
@@ -428,40 +425,26 @@ const AssessmentGrades = () => {
         throw new Error('Failed to update feedback');
       }
 
-      const result = await response.json();
-      
-      // Update the local state
-      setAssessmentGrades(prev => prev.map(grade => 
-        grade.user_id === userId 
-          ? { ...grade, strengths_summary: editingStrengths, growth_areas_summary: editingGrowthAreas }
+      // Update the local table state for the matching row
+      setAssessmentGrades(prev => prev.map(grade =>
+        grade.user_id === userId && grade.assessment_period === assessmentPeriod && grade.level === level
+          ? { ...grade, strengths_summary: strengths, growth_areas_summary: growthAreas }
           : grade
       ));
 
-      // Update selectedGrade if it's the same user
-      if (selectedGrade && selectedGrade.user_id === userId) {
-        setSelectedGrade(prev => ({
-          ...prev,
-          strengths_summary: editingStrengths,
-          growth_areas_summary: editingGrowthAreas
-        }));
-      }
-
-      setIsEditingOverview(false);
-      setEditingStrengths('');
-      setEditingGrowthAreas('');
-      
       toast.success('Feedback Updated!', {
         description: 'The feedback has been successfully updated in the database.',
         duration: 3000,
       });
+
+      return true;
     } catch (error) {
       console.error('Error updating feedback:', error);
       toast.error('Update Failed', {
         description: 'Failed to update feedback. Please try again.',
         duration: 5000,
       });
-    } finally {
-      setSavingOverview(false);
+      return false;
     }
   };
 
@@ -477,31 +460,86 @@ const AssessmentGrades = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Filters */}
-        <FiltersSection
-          filters={filters}
-          availableCohorts={availableCohorts}
-          availablePeriods={availablePeriods}
-          onFilterChange={handleFilterChange}
-          onApplyFilters={applyFilters}
-          onClearFilters={clearFilters}
-        />
+    <div className={embedded ? '' : 'min-h-screen bg-background'}>
+      <div className={embedded ? 'space-y-4' : 'container mx-auto p-6 space-y-6'}>
+        {/* Filters — inline when embedded, full card otherwise */}
+        {embedded ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-card border border-border rounded-lg">
+            <div className="flex items-center gap-3">
+              <FiltersSection
+                filters={filters}
+                availableCohorts={availableCohorts}
+                availablePeriods={availablePeriods}
+                onFilterChange={handleFilterChange}
+                onApplyFilters={applyFilters}
+                onClearFilters={clearFilters}
+                inline
+              />
+              <button
+                onClick={() => handleSelectAll(selectedUsers.size !== assessmentGrades.length)}
+                className="px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#E3E3E3] text-slate-600 hover:border-[#4242EA] hover:text-[#4242EA] transition-colors"
+              >
+                {selectedUsers.size === assessmentGrades.length && assessmentGrades.length > 0 ? 'Deselect All' : 'Select All'}
+              </button>
+              {selectedUsers.size > 0 && (
+                <span className="text-xs text-muted-foreground">{selectedUsers.size} selected</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedUsers.size > 0 && (
+                <button
+                  onClick={handleSendEmails}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+                >
+                  Send Mass Email
+                </button>
+              )}
+              <button
+                onClick={loadAllRecords}
+                disabled={loading}
+                className="px-3 py-1.5 text-xs font-medium rounded-md bg-[#4242EA] text-white hover:bg-[#3535c8] disabled:opacity-50 transition-colors"
+              >
+                {loading ? 'Loading...' : 'Load All'}
+              </button>
+              <button
+                onClick={() => exportData('csv')}
+                className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#E3E3E3] text-slate-600 hover:border-[#4242EA] hover:text-[#4242EA] transition-colors"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
+                className="px-3 py-1.5 text-xs font-medium rounded-md border border-[#E3E3E3] text-slate-600 hover:border-[#4242EA] hover:text-[#4242EA] transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <FiltersSection
+              filters={filters}
+              availableCohorts={availableCohorts}
+              availablePeriods={availablePeriods}
+              onFilterChange={handleFilterChange}
+              onApplyFilters={applyFilters}
+              onClearFilters={clearFilters}
+              hideCohortFilter={embedded}
+            />
+            <ActionsBar
+              selectedUsers={selectedUsers}
+              assessmentGrades={assessmentGrades}
+              loading={loading}
+              onSelectAll={handleSelectAll}
+              onSendEmails={handleSendEmails}
+              onLoadAllRecords={loadAllRecords}
+              onExportData={exportData}
+              onRefresh={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
+            />
+          </>
+        )}
 
-        {/* Actions Bar */}
-        <ActionsBar
-          selectedUsers={selectedUsers}
-          assessmentGrades={assessmentGrades}
-          loading={loading}
-          onSelectAll={handleSelectAll}
-          onSendEmails={handleSendEmails}
-          onLoadAllRecords={loadAllRecords}
-          onExportData={exportData}
-          onRefresh={() => fetchAssessmentGrades(true, appliedFiltersRef.current)}
-        />
-
-        {appliedFiltersRef.current.cohort && (
+        {!hideStatusBar && appliedFiltersRef.current.cohort && (
           <div className={`border rounded-lg p-3 text-sm ${hasCohortMismatch ? 'border-destructive bg-destructive/10 text-destructive' : 'border-border bg-muted/40 text-muted-foreground'}`}>
             <span className="font-medium">Applied cohort:</span> {appliedFiltersRef.current.cohort} •{' '}
             <span className="font-medium">Rendered rows:</span> {assessmentGrades.length} •{' '}
@@ -510,7 +548,7 @@ const AssessmentGrades = () => {
         )}
 
         {/* Pagination Info */}
-        {assessmentGrades.length > 0 && (
+        {!hideStatusBar && assessmentGrades.length > 0 && (
           <div className="text-center text-sm text-muted-foreground py-2">
             Showing {assessmentGrades.length} of {pagination.total} assessment grades
             {pagination.hasMore && (
@@ -540,15 +578,7 @@ const AssessmentGrades = () => {
             setShowGradeModal(false);
             setSelectedGrade(null);
           }}
-          isEditingOverview={isEditingOverview}
-          editingStrengths={editingStrengths}
-          editingGrowthAreas={editingGrowthAreas}
-          savingOverview={savingOverview}
-          onStartEditing={handleStartEditing}
-          onCancelEditing={handleCancelEditing}
           onSaveOverview={handleSaveOverview}
-          setEditingStrengths={setEditingStrengths}
-          setEditingGrowthAreas={setEditingGrowthAreas}
         />
 
         {/* Mass Email Modal */}

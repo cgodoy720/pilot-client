@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import { X, User, Calendar, MapPin, Send, UserPlus, UserMinus, Check, Star, Search, ChevronDown } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import * as volunteerApi from '../../../services/volunteerApi';
@@ -8,7 +8,7 @@ import * as volunteerApi from '../../../services/volunteerApi';
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 function SlotAssignmentModal({ slot, cohort, onClose, onUpdate }) {
-    const { token } = useAuth();
+    const token = useAuthStore((s) => s.token);
     const [volunteers, setVolunteers] = useState([]);
     const [selectedVolunteer, setSelectedVolunteer] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');

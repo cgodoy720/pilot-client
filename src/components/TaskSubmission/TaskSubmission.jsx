@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { formatSubmissionTimestamp } from '../../utils/dateHelpers';
 import './TaskSubmission.css';
 
@@ -33,7 +33,8 @@ const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel }) => {
 };
 
 const TaskSubmission = ({ taskId, deliverable, canAnalyzeDeliverable, onAnalyzeDeliverable }) => {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isActive = user?.active !== false;
   
   const [submissionData, setSubmissionData] = useState({ type: 'link', content: '' });

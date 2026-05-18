@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import pursuitLogoFull from '../../assets/logo-full.png';
 import databaseService from '../../services/databaseService';
 import Swal from 'sweetalert2';
@@ -56,19 +56,18 @@ const SECTION_CONFIG = [
     lockedLabel: 'Invitation Required',
   },
   {
-    key: 'onboarding',
-    label: 'Complete Onboarding',
-    description: 'Set up systems',
-    statusOptions: ['locked', 'not completed', 'in progress', 'completed'],
+    key: 'pledge',
+    label: 'Complete your Pledge',
+    description: 'Commit to the program expectations',
+    statusOptions: ['locked', 'not completed', 'completed'],
     defaultStatus: 'locked',
     getButtonLabel: (status) => {
       if (status === 'locked') return 'Program Admission Required';
-      if (status === 'not completed') return 'Start Onboarding';
-      if (status === 'in progress') return 'Continue Onboarding';
-      if (status === 'completed') return 'View Onboarding Materials';
-      return 'Start Onboarding';
+      if (status === 'not completed') return 'Make Pledge';
+      if (status === 'completed') return 'Pledge Completed';
+      return 'Make Pledge';
     },
-    buttonEnabled: (status) => status === 'not completed' || status === 'in progress' || status === 'completed',
+    buttonEnabled: (status) => status === 'not completed',
     lockedLabel: 'Program Admission Required',
   },
 ]
@@ -76,20 +75,26 @@ const SECTION_CONFIG = [
 function ApplicantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { setAuthState, refreshPermissions } = useAuth();
+  const setAuthState = useAuthStore((s) => s.setAuthState);
+  const refreshPermissions = useAuthStore((s) => s.refreshPermissions);
   const [user, setUser] = useState(null);
   const [currentApplicantId, setCurrentApplicantId] = useState(null);
   const [statuses, setStatuses] = useState({
     infoSession: 'not signed-up',
     application: 'not started',
     workshop: 'locked',
-    onboarding: 'locked',
+    pledge: 'locked',
+    onboarding: 'not started',
   });
   const [sessionDetails, setSessionDetails] = useState(null);
   const [workshopDetails, setWorkshopDetails] = useState(null);
   const [applicantStage, setApplicantStage] = useState(null);
+  const [currentApplication, setCurrentApplication] = useState(null);
+  const [cohortOptions, setCohortOptions] = useState([]);
+  const [isUpdatingCohort, setIsUpdatingCohort] = useState(false);
   const [applicationProgress, setApplicationProgress] = useState(null);
   const [onboardingStatus, setOnboardingStatus] = useState(null);
+  const [cohortInfo, setCohortInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -143,19 +148,34 @@ function ApplicantDashboard() {
         await loadInfoSessionStatus();
         await loadApplicationStatus();
         await loadWorkshopStatus();
-        await loadPledgeStatus();
         await loadOnboardingStatus();
+        await loadCohortInfo();
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     if (currentApplicantId) {
       loadDashboardData();
     }
   }, [currentApplicantId, refreshTrigger]);
+
+  const loadCohortInfo = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/cohort-info`);
+      if (response.ok) {
+        const data = await response.json();
+        setCohortInfo(data);
+      } else {
+        setCohortInfo(null);
+      }
+    } catch (error) {
+      console.error('Error loading cohort info:', error);
+      setCohortInfo(null);
+    }
+  };
 
   const loadInfoSessionStatus = async () => {
     try {
@@ -235,6 +255,7 @@ function ApplicantDashboard() {
       );
       
       const application = await databaseService.getLatestApplicationByApplicantId(applicant.applicant_id);
+      setCurrentApplication(application || null);
       
       if (!application) {
         setStatuses(prev => ({ ...prev, application: 'not started' }));
@@ -282,8 +303,135 @@ function ApplicantDashboard() {
       }
     } catch (error) {
       console.error('Error loading application status for dashboard:', error);
+      setCurrentApplication(null);
       setStatuses(prev => ({ ...prev, application: 'not started' }));
       setApplicationProgress(null);
+    }
+  };
+
+  const loadCohortOptions = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`, {
+        headers: databaseService.getAuthHeaders()
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setCohortOptions(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading application cohort options:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadCohortOptions();
+  }, []);
+
+  const formatCohortDate = (dateValue) => {
+    if (!dateValue) return null;
+    try {
+      return new Date(dateValue).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const getCohortOptionLabel = (cohort, index) => {
+    const cycleLabel = index === 0 ? 'Current cycle' : 'Next cycle';
+    const startDate = formatCohortDate(cohort.start_date);
+    const cutoffDate = formatCohortDate(cohort.cutoff_date || cohort.effective_cutoff);
+    const dateParts = [
+      startDate ? `starts ${startDate}` : null,
+      cutoffDate ? `deadline ${cutoffDate}` : null
+    ].filter(Boolean);
+
+    return `${cycleLabel}: ${cohort.name}${dateParts.length ? ` (${dateParts.join(', ')})` : ''}`;
+  };
+
+  const getCurrentApplicationCohort = () => {
+    if (!currentApplication?.cohort_id) return null;
+    return cohortOptions.find((cohort) => cohort.cohort_id === currentApplication.cohort_id) || null;
+  };
+
+  const changeSubmittedApplicationCohort = async () => {
+    if (!currentApplication?.application_id || !currentApplicantId) return;
+    if (!canEditSubmittedApplication()) return;
+
+    if (cohortOptions.length === 0) {
+      await Swal.fire({
+        icon: 'info',
+        title: 'No Cohorts Available',
+        text: 'There are no cohorts available to switch to right now.',
+        confirmButtonColor: '#4242ea'
+      });
+      return;
+    }
+
+    const inputOptions = cohortOptions.reduce((acc, cohort, index) => {
+      acc[cohort.cohort_id] = getCohortOptionLabel(cohort, index);
+      return acc;
+    }, {});
+
+    const { value: selectedCohortId, isConfirmed } = await Swal.fire({
+      title: 'Change Application Cohort',
+      html: '<p style="color:#555;">Choose which cohort this application should be considered for. This does not change your admission decision.</p>',
+      input: 'select',
+      inputOptions,
+      inputValue: currentApplication.cohort_id || '',
+      inputPlaceholder: 'Select a cohort',
+      showCancelButton: true,
+      confirmButtonText: 'Update Cohort',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4242ea',
+      cancelButtonColor: '#6c757d',
+      inputValidator: (value) => !value && 'Please select a cohort'
+    });
+
+    if (!isConfirmed || !selectedCohortId || selectedCohortId === currentApplication.cohort_id) return;
+
+    setIsUpdatingCohort(true);
+    try {
+      const token = localStorage.getItem('applicantToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/application/${currentApplication.application_id}/cohort`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ cohortId: selectedCohortId })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update cohort');
+      }
+
+      const data = await response.json();
+      const updatedApplication = data.updated_application || data.updatedApplication || data;
+      setCurrentApplication((prev) => ({
+        ...prev,
+        cohort_id: updatedApplication.cohort_id || selectedCohortId,
+        cohort_assigned_at: updatedApplication.cohort_assigned_at || prev?.cohort_assigned_at
+      }));
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Cohort Updated',
+        text: 'Your application cohort has been updated.',
+        confirmButtonColor: '#4242ea'
+      });
+    } catch (error) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Failed to update cohort.',
+        confirmButtonColor: '#dc3545'
+      });
+    } finally {
+      setIsUpdatingCohort(false);
     }
   };
 
@@ -368,7 +516,7 @@ function ApplicantDashboard() {
     }
   };
 
-  const loadPledgeStatus = async () => {
+  const loadOnboardingStatus = async () => {
     try {
       const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`);
 
@@ -387,26 +535,23 @@ function ApplicantDashboard() {
             }
           }
 
+          // Check onboarding progress (only relevant after pledge is completed)
           let allRequiredCompleted = false;
           let hasProgress = false;
 
-          // Also try to get status from API as fallback
           const onboardingStatusResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/onboarding-status`);
           if (onboardingStatusResponse.ok) {
-            const onboardingStatus = await onboardingStatusResponse.json();
-            const apiAllRequiredCompleted = onboardingStatus.completed_required_tasks >= onboardingStatus.required_tasks;
-            allRequiredCompleted = allRequiredCompleted || apiAllRequiredCompleted;
-            hasProgress = hasProgress || (onboardingStatus.completed_required_tasks > 0);
+            const onboardingData = await onboardingStatusResponse.json();
+            allRequiredCompleted = onboardingData.completed_required_tasks >= onboardingData.required_tasks;
+            hasProgress = onboardingData.completed_required_tasks > 0;
           }
 
           if (allRequiredCompleted) {
             setStatuses(prev => ({ ...prev, onboarding: 'completed' }));
-            console.log('Dashboard: Onboarding completed');
           } else if (hasProgress) {
             setStatuses(prev => ({ ...prev, onboarding: 'in progress' }));
-            console.log('Dashboard: Onboarding in progress');
           } else {
-            setStatuses(prev => ({ ...prev, pledge: 'not completed' }));
+            setStatuses(prev => ({ ...prev, onboarding: 'not started' }));
           }
         } else {
           setStatuses(prev => ({ ...prev, pledge: 'locked' }));
@@ -414,24 +559,18 @@ function ApplicantDashboard() {
       } else {
         setStatuses(prev => ({ ...prev, pledge: 'locked' }));
       }
-    } catch (error) {
-      console.error('Error loading pledge status:', error);
-      setStatuses(prev => ({ ...prev, onboarding: 'locked' }));
-    }
-  };
 
-  const loadOnboardingStatus = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/status/${currentApplicantId}`);
-      
-      if (response.ok) {
-        const statusData = await response.json();
+      // Fetch detailed onboarding task status for progress display
+      const onboardingTaskResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/onboarding/status/${currentApplicantId}`);
+      if (onboardingTaskResponse.ok) {
+        const statusData = await onboardingTaskResponse.json();
         setOnboardingStatus(statusData);
       } else {
         setOnboardingStatus(null);
       }
     } catch (error) {
       console.error('Error loading onboarding status:', error);
+      setStatuses(prev => ({ ...prev, pledge: 'locked' }));
       setOnboardingStatus(null);
     }
   };
@@ -453,11 +592,14 @@ function ApplicantDashboard() {
   const isLocked = (key, status) => {
     if (key === 'workshop') return status === 'locked'
     if (key === 'pledge') return status === 'locked'
-    if (key === 'onboarding') return false // Onboarding is never locked if it's shown
+    if (key === 'onboarding') return cohortInfo && !cohortInfo.is_open
     return false
   }
 
   const isButtonEnabled = (section) => {
+    if (section.key === 'application' && statuses.application === 'submitted') {
+      return canEditSubmittedApplication();
+    }
     if (section.key === 'workshop') {
       return section.buttonEnabled(statuses.workshop, statuses.application)
     }
@@ -466,6 +608,17 @@ function ApplicantDashboard() {
     }
     return section.buttonEnabled(statuses[section.key])
   }
+
+  const canEditSubmittedApplication = () => {
+    return (
+      statuses.application === 'submitted' &&
+      currentApplication?.application_id &&
+      (
+        !applicantStage?.program_admission_status ||
+        applicantStage.program_admission_status === 'pending'
+      )
+    );
+  };
 
   const getApplicationProgressText = () => {
     if (applicationProgress) {
@@ -481,20 +634,25 @@ function ApplicantDashboard() {
                            applicantStage?.program_admission_status === 'accepted';
 
     if (showOnboarding) {
+      const onboardingLocked = cohortInfo && !cohortInfo.is_open;
       // Replace pledge section with onboarding section
       return [
         ...SECTION_CONFIG.slice(0, 3), // Keep first 3 sections (info, application, workshop)
         {
           key: 'onboarding',
           label: 'Complete Onboarding',
-          description: 'Complete the required onboarding tasks to create your builder account and start the program.',
+          description: onboardingLocked
+            ? `Onboarding opens on ${new Date(cohortInfo.onboarding_date || cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. You'll be able to complete your onboarding tasks then.`
+            : 'Complete the required onboarding tasks to create your builder account and start the program.',
           statusOptions: ['not started', 'in progress', 'completed'],
           defaultStatus: 'not started',
           getButtonLabel: (status) => {
+            if (onboardingLocked) return 'Coming Soon';
             if (onboardingStatus?.all_required_completed) return 'Create Builder Account';
+            if (status === 'in progress') return 'Continue Onboarding';
             return 'Start Onboarding';
           },
-          buttonEnabled: (status) => true,
+          buttonEnabled: (status) => !onboardingLocked,
         }
       ];
     }
@@ -798,7 +956,7 @@ function ApplicantDashboard() {
                     )}
                     
                     {/* Locked messages */}
-                    {section.key === 'workshop' && locked && (
+                    {section.key === 'workshop' && locked && applicantStage?.program_admission_status !== 'rejected' && (
                       <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-[#666] italic">
                         Workshop sign-up will be available after your application is reviewed and you are invited to the next stage.
                       </div>
@@ -807,6 +965,12 @@ function ApplicantDashboard() {
                     {section.key === 'pledge' && locked && (
                       <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-[#666] italic">
                         Pledge will be available after you are admitted to the program.
+                      </div>
+                    )}
+
+                    {section.key === 'onboarding' && locked && cohortInfo && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-[#666] italic">
+                        Onboarding opens on {new Date(cohortInfo.onboarding_date || cohortInfo.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}. Check back then to complete your tasks and create your builder account.
                       </div>
                     )}
 
@@ -822,9 +986,35 @@ function ApplicantDashboard() {
                         </div>
                       </div>
                     )}
+
+                    {section.key === 'application' && status === 'submitted' && currentApplication && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span>🎯</span>
+                          <strong className="text-indigo-700 font-semibold">Application Cohort</strong>
+                        </div>
+                        <p className="text-sm text-indigo-700 mb-3">
+                          You applied for <strong>{getCurrentApplicationCohort()?.name || 'your selected cohort'}</strong>.
+                        </p>
+                        {cohortOptions.length > 1 && canEditSubmittedApplication() && (
+                          <button
+                            onClick={changeSubmittedApplicationCohort}
+                            disabled={isUpdatingCohort}
+                            className="w-full text-sm text-[#4242ea] border border-[#4242ea] rounded-xl py-2 px-4 hover:bg-[#4242ea] hover:text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {isUpdatingCohort ? 'Updating...' : 'Change Cohort'}
+                          </button>
+                        )}
+                        {canEditSubmittedApplication() && (
+                          <p className="text-xs text-indigo-600 mt-2">
+                            Need to make a change? You can edit and resubmit while your application is still pending review.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Deferred notice with opt-in button */}
-                    {section.key === 'application' && status === 'submitted' && applicantStage?.deferred && (
+                    {section.key === 'application' && status === 'submitted' && applicantStage?.enrollment_status === 'deferred' && (
                       <div className="bg-amber-50 border border-amber-400 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-2">
                           <span>📅</span>
@@ -856,11 +1046,10 @@ function ApplicantDashboard() {
                                 const token = localStorage.getItem('applicantToken');
                                 const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/undefer`, {
                                   method: 'POST',
-                                  headers: { 
+                                  headers: {
                                     'Content-Type': 'application/json',
                                     'Authorization': `Bearer ${token}`
-                                  },
-                                  body: JSON.stringify({ applicantId: currentApplicantId })
+                                  }
                                 });
 
                                 if (!response.ok) {
@@ -892,55 +1081,89 @@ function ApplicantDashboard() {
                       </div>
                     )}
 
-                    {/* Defer button for submitted applications */}
-                    {section.key === 'application' && status === 'submitted' && currentApplicantId && !applicantStage?.deferred && (
+                    {/* Accepted applicants can defer enrollment to a later cohort */}
+                    {section.key === 'application' && status === 'submitted' && currentApplicantId && applicantStage?.program_admission_status === 'accepted' && applicantStage?.enrollment_status !== 'deferred' && (
                       <button
                         onClick={async () => {
-                          const result = await Swal.fire({
-                            title: 'Defer Your Application?',
-                            html: `<p>If you defer, your application will be removed from the current cohort and automatically reconsidered for the next one.</p><p style="color: #666; margin-top: 10px;">We'll reach out with details about the next cohort timeline.</p>`,
-                            icon: 'question',
+                          // Fetch current + next application cohorts and keep the later option.
+                          let cohortList = [];
+                          try {
+                            const cohortsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`, {
+                              headers: databaseService.getAuthHeaders()
+                            });
+                            const cohortsData = await cohortsRes.json();
+                            cohortList = Array.isArray(cohortsData) ? cohortsData.slice(1) : [];
+                          } catch (err) {
+                            console.warn('Failed to load cohorts:', err);
+                          }
+
+                          if (cohortList.length === 0) {
+                            await Swal.fire({
+                              icon: 'info',
+                              title: 'No Future Cohorts Available',
+                              text: 'There are no later cohorts available for enrollment deferral right now. Please check back soon.',
+                              confirmButtonColor: '#4242ea'
+                            });
+                            return;
+                          }
+
+                          const cohortOptions = cohortList.reduce((acc, c) => {
+                            acc[c.cohort_id] = `${c.name} — starts ${new Date(c.start_date).toLocaleDateString()}`;
+                            return acc;
+                          }, {});
+
+                          const { value: chosenCohortId, isConfirmed } = await Swal.fire({
+                            title: 'Defer enrollment to which cohort?',
+                            html: '<p style="color: #555;">Pick the later cohort where you want to defer your accepted seat.</p>',
+                            input: 'select',
+                            inputOptions: cohortOptions,
+                            inputPlaceholder: 'Select a cohort',
                             showCancelButton: true,
-                            confirmButtonText: 'Yes, Defer My Application',
+                            confirmButtonText: 'Defer My Enrollment',
                             cancelButtonText: 'Cancel',
-                            confirmButtonColor: '#dc3545',
-                            cancelButtonColor: '#6c757d'
+                            confirmButtonColor: '#4242ea',
+                            cancelButtonColor: '#6c757d',
+                            inputValidator: (value) => !value && 'Please select a cohort'
                           });
 
-                          if (result.isConfirmed) {
-                            try {
-                              const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/defer`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ applicantId: currentApplicantId })
-                              });
+                          if (!isConfirmed || !chosenCohortId) return;
 
-                              if (!response.ok) {
-                                const error = await response.json();
-                                throw new Error(error.error || 'Failed to defer application');
-                              }
+                          try {
+                            const token = localStorage.getItem('applicantToken');
+                            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/defer`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: JSON.stringify({ cohortId: chosenCohortId })
+                            });
 
-                              const deferResult = await response.json();
-                              await Swal.fire({
-                                icon: 'success',
-                                title: 'Application Deferred',
-                                text: deferResult.message,
-                                confirmButtonColor: '#4242ea'
-                              });
-                              window.location.reload();
-                            } catch (error) {
-                              await Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: error.message || 'Failed to defer application.',
-                                confirmButtonColor: '#dc3545'
-                              });
+                            if (!response.ok) {
+                              const error = await response.json();
+                              throw new Error(error.error || 'Failed to defer application');
                             }
+
+                            const deferResult = await response.json();
+                            await Swal.fire({
+                              icon: 'success',
+                              title: 'Enrollment Deferred',
+                              text: deferResult.message,
+                              confirmButtonColor: '#4242ea'
+                            });
+                            window.location.reload();
+                          } catch (error) {
+                            await Swal.fire({
+                              icon: 'error',
+                              title: 'Error',
+                              text: error.message || 'Failed to defer application.',
+                              confirmButtonColor: '#dc3545'
+                            });
                           }
                         }}
                         className="w-full text-sm text-red-600 border border-red-300 rounded-xl py-2 px-4 hover:bg-red-50 transition-colors"
                       >
-                        Change of plans? Defer your application
+                        Change of plans? Defer enrollment to a later cohort
                       </button>
                     )}
 
@@ -952,16 +1175,16 @@ function ApplicantDashboard() {
                           <strong className="text-red-700 font-semibold">Application Not Accepted</strong>
                         </div>
                         <p className="text-sm text-red-700 mb-3">
-                          Unfortunately, we were not able to offer you a spot in the program at this time. If you'd like to be reconsidered for a future cohort, you can reapply below.
+                          Unfortunately, we were not able to offer you a spot in the program at this time. If you'd like to be reconsidered, you can start a new application below.
                         </p>
                         <button
                           onClick={async () => {
                             const result = await Swal.fire({
-                              title: 'Reapply for Next Cohort?',
-                              html: `<p>If you reapply, you'll be added to the pool for the next cohort.</p><p style="color: #666; margin-top: 10px;">You'll need to register for and attend a new workshop.</p>`,
+                              title: 'Start a New Application?',
+                              html: `<p>We'll copy your prior application answers where possible, but you'll need to complete the key analysis questions again.</p><p style="color: #666; margin-top: 10px;">You can edit any copied answer before submitting.</p>`,
                               icon: 'question',
                               showCancelButton: true,
-                              confirmButtonText: 'Yes, Reapply',
+                              confirmButtonText: 'Start New Application',
                               cancelButtonText: 'Cancel',
                               confirmButtonColor: '#4242ea',
                               cancelButtonColor: '#6c757d'
@@ -984,13 +1207,16 @@ function ApplicantDashboard() {
                                 }
 
                                 const reapplyResult = await response.json();
+                              localStorage.removeItem('applicationCurrentSection');
+                              localStorage.removeItem('applicationCurrentQuestionIndex');
+                              localStorage.setItem('applicationStatus', 'in_progress');
                                 await Swal.fire({
                                   icon: 'success',
-                                  title: 'Application Resubmitted!',
-                                  html: `<p>${reapplyResult.message}</p>${reapplyResult.next_cohort ? `<p style="margin-top: 10px; color: #666;">Next cohort: ${reapplyResult.next_cohort.name}</p>` : ''}`,
+                                  title: 'New Application Started',
+                                  text: reapplyResult.message || 'Your new application is ready to edit.',
                                   confirmButtonColor: '#4242ea'
                                 });
-                                window.location.reload();
+                              navigate('/application-form?reapply=true');
                               } catch (error) {
                                 await Swal.fire({
                                   icon: 'error',
@@ -1003,7 +1229,7 @@ function ApplicantDashboard() {
                           }}
                           className="w-full text-sm text-[#4242ea] border border-[#4242ea] rounded-xl py-2 px-4 hover:bg-[#4242ea] hover:text-white transition-colors"
                         >
-                          Reapply for Next Cohort
+                          Start New Application
                         </button>
                       </div>
                     )}
@@ -1146,9 +1372,11 @@ function ApplicantDashboard() {
                         </button>
                       ) : (
                         <Link to={enabled ? (
-                          section.key === 'infoSession' ? '/info-sessions' : 
+                          section.key === 'infoSession' ? '/info-sessions' :
                           section.key === 'workshop' ? '/workshops' :
-                          section.key === 'application' ? '/application-form' : 
+                          section.key === 'application' ? (
+                            status === 'submitted' ? '/application-form?editSubmitted=true' : '/application-form'
+                          ) :
                           section.key === 'pledge' ? '/pledge' :
                           section.key === 'onboarding' ? '/onboarding' : '#'
                         ) : '#'}>
@@ -1161,7 +1389,9 @@ function ApplicantDashboard() {
                               'bg-gray-300 text-gray-500 cursor-not-allowed'
                             }`}
                           >
-                            {section.getButtonLabel(status)}
+                            {section.key === 'application' && status === 'submitted' && canEditSubmittedApplication()
+                              ? 'Edit Application'
+                              : section.getButtonLabel(status)}
                           </button>
                         </Link>
                       )}

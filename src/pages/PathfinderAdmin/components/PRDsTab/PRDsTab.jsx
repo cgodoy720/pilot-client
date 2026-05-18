@@ -7,7 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsList, TabsTrigger } from '../../../../components/ui/tabs';
 import KanbanBoard from '../shared/KanbanBoard';
 import { getStageLabel } from '../shared/utils';
+import { safeExternalUrl } from '../../../../utils/safeUrl';
 import Swal from 'sweetalert2';
+
+// Render an external link only if the URL parses to http(s). Anything else
+// (javascript:, data:, vbscript:, garbage) renders as plain text fallback.
+const SafeExternalLink = ({ url, children, fallback = '—', ...rest }) => {
+  const safe = safeExternalUrl(url);
+  if (!safe) return fallback;
+  return <a {...rest} href={safe} target="_blank" rel="noopener noreferrer">{children}</a>;
+};
 
 const PRDsTab = ({
   pendingApprovals,
@@ -123,28 +132,22 @@ const PRDsTab = ({
           </div>
           
           <div className="flex gap-2 flex-wrap">
-            {project.prd_link && (
-              <a
-                href={project.prd_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
-                title="View PRD"
-              >
-                📄 PRD
-              </a>
-            )}
-            {project.deployment_url && (
-              <a
-                href={project.deployment_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
-                title="View Deployment"
-              >
-                🚀 Live
-              </a>
-            )}
+            <SafeExternalLink
+              url={project.prd_link}
+              fallback={null}
+              className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
+              title="View PRD"
+            >
+              📄 PRD
+            </SafeExternalLink>
+            <SafeExternalLink
+              url={project.deployment_url}
+              fallback={null}
+              className="inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 hover:border-[#4242ea] transition-colors"
+              title="View Deployment"
+            >
+              🚀 Live
+            </SafeExternalLink>
             {!project.prd_approved && project.prd_submitted && (
               <Button
                 size="sm"
@@ -303,18 +306,12 @@ const PRDsTab = ({
                           <TableCell>{new Date(project.target_date).toLocaleDateString()}</TableCell>
                           <TableCell>{new Date(project.prd_submitted_at).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            {project.prd_link ? (
-                              <a
-                                href={project.prd_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[#4242ea] hover:underline text-sm"
-                              >
-                                📄 View PRD
-                              </a>
-                            ) : (
-                              '—'
-                            )}
+                            <SafeExternalLink
+                              url={project.prd_link}
+                              className="text-[#4242ea] hover:underline text-sm"
+                            >
+                              📄 View PRD
+                            </SafeExternalLink>
                           </TableCell>
                           <TableCell>
                             <Button
@@ -386,18 +383,12 @@ const PRDsTab = ({
                           </TableCell>
                           <TableCell>{new Date(project.prd_approved_at).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            {project.prd_link ? (
-                              <a
-                                href={project.prd_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[#4242ea] hover:underline text-sm"
-                              >
-                                📄 View PRD
-                              </a>
-                            ) : (
-                              '—'
-                            )}
+                            <SafeExternalLink
+                              url={project.prd_link}
+                              className="text-[#4242ea] hover:underline text-sm"
+                            >
+                              📄 View PRD
+                            </SafeExternalLink>
                           </TableCell>
                           <TableCell>
                             {project.prd_approval_notes ? (
@@ -478,18 +469,12 @@ const PRDsTab = ({
                             </TableCell>
                             <TableCell>{new Date(project.target_date).toLocaleDateString()}</TableCell>
                             <TableCell>
-                              {project.prd_link ? (
-                                <a
-                                  href={project.prd_link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[#4242ea] hover:underline text-sm"
-                                >
-                                  📄 View PRD
-                                </a>
-                              ) : (
-                                '—'
-                              )}
+                              <SafeExternalLink
+                                url={project.prd_link}
+                                className="text-[#4242ea] hover:underline text-sm"
+                              >
+                                📄 View PRD
+                              </SafeExternalLink>
                             </TableCell>
                             <TableCell>
                               {!project.prd_approved && project.prd_submitted && (

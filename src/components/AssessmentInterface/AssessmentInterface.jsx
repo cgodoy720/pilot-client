@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { toast } from 'sonner';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { FaInfoCircle } from 'react-icons/fa';
@@ -118,7 +118,8 @@ function AssessmentInterface({
   onAssessmentTypeLoaded = null,
   isPreviewMode = false
 }) {
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [assessmentData, setAssessmentData] = useState(null);
   const [currentSubmission, setCurrentSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -362,7 +363,7 @@ function AssessmentInterface({
             taskId: taskId,
             dayNumber: dayNumber,
             cohort: cohort,
-            conversationModel: 'anthropic/claude-sonnet-4.5',
+            conversationModel: 'anthropic/claude-sonnet-4.6',
             isPreviewMode: isPreviewMode,
           }),
         }
@@ -419,10 +420,11 @@ function AssessmentInterface({
     sendMessageAbortControllerRef.current = abortController;
 
     try {
-      const streamingMessageId = Date.now() + 1;
+      const now = Date.now();
+      const streamingMessageId = now + 1;
       // Add user message to chat
       const userMessage = {
-        id: Date.now(),
+        id: now,
         content: trimmedMessage,
         sender: 'user',
         timestamp: new Date().toISOString(),
@@ -453,7 +455,7 @@ function AssessmentInterface({
             taskId: taskId,
             dayNumber: dayNumber,
             cohort: cohort,
-            conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.5',
+            conversationModel: modelFromTextarea || 'anthropic/claude-sonnet-4.6',
             isPreviewMode: isPreviewMode,
           }),
           signal: abortController.signal,

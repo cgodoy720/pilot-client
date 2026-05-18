@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BASE = `${API_URL}/api/admin/platform-analytics`;
@@ -102,6 +102,15 @@ export const useUserDrilldown = (token, userId, startDate, endDate) => {
   });
 };
 
+export const useTopTasksByUsage = (token, startDate, endDate, limit = 15) => {
+  return useQuery({
+    queryKey: ['platform-analytics', 'top-tasks', startDate, endDate, limit],
+    queryFn: () => fetchWithAuth(`${BASE}/top-tasks?start=${startDate}&end=${endDate}&limit=${limit}`, token),
+    enabled: !!token && !!startDate && !!endDate,
+    staleTime: 60000,
+  });
+};
+
 export const useExternalUsage = (token, startDate, endDate) => {
   return useQuery({
     queryKey: ['platform-analytics', 'external-usage', startDate, endDate],
@@ -112,6 +121,89 @@ export const useExternalUsage = (token, startDate, endDate) => {
       return fetchWithAuth(`${BASE}/external-usage?${params}`, token);
     },
     enabled: !!token,
-    staleTime: 120000, // 2 min - external APIs are slow
+    staleTime: 600000, // 10 min — daily billing stats don't change often
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useTaskInsights = (token, startDate, endDate) => {
+  return useQuery({
+    queryKey: ['platform-analytics', 'task-insights', startDate, endDate],
+    queryFn: () => fetchWithAuth(`${BASE}/task-insights?start=${startDate}&end=${endDate}`, token),
+    enabled: !!token && !!startDate && !!endDate,
+    staleTime: 60000,
+  });
+};
+
+// ──────────────────────────────────────────────────────────────
+// Integration status hooks (Render + Netlify)
+// ──────────────────────────────────────────────────────────────
+
+export const useWeeklyFeedbackLastRun = (token) => {
+  return useQuery({
+    queryKey: ['integrations', 'weekly-feedback-last-run'],
+    queryFn: () => fetchWithAuth(`${BASE}/integrations/weekly-feedback-last-run`, token),
+    enabled: !!token,
+    staleTime: 300_000,
+  });
+};
+
+export const useGcpServicesStatus = (token) => {
+  return useQuery({
+    queryKey: ['integrations', 'gcp-services'],
+    queryFn: () => fetchWithAuth(`${BASE}/integrations/gcp-services`, token),
+    enabled: !!token,
+    refetchInterval: 120_000,
+    staleTime: 60_000,
+  });
+};
+
+export const useRenderStatus = (token) => {
+  return useQuery({
+    queryKey: ['integrations', 'render-status', token],
+    queryFn: () => fetchWithAuth(`${BASE}/integrations/render-status`, token),
+    enabled: !!token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+};
+
+export const useRenderLogs = (token, enabled = false) => {
+  return useQuery({
+    queryKey: ['integrations', 'render-logs', token],
+    queryFn: () => fetchWithAuth(`${BASE}/integrations/render-logs`, token),
+    enabled: !!token && enabled,
+    staleTime: 120_000,
+  });
+};
+
+export const useNetlifyStatus = (token) => {
+  return useQuery({
+    queryKey: ['integrations', 'netlify-status', token],
+    queryFn: () => fetchWithAuth(`${BASE}/integrations/netlify-status`, token),
+    enabled: !!token,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+};
+
+export const useUpdateErrorStatus = (token) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }) => {
+      const res = await fetch(`${BASE}/integrations/errors/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error('Failed to update error status');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'render-logs'] });
+    },
   });
 };

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import Swal from 'sweetalert2';
 import { formatSalary } from '../../utils/salaryFormatter';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Button } from '../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
@@ -16,9 +15,8 @@ const CompaniesTab = lazy(() => import('./components/CompaniesTab/CompaniesTab')
 const ProjectsTab = lazy(() => import('./components/ProjectsTab/ProjectsTab'));
 const JobApplicationsTab = lazy(() => import('./components/JobApplicationsTab/JobApplicationsTab'));
 const PRDsTab = lazy(() => import('./components/PRDsTab/PRDsTab'));
-const CeremoniesTab = lazy(() => import('./components/CeremoniesTab/CeremoniesTab'));
-const WeeklyGoalsTab = lazy(() => import('./components/WeeklyGoalsTab/WeeklyGoalsTab'));
 const EventsTab = lazy(() => import('./components/EventsTab/EventsTab'));
+const EmploymentRecordsAdmin = lazy(() => import('./EmploymentRecords/EmploymentRecordsAdmin'));
 
 // Import shared modals
 import BuilderDetailModal from './components/shared/BuilderDetailModal';
@@ -28,7 +26,7 @@ import CompanyDetailModal from './components/shared/CompanyDetailModal';
 import { getStageLabel, getWeekDateRange, getMilestoneInfo } from './components/shared/utils';
 
 function PathfinderAdmin() {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
   const hasPathfinderAdminAccess = canAccessPage('pathfinder_admin');
   const [overview, setOverview] = useState(null);
@@ -52,7 +50,8 @@ function PathfinderAdmin() {
   const [cohortFilter, setCohortFilter] = useState('all');
   const [availableCohorts, setAvailableCohorts] = useState([]);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, -1 = last week, etc.
-  const [view, setView] = useState('overview'); // overview, builders, companies, prds, build-projects, job-applications, ceremonies
+  const [view, setView] = useState('overview'); // overview, builders, companies, build-projects, events, job-applications, employment-records
+  const [projectsSubView, setProjectsSubView] = useState('projects'); // projects, prd-review
   const [prdSubView, setPrdSubView] = useState('pending'); // pending, approved
   const [stageFilter, setStageFilter] = useState(''); // For build projects filtering
   const [prdStageFilter, setPrdStageFilter] = useState(''); // For PRD stage filtering
@@ -88,6 +87,7 @@ function PathfinderAdmin() {
     cohort: ''
   });
   const [editingGoalId, setEditingGoalId] = useState(null);
+  const [unreviewedCount, setUnreviewedCount] = useState(0);
 
   // Data cache to avoid re-fetching when switching tabs
   const [dataCache, setDataCache] = useState({
@@ -341,7 +341,8 @@ function PathfinderAdmin() {
           await Promise.all([
             fetchOverview(),
             fetchHighlights(),
-            fetchLeaderboard()
+            fetchLeaderboard(),
+            fetchUnreviewedCount()
           ]);
         } catch (err) {
           console.error('Error fetching overview data:', err);
@@ -373,19 +374,14 @@ function PathfinderAdmin() {
               await fetchCompanies();
               break;
             case 'build-projects':
-              await Promise.all([fetchProjects(), fetchProjectsOverview()]);
+              await Promise.all([fetchProjects(), fetchProjectsOverview(), fetchPendingApprovals(), fetchApprovedPRDs()]);
               break;
             case 'job-applications':
-              await fetchJobApplications();
+              await Promise.all([fetchJobApplications(), fetchBuilders()]);
               break;
-            case 'prds':
-              await Promise.all([fetchPendingApprovals(), fetchApprovedPRDs()]);
-              break;
-            case 'ceremonies':
-              await fetchCeremonies();
-              break;
-            case 'weekly-goals':
-              await fetchWeeklyGoals();
+            case 'employment-records':
+              fetchUnreviewedCount();
+              acknowledgeBuilderLoggedRecords();
               break;
           }
         } catch (err) {
@@ -1105,6 +1101,36 @@ function PathfinderAdmin() {
     }
   };
 
+  const fetchUnreviewedCount = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/employment-records/unreviewed-count`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setUnreviewedCount(data.count || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching unreviewed count:', err);
+    }
+  };
+
+  const acknowledgeBuilderLoggedRecords = async () => {
+    try {
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/employment-records/acknowledge-all`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      setUnreviewedCount(0);
+    } catch (err) {
+      console.error('Error acknowledging employment records:', err);
+    }
+  };
+
   const fetchJobApplications = async () => {
     try {
       const url = cohortFilter && cohortFilter !== 'all'
@@ -1226,6 +1252,9 @@ function PathfinderAdmin() {
 
   return (
     <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6 font-proxima">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading admin dashboard...</div>
+      )}
       <div className="max-w-full mx-auto">
         <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-6">
@@ -1264,23 +1293,21 @@ function PathfinderAdmin() {
 
         {/* Tabs */}
         <Tabs value={view} onValueChange={setView} className="w-full">
-          <TabsList className="grid w-full grid-cols-9 mb-8">
+          <TabsList className="grid w-full grid-cols-7 mb-8">
             <TabsTrigger value="overview" className="px-2 text-sm font-proxima">Overview</TabsTrigger>
             <TabsTrigger value="builders" className="px-2 text-sm font-proxima">Builders</TabsTrigger>
             <TabsTrigger value="companies" className="px-2 text-sm font-proxima">Companies</TabsTrigger>
-            <TabsTrigger value="build-projects" className="px-2 text-sm font-proxima">Build Projects</TabsTrigger>
+            <TabsTrigger value="build-projects" className="px-2 text-sm font-proxima">Projects</TabsTrigger>
             <TabsTrigger value="events" className="px-2 text-sm font-proxima">Events</TabsTrigger>
             <TabsTrigger value="job-applications" className="px-2 text-sm font-proxima">Job Applications</TabsTrigger>
-            <TabsTrigger value="prds" className="relative px-2 text-sm font-proxima">
-              PRDs
-              {pendingApprovals.length > 0 && (
-                <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 font-proxima">
-                  {pendingApprovals.length}
-                </Badge>
+            <TabsTrigger value="employment-records" className="px-2 text-sm font-proxima">
+              Builder Jobs Dashboard
+              {unreviewedCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1">
+                  {unreviewedCount}
+                </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="weekly-goals" className="px-2 text-sm font-proxima">Weekly Goals</TabsTrigger>
-            <TabsTrigger value="ceremonies" className="px-2 text-sm font-proxima">Ceremonies</TabsTrigger>
           </TabsList>
 
           {/* Overview View */}
@@ -1295,6 +1322,13 @@ function PathfinderAdmin() {
                   setWeekOffset={setWeekOffset}
                   expandedHighlightGroups={expandedHighlightGroups}
                   toggleHighlightGroup={toggleHighlightGroup}
+                  token={token}
+                  cohortFilter={cohortFilter}
+                  onRefresh={() => {
+                    fetchOverview();
+                    fetchHighlights();
+                    fetchLeaderboard();
+                  }}
                 />
               )}
             </Suspense>
@@ -1325,63 +1359,79 @@ function PathfinderAdmin() {
             </Suspense>
           </TabsContent>
 
-          {/* PRDs View */}
-          <TabsContent value="prds" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading PRDs...</div></div>}>
-              <PRDsTab
-                pendingApprovals={pendingApprovals}
-                approvedPRDs={approvedPRDs}
-                prdSubView={prdSubView}
-                setPrdSubView={setPrdSubView}
-                prdViewMode={prdViewMode}
-                setPrdViewMode={setPrdViewMode}
-                prdFilter={prdFilter}
-                setPrdFilter={setPrdFilter}
-                prdSortConfig={prdSortConfig}
-                handlePrdSort={handlePrdSort}
-                prdStageFilter={prdStageFilter}
-                setPrdStageFilter={setPrdStageFilter}
-                collapsedPrdColumns={collapsedPrdColumns}
-                togglePrdColumnCollapse={(stage) => setCollapsedPrdColumns(prev => ({ ...prev, [stage]: !prev[stage] }))}
-                getFilteredAndSortedPRDs={getFilteredAndSortedPRDs}
-                getAllPRDsForKanban={getAllPRDsForKanban}
-                handleApprovePRD={handleApprovePRD}
-              />
-            </Suspense>
-          </TabsContent>
-
-          {/* Build Projects View */}
+          {/* Projects View (Build Projects + PRD Review) */}
           <TabsContent value="build-projects" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Projects...</div></div>}>
-              <ProjectsTab
-                projects={projects}
-                projectsOverview={projectsOverview}
-                projectsViewMode={projectsViewMode}
-                setProjectsViewMode={setProjectsViewMode}
-                stageFilter={stageFilter}
-                setStageFilter={setStageFilter}
-                sortConfig={sortConfig}
-                handleSort={handleSort}
-                getFilteredAndSortedProjects={getFilteredAndSortedProjects}
-                collapsedProjectColumns={collapsedProjectColumns}
-                toggleProjectColumnCollapse={toggleProjectColumnCollapse}
-                handleExport={handleProjectsExport}
-              />
-            </Suspense>
-          </TabsContent>
+            {/* Sub-view toggle */}
+            <div className="flex items-center gap-1 mb-6 bg-white border border-gray-200 rounded-md p-1 w-fit">
+              <button
+                onClick={() => setProjectsSubView('projects')}
+                className={`px-4 py-1.5 rounded text-sm font-proxima transition-colors ${
+                  projectsSubView === 'projects'
+                    ? 'bg-[#4242ea] text-white font-semibold'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Projects
+              </button>
+              <button
+                onClick={() => setProjectsSubView('prd-review')}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-proxima transition-colors ${
+                  projectsSubView === 'prd-review'
+                    ? 'bg-[#4242ea] text-white font-semibold'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                PRD Review
+                {pendingApprovals.length > 0 && (
+                  <Badge className={`text-xs px-1.5 py-0.5 font-proxima ${projectsSubView === 'prd-review' ? 'bg-white text-[#4242ea]' : 'bg-red-500 text-white'}`}>
+                    {pendingApprovals.length}
+                  </Badge>
+                )}
+              </button>
+            </div>
 
-          {/* Ceremonies View */}
-          <TabsContent value="ceremonies" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Ceremonies...</div></div>}>
-              <CeremoniesTab
-                ceremonies={ceremonies}
-                archivedCeremonies={archivedCeremonies}
-                showArchiveModal={showArchiveModal}
-                setShowArchiveModal={setShowArchiveModal}
-                fetchArchivedCeremonies={fetchArchivedCeremonies}
-                handleArchiveCeremony={handleArchiveCeremony}
-              />
-            </Suspense>
+            {projectsSubView === 'projects' && (
+              <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Projects...</div></div>}>
+                <ProjectsTab
+                  projects={projects}
+                  projectsOverview={projectsOverview}
+                  projectsViewMode={projectsViewMode}
+                  setProjectsViewMode={setProjectsViewMode}
+                  stageFilter={stageFilter}
+                  setStageFilter={setStageFilter}
+                  sortConfig={sortConfig}
+                  handleSort={handleSort}
+                  getFilteredAndSortedProjects={getFilteredAndSortedProjects}
+                  collapsedProjectColumns={collapsedProjectColumns}
+                  toggleProjectColumnCollapse={toggleProjectColumnCollapse}
+                  handleExport={handleProjectsExport}
+                />
+              </Suspense>
+            )}
+
+            {projectsSubView === 'prd-review' && (
+              <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading PRDs...</div></div>}>
+                <PRDsTab
+                  pendingApprovals={pendingApprovals}
+                  approvedPRDs={approvedPRDs}
+                  prdSubView={prdSubView}
+                  setPrdSubView={setPrdSubView}
+                  prdViewMode={prdViewMode}
+                  setPrdViewMode={setPrdViewMode}
+                  prdFilter={prdFilter}
+                  setPrdFilter={setPrdFilter}
+                  prdSortConfig={prdSortConfig}
+                  handlePrdSort={handlePrdSort}
+                  prdStageFilter={prdStageFilter}
+                  setPrdStageFilter={setPrdStageFilter}
+                  collapsedPrdColumns={collapsedPrdColumns}
+                  togglePrdColumnCollapse={(stage) => setCollapsedPrdColumns(prev => ({ ...prev, [stage]: !prev[stage] }))}
+                  getFilteredAndSortedPRDs={getFilteredAndSortedPRDs}
+                  getAllPRDsForKanban={getAllPRDsForKanban}
+                  handleApprovePRD={handleApprovePRD}
+                />
+              </Suspense>
+            )}
           </TabsContent>
 
           {/* Job Applications View */}
@@ -1402,24 +1452,9 @@ function PathfinderAdmin() {
                 setShowBuilderFilterModal={setShowBuilderFilterModal}
                 collapsedColumns={collapsedColumns}
                 toggleColumnCollapse={toggleColumnCollapse}
-                getUniqueBuilders={getUniqueBuilders}
-              />
-            </Suspense>
-          </TabsContent>
-
-          {/* Weekly Goals View */}
-          <TabsContent value="weekly-goals" className="mt-0">
-            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Weekly Goals...</div></div>}>
-              <WeeklyGoalsTab
-                weeklyGoals={weeklyGoals}
-                weeklyGoalsForm={weeklyGoalsForm}
-                setWeeklyGoalsForm={setWeeklyGoalsForm}
-                editingGoalId={editingGoalId}
-                availableCohorts={availableCohorts}
-                handleWeeklyGoalsSubmit={handleWeeklyGoalsSubmit}
-                handleEditGoal={handleEditGoal}
-                handleDeleteGoal={handleDeleteGoal}
-                handleCancelEdit={handleCancelEdit}
+                builders={builders}
+                token={token}
+                onRefresh={fetchJobApplications}
               />
             </Suspense>
           </TabsContent>
@@ -1428,6 +1463,13 @@ function PathfinderAdmin() {
           <TabsContent value="events" className="mt-0">
             <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Events...</div></div>}>
               <EventsTab />
+            </Suspense>
+          </TabsContent>
+
+          {/* Employment Records View */}
+          <TabsContent value="employment-records" className="mt-0">
+            <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-gray-500 font-proxima">Loading Employment Records...</div></div>}>
+              <EmploymentRecordsAdmin />
             </Suspense>
           </TabsContent>
         </Tabs>
@@ -1452,8 +1494,6 @@ function PathfinderAdmin() {
         />
       </div>
       
-      {/* Loading Curtain */}
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

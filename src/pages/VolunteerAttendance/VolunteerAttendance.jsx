@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import {
     Users,
@@ -23,7 +23,8 @@ import { Button } from '../../components/ui/button';
 import * as volunteerApi from '../../services/volunteerApi';
 
 function VolunteerAttendance({ embedded = false }) {
-    const { user, token } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const { canAccessPage } = usePermissions();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);

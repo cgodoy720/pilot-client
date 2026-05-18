@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { fetchUserStats } from '../../utils/statsApi';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
@@ -11,7 +11,8 @@ import AdminDashboardErrorBoundary from '../../components/ErrorBoundary/AdminDas
 import TabErrorBoundary from '../../components/ErrorBoundary/TabErrorBoundary';
 
 const AdminAttendanceDashboard = () => {
-  const { user, token } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('todays-attendance');
   const [stats, setStats] = useState(null);

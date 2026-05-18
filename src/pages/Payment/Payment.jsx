@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { getContractVersion, calculateTieredPercentage } from '../../utils/contractVersions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import { CheckCircle, FileText, Calculator, Calendar, Upload } from 'lucide-react';
 
 const Payment = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false);

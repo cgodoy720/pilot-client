@@ -253,27 +253,25 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
   return (
     <div className="min-h-screen bg-pursuit-purple relative flex flex-col">
       {/* Header */}
-      <div className="absolute top-5 left-8">
-        <h1 className="text-white text-xl md:text-2xl font-proxima leading-tight">
+      <div className="flex flex-col items-end md:flex-row md:justify-between md:items-center px-8 pt-5 gap-2">
+        <h1 className="hidden md:block text-white text-xl md:text-2xl font-proxima leading-tight">
           Let's create your account
         </h1>
-      </div>
-
-      {/* Top Right Login Link */}
-      <div className="absolute top-7 right-8 flex items-center gap-2">
-        <span className="text-white text-sm font-proxima">
-          Already have an account? Login
-        </span>
-        <Link to="/login">
-          <ArrowButton 
-            size="sm"
-            borderColor="white"
-            arrowColor="white"
-            backgroundColor="transparent"
-            hoverBackgroundColor="white"
-            hoverArrowColor="#4242EA"
-          />
-        </Link>
+        <div className="flex items-center gap-2">
+          <span className="text-white text-sm font-proxima">
+            Already have an account? Login
+          </span>
+          <Link to="/login">
+            <ArrowButton
+              size="sm"
+              borderColor="white"
+              arrowColor="white"
+              backgroundColor="transparent"
+              hoverBackgroundColor="white"
+              hoverArrowColor="#4242EA"
+            />
+          </Link>
+        </div>
       </div>
 
       {/* Main Content */}

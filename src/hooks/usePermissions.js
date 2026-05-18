@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../stores/authStore';
 import { 
   DEFAULT_ROLE_PERMISSIONS, 
   PAGE_PERMISSIONS,
@@ -20,7 +20,7 @@ import {
  * @returns {Object} Permission utilities
  */
 export function usePermissions() {
-  const { user } = useAuth();
+  const user = useAuthStore((s) => s.user);
   
   // Whether we have DB-sourced permissions (fetched at login from /api/permissions/my-permissions)
   const hasDbPermissions = !!user?.effectivePermissions;

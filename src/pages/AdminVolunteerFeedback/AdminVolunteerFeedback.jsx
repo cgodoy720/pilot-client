@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -19,7 +19,8 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 
 function AdminVolunteerFeedback({ embedded = false }) {
-    const { user, token } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const token = useAuthStore((s) => s.token);
     const { canAccessPage } = usePermissions();
     const [feedback, setFeedback] = useState([]);
     const [filteredFeedback, setFilteredFeedback] = useState([]);

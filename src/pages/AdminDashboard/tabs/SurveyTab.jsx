@@ -6,8 +6,9 @@ import {
   ResponsiveContainer, Legend,
 } from 'recharts';
 import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
+import useAuthStore from '../../../stores/authStore';
 
-const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 const PAGE_SIZE = 10;
 const COHORT_COLORS = ['#4242EA', '#FF33FF', '#10B981', '#F59E0B', '#EF4444'];
 
@@ -50,7 +51,12 @@ const Pagination = ({ page, total, pageSize, onPage }) => {
   );
 };
 
-const SurveyTab = () => {
+const SurveyTab = ({ selectedCohortId, cohorts = [] }) => {
+  const token = useAuthStore((s) => s.token);
+  const selectedCohortName = useMemo(
+    () => cohorts.find(c => c.cohort_id === selectedCohortId)?.name || '',
+    [cohorts, selectedCohortId]
+  );
   const [startDate, setStartDate] = useState('2025-09-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [npsMode, setNpsMode] = useState('calendar');
@@ -60,16 +66,24 @@ const SurveyTab = () => {
   const [page, setPage] = useState(0);
 
   useEffect(() => {
+    if (!token) return;
     setLoading(true);
     setPage(0);
+    const headers = { Authorization: `Bearer ${token}` };
     Promise.all([
-      fetch(`${LEGACY_API}/surveys/nps/weekly-by-cohort?startDate=${startDate}&endDate=${endDate}&mode=${npsMode}`).then(r => r.json()).catch(() => []),
-      fetch(`${LEGACY_API}/surveys/responses?startDate=${startDate}&endDate=${endDate}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/admin/dashboard/surveys/nps/weekly-by-cohort?startDate=${startDate}&endDate=${endDate}`, { headers }).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/admin/dashboard/surveys/responses?startDate=${startDate}&endDate=${endDate}`, { headers }).then(r => r.json()).catch(() => []),
     ]).then(([nps, resp]) => {
       setNpsData(Array.isArray(nps) ? nps : []);
       setResponses(Array.isArray(resp) ? resp : []);
     }).finally(() => setLoading(false));
-  }, [startDate, endDate, npsMode]);
+  }, [startDate, endDate, token]);
+
+  // Filter npsData to selected cohort when one is selected
+  const filteredNpsData = useMemo(
+    () => selectedCohortName ? npsData.filter(d => d.cohort === selectedCohortName) : npsData,
+    [npsData, selectedCohortName]
+  );
 
   // Build chart data: pivot by week, one line per cohort
   const { chartData, cohortNames, cohortSummary } = useMemo(() => {
@@ -77,7 +91,7 @@ const SurveyTab = () => {
     const cohortSet = new Set();
     const summaryMap = {};
 
-    npsData.forEach((d) => {
+    filteredNpsData.forEach((d) => {
       // Program mode → "Week 1", "Week 2", etc. Calendar mode → "Dec 13", "Jan 24", etc.
       const weekLabel = npsMode === 'program'
         ? `Week ${d.program_week}`
@@ -113,7 +127,7 @@ const SurveyTab = () => {
       cohortNames: names,
       cohortSummary: summary,
     };
-  }, [npsData, npsMode]);
+  }, [filteredNpsData, npsMode]);
 
   return (
     <div className="space-y-6">

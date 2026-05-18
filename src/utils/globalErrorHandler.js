@@ -39,6 +39,24 @@ const enhancedFetch = async (...args) => {
           }));
           return response;
         }
+
+        // Skip global handling for cohort access denied (enterprise admin viewing unassigned cohort)
+        if (response.status === 403 && errorData.cohortAccessDenied) {
+          console.log('🏢 Cohort access denied, letting component handle it...');
+          return response;
+        }
+
+        // Skip global handling for permission denied on specific page access (not an auth issue)
+        if (response.status === 403 && errorData.error === 'Access denied') {
+          console.log('🔒 Permission denied, letting component handle it...');
+          return response;
+        }
+
+        // Skip global handling for permissions API 403s (authorization, not authentication)
+        if (response.status === 403 && typeof url === 'string' && url.includes('/api/permissions/')) {
+          console.log('🔒 Permissions API access denied, letting component handle it...');
+          return response;
+        }
       } catch (parseError) {
         // If we can't parse the error, continue with normal global handling
         console.log('⚠️ Could not parse error data for verification check');
@@ -79,9 +97,11 @@ const enhancedFetch = async (...args) => {
           setTimeout(() => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('auth-storage');
+            localStorage.removeItem('applicantToken');
             window.location.href = '/login';
           }, 2000); // 2 second delay to show modal briefly
-          
+
         } else if (response.status === 403 && errorData.userInactive) {
           // User is inactive - only show modal, no redirect
           const event = new CustomEvent('authError', {
@@ -108,10 +128,12 @@ const enhancedFetch = async (...args) => {
           setTimeout(() => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('auth-storage');
+            localStorage.removeItem('applicantToken');
             window.location.href = '/login';
           }, 2000);
         }
-        
+
       } catch (parseError) {
         console.error('Error parsing auth error response:', parseError);
         
@@ -130,6 +152,8 @@ const enhancedFetch = async (...args) => {
         setTimeout(() => {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          localStorage.removeItem('auth-storage');
+          localStorage.removeItem('applicantToken');
           window.location.href = '/login';
         }, 1500);
       }

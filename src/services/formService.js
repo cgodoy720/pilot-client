@@ -152,6 +152,14 @@ export const submitForm = async (slug, submissionData) => {
   return response.data;
 };
 
+export const updatePublicSubmission = async (slug, submissionId, submissionData) => {
+  const response = await axios.put(
+    `${API_URL}/api/public/forms/${slug}/submissions/${submissionId}`,
+    submissionData
+  );
+  return response.data;
+};
+
 export const saveDraft = async (slug, draftData) => {
   const response = await axios.post(`${API_URL}/api/public/forms/${slug}/draft`, draftData);
   return response.data;

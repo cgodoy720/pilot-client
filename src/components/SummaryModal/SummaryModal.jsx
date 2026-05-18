@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaTimes, FaClock, FaCheck, FaComments } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import useAuthStore from '../../stores/authStore';
 import './SummaryModal.css';
 
 function SummaryModal({ 
@@ -20,7 +20,8 @@ function SummaryModal({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { token, user } = useAuth();
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [isCreatingDiscussion, setIsCreatingDiscussion] = useState(false);
   
   if (!isOpen) return null;
