@@ -75,6 +75,30 @@ export const useOverviewDemographics = (cohortId, stage, deliberationFilter, tok
 };
 
 /**
+ * Custom hook to fetch funnel-heatmap data (stage × activity recency, stage × source).
+ * @param {string} cohortId
+ * @param {string} token
+ */
+export const useFunnelHeatmap = (cohortId, token) => {
+  return useQuery({
+    queryKey: ['funnel-heatmap', cohortId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (cohortId) params.append('cohort_id', cohortId);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/overview/funnel-heatmap?${params}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!response.ok) throw new Error('Failed to fetch funnel heatmap');
+      return response.json();
+    },
+    enabled: !!token,
+    staleTime: 30000,
+    refetchInterval: 30000,
+  });
+};
+
+/**
  * Custom hook to fetch comparison statistics for a cohort
  * @param {string} cohortId - The cohort ID to fetch stats for
  * @param {boolean} enabled - Whether to enable this query
