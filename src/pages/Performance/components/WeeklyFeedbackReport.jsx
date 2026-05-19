@@ -127,14 +127,18 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
     loadReport();
   }, [userId, token, selectedWeek]);
 
+  const formatWeekDate = (dateStr) => {
+    if (!dateStr) return '';
+    const raw = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
+    const d = new Date(raw + 'T00:00:00');
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+  };
+
   const getWeekLabel = useCallback((week) => {
     if (!week) return '';
-    const startDate = week.week_start_date
-      ? new Date(week.week_start_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })
-      : '';
-    const endDate = week.week_end_date
-      ? new Date(week.week_end_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })
-      : '';
+    const startDate = formatWeekDate(week.week_start_date);
+    const endDate = formatWeekDate(week.week_end_date);
     const range = startDate && endDate ? `: ${startDate} - ${endDate}` : '';
     return `Week ${week.week_number}${range}`;
   }, []);

@@ -54,6 +54,9 @@ function AssessmentTemplatesTab({ token }) {
   const [selectedTemplateForInstance, setSelectedTemplateForInstance] = useState(null);
   const [expandedTemplates, setExpandedTemplates] = useState(new Set());
   const [collapsedLevels, setCollapsedLevels] = useState(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchTemplates = async () => {
     try {
@@ -109,6 +112,25 @@ function AssessmentTemplatesTab({ token }) {
       fetchTemplates();
     } catch (error) {
       toast.error('Failed to update template');
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+    try {
+      setDeleting(true);
+      await axios.delete(
+        `${API_URL}/api/admin/templates/assessments/${templateToDelete.template_id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Template deleted');
+      setDeleteConfirmOpen(false);
+      setTemplateToDelete(null);
+      fetchTemplates();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to delete template');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -209,9 +231,18 @@ function AssessmentTemplatesTab({ token }) {
                             </div>
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(template); }}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(template); }}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); setTemplateToDelete(template); setDeleteConfirmOpen(true); }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Expanded Content */}
@@ -319,6 +350,32 @@ function AssessmentTemplatesTab({ token }) {
         token={token}
         onCreated={fetchTemplates}
       />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={(open) => { if (!deleting) setDeleteConfirmOpen(open); }}>
+        <AlertDialogContent className="font-proxima">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Assessment Template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{templateToDelete?.assessment_name}</strong>
+              {templateToDelete?.assessments?.length > 0 && (
+                <> and its {templateToDelete.assessments.length} instance(s)</>
+              )}.
+              {' '}This action cannot be undone. If any student submissions exist for this template's assessments, the delete will be blocked.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTemplate}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
