@@ -231,38 +231,81 @@ function ApplicantDashboard() {
           time: easternDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
           location: registeredEvent.location
         };
-        
-        setStatuses(prev => ({ 
-          ...prev, 
-          infoSession: hasAttendedSession ? 'attended' : 'signed-up' 
+
+        setStatuses(prev => ({
+          ...prev,
+          infoSession: hasAttendedSession ? 'attended' : 'signed-up'
         }));
         setSessionDetails(eventDetails);
-      } else {
-        setStatuses(prev => ({ ...prev, infoSession: 'not signed-up' }));
-        setSessionDetails(null);
+        return;
       }
+
+      // Fallback: no /api/info-sessions registration matched, but the
+      // applicant_stage may already reflect attendance via an external
+      // event (DOL career fair, partner event, etc.) — markApplicantAttendedEvent
+      // upserts current_stage to 'info_session_attended', which is the
+      // source of truth for pipeline progress. Honor stage rank so the
+      // dashboard doesn't tell someone to "Sign Up" for an info session
+      // they've already cleared a different way.
+      const STAGE_ORDER = {
+        info_session_registered: 1,
+        info_session_no_show: 1,
+        info_session_attended: 2,
+        workshop_invited: 3,
+        workshop_registered: 4,
+        workshop_no_show: 4,
+        workshop_attended: 5,
+        application_submitted: 6,
+        application_under_review: 7
+      };
+      try {
+        const stageResp = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/admissions/applicants/${currentApplicantId}/stage`
+        );
+        if (stageResp.ok) {
+          const stageData = await stageResp.json();
+          const rank = STAGE_ORDER[stageData?.current_stage] || 0;
+          if (rank >= STAGE_ORDER.info_session_attended) {
+            setStatuses(prev => ({ ...prev, infoSession: 'attended' }));
+            setSessionDetails(null);
+            return;
+          }
+        }
+      } catch (stageErr) {
+        // Non-fatal — fall through to default 'not signed-up'.
+        console.error('Error reading applicant stage for info session fallback:', stageErr);
+      }
+
+      setStatuses(prev => ({ ...prev, infoSession: 'not signed-up' }));
+      setSessionDetails(null);
     } catch (error) {
       console.error('Error loading info session status for dashboard:', error);
     }
   };
 
   const loadApplicationStatus = async () => {
+    // Track which load step we're in so the catch can decide whether the
+    // failure was "no application" (legitimately 'not started') vs "we
+    // have an application but a side-fetch failed" (don't lie about it).
+    let application = null;
+    let applicant = null;
+
     try {
-      const applicant = await databaseService.createOrGetApplicant(
+      applicant = await databaseService.createOrGetApplicant(
         user.email,
         user.firstName || user.first_name,
         user.lastName || user.last_name
       );
-      
-      const application = await databaseService.getLatestApplicationByApplicantId(applicant.applicant_id);
+
+      application = await databaseService.getLatestApplicationByApplicantId(applicant.applicant_id);
       setCurrentApplication(application || null);
-      
+
       if (!application) {
         setStatuses(prev => ({ ...prev, application: 'not started' }));
         setApplicationProgress(null);
         return;
       }
-      
+
       try {
         const stageResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/admissions/applicants/${applicant.applicant_id}/stage`);
         if (stageResponse.ok) {
@@ -272,7 +315,7 @@ function ApplicantDashboard() {
       } catch (error) {
         console.error('Error fetching applicant stage:', error);
       }
-      
+
       if (application.status === 'ineligible') {
         setStatuses(prev => ({ ...prev, application: 'ineligible' }));
         setApplicationProgress(null);
@@ -282,7 +325,7 @@ function ApplicantDashboard() {
       } else {
         const responses = await databaseService.getApplicationResponses(application.application_id);
         const currentSection = localStorage.getItem('applicationCurrentSection');
-        
+
         if (responses && responses.length > 0) {
           setStatuses(prev => ({ ...prev, application: 'in process' }));
           let completedSections = 0;
@@ -302,7 +345,36 @@ function ApplicantDashboard() {
         }
       }
     } catch (error) {
-      console.error('Error loading application status for dashboard:', error);
+      // Log enough context to debug from a screenshot / browser console.
+      console.error('Error loading application status for dashboard:', {
+        message: error?.message,
+        status: error?.status,
+        applicantId: applicant?.applicant_id,
+        applicationId: application?.application_id,
+        applicationStatus: application?.status,
+      });
+
+      // 401 is handled by the global fetch interceptor (ExpiredTokenModal
+      // -> redirect to login). Don't paper over it with a fake status.
+      if (error?.status === 401) {
+        return;
+      }
+
+      // If we already loaded the application, NEVER downgrade to
+      // 'not started' just because a side-fetch failed — the application
+      // exists and the user must be able to continue it. Best-effort fall
+      // back to 'in process' for in_progress apps so they see "Continue".
+      if (application) {
+        if (application.status === 'in_progress') {
+          setStatuses(prev => ({ ...prev, application: 'in process' }));
+          setApplicationProgress(null);
+        }
+        // For submitted / ineligible, the earlier branches already set
+        // the correct status before the throw; leave them as-is.
+        return;
+      }
+
+      // Genuinely couldn't load anything — surface 'not started'.
       setCurrentApplication(null);
       setStatuses(prev => ({ ...prev, application: 'not started' }));
       setApplicationProgress(null);
