@@ -596,12 +596,33 @@ function PathfinderAdmin() {
     return colors[charCode % colors.length];
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const url = cohortFilter && cohortFilter !== 'all'
       ? `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/export?cohort=${encodeURIComponent(cohortFilter)}`
       : `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/export`;
 
-    window.open(url, '_blank');
+    try {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'pathfinder-export.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Failed to export pathfinder data:', err);
+      alert('Failed to export data. Please try again.');
+    }
   };
 
   const handleProjectsExport = () => {
