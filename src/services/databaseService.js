@@ -347,16 +347,30 @@ class DatabaseService {
   async getApplicationResponses(applicationId) {
     try {
       if (!this.isAuthenticated()) {
-        throw new Error('You must be logged in to load application responses');
+        const err = new Error('You must be logged in to load application responses');
+        err.status = 401;
+        throw err;
       }
       const url = `${API_BASE_URL}/applications/${applicationId}/responses`;
 
       const response = await fetch(url, {
         headers: this.getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Same pattern as saveResponse/submitApplication: surface the
+        // server's actual error so callers can branch on auth vs other
+        // failures and the global fetch interceptor can route 401s to
+        // ExpiredTokenModal. Previously this collapsed to "HTTP error!
+        // status: 401" and the dashboard's catch silently swallowed it.
+        const body = await response.json().catch(() => ({}));
+        const message =
+          body?.error ||
+          body?.message ||
+          `Load failed (HTTP ${response.status})`;
+        const err = new Error(message);
+        err.status = response.status;
+        throw err;
       }
 
       return await response.json();

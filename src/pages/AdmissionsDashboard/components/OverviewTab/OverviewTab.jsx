@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../../components
 import { Button } from '../../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import { Checkbox } from '../../../../components/ui/checkbox';
-import { useOverviewStats, useOverviewDemographics, useComparisonStats } from '../../hooks/useOverviewStats';
+import { useOverviewStats, useOverviewDemographics, useComparisonStats, useFunnelHeatmap } from '../../hooks/useOverviewStats';
+import FunnelHeatmap from './FunnelHeatmap';
 
 const OverviewTab = ({
   error,
@@ -56,10 +57,19 @@ const OverviewTab = ({
     return null;
   }, [overviewQuickView, cohorts]);
   
-  const { 
-    data: comparisonStats 
+  const {
+    data: comparisonStats
   } = useComparisonStats(previousCohortId, compareEnabled, token);
-  
+
+  const {
+    data: funnelHeatmap,
+    isLoading: funnelLoading,
+  } = useFunnelHeatmap(cohortParam, token);
+
+  const activityRecencyMax = funnelHeatmap?.activityRecencyTotals
+    ? Math.max(...Object.values(funnelHeatmap.activityRecencyTotals))
+    : 0;
+
   // Use the fetched stats or fall back to prop stats
   const displayStats = overviewStats || stats;
   const loading = statsLoading;
@@ -671,6 +681,64 @@ const OverviewTab = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Activity Recency bar — totals across the whole pipeline by days since last activity */}
+      <Card className="bg-white border border-gray-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold text-[#1a1a1a] font-proxima-bold">
+            Activity Recency
+          </CardTitle>
+          <p className="text-sm text-gray-500 font-proxima">
+            Latest applicant activity from signup, event registration/attendance, application start/submission, or response updates.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {funnelLoading || !funnelHeatmap ? (
+            <p className="text-sm text-gray-500 font-proxima">Loading…</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3">
+              {funnelHeatmap.activityBuckets.map(bucket => {
+                const count = funnelHeatmap.activityRecencyTotals?.[bucket] ?? 0;
+                const pct = activityRecencyMax > 0 ? (count / activityRecencyMax) * 100 : 0;
+                return (
+                  <div key={bucket}>
+                    <div className="flex justify-between text-sm font-proxima">
+                      <span className="text-gray-700">{bucket} days</span>
+                      <span className="font-semibold text-gray-900">{count}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 bg-gray-100 rounded overflow-hidden">
+                      <div className="h-full bg-[#4242ea]" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Heatmap 1: Funnel by Activity Recency */}
+      {funnelHeatmap && (
+        <FunnelHeatmap
+          title="Full Funnel by Activity Recency"
+          subtitle="Candidate count by funnel stage × days since last activity. Use this to identify where to re-engage stale candidates."
+          stages={funnelHeatmap.stages}
+          columns={funnelHeatmap.activityBuckets}
+          data={funnelHeatmap.byActivity}
+        />
+      )}
+
+      {/* Heatmap 2: Funnel by Referral Source — Lead row excluded */}
+      {funnelHeatmap && (
+        <FunnelHeatmap
+          title="Full Funnel by Referral Source"
+          subtitle="Candidate count by funnel stage × where they came from. Use this to see which channels move people through, not just which channels drive volume."
+          stages={funnelHeatmap.stages.filter(s => s !== 'lead_no_account')}
+          columns={funnelHeatmap.sources}
+          data={funnelHeatmap.bySource}
+        />
+      )}
+
     </div>
   );
 };

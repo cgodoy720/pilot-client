@@ -1,3 +1,5 @@
+import FormDescription from './FormDescription';
+
 const FormPreview = ({ title, description, questions, settings }) => {
   const renderQuestionPreview = (question, index) => {
     switch (question.type) {
@@ -91,9 +93,11 @@ const FormPreview = ({ title, description, questions, settings }) => {
           <h2 className="text-3xl font-bold text-gray-800 mb-3">
             {title || 'Untitled Form'}
           </h2>
-          {description && (
-            <p className="text-base text-gray-600 leading-relaxed">{description}</p>
-          )}
+          <FormDescription
+            description={description}
+            className="text-base text-gray-600 leading-relaxed"
+            linkClassName="text-[#4242ea] underline hover:text-[#3333d1]"
+          />
         </div>
 
         {/* Questions */}

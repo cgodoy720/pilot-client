@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -99,6 +99,11 @@ const AdmissionsDashboard = () => {
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const [loadAllMode, setLoadAllMode] = useState(false); // Never persist - always start in paginated mode
 
+  // Tracks whether applyCurrentCycleDefault has run. Pre-seeded in the
+  // mount effect below from sessionStorage so a reload doesn't override an
+  // All Time selection (cohort_id='').
+  const cycleDefaultAppliedRef = useRef(false);
+
   // Application filters and sorting
   const [applicationFilters, setApplicationFilters] = useState(() => {
     try {
@@ -154,6 +159,20 @@ const AdmissionsDashboard = () => {
       offset: 0
     };
   });
+
+  // Mount-time seed of the cycle-default ref. Kept out of the useState
+  // initializer above so we don't mutate a ref inside a function React may
+  // run twice in Strict Mode.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('admissions-dashboard-filters-v1')) {
+        cycleDefaultAppliedRef.current = true;
+      }
+    } catch (e) {
+      // ignore — falls through to fresh-first-load behavior
+    }
+  }, []);
+
   const [hasMore, setHasMore] = useState(true);
   const [columnSort, setColumnSort] = useState(() => {
     try {
@@ -340,6 +359,8 @@ const AdmissionsDashboard = () => {
   };
 
   const applyCurrentCycleDefault = (candidateCohorts = []) => {
+    if (cycleDefaultAppliedRef.current) return;
+
     const currentActive = getCurrentActiveCohort(candidateCohorts);
     if (!currentActive?.cohort_id) return;
 
@@ -351,6 +372,8 @@ const AdmissionsDashboard = () => {
       if (prev.cohort_id) return prev;
       return { ...prev, cohort_id: currentActive.cohort_id, offset: 0 };
     });
+
+    cycleDefaultAppliedRef.current = true;
   };
 
   const getOverviewCohortParam = () => {

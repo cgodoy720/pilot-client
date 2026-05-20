@@ -65,11 +65,16 @@ const JobPostings = () => {
   const [totalJobs, setTotalJobs] = useState(0);
   const [pageSize, setPageSize] = useState(20);
 
+  // Reset to page 1 when filters change (not when page itself changes)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, pageSize]);
+
   useEffect(() => {
     const fetchJobPostings = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const response = await getAllJobPostings({
           search: searchTerm,
@@ -77,14 +82,14 @@ const JobPostings = () => {
           page: currentPage,
           limit: pageSize
         });
-        
+
         setJobPostings(response.jobPostings || []);
         setTotalJobs(response.totalCount || 0);
         setTotalPages(response.totalPages || 1);
       } catch (err) {
         console.error('Failed to fetch job postings:', err);
         setError(handleApiError(err));
-        
+
         // Fallback to mock data on error
         const mockJobPostings = [
           {
@@ -126,13 +131,8 @@ const JobPostings = () => {
       }
     };
 
-    // Reset page when filters change
-    if (currentPage === 1) {
-      const searchTimer = setTimeout(fetchJobPostings, 300);
-      return () => clearTimeout(searchTimer);
-    } else {
-      setCurrentPage(1);
-    }
+    const searchTimer = setTimeout(fetchJobPostings, 300);
+    return () => clearTimeout(searchTimer);
   }, [searchTerm, sortBy, currentPage, pageSize]);
 
   const filteredJobPostings = jobPostings.filter(job =>
