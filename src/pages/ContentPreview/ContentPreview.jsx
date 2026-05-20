@@ -28,8 +28,7 @@ import {
 } from '../../components/ui/alert-dialog';
 import { Button } from '../../components/ui/button';
 import { Edit, Trash2, Plus, FileText, Presentation } from 'lucide-react';
-// jsPDF is lazy-loaded in handleGenerateNotes to avoid bundling ~300KB upfront
-import PptxGenJS from 'pptxgenjs';
+// jsPDF and PptxGenJS are lazy-loaded in their handlers to avoid bundling upfront
 import { toast } from 'sonner';
 
 // Pursuit logo assets embedded as base64 (white, for use on purple/dark backgrounds)
@@ -666,6 +665,7 @@ function ContentPreview() {
 
       // Step 2: Build PPTX
       // Dimensions match template: 10" x 5.625" (Google Slides widescreen)
+      const PptxGenJS = (await import('pptxgenjs')).default;
       const pptx = new PptxGenJS();
       pptx.defineLayout({ name: 'GOOGLE_SLIDES', width: 10, height: 5.625 });
       pptx.layout = 'GOOGLE_SLIDES';
