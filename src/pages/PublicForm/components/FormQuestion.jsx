@@ -248,12 +248,12 @@ const FormQuestion = ({ question, value, onChange, slideDirection, onEnter }) =>
 
   return (
     <div className="flex flex-col text-left">
-      <h2 className="text-white text-2xl md:text-3xl font-bold mb-8">
+      <h2 className="text-white text-2xl md:text-3xl mb-8">
         {question.text}
         {question.required && <span className="text-[#FFFFCC] ml-1">*</span>}
       </h2>
       {question.help_text && (
-        <p className="text-white/70 text-sm md:text-base leading-tight mb-6">
+        <p className="text-white text-sm md:text-base leading-tight mb-6">
           {question.help_text}
         </p>
       )}

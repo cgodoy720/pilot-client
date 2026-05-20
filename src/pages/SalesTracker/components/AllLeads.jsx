@@ -573,7 +573,7 @@ const AllLeads = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-        <h2 className="text-2xl font-bold text-gray-900">All Leads</h2>
+        <h2 className="text-2xl font-proxima-bold text-gray-900">All Leads</h2>
         <div className="flex space-x-3">
           <Button onClick={handleAddLead} className="bg-pursuit-purple hover:bg-pursuit-purple/90">
             <Plus className="w-4 h-4 mr-2" />
@@ -714,7 +714,7 @@ const AllLeads = () => {
                     {/* Header Row - Name and Buttons */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
+                        <h3 className="text-lg font-proxima-bold text-gray-900">{lead.name}</h3>
                         <Badge className={getStatusBadgeColor(lead.stage)}>
                           {lead.stage}
                         </Badge>
@@ -778,17 +778,17 @@ const AllLeads = () => {
 
                     {/* Lead Info */}
                     <div className="space-y-2">
-                      <p className="text-gray-600 font-medium">{lead.company}</p>
+                      <p className="text-gray-600 font-proxima">{lead.company}</p>
 
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                         <div>
-                          <span className="font-medium">Status:</span> {lead.stage}
+                          <span className="font-proxima">Status:</span> {lead.stage}
                         </div>
                         <div>
-                          <span className="font-medium">Last Contact:</span> {lead.lastContact}
+                          <span className="font-proxima">Last Contact:</span> {lead.lastContact}
                         </div>
                         <div>
-                          <span className="font-medium">Sectors:</span>
+                          <span className="font-proxima">Sectors:</span>
                           {lead.sectors.length > 0 ? (
                             <span className="ml-1">
                               {lead.sectors.map((sector) => (
@@ -804,7 +804,7 @@ const AllLeads = () => {
                       </div>
 
                       <div className="text-sm">
-                        <span className="font-medium text-gray-900">Current Owner:</span>
+                        <span className="font-proxima text-gray-900">Current Owner:</span>
                         <span className="ml-2 text-gray-600">{lead.currentOwner}</span>
                       </div>
                     </div>
@@ -812,7 +812,7 @@ const AllLeads = () => {
                     {/* Latest Activity - Full Width */}
                     {lead.latestActivity && (
                       <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r">
-                        <span className="font-medium text-blue-800">Latest Activity: </span>
+                        <span className="font-proxima text-blue-800">Latest Activity: </span>
                         {lead.latestActivity.type === 'stage_change' ? (
                           <span className="text-gray-700">
                             📊 Stage: {lead.latestActivity.oldStage} → {lead.latestActivity.newStage} Followed up on {lead.latestActivity.date}
@@ -871,7 +871,7 @@ const AllLeads = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">{viewDetailsModal.lead?.name}</h2>
+                <h2 className="text-2xl font-proxima-bold text-gray-900">{viewDetailsModal.lead?.name}</h2>
                 <p className="text-lg text-gray-600 mt-1">{viewDetailsModal.lead?.company}</p>
               </div>
               <Button
@@ -894,7 +894,7 @@ const AllLeads = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contact Name</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Contact Name</label>
                         {viewDetailsModal.isEditing ? (
                           <Input
                             value={editForm.contactName}
@@ -902,11 +902,11 @@ const AllLeads = () => {
                             className="mt-1 h-8"
                           />
                         ) : (
-                          <p className="text-sm font-medium text-gray-900 mt-1">{viewDetailsModal.lead.name}</p>
+                          <p className="text-sm font-proxima text-gray-900 mt-1">{viewDetailsModal.lead.name}</p>
                         )}
                       </div>
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Email</label>
                         {viewDetailsModal.isEditing ? (
                           <Input
                             type="email"
@@ -921,7 +921,7 @@ const AllLeads = () => {
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Company</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Company</label>
                         {viewDetailsModal.isEditing ? (
                           <Input
                             value={editForm.companyName}
@@ -929,11 +929,11 @@ const AllLeads = () => {
                             className="mt-1 h-8"
                           />
                         ) : (
-                          <p className="text-sm font-medium text-gray-900 mt-1">{viewDetailsModal.lead.company}</p>
+                          <p className="text-sm font-proxima text-gray-900 mt-1">{viewDetailsModal.lead.company}</p>
                         )}
                       </div>
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">LinkedIn</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">LinkedIn</label>
                         {viewDetailsModal.isEditing ? (
                           <Input
                             value={editForm.linkedinUrl}
@@ -963,7 +963,7 @@ const AllLeads = () => {
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Stage</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Stage</label>
                         {viewDetailsModal.isEditing ? (
                           <Select
                             value={editForm.stage}
@@ -996,7 +996,7 @@ const AllLeads = () => {
                       {viewDetailsModal.isEditing && (
                         <>
                           <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Title</label>
+                            <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Title</label>
                             <Input
                               value={editForm.contactTitle}
                               onChange={(e) => setEditForm(prev => ({ ...prev, contactTitle: e.target.value }))}
@@ -1005,7 +1005,7 @@ const AllLeads = () => {
                             />
                           </div>
                           <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone</label>
+                            <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Phone</label>
                             <Input
                               value={editForm.contactPhone}
                               onChange={(e) => setEditForm(prev => ({ ...prev, contactPhone: e.target.value }))}
@@ -1023,7 +1023,7 @@ const AllLeads = () => {
               {/* Notes */}
               {viewDetailsModal.lead.notes && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
+                  <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Notes</label>
                   {viewDetailsModal.isEditing ? (
                     <Textarea
                       value={editForm.notes}
@@ -1064,7 +1064,7 @@ const AllLeads = () => {
               <div className="border border-gray-200 rounded-lg">
                 <div className="p-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">Update Status</h3>
+                    <h3 className="text-sm font-proxima-bold text-gray-900">Update Status</h3>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1081,7 +1081,7 @@ const AllLeads = () => {
                   <div className="p-4 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Update Date</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Update Date</label>
                         <Input
                           type="date"
                           value={new Date().toISOString().split('T')[0]}
@@ -1090,7 +1090,7 @@ const AllLeads = () => {
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Stage *</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Stage *</label>
                         <Select
                           value={updateForm.stage}
                           onValueChange={(value) => setUpdateForm(prev => ({ ...prev, stage: value }))}
@@ -1111,7 +1111,7 @@ const AllLeads = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead Type</label>
+                      <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Lead Type</label>
                       <Select
                         value={updateForm.leadType || ''}
                         onValueChange={(value) => setUpdateForm(prev => ({ ...prev, leadType: value }))}
@@ -1129,7 +1129,7 @@ const AllLeads = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity Notes *</label>
+                      <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Activity Notes *</label>
                       <Textarea
                         placeholder="What happened? Record details about the conversation, meeting, or outreach..."
                         value={updateForm.activityNotes}
@@ -1140,7 +1140,7 @@ const AllLeads = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Next Steps</label>
+                      <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Next Steps</label>
                       <Textarea
                         placeholder="e.g., Follow up next week, Send resources, Schedule demo"
                         value={updateForm.nextSteps}
@@ -1176,11 +1176,11 @@ const AllLeads = () => {
 
               {/* Update History */}
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Update History</label>
+                <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Update History</label>
                 <div className="mt-2 space-y-2">
                   <div className="bg-gray-50 p-3 rounded-md border-l-4 border-blue-600">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-proxima text-gray-900">
                         {new Date(viewDetailsModal.lead.createdAt || new Date()).toLocaleDateString('en-US')}
                       </span>
                       <span className="text-xs text-gray-500">Initial outreach</span>
@@ -1195,7 +1195,7 @@ const AllLeads = () => {
               {/* Aligned Sectors */}
               {viewDetailsModal.lead.sectors && viewDetailsModal.lead.sectors.length > 0 && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aligned Sectors</label>
+                  <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Aligned Sectors</label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {viewDetailsModal.lead.sectors.map((sector) => (
                       <Badge key={sector} variant="secondary" className="text-xs">
