@@ -2,11 +2,12 @@ import logo from '../../../assets/logo-full.png';
 import { Instagram, Linkedin } from 'lucide-react';
 
 const ThankYouScreen = ({ message }) => {
+  const customMessage = typeof message === 'string' ? message.trim() : '';
   return (
     <div className="min-h-screen h-screen w-screen bg-[#4E4DED] flex items-center justify-center px-16 relative box-border">
       <div className="max-w-full w-full text-center animate-fade-in-scale">
-        <h1 className="text-5xl font-semibold mb-10 text-white leading-tight animate-fade-in-up animation-delay-300">
-          We'll get back to you<br />as soon as we can.
+        <h1 className="text-5xl font-semibold mb-10 text-white leading-tight animate-fade-in-up animation-delay-300 whitespace-pre-line">
+          {customMessage || (<>We'll get back to you<br />as soon as we can.</>)}
         </h1>
         <p className="text-xl text-white/80 leading-relaxed mb-8 animate-fade-in-up animation-delay-400">
           In the meantime, follow us on:

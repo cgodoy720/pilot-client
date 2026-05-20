@@ -95,7 +95,7 @@ const FormPreview = ({ title, description, questions, settings }) => {
           </h2>
           <FormDescription
             description={description}
-            className="text-base text-gray-600 leading-relaxed"
+            className="font-proxima-bold text-base text-gray-600 leading-relaxed"
             linkClassName="text-[#4242ea] underline hover:text-[#3333d1]"
           />
         </div>
@@ -111,7 +111,7 @@ const FormPreview = ({ title, description, questions, settings }) => {
             {questions.map((question, index) => (
               <div key={question.question_id} className="pb-6 border-b border-gray-100 last:border-0">
                 <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  <h3 className="font-proxima-bold text-lg font-semibold text-gray-800 mb-2">
                     {index + 1}. {question.text || 'Untitled Question'}
                     {question.required && (
                       <span className="text-red-500 ml-1">*</span>
