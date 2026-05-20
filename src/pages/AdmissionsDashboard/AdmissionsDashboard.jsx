@@ -99,8 +99,9 @@ const AdmissionsDashboard = () => {
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const [loadAllMode, setLoadAllMode] = useState(false); // Never persist - always start in paginated mode
 
-  // Tracks whether applyCurrentCycleDefault has run. Set during init from
-  // sessionStorage so reload doesn't override an All Time selection (cohort_id='').
+  // Tracks whether applyCurrentCycleDefault has run. Pre-seeded in the
+  // mount effect below from sessionStorage so a reload doesn't override an
+  // All Time selection (cohort_id='').
   const cycleDefaultAppliedRef = useRef(false);
 
   // Application filters and sorting
@@ -108,7 +109,6 @@ const AdmissionsDashboard = () => {
     try {
       const saved = sessionStorage.getItem('admissions-dashboard-filters-v1');
       if (saved) {
-        cycleDefaultAppliedRef.current = true;
         const parsed = JSON.parse(saved);
         // Migrate legacy string filters to arrays
         const toArray = (val) => {
@@ -159,6 +159,20 @@ const AdmissionsDashboard = () => {
       offset: 0
     };
   });
+
+  // Mount-time seed of the cycle-default ref. Kept out of the useState
+  // initializer above so we don't mutate a ref inside a function React may
+  // run twice in Strict Mode.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('admissions-dashboard-filters-v1')) {
+        cycleDefaultAppliedRef.current = true;
+      }
+    } catch (e) {
+      // ignore — falls through to fresh-first-load behavior
+    }
+  }, []);
+
   const [hasMore, setHasMore] = useState(true);
   const [columnSort, setColumnSort] = useState(() => {
     try {

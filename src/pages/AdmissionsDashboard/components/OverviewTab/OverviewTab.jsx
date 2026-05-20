@@ -66,6 +66,9 @@ const OverviewTab = ({
     isLoading: funnelLoading,
   } = useFunnelHeatmap(cohortParam, token);
 
+  const activityRecencyMax = funnelHeatmap?.activityRecencyTotals
+    ? Math.max(...Object.values(funnelHeatmap.activityRecencyTotals))
+    : 0;
 
   // Use the fetched stats or fall back to prop stats
   const displayStats = overviewStats || stats;
@@ -696,8 +699,7 @@ const OverviewTab = ({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3">
               {funnelHeatmap.activityBuckets.map(bucket => {
                 const count = funnelHeatmap.activityRecencyTotals?.[bucket] ?? 0;
-                const max = Math.max(...Object.values(funnelHeatmap.activityRecencyTotals || { x: 1 }));
-                const pct = max > 0 ? (count / max) * 100 : 0;
+                const pct = activityRecencyMax > 0 ? (count / activityRecencyMax) * 100 : 0;
                 return (
                   <div key={bucket}>
                     <div className="flex justify-between text-sm font-proxima">
