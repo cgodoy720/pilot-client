@@ -242,7 +242,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="company_name" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="company_name" className="block text-sm font-proxima text-gray-700 mb-1">
                 Company Name *
               </label>
               <Input
@@ -254,7 +254,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
               />
             </div>
             <div>
-              <label htmlFor="job_title" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="job_title" className="block text-sm font-proxima text-gray-700 mb-1">
                 Job Title *
               </label>
               <Input
@@ -269,7 +269,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="job_url" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="job_url" className="block text-sm font-proxima text-gray-700 mb-1">
                 Job URL
               </label>
               <Input
@@ -281,7 +281,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
               />
             </div>
             <div>
-              <label htmlFor="source" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="source" className="block text-sm font-proxima text-gray-700 mb-1">
                 Source
               </label>
               <Select value={formData.source} onValueChange={(value) => handleInputChange('source', value)}>
@@ -301,7 +301,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="experience_level" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="experience_level" className="block text-sm font-proxima text-gray-700 mb-1">
                 Experience Level
               </label>
               <Select value={formData.experience_level} onValueChange={(value) => handleInputChange('experience_level', value)}>
@@ -318,7 +318,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
               </Select>
             </div>
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="location" className="block text-sm font-proxima text-gray-700 mb-1">
                 Location
               </label>
               <Input
@@ -332,10 +332,10 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Salary Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-gray-900">Salary Information</h3>
+            <h3 className="text-sm font-proxima-bold text-gray-900">Salary Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="salary_min" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="salary_min" className="block text-sm font-proxima text-gray-700 mb-1">
                   Min Salary
                 </label>
                 <Input
@@ -347,7 +347,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
                 />
               </div>
               <div>
-                <label htmlFor="salary_max" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="salary_max" className="block text-sm font-proxima text-gray-700 mb-1">
                   Max Salary
                 </label>
                 <Input
@@ -359,7 +359,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
                 />
               </div>
               <div>
-                <label htmlFor="salary_range" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="salary_range" className="block text-sm font-proxima text-gray-700 mb-1">
                   Salary Range (Text)
                 </label>
                 <Input
@@ -374,7 +374,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Aligned Sectors */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-proxima text-gray-700 mb-2">
               Aligned Sectors
             </label>
             <div className="flex gap-2 mb-2">
@@ -409,7 +409,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="description" className="block text-sm font-proxima text-gray-700 mb-1">
               Job Description
             </label>
             <Textarea
@@ -423,7 +423,7 @@ const AddJobPostingModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Notes */}
           <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="notes" className="block text-sm font-proxima text-gray-700 mb-1">
               Notes
             </label>
             <Textarea

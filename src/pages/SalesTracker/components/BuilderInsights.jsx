@@ -84,7 +84,7 @@ function BuilderSignalPanel({ builders, loading, error }) {
     <div className="space-y-3 pt-1">
       {builders.map(b => (
         <div key={b.builder_id}>
-          <p className="text-xs font-semibold text-gray-700 mb-1.5">
+          <p className="text-xs font-proxima-bold text-gray-700 mb-1.5">
             {b.builder_name}
             <span className="ml-1.5 text-gray-400 font-normal">({b.signals.length} signal{b.signals.length !== 1 ? 's' : ''})</span>
           </p>
@@ -110,14 +110,14 @@ function IndustryDetailPanel({ companies, loading, error }) {
     <div className="space-y-4 pt-1">
       {companies.map(co => (
         <div key={co.company}>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          <p className="text-xs font-proxima text-gray-500 uppercase tracking-wide mb-2">
             {co.company}
             <span className="ml-1.5 normal-case font-normal">({co.builders.length} builder{co.builders.length !== 1 ? 's' : ''})</span>
           </p>
           <div className="pl-3 space-y-3">
             {co.builders.map(b => (
               <div key={b.builder_id}>
-                <p className="text-xs font-semibold text-gray-700 mb-1">{b.builder_name}</p>
+                <p className="text-xs font-proxima-bold text-gray-700 mb-1">{b.builder_name}</p>
                 <div className="flex flex-wrap gap-1.5 pl-2">
                   {b.signals.map((sig, idx) => <SignalItem key={idx} sig={sig} />)}
                 </div>
@@ -176,9 +176,9 @@ function ContactModal({ contactId, token, onClose }) {
         {contact && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{contact.full_name}</h2>
+              <h2 className="text-xl font-proxima-bold text-gray-900">{contact.full_name}</h2>
               {contact.current_title && <p className="text-sm text-gray-600 mt-0.5">{contact.current_title}</p>}
-              {contact.current_company && <p className="text-sm font-medium text-pursuit-purple mt-0.5">{contact.current_company}</p>}
+              {contact.current_company && <p className="text-sm font-proxima text-pursuit-purple mt-0.5">{contact.current_company}</p>}
             </div>
 
             {contact.linkedin_url && (
@@ -198,7 +198,7 @@ function ContactModal({ contactId, token, onClose }) {
 
             {contact.staff_connections?.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Staff connections</p>
+                <p className="text-xs font-proxima text-gray-500 uppercase tracking-wide mb-2">Staff connections</p>
                 <div className="space-y-1">
                   {contact.staff_connections.map(s => (
                     <div key={s.staff_user_id} className="flex items-center justify-between text-sm">
@@ -212,7 +212,7 @@ function ContactModal({ contactId, token, onClose }) {
 
             {contact.email && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Email</p>
+                <p className="text-xs font-proxima text-gray-500 uppercase tracking-wide mb-1">Email</p>
                 <a href={`mailto:${contact.email}`} className="text-sm text-blue-600 hover:underline">{contact.email}</a>
               </div>
             )}
@@ -270,7 +270,7 @@ function IntroCard({ item, token, onContactClick }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <Building2 size={16} className="text-gray-400 shrink-0" />
-              <span className="font-semibold text-gray-900 truncate">{item.company}</span>
+              <span className="font-proxima-bold text-gray-900 truncate">{item.company}</span>
             </div>
             <div className="flex gap-3 mt-1 text-sm text-gray-500">
               <span className="flex items-center gap-1"><Users size={13} /> {item.builder_count} builder{item.builder_count !== 1 ? 's' : ''} targeting</span>
@@ -278,7 +278,7 @@ function IntroCard({ item, token, onContactClick }) {
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
               {connections.map(s => (
-                <span key={s.staff_id} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1 font-medium">
+                <span key={s.staff_id} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1 font-proxima">
                   {s.staff_name} · {s.contact_count} contact{s.contact_count !== 1 ? 's' : ''}
                 </span>
               ))}
@@ -295,7 +295,7 @@ function IntroCard({ item, token, onContactClick }) {
           {/* Builders targeting */}
           {builders.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Builders Targeting</p>
+              <p className="text-xs font-proxima text-gray-500 uppercase tracking-wide mb-2">Builders Targeting</p>
               <div className="space-y-2">
                 {builders.map(b => {
                   const bd = builderDetails[b.builder_id];
@@ -303,7 +303,7 @@ function IntroCard({ item, token, onContactClick }) {
                   return (
                     <div key={b.builder_id}>
                       <button
-                        className="inline-flex items-center gap-1.5 text-xs bg-amber-50 text-amber-700 rounded-full px-2.5 py-1 font-medium hover:bg-amber-100 transition-colors"
+                        className="inline-flex items-center gap-1.5 text-xs bg-amber-50 text-amber-700 rounded-full px-2.5 py-1 font-proxima hover:bg-amber-100 transition-colors"
                         onClick={() => toggleBuilderDetail(b.builder_id)}
                       >
                         {b.builder_name} · {b.signal_count} signal{b.signal_count !== 1 ? 's' : ''}
@@ -329,11 +329,11 @@ function IntroCard({ item, token, onContactClick }) {
 
           {/* Staff contacts */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Staff Contacts</p>
+            <p className="text-xs font-proxima text-gray-500 uppercase tracking-wide mb-2">Staff Contacts</p>
             <div className="space-y-3">
               {connections.map(s => (
                 <div key={s.staff_id}>
-                  <p className="text-xs font-semibold text-gray-600 mb-1.5">{s.staff_name}</p>
+                  <p className="text-xs font-proxima-bold text-gray-600 mb-1.5">{s.staff_name}</p>
                   <div className="flex flex-wrap gap-2">
                     {(s.contacts || []).map(c => (
                       <button
@@ -489,7 +489,7 @@ export default function BuilderInsights() {
       {/* Header + time filter */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Builder Insights</h2>
+          <h2 className="text-lg font-proxima-bold text-gray-900">Builder Insights</h2>
           <p className="text-sm text-gray-500">Companies and industries builders are actively targeting</p>
         </div>
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
@@ -497,7 +497,7 @@ export default function BuilderInsights() {
             <button
               key={p.value}
               onClick={() => setPeriod(p.value)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-sm font-proxima transition-colors ${
                 period === p.value
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
@@ -522,7 +522,7 @@ export default function BuilderInsights() {
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <Building2 size={18} className="text-pursuit-purple" />
-            <h3 className="font-semibold text-gray-900">Top Companies</h3>
+            <h3 className="font-proxima-bold text-gray-900">Top Companies</h3>
             <span className="ml-auto text-xs text-gray-400">click row to see builders</span>
           </div>
           {loading ? (
@@ -541,15 +541,15 @@ export default function BuilderInsights() {
                       onClick={() => toggleCompany(row.company)}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-gray-400 w-5 text-right shrink-0">{i + 1}</span>
+                        <span className="text-xs font-proxima text-gray-400 w-5 text-right shrink-0">{i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-gray-900 truncate">{row.company}</span>
+                            <span className="text-sm font-proxima text-gray-900 truncate">{row.company}</span>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-xs text-gray-400 flex items-center gap-1">
                                 <Users size={11} /> {row.builder_count}
                               </span>
-                              <span className="text-sm font-semibold text-gray-700 w-8 text-right">{row.total_signals}</span>
+                              <span className="text-sm font-proxima-bold text-gray-700 w-8 text-right">{row.total_signals}</span>
                               {isExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
                             </div>
                           </div>
@@ -576,7 +576,7 @@ export default function BuilderInsights() {
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={18} className="text-pursuit-purple" />
-            <h3 className="font-semibold text-gray-900">Top Industries</h3>
+            <h3 className="font-proxima-bold text-gray-900">Top Industries</h3>
             <span className="ml-auto text-xs text-gray-400 mr-2">click to see builders</span>
             <button
               onClick={triggerEnrichment}
@@ -607,15 +607,15 @@ export default function BuilderInsights() {
                       onClick={() => toggleIndustry(row.industry)}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-gray-400 w-5 text-right shrink-0">{i + 1}</span>
+                        <span className="text-xs font-proxima text-gray-400 w-5 text-right shrink-0">{i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-gray-900 truncate">{row.industry}</span>
+                            <span className="text-sm font-proxima text-gray-900 truncate">{row.industry}</span>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-xs text-gray-400 flex items-center gap-1">
                                 <Users size={11} /> {row.builder_count}
                               </span>
-                              <span className="text-sm font-semibold text-gray-700 w-8 text-right">{row.total_signals}</span>
+                              <span className="text-sm font-proxima-bold text-gray-700 w-8 text-right">{row.total_signals}</span>
                               {isExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
                             </div>
                           </div>
@@ -642,7 +642,7 @@ export default function BuilderInsights() {
       <div className="bg-white border border-gray-200 rounded-lg p-5">
         <div className="flex items-center gap-2 mb-1">
           <Users size={18} className="text-pursuit-purple" />
-          <h3 className="font-semibold text-gray-900">Suggested Introductions</h3>
+          <h3 className="font-proxima-bold text-gray-900">Suggested Introductions</h3>
         </div>
         <p className="text-sm text-gray-500 mb-4">
           Companies builders are targeting where staff have contacts — expand to see which builders and who to connect them with

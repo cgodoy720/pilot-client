@@ -165,51 +165,51 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jobs Won</CardTitle>
+            <CardTitle className="text-sm font-proxima">Jobs Won</CardTitle>
             <Target className="h-4 w-4 text-pursuit-purple" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pursuit-purple">{stats.jobsWon || 0}</div>
+            <div className="text-2xl font-proxima-bold text-pursuit-purple">{stats.jobsWon || 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Outreach</CardTitle>
+            <CardTitle className="text-sm font-proxima">Total Outreach</CardTitle>
             <TrendingUp className="h-4 w-4 text-pursuit-purple" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pursuit-purple">{stats.totalOutreach || 0}</div>
+            <div className="text-2xl font-proxima-bold text-pursuit-purple">{stats.totalOutreach || 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last 7 Days Outreach</CardTitle>
+            <CardTitle className="text-sm font-proxima">Last 7 Days Outreach</CardTitle>
             <Calendar className="h-4 w-4 text-pursuit-purple" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pursuit-purple">{stats.last7DaysOutreach || 0}</div>
+            <div className="text-2xl font-proxima-bold text-pursuit-purple">{stats.last7DaysOutreach || 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
+            <CardTitle className="text-sm font-proxima">Active Leads</CardTitle>
             <Users className="h-4 w-4 text-pursuit-purple" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pursuit-purple">{stats.activeLeads || 0}</div>
+            <div className="text-2xl font-proxima-bold text-pursuit-purple">{stats.activeLeads || 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Job Postings</CardTitle>
+            <CardTitle className="text-sm font-proxima">Job Postings</CardTitle>
             <Building2 className="h-4 w-4 text-pursuit-purple" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pursuit-purple">{stats.totalJobPostings || 0}</div>
+            <div className="text-2xl font-proxima-bold text-pursuit-purple">{stats.totalJobPostings || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -218,7 +218,7 @@ const Dashboard = () => {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-            <CardTitle className="text-lg font-semibold">Closed Won Jobs</CardTitle>
+            <CardTitle className="text-lg font-proxima-bold">Closed Won Jobs</CardTitle>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">From:</span>
@@ -246,7 +246,7 @@ const Dashboard = () => {
             <div className="mb-4 text-6xl">
               🚀
             </div>
-            <h3 className="text-xl font-semibold text-pursuit-purple mb-2">Let's Win!</h3>
+            <h3 className="text-xl font-proxima-bold text-pursuit-purple mb-2">Let's Win!</h3>
             <p className="text-gray-600 text-sm">Your first win is just around the corner. Keep pushing!</p>
           </div>
         </CardContent>
@@ -256,7 +256,7 @@ const Dashboard = () => {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-            <CardTitle className="text-lg font-semibold">Outreach</CardTitle>
+            <CardTitle className="text-lg font-proxima-bold">Outreach</CardTitle>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Stage:</span>
@@ -300,7 +300,7 @@ const Dashboard = () => {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th 
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-4 py-3 text-left text-xs font-proxima text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('staffMember')}
                   >
                     <div className="flex items-center space-x-1">
@@ -309,7 +309,7 @@ const Dashboard = () => {
                     </div>
                   </th>
                   <th 
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-4 py-3 text-left text-xs font-proxima text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center space-x-1">
@@ -318,7 +318,7 @@ const Dashboard = () => {
                     </div>
                   </th>
                   <th 
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-4 py-3 text-left text-xs font-proxima text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('company')}
                   >
                     <div className="flex items-center space-x-1">
@@ -327,7 +327,7 @@ const Dashboard = () => {
                     </div>
                   </th>
                   <th 
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-4 py-3 text-left text-xs font-proxima text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('role')}
                   >
                     <div className="flex items-center space-x-1">
@@ -336,7 +336,7 @@ const Dashboard = () => {
                     </div>
                   </th>
                   <th 
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-4 py-3 text-left text-xs font-proxima text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('outreachDate')}
                   >
                     <div className="flex items-center space-x-1">
@@ -345,7 +345,7 @@ const Dashboard = () => {
                     </div>
                   </th>
                   <th 
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-4 py-3 text-left text-xs font-proxima text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('status')}
                   >
                     <div className="flex items-center space-x-1">
@@ -382,7 +382,7 @@ const Dashboard = () => {
                         <div className="text-xs text-gray-500">{getDaysAgo(item.outreachDate)}</div>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${getStatusBadgeClass(item.stage)}`}>
+                        <span className={`inline-flex px-2 py-1 text-xs font-proxima rounded ${getStatusBadgeClass(item.stage)}`}>
                           {item.stage || 'Initial Outreach'}
                         </span>
                       </td>
