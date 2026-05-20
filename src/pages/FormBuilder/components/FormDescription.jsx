@@ -12,16 +12,23 @@ const FormDescription = ({ description, className = '', linkClassName = '' }) =>
           ul: ({ children }) => <ul className="list-disc list-outside pl-6 mb-3 last:mb-0 space-y-1">{children}</ul>,
           ol: ({ children }) => <ol className="list-decimal list-outside pl-6 mb-3 last:mb-0 space-y-1">{children}</ol>,
           li: ({ children }) => <li>{children}</li>,
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={linkClassName}
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            // react-markdown v7+ no longer sanitizes javascript:/data: hrefs.
+            // Allow only schemes we know are safe in this context.
+            const safe = typeof href === 'string' && /^(https?:|mailto:|tel:)/i.test(href);
+            return safe ? (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClassName}
+              >
+                {children}
+              </a>
+            ) : (
+              <span className={linkClassName}>{children}</span>
+            );
+          },
         }}
       >
         {withHardBreaks(description)}

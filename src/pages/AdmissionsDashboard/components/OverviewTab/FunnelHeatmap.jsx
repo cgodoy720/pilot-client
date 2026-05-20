@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 
 const STAGE_LABELS = {
   lead_no_account: 'Lead (no account)',
@@ -36,13 +35,9 @@ function cellColor(value, max) {
  *
  * @param {string} title
  * @param {string} subtitle
- * @param {string[]} stages         row keys from the API
- * @param {string[]} columns        column keys from the API
- * @param {object}   data           data[stage][column] => count
- * @param {string}   filterLabel    label to show next to the dropdown
- * @param {string[]} filterOptions  dropdown values
- * @param {string}   filterValue
- * @param {function} onFilterChange
+ * @param {string[]} stages   row keys from the API
+ * @param {string[]} columns  column keys from the API
+ * @param {object}   data     data[stage][column] => count
  */
 export default function FunnelHeatmap({
   title,
@@ -50,10 +45,6 @@ export default function FunnelHeatmap({
   stages,
   columns,
   data,
-  filterLabel,
-  filterOptions = [],
-  filterValue,
-  onFilterChange,
 }) {
   const { rowTotals, colTotals, grandTotal, maxCell } = useMemo(() => {
     const rowTotals = {};
@@ -76,29 +67,12 @@ export default function FunnelHeatmap({
   return (
     <Card className="bg-white border border-gray-200">
       <CardHeader>
-        <div className="flex justify-between items-start gap-4">
-          <div>
-            <CardTitle className="text-lg font-semibold text-[#1a1a1a] font-proxima-bold flex items-center gap-2">
-              {title}
-            </CardTitle>
-            {subtitle && (
-              <p className="text-sm text-gray-500 font-proxima mt-1">{subtitle}</p>
-            )}
-          </div>
-          {filterOptions.length > 0 && (
-            <Select value={filterValue || '_all'} onValueChange={onFilterChange}>
-              <SelectTrigger className="w-[180px] bg-white border-gray-200 font-proxima">
-                <SelectValue placeholder={filterLabel} />
-              </SelectTrigger>
-              <SelectContent className="font-proxima">
-                <SelectItem value="_all">{filterLabel}</SelectItem>
-                {filterOptions.map(opt => (
-                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+        <CardTitle className="text-lg font-semibold text-[#1a1a1a] font-proxima-bold flex items-center gap-2">
+          {title}
+        </CardTitle>
+        {subtitle && (
+          <p className="text-sm text-gray-500 font-proxima mt-1">{subtitle}</p>
+        )}
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -110,7 +84,7 @@ export default function FunnelHeatmap({
                 </th>
                 {columns.map(col => (
                   <th key={col} className="text-center py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                    {col}{filterLabel?.toLowerCase().includes('recency') || filterLabel?.toLowerCase().includes('source') ? '' : ''}
+                    {col}
                   </th>
                 ))}
                 <th className="text-center py-2 px-3 text-xs font-semibold text-[#4242ea] uppercase tracking-wide">

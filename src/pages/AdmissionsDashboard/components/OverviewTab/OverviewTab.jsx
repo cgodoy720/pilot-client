@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
@@ -66,54 +66,7 @@ const OverviewTab = ({
     isLoading: funnelLoading,
   } = useFunnelHeatmap(cohortParam, token);
 
-  // Local UI-only filter state for the two heatmaps. These narrow the *display*
-  // of the same dataset — we don't re-fetch per filter change.
-  const [activitySourceFilter, setActivitySourceFilter] = useState('_all');
-  const [sourceRecencyFilter, setSourceRecencyFilter] = useState('_all');
 
-  // Apply UI filters by zeroing out rows that don't match — keeps row/col structure
-  // intact so the heatmap shape doesn't change shape when filters apply.
-  const filteredByActivity = useMemo(() => {
-    if (!funnelHeatmap) return null;
-    if (activitySourceFilter === '_all') return funnelHeatmap.byActivity;
-    // Need raw rows to filter by source × bucket — backend currently returns
-    // pre-aggregated data, so when a source is selected we approximate by the
-    // share of that source in each stage row.
-    const result = {};
-    funnelHeatmap.stages.forEach(stage => {
-      const stageTotal = funnelHeatmap.activityBuckets.reduce(
-        (sum, b) => sum + (funnelHeatmap.byActivity[stage]?.[b] || 0),
-        0
-      );
-      const sourceVal = funnelHeatmap.bySource[stage]?.[activitySourceFilter] || 0;
-      const ratio = stageTotal > 0 ? sourceVal / stageTotal : 0;
-      result[stage] = {};
-      funnelHeatmap.activityBuckets.forEach(b => {
-        result[stage][b] = Math.round((funnelHeatmap.byActivity[stage]?.[b] || 0) * ratio);
-      });
-    });
-    return result;
-  }, [funnelHeatmap, activitySourceFilter]);
-
-  const filteredBySource = useMemo(() => {
-    if (!funnelHeatmap) return null;
-    if (sourceRecencyFilter === '_all') return funnelHeatmap.bySource;
-    const result = {};
-    Object.keys(funnelHeatmap.bySource).forEach(stage => {
-      const stageActivityTotal = funnelHeatmap.activityBuckets.reduce(
-        (sum, b) => sum + (funnelHeatmap.byActivity[stage]?.[b] || 0),
-        0
-      );
-      const bucketVal = funnelHeatmap.byActivity[stage]?.[sourceRecencyFilter] || 0;
-      const ratio = stageActivityTotal > 0 ? bucketVal / stageActivityTotal : 0;
-      result[stage] = {};
-      funnelHeatmap.sources.forEach(s => {
-        result[stage][s] = Math.round((funnelHeatmap.bySource[stage]?.[s] || 0) * ratio);
-      });
-    });
-    return result;
-  }, [funnelHeatmap, sourceRecencyFilter]);
-  
   // Use the fetched stats or fall back to prop stats
   const displayStats = overviewStats || stats;
   const loading = statsLoading;
@@ -769,11 +722,7 @@ const OverviewTab = ({
           subtitle="Candidate count by funnel stage × days since last activity. Use this to identify where to re-engage stale candidates."
           stages={funnelHeatmap.stages}
           columns={funnelHeatmap.activityBuckets}
-          data={filteredByActivity}
-          filterLabel="All Sources"
-          filterOptions={funnelHeatmap.sources}
-          filterValue={activitySourceFilter}
-          onFilterChange={setActivitySourceFilter}
+          data={funnelHeatmap.byActivity}
         />
       )}
 
@@ -784,11 +733,7 @@ const OverviewTab = ({
           subtitle="Candidate count by funnel stage × where they came from. Use this to see which channels move people through, not just which channels drive volume."
           stages={funnelHeatmap.stages.filter(s => s !== 'lead_no_account')}
           columns={funnelHeatmap.sources}
-          data={filteredBySource}
-          filterLabel="All Recency"
-          filterOptions={funnelHeatmap.activityBuckets}
-          filterValue={sourceRecencyFilter}
-          onFilterChange={setSourceRecencyFilter}
+          data={funnelHeatmap.bySource}
         />
       )}
 

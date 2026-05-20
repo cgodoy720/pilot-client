@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
  */
 export const useOverviewStats = (cohortId, deliberationFilter, token) => {
   return useQuery({
-    queryKey: ['overview-stats', cohortId, deliberationFilter],
+    queryKey: ['overview-stats', token, cohortId, deliberationFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (cohortId) params.append('cohort_id', cohortId);
@@ -46,7 +46,7 @@ export const useOverviewStats = (cohortId, deliberationFilter, token) => {
  */
 export const useOverviewDemographics = (cohortId, stage, deliberationFilter, token) => {
   return useQuery({
-    queryKey: ['overview-demographics', cohortId, stage, deliberationFilter],
+    queryKey: ['overview-demographics', token, cohortId, stage, deliberationFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (cohortId) params.append('cohort_id', cohortId);
@@ -81,7 +81,7 @@ export const useOverviewDemographics = (cohortId, stage, deliberationFilter, tok
  */
 export const useFunnelHeatmap = (cohortId, token) => {
   return useQuery({
-    queryKey: ['funnel-heatmap', cohortId],
+    queryKey: ['funnel-heatmap', token, cohortId],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (cohortId) params.append('cohort_id', cohortId);
@@ -107,7 +107,7 @@ export const useFunnelHeatmap = (cohortId, token) => {
  */
 export const useComparisonStats = (cohortId, enabled, token) => {
   return useQuery({
-    queryKey: ['comparison-stats', cohortId],
+    queryKey: ['comparison-stats', token, cohortId],
     queryFn: async () => {
       if (!cohortId) return null;
       
