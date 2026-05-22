@@ -95,7 +95,7 @@ const FormPreview = ({ title, description, questions, settings }) => {
           </h2>
           <FormDescription
             description={description}
-            className="font-proxima-bold text-base text-gray-600 leading-relaxed"
+            className="font-proxima text-base text-white leading-relaxed"
             linkClassName="text-[#4242ea] underline hover:text-[#3333d1]"
           />
         </div>

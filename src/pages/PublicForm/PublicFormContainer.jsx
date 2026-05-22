@@ -214,7 +214,7 @@ const PublicFormContainer = () => {
               </h2>
               <FormDescription
                 description={form.description}
-                className="font-proxima-bold text-white/70 text-lg md:text-xl leading-tight mb-6"
+                className="font-proxima text-white text-lg md:text-xl leading-tight mb-6"
                 linkClassName="underline text-white hover:text-white/80"
               />
             </div>
