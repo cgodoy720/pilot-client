@@ -850,9 +850,16 @@ function Learning() {
     }
   };
 
+  const CONTINUE_PROMPT = 'Please continue exactly where you left off, without repeating any prior content.';
+
+  const handleContinueGeneration = () => {
+    if (isSending || isAiThinking || isStreaming || !isActive) return;
+    handleSendMessage(CONTINUE_PROMPT, selectedModel);
+  };
+
   const handleSendMessage = async (messageContent, modelFromTextarea) => {
     if (!messageContent || !messageContent.trim() || isSending || isAiThinking || isStreaming) return;
-    
+
     const trimmedMessage = messageContent.trim();
     
     // Capture the current task ID at the time of sending
@@ -896,7 +903,7 @@ function Learning() {
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [
-        ...prev,
+        ...prev.map(msg => (msg.truncated ? { ...msg, truncated: false } : msg)),
         userMessage,
         {
           id: streamingMessageId,
@@ -999,6 +1006,7 @@ function Learning() {
             checkTaskCompletion(messageTaskId);
 
             const finalMessage = chunk.message;
+            const truncated = chunk.finish_reason === 'length' || chunk.finish_reason === 'max_tokens';
             setMessages(prev => {
               const idx = findActiveBubbleIdx(prev);
               if (idx === -1) return prev;
@@ -1011,7 +1019,8 @@ function Learning() {
                       timestamp: finalMessage.timestamp,
                       isStreaming: false,
                       isThinking: false,
-                      thinkingLabel: null
+                      thinkingLabel: null,
+                      truncated
                     }
                   : m
               );
@@ -1759,13 +1768,26 @@ function Learning() {
                         )}
                       </div>
                     ) : (
-                      // AI message - StreamingMarkdownMessage handles both streaming and static
-                      // DB messages show instantly (hook inits with full content)
-                      // Streaming messages animate smoothly (hook reveals new chars)
-                      <StreamingMarkdownMessage
-                        content={message.content}
-                        animateOnMount={!!message.shouldAnimate}
-                      />
+                      <>
+                        <StreamingMarkdownMessage
+                          content={message.content}
+                          animateOnMount={!!message.shouldAnimate}
+                        />
+                        {message.truncated && !message.isStreaming && (
+                          <div className="mt-2 flex items-center gap-3 text-sm text-carbon-black/70 font-proxima">
+                            <span>Response was cut off.</span>
+                            <button
+                              type="button"
+                              onClick={handleContinueGeneration}
+                              disabled={isSending || isAiThinking || isStreaming || !isActive}
+                              className="inline-flex items-center gap-1 rounded-full border border-pursuit-purple px-3 py-1 text-pursuit-purple hover:bg-pursuit-purple hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <span aria-hidden="true">⏵</span>
+                              Continue
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );

@@ -169,6 +169,14 @@ Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
 
 **Service modules**: `utils/api.js` (generic + streaming), `services/adminApi.js` (27KB, admin ops), `services/volunteerApi.js`, `services/formService.js`, `services/platformIntakeService.js`, `utils/statsApi.js`, `utils/analyticsApi.js`, `utils/attendanceService.js`
 
+## AI Chat Truncation & Continue Button
+
+Both `pages/GPT/GPT.jsx` and `pages/Learning/Learning.jsx` consume the SSE `done` event's `finish_reason` field (forwarded by the backend — see `test-pilot-server/CLAUDE.md`). When `finish_reason === 'length'` (OpenRouter/OpenAI) or `'max_tokens'` (Anthropic), the assistant message is marked `truncated: true` in component state and a small **⏵ Continue** button renders directly under the bubble with the caption "Response was cut off." Clicking it submits the literal prompt `"Please continue exactly where you left off, without repeating any prior content."` through the existing send handler — no new API contract, the continuation appears as a normal next assistant turn. If the continuation also truncates, the button reappears on the new bubble; the user stays in control of cost.
+
+- `GPT.jsx`: `sendMessageToExistingThread(overrideContent)` accepts an optional content override; `handleContinueGeneration` calls it with the continuation prompt. The new-thread send path also sets `truncated` on the assistant message, though Continue itself only fires once a thread is active.
+- `Learning.jsx`: `handleSendMessage(messageContent, model)` already accepts content directly, so `handleContinueGeneration` just calls it with the continuation prompt + current `selectedModel`.
+- Both pages clear the `truncated` flag on prior messages when a new user message is sent, so stale Continue buttons disappear.
+
 ## Platform Intake
 
 `src/pages/PlatformIntake/PlatformIntake.jsx` — form for reporting bugs and requesting features. Submissions go to `POST /api/platform-intake` on test-pilot-server, which also forwards them to pursuit-factory (`POST /api/intake`) to create tickets in the Kanban system.

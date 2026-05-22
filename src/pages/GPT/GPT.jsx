@@ -650,6 +650,13 @@ function GPT() {
     }
   };
 
+  const CONTINUE_PROMPT = 'Please continue exactly where you left off, without repeating any prior content.';
+
+  const handleContinueGeneration = () => {
+    if (isSending || isStreaming || isInactiveUser || !activeThread) return;
+    sendMessageToExistingThread(CONTINUE_PROMPT);
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || isSending) return;
@@ -804,10 +811,11 @@ function GPT() {
             setToolCalls({});
 
             const finalMessage = chunk.message;
+            const truncated = chunk.finish_reason === 'length' || chunk.finish_reason === 'max_tokens';
             setMessages(prevMessages =>
               prevMessages.map(msg =>
                 msg.message_id === streamingMessageId
-                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  ? { ...msg, content: finalMessage.content, isStreaming: false, truncated }
                   : msg
               )
             );
@@ -851,17 +859,18 @@ function GPT() {
     }
   };
 
-  const sendMessageToExistingThread = async () => {
+  const sendMessageToExistingThread = async (overrideContent = null) => {
     // Abort any pending send message request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Create new AbortController for this request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    
-    const messageToSend = newMessage;
+
+    const isContinuation = typeof overrideContent === 'string' && overrideContent.length > 0;
+    const messageToSend = isContinuation ? overrideContent : newMessage;
     const tempUserMessageId = Date.now();
     const streamingMessageId = tempUserMessageId + 1;
     const tempUserMessage = {
@@ -872,9 +881,14 @@ function GPT() {
       isTemp: true
     };
     
-    setMessages(prevMessages => [...prevMessages, tempUserMessage]);
-    setNewMessage('');
-    handleTextareaResize();
+    setMessages(prevMessages => [
+      ...prevMessages.map(msg => (msg.truncated ? { ...msg, truncated: false } : msg)),
+      tempUserMessage,
+    ]);
+    if (!isContinuation) {
+      setNewMessage('');
+      handleTextareaResize();
+    }
     setIsSending(true);
     setIsAiThinking(true);
     setIsStreaming(true);
@@ -882,7 +896,7 @@ function GPT() {
 
     try {
       const isFirstMessage = messages.length === 0;
-      
+
       // Add a placeholder streaming message
       setMessages(prevMessages => [
         ...prevMessages.map(msg =>
@@ -961,10 +975,11 @@ function GPT() {
             setToolCalls({});
 
             const finalMessage = chunk.message;
+            const truncated = chunk.finish_reason === 'length' || chunk.finish_reason === 'max_tokens';
             setMessages(prevMessages =>
               prevMessages.map(msg =>
                 msg.message_id === streamingMessageId
-                  ? { ...msg, content: finalMessage.content, isStreaming: false }
+                  ? { ...msg, content: finalMessage.content, isStreaming: false, truncated }
                   : msg
               )
             );
@@ -976,7 +991,9 @@ function GPT() {
               prevMessages.filter(msg => msg.message_id !== streamingMessageId && msg.message_id !== tempUserMessageId)
             );
             // Restore user's message to input for easy retry
-            setNewMessage(chunk.userContent || messageToSend);
+            if (!isContinuation) {
+              setNewMessage(chunk.userContent || messageToSend);
+            }
             setStreamingContent('');
             setToolCalls({});
           }
@@ -1451,11 +1468,26 @@ function GPT() {
                             // Keeps preloader inside the same wrapper div so no layout shift when text arrives
                             <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
                           ) : (
-                            // AI message - StreamingMarkdownMessage handles both streaming and static
-                            <StreamingMarkdownMessage
-                              content={message.content}
-                              animateOnMount={!!message.shouldAnimate}
-                            />
+                            <>
+                              <StreamingMarkdownMessage
+                                content={message.content}
+                                animateOnMount={!!message.shouldAnimate}
+                              />
+                              {message.truncated && !message.isStreaming && (
+                                <div className="mt-2 flex items-center gap-3 text-sm text-carbon-black/70 font-proxima">
+                                  <span>Response was cut off.</span>
+                                  <button
+                                    type="button"
+                                    onClick={handleContinueGeneration}
+                                    disabled={isSending || isStreaming || isInactiveUser}
+                                    className="inline-flex items-center gap-1 rounded-full border border-pursuit-purple px-3 py-1 text-pursuit-purple hover:bg-pursuit-purple hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <span aria-hidden="true">⏵</span>
+                                    Continue
+                                  </button>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       );
