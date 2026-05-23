@@ -23,7 +23,17 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '../../../../components/ui/dropdown-menu';
-import { Upload, Settings, RefreshCw, ChevronDown, Users, FileInput, Download } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../../components/ui/alert-dialog';
+import { Upload, Settings, RefreshCw, ChevronDown, Users, FileInput, Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import LeadImportModal from './LeadImportModal';
 import EmailListsManager from './EmailListsManager';
@@ -199,6 +209,7 @@ const LeadsTab = ({ token }) => {
   // Modals
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   // Selected leads for bulk actions
   const [selectedLeads, setSelectedLeads] = useState([]);
@@ -556,6 +567,39 @@ const LeadsTab = ({ token }) => {
       }
     } catch (error) {
       console.error('Error bulk adding leads to list:', error);
+    }
+  };
+
+  // Delete selected leads
+  const handleBulkDeleteLeads = async () => {
+    if (selectedLeads.length === 0) return;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/leads`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ lead_ids: selectedLeads })
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete leads');
+      }
+
+      toast.success(`Deleted ${result.deletedCount} lead${result.deletedCount === 1 ? '' : 's'}`);
+      setDeleteDialogOpen(false);
+      setSelectedLeads([]);
+      fetchLeads();
+      fetchStats();
+    } catch (error) {
+      console.error('Error deleting selected leads:', error);
+      toast.error(error.message || 'Failed to delete selected leads');
     }
   };
 
@@ -987,6 +1031,14 @@ const LeadsTab = ({ token }) => {
               </DropdownMenuSub>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
+                onClick={() => setDeleteDialogOpen(true)}
+                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
                 onClick={() => setSelectedLeads([])}
                 className="text-gray-500"
               >
@@ -1380,6 +1432,27 @@ const LeadsTab = ({ token }) => {
           fetchSourceConfig();
         }}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="font-proxima">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Leads?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selectedLeads.length} selected lead{selectedLeads.length === 1 ? '' : 's'} and related lead records.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteLeads}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete {selectedLeads.length === 1 ? 'Lead' : 'Leads'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
