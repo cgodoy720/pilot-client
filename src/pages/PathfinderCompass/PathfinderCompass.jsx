@@ -36,6 +36,10 @@ const COMPLETE_START = '[COMPASS_COMPLETE]';
 const COMPLETE_END = '[/COMPASS_COMPLETE]';
 const ADD_GOALS_START = '[COMPASS_ADD_GOALS]';
 const ADD_GOALS_END = '[/COMPASS_ADD_GOALS]';
+const COACH_FLAG_START = '[COMPASS_COACH_FLAG]';
+const COACH_FLAG_END = '[/COMPASS_COACH_FLAG]';
+const LOG_START = '[COMPASS_LOG]';
+const LOG_END = '[/COMPASS_LOG]';
 
 function extractBetween(text, start, end) {
   const s = text.indexOf(start);
@@ -46,7 +50,7 @@ function extractBetween(text, start, end) {
 }
 
 function stripForDisplay(text) {
-  const signals = [COMPLETE_START, ADD_GOALS_START];
+  const signals = [COMPLETE_START, ADD_GOALS_START, COACH_FLAG_START, LOG_START];
   const cuts = signals.map(s => text.indexOf(s)).filter(i => i !== -1);
   let result = cuts.length ? text.slice(0, Math.min(...cuts)).trimEnd() : text;
   // Strip any partial signal prefix at the tail (streaming artifact)
@@ -61,23 +65,71 @@ function stripForDisplay(text) {
   return result;
 }
 
+// ── Fuzzy search helper ───────────────────────────────────────────────────────
+
+function fuzzyMatch(text, query) {
+  if (!query || query.length < 2) return [];
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const matches = [];
+
+  // Exact substring matches first
+  let pos = 0;
+  while ((pos = lowerText.indexOf(lowerQuery, pos)) !== -1) {
+    matches.push({ index: pos, length: query.length });
+    pos += 1;
+  }
+  if (matches.length > 0) return matches;
+
+  // Fuzzy: split query into words & match each with tolerance
+  const words = lowerQuery.split(/\s+/).filter(Boolean);
+  for (const word of words) {
+    if (word.length < 3) continue;
+    // Sliding window with edit distance 1: allow 1 char mismatch
+    const wLen = word.length;
+    for (let i = 0; i <= lowerText.length - wLen; i++) {
+      const slice = lowerText.slice(i, i + wLen);
+      let mismatches = 0;
+      for (let j = 0; j < wLen && mismatches < 2; j++) {
+        if (slice[j] !== word[j]) mismatches++;
+      }
+      if (mismatches <= 1) {
+        // Avoid overlapping matches
+        if (!matches.some(m => Math.abs(m.index - i) < wLen)) {
+          matches.push({ index: i, length: wLen });
+        }
+      }
+    }
+  }
+  return matches;
+}
+
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 
-function renderInline(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+function renderInline(text, searchQuery) {
+  // Split on bold (**...**), markdown links ([text](url)), and bare URLs
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|https?:\/\/[^\s)>,]+)/g);
   const seen = new Map();
   return parts.map((p) => {
     const keyBase = `inline:${p}`;
     const n = (seen.get(keyBase) || 0) + 1;
     seen.set(keyBase, n);
     const key = `${keyBase}:${n}`;
-    return p.startsWith('**') && p.endsWith('**')
-      ? <strong key={key}>{p.slice(2, -2)}</strong>
-      : <React.Fragment key={key}>{p}</React.Fragment>;
+    if (p.startsWith('**') && p.endsWith('**')) {
+      return <strong key={key}>{searchQuery ? applySearchHighlights(p.slice(2, -2), searchQuery) : p.slice(2, -2)}</strong>;
+    }
+    const mdLink = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (mdLink) {
+      return <a key={key} href={mdLink[2]} target="_blank" rel="noopener noreferrer" className="compass__link">{searchQuery ? applySearchHighlights(mdLink[1], searchQuery) : mdLink[1]}</a>;
+    }
+    if (/^https?:\/\//.test(p)) {
+      return <a key={key} href={p} target="_blank" rel="noopener noreferrer" className="compass__link">{p}</a>;
+    }
+    return <React.Fragment key={key}>{searchQuery ? applySearchHighlights(p, searchQuery) : p}</React.Fragment>;
   });
 }
 
-function renderMarkdown(text) {
+function renderMarkdown(text, searchQuery) {
   if (!text) return null;
   // Join continuation lines (starting with , ; or :) to their previous line
   const rawLines = text.split('\n');
@@ -99,6 +151,8 @@ function renderMarkdown(text) {
       ? 'h1'
       : line.match(/^[-*] /)
       ? 'li'
+      : line.match(/^\d+\.\s/)
+      ? 'ol'
       : !line.trim()
       ? 'gap'
       : 'p';
@@ -108,21 +162,25 @@ function renderMarkdown(text) {
     const key = `${keyBase}:${n}`;
 
     if (line.startsWith('### ')) {
-      return <div key={key} className="compass__md-h3">{renderInline(line.slice(4))}</div>;
+      return <div key={key} className="compass__md-h3">{renderInline(line.slice(4), searchQuery)}</div>;
     }
     if (line.startsWith('## ')) {
-      return <div key={key} className="compass__md-h3">{renderInline(line.slice(3))}</div>;
+      return <div key={key} className="compass__md-h3">{renderInline(line.slice(3), searchQuery)}</div>;
     }
     if (line.startsWith('# ')) {
-      return <div key={key} className="compass__md-h3">{renderInline(line.slice(2))}</div>;
+      return <div key={key} className="compass__md-h3">{renderInline(line.slice(2), searchQuery)}</div>;
     }
     if (line.match(/^[-*] /)) {
-      return <div key={key} className="compass__md-li">{renderInline(line.slice(2))}</div>;
+      return <div key={key} className="compass__md-li">{renderInline(line.slice(2), searchQuery)}</div>;
+    }
+    const olMatch = line.match(/^(\d+)\.\s(.*)/);
+    if (olMatch) {
+      return <div key={key} className="compass__md-ol"><span className="compass__md-ol-num">{olMatch[1]}.</span> {renderInline(olMatch[2], searchQuery)}</div>;
     }
     if (!line.trim()) {
       return <div key={key} className="compass__md-gap" />;
     }
-    return <div key={key}>{renderInline(line)}</div>;
+    return <div key={key}>{renderInline(line, searchQuery)}</div>;
   });
 }
 
@@ -145,7 +203,33 @@ function normalizeChatHistory(chatHistory) {
 
 // ── Per-message component (stable key = stable hook state for smooth streaming)
 
-function ChatMessage({ message, userName }) {
+function applySearchHighlights(text, query) {
+  if (!query || query.length < 2 || typeof text !== 'string' || !text) return text;
+  let hits;
+  try {
+    hits = fuzzyMatch(text, query);
+  } catch {
+    return text;
+  }
+  if (!hits || hits.length === 0) return text;
+  const sorted = [...hits].sort((a, b) => a.index - b.index);
+  const parts = [];
+  let lastEnd = 0;
+  for (const m of sorted) {
+    if (m.index < lastEnd) continue;
+    if (m.index > lastEnd) parts.push(text.slice(lastEnd, m.index));
+    parts.push(
+      <mark key={`sh-${m.index}`} className="compass__search-highlight">
+        {text.slice(m.index, m.index + m.length)}
+      </mark>
+    );
+    lastEnd = m.index + m.length;
+  }
+  if (lastEnd < text.length) parts.push(text.slice(lastEnd));
+  return parts;
+}
+
+function ChatMessage({ message, userName, searchQuery }) {
   const smoothContent = useStreamingText(message.content || '');
   const isCoach = message.role === 'assistant';
 
@@ -157,13 +241,18 @@ function ChatMessage({ message, userName }) {
     );
   }
 
+  // Don't render empty bubbles (e.g. when entire content was a signal that got stripped)
+  if (!message.content?.trim()) return null;
+
   return (
     <div className={`compass__message compass__message--${isCoach ? 'coach' : 'user'}`}>
       <div className="compass__message-label">
         {isCoach ? 'Compass' : (userName || 'You')}
       </div>
       <div className="compass__message-bubble">
-        {isCoach ? renderMarkdown(smoothContent) : message.content}
+        {isCoach
+          ? renderMarkdown(smoothContent, searchQuery)
+          : applySearchHighlights(message.content, searchQuery)}
       </div>
     </div>
   );
@@ -192,22 +281,31 @@ function GoalProgress({ goal, onProgress }) {
     );
   }
 
-  return (
-    <div className="compass__goal-dots">
-      {Array.from({ length: target }, (_, i) => (
-        <div
-          key={`goal-${goal.id || goal.goal_key || 'x'}-dot-${i + 1}`}
-          className={`compass__goal-dot${progress > i ? ' compass__goal-dot--filled' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            // Clicking the last filled dot undoes it; otherwise fill to this step
-            const newProgress = progress === i + 1 ? i : i + 1;
-            onProgress(goal, newProgress);
-          }}
-        />
-      ))}
-    </div>
-  );
+  const dots = Array.from({ length: target }, (_, i) => (
+    <div
+      key={`goal-${goal.id || goal.goal_key || 'x'}-dot-${i + 1}`}
+      className={`compass__goal-dot${progress > i ? ' compass__goal-dot--filled' : ''}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        const newProgress = progress === i + 1 ? i : i + 1;
+        onProgress(goal, newProgress);
+      }}
+    />
+  ));
+
+  if (target > 5) {
+    const rows = [];
+    for (let i = 0; i < dots.length; i += 5) {
+      rows.push(
+        <div key={`row-${i}`} className="compass__goal-dots">
+          {dots.slice(i, i + 5)}
+        </div>
+      );
+    }
+    return <div className="compass__goal-dots-rows">{rows}</div>;
+  }
+
+  return <div className="compass__goal-dots">{dots}</div>;
 }
 
 // ── CompassDashboard ──────────────────────────────────────────────────────────
@@ -323,7 +421,7 @@ function CompassDashboard({ status, cycleEnded, onGoalProgress, isLoading = fals
           <>
             <div className="compass__cycle-row">
               <span className="compass__cycle-label">Cycle {enrollment.cycle_number}</span>
-              <span className="compass__cycle-value">{daysRemaining}d remaining</span>
+              <span className="compass__cycle-value">{daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining</span>
             </div>
             <div className="compass__cycle-bar-track">
               <div className="compass__cycle-bar-fill" style={{ width: `${pct}%` }} />
@@ -436,6 +534,25 @@ function compassStorageKeyForUser(user) {
 // truncate silently.
 const MAX_CLIENT_MESSAGE_CHARS = 3500;
 
+function compassTimestampKey(user) {
+  const id = user?.user_id ?? user?.userId ?? user?.id;
+  if (id == null || id === '') return null;
+  return `compass_last_msg_ts_${id}`;
+}
+
+function getHoursSinceLastMessage(user) {
+  const key = compassTimestampKey(user);
+  if (!key) return null;
+  const ts = localStorage.getItem(key);
+  if (!ts) return null;
+  return (Date.now() - Number(ts)) / 3600000;
+}
+
+function touchLastMessageTimestamp(user) {
+  const key = compassTimestampKey(user);
+  if (key) localStorage.setItem(key, String(Date.now()));
+}
+
 function safeWriteCompassHistory(storageKey, messages) {
   // Caller passes null when there's no resolvable user id — skip persistence
   // entirely rather than fall back to a shared key.
@@ -446,7 +563,16 @@ function safeWriteCompassHistory(storageKey, messages) {
   // before giving up — and surface the failure in the console rather than
   // silently swallowing it the way the old `catch { /* ignore */ }` did.
   const persisted = messages.filter(m => !m.streaming);
-  const trimmed = persisted.slice(-MAX_PERSISTED_COMPASS_MESSAGES);
+  // Always keep the first message (onboarding greeting) so it isn't lost when
+  // the conversation grows past the cap. Slice the tail for the rest.
+  let trimmed;
+  if (persisted.length > MAX_PERSISTED_COMPASS_MESSAGES) {
+    const first = persisted[0];
+    const tail = persisted.slice(-(MAX_PERSISTED_COMPASS_MESSAGES - 1));
+    trimmed = tail[0]?.id === first?.id ? tail : [first, ...tail];
+  } else {
+    trimmed = persisted;
+  }
   try {
     localStorage.setItem(storageKey, JSON.stringify(trimmed));
     return;
@@ -492,12 +618,22 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchIndex, setSearchIndex] = useState(0);
+  const searchInputRef = useRef(null);
   const initDoneRef = useRef(messagesRef.current.length > 0);
   const cycleEndSentRef = useRef(false);
+  const lastCycleIdRef = useRef(null);
+  const nudgeResumeSentRef = useRef(false);
+  const coachIntroSentRef = useRef(false);
+  const jobAlertSentRef = useRef(false);
+  const sessionFirstSendRef = useRef(true);
   const serverHistoryHydratedRef = useRef(false);
   const statusRef = useRef(status);
   const cycleEndedRef = useRef(cycleEnded);
   const sendMessageRef = useRef(null);
+  const textareaRef = useRef(null);
   // Mirror of isStreaming for use INSIDE sendMessage. The `isStreaming` state
   // is here because the UI needs to react to it (button disabled, banner
   // text), but if we close over it inside sendMessage we have to include it
@@ -610,6 +746,16 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     if (status?.enrolled) { initDoneRef.current = true; return; }
     initDoneRef.current = true;
     sendMessageRef.current?.('__init__', true, '__init__');
+    touchLastMessageTimestamp(user);
+  }, [status, user]);
+
+  // Reset cycle-end sentinel when a new cycle starts
+  useEffect(() => {
+    const cycleId = status?.enrollment?.cycle_id ?? null;
+    if (cycleId && cycleId !== lastCycleIdRef.current) {
+      lastCycleIdRef.current = cycleId;
+      cycleEndSentRef.current = false;
+    }
   }, [status]);
 
   // Cycle-end check-in (fires independently whenever a cycle has ended)
@@ -619,7 +765,71 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     if (status?.fetchError) return;
     cycleEndSentRef.current = true;
     sendMessageRef.current?.('__cycle_end__', true, '__cycle_end__');
-  }, [cycleEnded, status]);
+    touchLastMessageTimestamp(user);
+  }, [cycleEnded, status, user]);
+
+  // Nudge resume: builder started onboarding (has history) but didn't finish
+  // (not enrolled) and it's been 24+ hours since their last message.
+  useEffect(() => {
+    if (nudgeResumeSentRef.current) return;
+    if (status === null || status?.fetchError) return;
+    if (status?.enrolled) return;
+    // Only fire if there's existing chat history (they started but didn't finish)
+    if (messagesRef.current.length === 0) return;
+    const hours = getHoursSinceLastMessage(user);
+    if (hours === null || hours < 24) return;
+    nudgeResumeSentRef.current = true;
+    sendMessageRef.current?.('__nudge_resume__', true, '__nudge_resume__');
+    touchLastMessageTimestamp(user);
+  }, [status, user]);
+
+  // Coach intro migration: enrolled builder whose has_coach is unknown.
+  // Fires once to ask the coach question so all existing builders get the flag set.
+  // Skip if cycle has ended — the cycle-end check-in takes priority.
+  useEffect(() => {
+    if (coachIntroSentRef.current) return;
+    if (status === null || status?.fetchError) return;
+    if (!status?.enrolled) return;
+    if (status?.has_coach !== null && status?.has_coach !== undefined) return;
+    if (cycleEnded) return;
+    coachIntroSentRef.current = true;
+    sendMessageRef.current?.('__coach_intro__', true, '__coach_intro__');
+    touchLastMessageTimestamp(user);
+  }, [status, user, cycleEnded]);
+
+  // Job alert: detect new shared job postings and auto-surface them in chat
+  useEffect(() => {
+    if (jobAlertSentRef.current) return;
+    if (status === null || status?.fetchError) return;
+    if (!status?.enrolled) return;
+    if (!status?.recent_jobs?.length) return;
+    // Wait for init / cycle-end / coach-intro triggers to finish first
+    if (!initDoneRef.current) return;
+
+    const uid = user?.user_id ?? user?.userId ?? user?.id;
+    const seenKey = `compass_seen_jobs_${uid}`;
+    const seen = JSON.parse(localStorage.getItem(seenKey) || '[]');
+    const newJobs = status.recent_jobs.filter(j => !seen.includes(j.id));
+    console.log('[JobAlert] seen:', seen, 'newJobs:', newJobs.length, 'ids:', status.recent_jobs.map(j => j.id));
+    if (newJobs.length === 0) return;
+
+    jobAlertSentRef.current = true;
+    // Mark all as seen immediately so we don't re-alert
+    const allSeen = [...new Set([...seen, ...newJobs.map(j => j.id)])];
+    localStorage.setItem(seenKey, JSON.stringify(allSeen));
+
+    // Wait for any in-flight triggers (re-engagement, cycle-end, etc.) to finish streaming
+    const waitAndSend = () => {
+      if (isStreamingRef.current) {
+        setTimeout(waitAndSend, 1000);
+        return;
+      }
+      const payload = JSON.stringify({ jobs: newJobs });
+      console.log('[JobAlert] Sending job alert now');
+      sendMessageRef.current?.(`__job_alert__${payload}`, true, '__job_alert__');
+    };
+    setTimeout(waitAndSend, 3000);
+  }, [status, user]);
 
   const handleCompletionPayload = useCallback(async (payload) => {
     setIsCompleting(true);
@@ -646,32 +856,68 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         }),
       });
       if (!res.ok) {
-        console.error('Compass completion endpoint returned non-ok:', res.status);
-        return;
+        const errBody = await res.json().catch(() => ({}));
+        console.error('Compass completion endpoint returned error:', res.status, errBody);
       }
-
-      try {
-        const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!statusRes.ok) {
-          console.error('Compass status refresh returned non-ok:', statusRes.status);
-          return;
-        }
+      // Always refresh status so the right panel reflects DB state
+      const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (statusRes.ok) {
         const statusJson = await statusRes.json();
-        // The user may have navigated away during the POST + status round-trip.
-        // onEnrollmentComplete is `setStatus` on the parent — calling it after
-        // unmount triggers a setState-on-unmounted warning and can mask state
-        // resets if the parent remounts.
-        if (!isMountedRef.current) return;
-        onEnrollmentComplete(statusJson);
-      } catch (statusErr) {
-        console.error('Compass status refresh failed:', statusErr);
+        if (isMountedRef.current) onEnrollmentComplete(statusJson);
       }
     } catch (err) {
       console.error('Failed to complete onboarding/new cycle:', err);
     } finally {
       if (isMountedRef.current) setIsCompleting(false);
+    }
+  }, [token, onEnrollmentComplete]);
+
+  const handleLogPayload = useCallback(async (payload) => {
+    try {
+      const entries = Array.isArray(payload.entries) ? payload.entries : [payload];
+      console.log('[Compass Log] Sending entries:', JSON.stringify(entries, null, 2));
+      const res = await fetch(`${API_URL}/api/pathfinder/compass/log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ entries }),
+      });
+      const data = await res.json();
+      console.log('[Compass Log] Response:', JSON.stringify(data, null, 2));
+      if (!res.ok) {
+        console.error('Compass log endpoint returned non-ok:', res.status);
+      }
+    } catch (err) {
+      console.error('Failed to log compass entries:', err);
+    }
+  }, [token]);
+
+  const handleCoachFlagPayload = useCallback(async (payload) => {
+    try {
+      const res = await fetch(`${API_URL}/api/pathfinder/compass/coach-flag`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ has_coach: payload.has_coach }),
+      });
+      if (!res.ok) {
+        console.error('Compass coach-flag endpoint returned non-ok:', res.status);
+        return;
+      }
+      // Refresh status so dashboard and future prompts reflect the flag
+      try {
+        const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (statusRes.ok) {
+          const statusJson = await statusRes.json();
+          if (isMountedRef.current) onEnrollmentComplete(statusJson);
+        }
+      } catch (statusErr) {
+        console.error('Compass status refresh failed after coach flag:', statusErr);
+      }
+    } catch (err) {
+      console.error('Failed to set coach flag:', err);
     }
   }, [token, onEnrollmentComplete]);
 
@@ -684,24 +930,16 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         body: JSON.stringify({ goals: payload.goals }),
       });
       if (!res.ok) {
-        console.error('Compass add-goals endpoint returned non-ok:', res.status);
-        return;
+        const errBody = await res.json().catch(() => ({}));
+        console.error('Compass goals/add endpoint returned error:', res.status, errBody);
       }
-
-      try {
-        const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!statusRes.ok) {
-          console.error('Compass status refresh returned non-ok:', statusRes.status);
-          return;
-        }
+      // Always refresh status so the right panel reflects DB state
+      const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (statusRes.ok) {
         const statusJson = await statusRes.json();
-        // Same unmount-guard rationale as in handleCompletionPayload above.
-        if (!isMountedRef.current) return;
-        onEnrollmentComplete(statusJson);
-      } catch (statusErr) {
-        console.error('Compass status refresh failed:', statusErr);
+        if (isMountedRef.current) onEnrollmentComplete(statusJson);
       }
     } catch (err) {
       console.error('Failed to add goals:', err);
@@ -757,17 +995,17 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         ...prev,
         { role: 'user', content: text.trim(), id: userMsgId },
       ]);
+      touchLastMessageTimestamp(user);
     }
 
     setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = '';
     setIsStreaming(true);
 
     updateMessages(prev => [
       ...prev,
       { role: 'assistant', content: '', id: streamMsgId, streaming: true },
     ]);
-
-    const mode = (statusRef.current?.enrolled || cycleEndedRef.current) ? 'coaching' : 'onboarding';
 
     // Bind a fresh AbortController to this request and stash it on the ref
     // so the unmount cleanup can cancel us. Aborting any prior controller
@@ -799,7 +1037,11 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           const res = await fetch(`${API_URL}/api/pathfinder/compass/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ message: messageText, history: historyForApi, mode }),
+            body: JSON.stringify({
+              message: messageText,
+              history: historyForApi,
+              reentry_gap_hours: sessionFirstSendRef.current ? Math.round(getHoursSinceLastMessage(user) || 0) : 0,
+            }),
             signal: abortController.signal,
           });
 
@@ -891,10 +1133,20 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           // Check for completion signals
           const completionPayload = extractBetween(fullContent, COMPLETE_START, COMPLETE_END);
           const addGoalsPayload = extractBetween(fullContent, ADD_GOALS_START, ADD_GOALS_END);
+          const coachFlagPayload = extractBetween(fullContent, COACH_FLAG_START, COACH_FLAG_END);
           const displayContent = stripForDisplay(fullContent);
           updateMessages(prev =>
             prev.map(m => m.id === streamMsgId ? { ...m, content: displayContent, streaming: false } : m)
           );
+
+          // Coach flag and log are fire-and-forget — don't block on them
+          if (coachFlagPayload) {
+            handleCoachFlagPayload(coachFlagPayload);
+          }
+          const logPayload = extractBetween(fullContent, LOG_START, LOG_END);
+          if (logPayload) {
+            handleLogPayload(logPayload);
+          }
 
           if (completionPayload) {
             await handleCompletionPayload(completionPayload);
@@ -902,6 +1154,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
             await handleAddGoalsPayload(addGoalsPayload);
           }
           succeeded = true;
+          sessionFirstSendRef.current = false;
         } catch (err) {
           // AbortError is expected when the user navigates away mid-stream.
           // Don't surface a "something went wrong" message — there's no UI to
@@ -972,7 +1225,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     // above. Including it would recreate sendMessage on every flip, schedule
     // a useEffect to update sendMessageRef, and leave a one-frame window
     // where the cycle-end / init effects fire through the previous closure.
-  }, [token, handleCompletionPayload, handleAddGoalsPayload, updateMessages]);
+  }, [token, handleCompletionPayload, handleAddGoalsPayload, handleCoachFlagPayload, handleLogPayload, updateMessages]);
 
   useEffect(() => {
     sendMessageRef.current = sendMessage;
@@ -985,27 +1238,368 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     }
   };
 
+  // ── Voice input (Web Speech API + Audio Waveform) ───────────────────────────
+  const recognitionRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const waveCanvasRef = useRef(null);
+  const [isListening, setIsListening] = useState(false);
+  const voiceTranscriptRef = useRef('');
+
+  const hasSpeechApi = typeof window !== 'undefined' &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const drawWaveform = useCallback(() => {
+    const canvas = waveCanvasRef.current;
+    const analyser = analyserRef.current;
+    if (!canvas || !analyser) return;
+
+    const ctx = canvas.getContext('2d');
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    // Smoothed amplitude history for fluid animation
+    const smoothed = new Float32Array(bufferLength).fill(0);
+
+    const draw = () => {
+      animFrameRef.current = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const mid = h / 2;
+      ctx.clearRect(0, 0, w, h);
+
+      // Smooth the data for fluid motion
+      for (let i = 0; i < bufferLength; i++) {
+        const raw = (dataArray[i] - 128) / 128;
+        smoothed[i] += (raw - smoothed[i]) * 0.3;
+      }
+
+      // Sample fewer points and interpolate with curves
+      const points = 64;
+      const step = bufferLength / points;
+
+      // Draw filled wave (gradient)
+      const gradient = ctx.createLinearGradient(0, 0, 0, h);
+      gradient.addColorStop(0, 'rgba(66, 66, 234, 0.0)');
+      gradient.addColorStop(0.3, 'rgba(66, 66, 234, 0.08)');
+      gradient.addColorStop(0.5, 'rgba(66, 66, 234, 0.12)');
+      gradient.addColorStop(0.7, 'rgba(66, 66, 234, 0.08)');
+      gradient.addColorStop(1, 'rgba(66, 66, 234, 0.0)');
+
+      ctx.beginPath();
+      ctx.moveTo(0, mid);
+      for (let i = 0; i <= points; i++) {
+        const idx = Math.floor(i * step);
+        const x = (i / points) * w;
+        const amp = smoothed[Math.min(idx, bufferLength - 1)] * mid * 1.8;
+        if (i === 0) {
+          ctx.lineTo(x, mid + amp);
+        } else {
+          const prevX = ((i - 1) / points) * w;
+          const cpx = (prevX + x) / 2;
+          ctx.quadraticCurveTo(cpx, mid + smoothed[Math.min(Math.floor((i - 1) * step), bufferLength - 1)] * mid * 1.8, x, mid + amp);
+        }
+      }
+      // Mirror back for bottom fill
+      for (let i = points; i >= 0; i--) {
+        const idx = Math.floor(i * step);
+        const x = (i / points) * w;
+        const amp = smoothed[Math.min(idx, bufferLength - 1)] * mid * 1.8;
+        if (i === points) {
+          ctx.lineTo(x, mid - amp);
+        } else {
+          const nextX = ((i + 1) / points) * w;
+          const cpx = (nextX + x) / 2;
+          ctx.quadraticCurveTo(cpx, mid - smoothed[Math.min(Math.floor((i + 1) * step), bufferLength - 1)] * mid * 1.8, x, mid - amp);
+        }
+      }
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Draw smooth center line
+      ctx.beginPath();
+      ctx.moveTo(0, mid);
+      for (let i = 0; i <= points; i++) {
+        const idx = Math.floor(i * step);
+        const x = (i / points) * w;
+        const amp = smoothed[Math.min(idx, bufferLength - 1)] * mid * 1.8;
+        if (i === 0) {
+          ctx.moveTo(x, mid + amp);
+        } else {
+          const prevX = ((i - 1) / points) * w;
+          const cpx = (prevX + x) / 2;
+          ctx.quadraticCurveTo(cpx, mid + smoothed[Math.min(Math.floor((i - 1) * step), bufferLength - 1)] * mid * 1.8, x, mid + amp);
+        }
+      }
+      ctx.strokeStyle = '#4242ea';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw mirrored line
+      ctx.beginPath();
+      for (let i = 0; i <= points; i++) {
+        const idx = Math.floor(i * step);
+        const x = (i / points) * w;
+        const amp = smoothed[Math.min(idx, bufferLength - 1)] * mid * 1.8;
+        if (i === 0) {
+          ctx.moveTo(x, mid - amp);
+        } else {
+          const prevX = ((i - 1) / points) * w;
+          const cpx = (prevX + x) / 2;
+          ctx.quadraticCurveTo(cpx, mid - smoothed[Math.min(Math.floor((i - 1) * step), bufferLength - 1)] * mid * 1.8, x, mid - amp);
+        }
+      }
+      ctx.strokeStyle = 'rgba(66, 66, 234, 0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    };
+    draw();
+  }, []);
+
+  const stopWaveform = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      // Stop mic stream tracks to turn off browser mic indicator
+      if (audioContextRef.current._stream) {
+        audioContextRef.current._stream.getTracks().forEach(t => t.stop());
+      }
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+      analyserRef.current = null;
+    }
+  }, []);
+
+  const toggleVoice = useCallback(() => {
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      stopWaveform();
+      // Apply accumulated transcript
+      const transcript = voiceTranscriptRef.current;
+      if (transcript) {
+        setInput(prev => {
+          const prefix = prev && !prev.endsWith(' ') ? prev + ' ' : prev;
+          return prefix + transcript;
+        });
+        voiceTranscriptRef.current = '';
+      }
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognitionRef.current = recognition;
+    voiceTranscriptRef.current = '';
+
+    recognition.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          voiceTranscriptRef.current += event.results[i][0].transcript;
+        }
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      stopWaveform();
+      // Apply transcript on auto-end
+      const transcript = voiceTranscriptRef.current;
+      if (transcript) {
+        setInput(prev => {
+          const prefix = prev && !prev.endsWith(' ') ? prev + ' ' : prev;
+          return prefix + transcript;
+        });
+        voiceTranscriptRef.current = '';
+      }
+      recognitionRef.current = null;
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error !== 'aborted') console.warn('Speech recognition error:', event.error);
+      setIsListening(false);
+      stopWaveform();
+      recognitionRef.current = null;
+    };
+
+    // Start audio analyser for waveform
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      audioContextRef.current = audioCtx;
+      analyserRef.current = analyser;
+      // Store stream so we can stop tracks later
+      audioCtx._stream = stream;
+      drawWaveform();
+    }).catch(() => {
+      // If mic access fails, still allow speech recognition without waveform
+    });
+
+    recognition.start();
+    setIsListening(true);
+  }, [isListening, drawWaveform, stopWaveform]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      }
+      stopWaveform();
+    };
+  }, [stopWaveform]);
+
   const isDisabled = isStreaming || isCompleting;
   const placeholder = status?.enrolled ? 'Ask Compass anything...' : 'Talk to Compass...';
+
+  // ── Search logic ─────────────────────────────────────────────────────────────
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery || searchQuery.length < 2) return [];
+    const visibleMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
+    const results = [];
+    visibleMessages.forEach((m, msgIdx) => {
+      const text = stripForDisplay(m.content || '');
+      const hits = fuzzyMatch(text, searchQuery);
+      hits.forEach(hit => {
+        results.push({ msgIdx, messageKey: m.clientKey, ...hit });
+      });
+    });
+    return results;
+  }, [messages, searchQuery]);
+
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+    setSearchQuery('');
+    setSearchIndex(0);
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchIndex(0);
+  }, []);
+
+  const scrollToSearchResult = useCallback((idx) => {
+    if (!searchResults[idx]) return;
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const highlights = container.querySelectorAll('.compass__search-highlight');
+    // Find the nth highlight that matches this result's global index
+    let globalIdx = 0;
+    for (const result of searchResults) {
+      if (globalIdx === idx) break;
+      globalIdx++;
+    }
+    const target = highlights[idx];
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Pulse the active one
+      highlights.forEach(h => h.classList.remove('compass__search-highlight--active'));
+      target.classList.add('compass__search-highlight--active');
+    }
+  }, [searchResults]);
+
+  const nextResult = useCallback(() => {
+    if (searchResults.length === 0) return;
+    const next = (searchIndex + 1) % searchResults.length;
+    setSearchIndex(next);
+    scrollToSearchResult(next);
+  }, [searchIndex, searchResults, scrollToSearchResult]);
+
+  const prevResult = useCallback(() => {
+    if (searchResults.length === 0) return;
+    const prev = (searchIndex - 1 + searchResults.length) % searchResults.length;
+    setSearchIndex(prev);
+    scrollToSearchResult(prev);
+  }, [searchIndex, searchResults, scrollToSearchResult]);
+
+  // Auto-scroll to first result when query changes
+  useEffect(() => {
+    if (searchResults.length > 0) {
+      setSearchIndex(0);
+      // Small delay to let highlights render
+      setTimeout(() => scrollToSearchResult(0), 100);
+    }
+  }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="compass__chat">
       <div className="compass__chat-header">
         <div className="compass__chat-avatar">C</div>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="compass__chat-name">
             Compass
             <span className="compass__beta-tag">Beta</span>
           </div>
           <div className="compass__chat-role">Your personal career coach</div>
         </div>
+        <button
+          className="compass__search-toggle"
+          onClick={searchOpen ? closeSearch : openSearch}
+          aria-label={searchOpen ? 'Close search' : 'Search chat'}
+          title="Search chat"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </button>
       </div>
+
+      {searchOpen && (
+        <div className="compass__search-bar">
+          <input
+            ref={searchInputRef}
+            className="compass__search-input"
+            type="text"
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setSearchIndex(0); }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? prevResult() : nextResult(); }
+              if (e.key === 'Escape') closeSearch();
+            }}
+            placeholder="Search messages..."
+          />
+          <span className="compass__search-count">
+            {searchResults.length > 0 ? `${searchIndex + 1} / ${searchResults.length}` : searchQuery.length >= 2 ? '0 results' : ''}
+          </span>
+          <button className="compass__search-nav" onClick={prevResult} disabled={searchResults.length === 0} aria-label="Previous match">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+          </button>
+          <button className="compass__search-nav" onClick={nextResult} disabled={searchResults.length === 0} aria-label="Next match">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <button className="compass__search-close" onClick={closeSearch} aria-label="Close search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <div className="compass__messages" ref={messagesContainerRef}>
         {messages
           .filter(m => m.role === 'user' || m.role === 'assistant')
           .map(m => (
-            <ChatMessage key={m.clientKey} message={m} userName={user?.firstName} />
+            <ChatMessage key={m.clientKey} message={m} userName={user?.firstName} searchQuery={searchOpen ? searchQuery : ''} />
           ))}
         <div ref={messagesEndRef} />
       </div>
@@ -1022,15 +1616,50 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
 
       <div className="compass__input-area">
         <div className="compass__input-row">
-          <textarea
-            className="compass__input"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={isDisabled}
-            rows={1}
-          />
+          {isListening ? (
+            <div className="compass__waveform-container">
+              <canvas ref={waveCanvasRef} className="compass__waveform-canvas" width="600" height="64" />
+              <span className="compass__waveform-label">Listening...</span>
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              className="compass__input"
+              value={input}
+              onChange={e => {
+                setInput(e.target.value);
+                const ta = e.target;
+                ta.style.height = 'auto';
+                ta.style.height = Math.min(ta.scrollHeight, 168) + 'px';
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={isDisabled}
+              rows={1}
+            />
+          )}
+          {hasSpeechApi && (
+            <button
+              className={`compass__mic-btn${isListening ? ' compass__mic-btn--active' : ''}`}
+              onClick={toggleVoice}
+              disabled={isDisabled}
+              aria-label={isListening ? 'Stop recording' : 'Start voice input'}
+              title={isListening ? 'Stop recording' : 'Voice input'}
+            >
+              {isListening ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              )}
+            </button>
+          )}
           <button
             className="compass__send-btn"
             onClick={() => sendMessage(input)}
@@ -1039,7 +1668,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
             Send
           </button>
         </div>
-        <div className="compass__input-hint">Shift+Enter for new line · Enter to send</div>
+        <div className="compass__input-hint">Shift+Enter for new line · Enter to send{hasSpeechApi ? ' · Mic for voice' : ''}</div>
       </div>
     </div>
   );
