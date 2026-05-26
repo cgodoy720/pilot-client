@@ -234,9 +234,6 @@ function Learning() {
   const sendMessageAbortControllerRef = useRef(null);
   const textareaRef = useRef(null);
   const prevMessageCountRef = useRef(0);
-  // Tracks the AI bubble currently being filled. Updated on each `thinking`
-  // event so phase transitions get their own bubble.
-  const currentStreamingIdRef = useRef(null);
 
   // Track chat tray height changes for dynamic message padding
   useEffect(() => {
@@ -890,7 +887,6 @@ function Learning() {
       const now = Date.now();
       const streamingMessageId = now + 1;
       const streamBuffer = createStreamBuffer();
-      currentStreamingIdRef.current = streamingMessageId;
       // Add user message to chat
       const userMessage = {
         id: now,
@@ -926,20 +922,24 @@ function Learning() {
             return;
           }
 
+          // Always target the last AI bubble that's still streaming.
+          const findActiveBubbleIdx = (msgs) => {
+            for (let i = msgs.length - 1; i >= 0; i--) {
+              if (msgs[i].sender === 'ai' && msgs[i].isStreaming) return i;
+            }
+            return -1;
+          };
+
           if (chunk.type === 'thinking') {
-            // Phase transition: finalize current bubble (if it has content) and
-            // start a new thinking bubble.
             setMessages(prev => {
-              const idx = prev.findIndex(m => m.id === currentStreamingIdRef.current);
+              const idx = findActiveBubbleIdx(prev);
               const current = idx >= 0 ? prev[idx] : null;
 
               if (current && current.content && current.content.trim().length > 0) {
                 const updated = [...prev];
                 updated[idx] = { ...current, isStreaming: false, isThinking: false, thinkingLabel: null };
-                const newId = Date.now() + Math.random();
-                currentStreamingIdRef.current = newId;
                 updated.push({
-                  id: newId,
+                  id: `v2-${Date.now()}-${updated.length}`,
                   content: '',
                   sender: 'ai',
                   timestamp: new Date().toISOString(),
@@ -956,10 +956,8 @@ function Learning() {
                 return updated;
               }
 
-              const newId = Date.now() + Math.random();
-              currentStreamingIdRef.current = newId;
               return [...prev, {
-                id: newId,
+                id: `v2-${Date.now()}-${prev.length}`,
                 content: '',
                 sender: 'ai',
                 timestamp: new Date().toISOString(),
@@ -972,30 +970,27 @@ function Learning() {
             receivedChunk = true;
             const safeText = streamBuffer.append(chunk.content);
             if (safeText) {
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === currentStreamingIdRef.current
-                    ? {
-                        ...msg,
-                        content: `${msg.content || ''}${safeText}`,
-                        isThinking: false,
-                        thinkingLabel: null
-                      }
-                    : msg
-                )
-              );
+              setMessages(prev => {
+                const idx = findActiveBubbleIdx(prev);
+                if (idx === -1) return prev;
+                return prev.map((m, i) =>
+                  i === idx
+                    ? { ...m, content: `${m.content || ''}${safeText}`, isThinking: false, thinkingLabel: null }
+                    : m
+                );
+              });
             }
           } else if (chunk.type === 'done' && chunk.message) {
             receivedChunk = true;
             const remaining = streamBuffer.flush();
             if (remaining) {
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === currentStreamingIdRef.current
-                    ? { ...msg, content: `${msg.content || ''}${remaining}` }
-                    : msg
-                )
-              );
+              setMessages(prev => {
+                const idx = findActiveBubbleIdx(prev);
+                if (idx === -1) return prev;
+                return prev.map((m, i) =>
+                  i === idx ? { ...m, content: `${m.content || ''}${remaining}` } : m
+                );
+              });
             }
             setIsStreaming(false);
             setIsAiThinking(false);
@@ -1003,29 +998,29 @@ function Learning() {
             checkTaskCompletion(messageTaskId);
 
             const finalMessage = chunk.message;
-            setMessages(prev =>
-              prev.map(msg => {
-                if (msg.id !== currentStreamingIdRef.current) return msg;
-                return {
-                  ...msg,
-                  content: msg.content || finalMessage.content,
-                  sender: 'ai',
-                  timestamp: finalMessage.timestamp,
-                  isStreaming: false,
-                  isThinking: false,
-                  thinkingLabel: null
-                };
-              })
-            );
-            currentStreamingIdRef.current = null;
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              if (idx === -1) return prev;
+              return prev.map((m, i) =>
+                i === idx
+                  ? {
+                      ...m,
+                      content: m.content || finalMessage.content,
+                      sender: 'ai',
+                      timestamp: finalMessage.timestamp,
+                      isStreaming: false,
+                      isThinking: false,
+                      thinkingLabel: null
+                    }
+                  : m
+              );
+            });
           } else if (chunk.type === 'error') {
-            // Remove any in-flight thinking/streaming AI bubbles and the
-            // optimistic user message (backend rolls it back on AI failure).
+            // Remove any in-flight streaming AI bubbles and the optimistic user
+            // message (backend rolls it back on AI failure).
             setMessages(prev => prev.filter(msg =>
-              msg.id !== userMessage.id &&
-              !(msg.isStreaming && (msg.id === currentStreamingIdRef.current || msg.isThinking))
+              msg.id !== userMessage.id && !(msg.sender === 'ai' && msg.isStreaming)
             ));
-            currentStreamingIdRef.current = null;
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);

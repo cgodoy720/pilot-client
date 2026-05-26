@@ -205,9 +205,6 @@ function LearningPreview({ dayId, cohort, onBack }) {
   const textareaRef = useRef(null);
   const chatTrayRef = useRef(null);
   const prevMessageCountRef = useRef(0);
-  // Tracks the AI bubble currently being filled. Updated on each `thinking`
-  // event so phase transitions (learn→generateApply→…) get their own bubble.
-  const currentStreamingIdRef = useRef(null);
 
   // Track chat tray height changes for dynamic message padding
   useEffect(() => {
@@ -595,7 +592,6 @@ function LearningPreview({ dayId, cohort, onBack }) {
       const now = Date.now();
       const streamingMessageId = now + 1;
       const streamBuffer = createStreamBuffer();
-      currentStreamingIdRef.current = streamingMessageId;
       const userMessage = {
         id: now,
         content: trimmedMessage,
@@ -632,15 +628,24 @@ function LearningPreview({ dayId, cohort, onBack }) {
             return;
           }
 
+          // Helper: find the index of the last AI bubble that's still streaming.
+          // We always target THAT bubble for updates — no ref needed.
+          const findActiveBubbleIdx = (msgs) => {
+            for (let i = msgs.length - 1; i >= 0; i--) {
+              if (msgs[i].sender === 'ai' && msgs[i].isStreaming) return i;
+            }
+            return -1;
+          };
+
           if (chunk.type === 'thinking') {
             // Phase transition: if current bubble has content, finalize it and
             // create a new thinking bubble. Otherwise just update the label.
             setMessages(prev => {
-              const idx = prev.findIndex(m => m.id === currentStreamingIdRef.current);
+              const idx = findActiveBubbleIdx(prev);
               const current = idx >= 0 ? prev[idx] : null;
 
               if (current && current.content && current.content.trim().length > 0) {
-                // Finalize the current bubble (has streamed content)
+                // Finalize current, append a new thinking bubble
                 const updated = [...prev];
                 updated[idx] = {
                   ...current,
@@ -648,11 +653,8 @@ function LearningPreview({ dayId, cohort, onBack }) {
                   isThinking: false,
                   thinkingLabel: null
                 };
-                // Push a new thinking bubble
-                const newId = Date.now() + Math.random();
-                currentStreamingIdRef.current = newId;
                 updated.push({
-                  id: newId,
+                  id: `v2-${Date.now()}-${updated.length}`,
                   content: '',
                   sender: 'ai',
                   timestamp: new Date().toISOString(),
@@ -664,17 +666,15 @@ function LearningPreview({ dayId, cohort, onBack }) {
               }
 
               if (current) {
-                // Current bubble is empty — just update its label
+                // Current bubble is empty — update its label in place
                 const updated = [...prev];
                 updated[idx] = { ...current, isThinking: true, thinkingLabel: chunk.label };
                 return updated;
               }
 
               // No current bubble — create one (defensive)
-              const newId = Date.now() + Math.random();
-              currentStreamingIdRef.current = newId;
               return [...prev, {
-                id: newId,
+                id: `v2-${Date.now()}-${prev.length}`,
                 content: '',
                 sender: 'ai',
                 timestamp: new Date().toISOString(),
@@ -687,66 +687,61 @@ function LearningPreview({ dayId, cohort, onBack }) {
             receivedChunk = true;
             const safeText = streamBuffer.append(chunk.content);
             if (safeText) {
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === currentStreamingIdRef.current
+              setMessages(prev => {
+                const idx = findActiveBubbleIdx(prev);
+                if (idx === -1) return prev;
+                return prev.map((m, i) =>
+                  i === idx
                     ? {
-                        ...msg,
-                        content: `${msg.content || ''}${safeText}`,
+                        ...m,
+                        content: `${m.content || ''}${safeText}`,
                         isThinking: false,
                         thinkingLabel: null
                       }
-                    : msg
-                )
-              );
+                    : m
+                );
+              });
             }
           } else if (chunk.type === 'done' && chunk.message) {
             receivedChunk = true;
-            // Flush any remaining buffered text before final replace
+            // Flush any remaining buffered text into the active bubble
             const remaining = streamBuffer.flush();
             if (remaining) {
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === currentStreamingIdRef.current
-                    ? { ...msg, content: `${msg.content || ''}${remaining}` }
-                    : msg
-                )
-              );
+              setMessages(prev => {
+                const idx = findActiveBubbleIdx(prev);
+                if (idx === -1) return prev;
+                return prev.map((m, i) =>
+                  i === idx ? { ...m, content: `${m.content || ''}${remaining}` } : m
+                );
+              });
             }
-            // Enable input immediately
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);
             checkTaskCompletion(messageTaskId);
 
-            // Finalize the currently-streaming bubble with the final message
-            // content. If we never received text (graph chained internally and
-            // the final visible content was streamed into a later bubble),
-            // skip this so we don't overwrite a later bubble.
+            // Finalize the active bubble — populate from finalMessage if empty
             const finalMessage = chunk.message;
-            setMessages(prev =>
-              prev.map(msg => {
-                if (msg.id !== currentStreamingIdRef.current) return msg;
-                // Only replace content if this bubble actually has streamed
-                // content matching the final message; otherwise just mark done.
-                return {
-                  ...msg,
-                  content: msg.content || finalMessage.content,
-                  sender: 'ai',
-                  timestamp: finalMessage.timestamp,
-                  isStreaming: false,
-                  isThinking: false,
-                  thinkingLabel: null
-                };
-              })
-            );
-            currentStreamingIdRef.current = null;
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              if (idx === -1) return prev;
+              return prev.map((m, i) =>
+                i === idx
+                  ? {
+                      ...m,
+                      content: m.content || finalMessage.content,
+                      sender: 'ai',
+                      timestamp: finalMessage.timestamp,
+                      isStreaming: false,
+                      isThinking: false,
+                      thinkingLabel: null
+                    }
+                  : m
+              );
+            });
           } else if (chunk.type === 'error') {
-            // Remove any in-flight thinking/streaming AI bubbles
-            setMessages(prev => prev.filter(msg =>
-              !(msg.isStreaming && (msg.id === currentStreamingIdRef.current || msg.isThinking))
-            ));
-            currentStreamingIdRef.current = null;
+            // Remove any in-flight streaming AI bubbles
+            setMessages(prev => prev.filter(msg => !(msg.sender === 'ai' && msg.isStreaming)));
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);
