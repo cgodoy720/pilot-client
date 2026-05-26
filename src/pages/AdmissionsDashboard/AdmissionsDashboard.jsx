@@ -99,9 +99,13 @@ const AdmissionsDashboard = () => {
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const [loadAllMode, setLoadAllMode] = useState(false); // Never persist - always start in paginated mode
 
-  // Tracks whether applyCurrentCycleDefault has run. Pre-seeded in the
-  // mount effect below from sessionStorage so a reload doesn't override an
-  // All Time selection (cohort_id='').
+  // Tracks whether applyCurrentCycleDefault has run during THIS mount.
+  // Scope is intentionally per-mount (not persisted to sessionStorage) so a
+  // page reload or route-revisit re-applies the current-cycle default on both
+  // Overview and Applicants. Mid-session refetches (e.g., after a bulk action)
+  // still find the ref true and skip — preserving an explicit All Time choice
+  // within the session. Do not re-seed this from sessionStorage; that pattern
+  // (previously here) broke the current-cycle default on every reload.
   const cycleDefaultAppliedRef = useRef(false);
 
   // Application filters and sorting
@@ -159,19 +163,6 @@ const AdmissionsDashboard = () => {
       offset: 0
     };
   });
-
-  // Mount-time seed of the cycle-default ref. Kept out of the useState
-  // initializer above so we don't mutate a ref inside a function React may
-  // run twice in Strict Mode.
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem('admissions-dashboard-filters-v1')) {
-        cycleDefaultAppliedRef.current = true;
-      }
-    } catch (e) {
-      // ignore — falls through to fresh-first-load behavior
-    }
-  }, []);
 
   const [hasMore, setHasMore] = useState(true);
   const [columnSort, setColumnSort] = useState(() => {
