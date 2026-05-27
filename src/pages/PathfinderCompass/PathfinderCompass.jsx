@@ -65,13 +65,14 @@ function stripForDisplay(text) {
       if (e !== -1) {
         result = result.slice(0, s) + result.slice(e + end.length);
       } else {
-        // No closing tag — strip from start tag to end of string
+        // No closing tag yet (streaming) — strip from start tag to end of string
         result = result.slice(0, s);
         break;
       }
     }
   }
-  // Strip any partial signal prefix at the tail (streaming artifact)
+  // Strip any partial signal prefix at the tail (streaming artifact where
+  // only part of a start tag has arrived, e.g. "[COMPASS_CO")
   const allSignals = [COMPLETE_START, ADD_GOALS_START, COACH_FLAG_START, LOG_START];
   for (const signal of allSignals) {
     for (let len = signal.length - 1; len > 0; len--) {
@@ -647,6 +648,41 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       return next;
     });
   }, [storageKey]);
+
+  // Fetch full message history from DB on mount (localStorage is just a fast cache)
+  const historyFetchedRef = useRef(false);
+  useEffect(() => {
+    if (historyFetchedRef.current || !token) return;
+    historyFetchedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/pathfinder/compass/history`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.messages?.length > 0) {
+          const dbMessages = data.messages.map((m, i) => ({
+            id: `db-${i}`,
+            role: m.role,
+            content: m.content,
+          }));
+          setMessages(prev => {
+            // If DB has more messages than localStorage, use DB as source of truth
+            // but keep any in-flight streaming message from the current session
+            const streaming = prev.filter(m => m.streaming);
+            if (dbMessages.length >= prev.filter(m => !m.streaming).length) {
+              const merged = attachStableClientKeys([...dbMessages, ...streaming]);
+              messagesRef.current = merged;
+              safeWriteCompassHistory(storageKey, merged);
+              return merged;
+            }
+            return prev;
+          });
+        }
+      } catch { /* fall back to localStorage */ }
+    })();
+  }, [token, storageKey]);
 
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
