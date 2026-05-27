@@ -50,19 +50,38 @@ function extractBetween(text, start, end) {
 }
 
 function stripForDisplay(text) {
-  const signals = [COMPLETE_START, ADD_GOALS_START, COACH_FLAG_START, LOG_START];
-  const cuts = signals.map(s => text.indexOf(s)).filter(i => i !== -1);
-  let result = cuts.length ? text.slice(0, Math.min(...cuts)).trimEnd() : text;
-  // Strip any partial signal prefix at the tail (streaming artifact)
-  for (const signal of signals) {
-    for (let len = signal.length - 1; len > 0; len--) {
-      if (result.endsWith(signal.slice(0, len))) {
-        result = result.slice(0, -len).trimEnd();
+  const signalPairs = [
+    [COMPLETE_START, COMPLETE_END],
+    [ADD_GOALS_START, ADD_GOALS_END],
+    [COACH_FLAG_START, COACH_FLAG_END],
+    [LOG_START, LOG_END],
+  ];
+  let result = text;
+  // Remove complete signal blocks (start tag through end tag)
+  for (const [start, end] of signalPairs) {
+    let s;
+    while ((s = result.indexOf(start)) !== -1) {
+      const e = result.indexOf(end, s);
+      if (e !== -1) {
+        result = result.slice(0, s) + result.slice(e + end.length);
+      } else {
+        // No closing tag — strip from start tag to end of string
+        result = result.slice(0, s);
         break;
       }
     }
   }
-  return result;
+  // Strip any partial signal prefix at the tail (streaming artifact)
+  const allSignals = [COMPLETE_START, ADD_GOALS_START, COACH_FLAG_START, LOG_START];
+  for (const signal of allSignals) {
+    for (let len = signal.length - 1; len > 0; len--) {
+      if (result.endsWith(signal.slice(0, len))) {
+        result = result.slice(0, -len);
+        break;
+      }
+    }
+  }
+  return result.trim();
 }
 
 // ── Fuzzy search helper ───────────────────────────────────────────────────────
@@ -467,7 +486,7 @@ function CompassDashboard({ status, cycleEnded, onGoalProgress, isLoading = fals
                     disabled={clampedIdx === prevCycles.length - 1}
                     aria-label="Older cycle"
                   >‹</button>
-                  <span className="compass__past-cycle-nav-label">{clampedIdx + 1} / {prevCycles.length}</span>
+                  <span className="compass__past-cycle-nav-label">{prevCycles[clampedIdx].cycle_number} / {prevCycles.length}</span>
                   <button
                     className="compass__past-cycle-nav-btn"
                     onClick={() => setPastCycleIdx(i => Math.max(i - 1, 0))}
@@ -533,6 +552,20 @@ function compassStorageKeyForUser(user) {
 // client gives a friendly "shorten this" error instead of letting the server
 // truncate silently.
 const MAX_CLIENT_MESSAGE_CHARS = 3500;
+
+function isDailyCheckinDue(user) {
+  const key = compassTimestampKey(user);
+  if (!key) return false;
+  const now = new Date();
+  const etHour = parseInt(now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }));
+  if (etHour < 17) return false;
+  const ts = localStorage.getItem(key);
+  if (!ts) return true; // never messaged → due
+  // If the builder already messaged today (ET), skip
+  const todayET = now.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+  const lastMsgDateET = new Date(Number(ts)).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+  return todayET !== lastMsgDateET;
+}
 
 function compassTimestampKey(user) {
   const id = user?.user_id ?? user?.userId ?? user?.id;
@@ -628,6 +661,9 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const nudgeResumeSentRef = useRef(false);
   const coachIntroSentRef = useRef(false);
   const jobAlertSentRef = useRef(false);
+  const dailyCheckinSentRef = useRef(false);
+  // Capture check-in eligibility at mount before other triggers update the timestamp
+  const dailyCheckinDueAtMount = useRef(isDailyCheckinDue(user));
   const sessionFirstSendRef = useRef(true);
   const serverHistoryHydratedRef = useRef(false);
   const statusRef = useRef(status);
@@ -786,16 +822,23 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   // Coach intro migration: enrolled builder whose has_coach is unknown.
   // Fires once to ask the coach question so all existing builders get the flag set.
   // Skip if cycle has ended — the cycle-end check-in takes priority.
+  // Uses coach_intro_shown from server to prevent re-asking across sessions.
   useEffect(() => {
     if (coachIntroSentRef.current) return;
     if (status === null || status?.fetchError) return;
     if (!status?.enrolled) return;
     if (status?.has_coach !== null && status?.has_coach !== undefined) return;
+    if (status?.coach_intro_shown) return;
     if (cycleEnded) return;
     coachIntroSentRef.current = true;
+    // Mark as shown immediately so it won't re-fire on next visit
+    fetch(`${API_URL}/api/pathfinder/compass/coach-intro-shown`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    }).catch(() => {});
     sendMessageRef.current?.('__coach_intro__', true, '__coach_intro__');
     touchLastMessageTimestamp(user);
-  }, [status, user, cycleEnded]);
+  }, [status, user, cycleEnded, token]);
 
   // Job alert: detect new shared job postings and auto-surface them in chat
   useEffect(() => {
@@ -810,7 +853,6 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     const seenKey = `compass_seen_jobs_${uid}`;
     const seen = JSON.parse(localStorage.getItem(seenKey) || '[]');
     const newJobs = status.recent_jobs.filter(j => !seen.includes(j.id));
-    console.log('[JobAlert] seen:', seen, 'newJobs:', newJobs.length, 'ids:', status.recent_jobs.map(j => j.id));
     if (newJobs.length === 0) return;
 
     jobAlertSentRef.current = true;
@@ -825,11 +867,31 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
         return;
       }
       const payload = JSON.stringify({ jobs: newJobs });
-      console.log('[JobAlert] Sending job alert now');
       sendMessageRef.current?.(`__job_alert__${payload}`, true, '__job_alert__');
     };
     setTimeout(waitAndSend, 3000);
   }, [status, user]);
+
+  // Daily check-in: after 5pm ET, if builder hasn't messaged today, prompt them
+  useEffect(() => {
+    if (dailyCheckinSentRef.current) return;
+    if (status === null || status?.fetchError) return;
+    if (!status?.enrolled) return;
+    if (cycleEnded) return;
+    if (!initDoneRef.current) return;
+    if (!dailyCheckinDueAtMount.current) return;
+
+    dailyCheckinSentRef.current = true;
+    const waitAndSend = () => {
+      if (isStreamingRef.current) {
+        setTimeout(waitAndSend, 1000);
+        return;
+      }
+      sendMessageRef.current?.('__daily_checkin__', true, '__daily_checkin__');
+      touchLastMessageTimestamp(user);
+    };
+    setTimeout(waitAndSend, 3000);
+  }, [status, user, cycleEnded]);
 
   const handleCompletionPayload = useCallback(async (payload) => {
     setIsCompleting(true);
@@ -877,14 +939,12 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   const handleLogPayload = useCallback(async (payload) => {
     try {
       const entries = Array.isArray(payload.entries) ? payload.entries : [payload];
-      console.log('[Compass Log] Sending entries:', JSON.stringify(entries, null, 2));
       const res = await fetch(`${API_URL}/api/pathfinder/compass/log`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entries }),
       });
       const data = await res.json();
-      console.log('[Compass Log] Response:', JSON.stringify(data, null, 2));
       if (!res.ok) {
         console.error('Compass log endpoint returned non-ok:', res.status);
       }
@@ -1388,6 +1448,14 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           return prefix + transcript;
         });
         voiceTranscriptRef.current = '';
+        // Auto-resize textarea after transcript is applied
+        requestAnimationFrame(() => {
+          const ta = textareaRef.current;
+          if (ta) {
+            ta.style.height = 'auto';
+            ta.style.height = Math.min(ta.scrollHeight, 168) + 'px';
+          }
+        });
       }
       return;
     }
@@ -1420,6 +1488,13 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           return prefix + transcript;
         });
         voiceTranscriptRef.current = '';
+        requestAnimationFrame(() => {
+          const ta = textareaRef.current;
+          if (ta) {
+            ta.style.height = 'auto';
+            ta.style.height = Math.min(ta.scrollHeight, 168) + 'px';
+          }
+        });
       }
       recognitionRef.current = null;
     };
