@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 
-const CohortDailyBreakdown = ({ 
-  dailyBreakdown, 
-  cohort, 
-  requirement, 
+const CohortDailyBreakdown = ({
+  dailyBreakdown,
+  cohort,
+  requirement,
   onDayClick,
-  loading = false 
+  loading = false,
+  periodFilter = null,
 }) => {
   const formatDateKey = (dateValue) => {
     if (!dateValue) return '';
@@ -109,13 +110,16 @@ const CohortDailyBreakdown = ({
   return (
     <Card className="bg-white border border-slate-200 shadow-sm">
       <CardContent className="p-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900">
-            Daily Attendance - {cohort}
-          </h3>
-          <p className="text-sm text-slate-600 mt-1">
-            Click on any day to see individual builder status
-          </p>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Attendance Calendar
+            </h3>
+            <p className="text-sm text-slate-600 mt-1">
+              Click on any day to see individual builder status
+            </p>
+          </div>
+          {periodFilter && <div>{periodFilter}</div>}
         </div>
 
         <div className="rounded-lg border border-slate-200">
@@ -159,13 +163,14 @@ const CohortDailyBreakdown = ({
             {calendarDays.map((dayCell) => {
               const record = dayCell.record;
               const hasData = !!record;
-              const isMeetingRequirement = hasData ? record.attendanceRate >= requirement : false;
+              const isHoliday = hasData && record.isHoliday;
+              const isMeetingRequirement = hasData && !isHoliday ? record.attendanceRate >= requirement : false;
               const presentCount = hasData ? record.present + (record.late || 0) : 0;
-              const clickable = hasData && dayCell.isCurrentMonth;
-              const hideBadge = dayCell.isToday || dayCell.isFuture;
+              const clickable = hasData && dayCell.isCurrentMonth && !isHoliday;
+              const hideBadge = dayCell.isToday || dayCell.isFuture || isHoliday;
               const showNoStats = dayCell.isFuture;
-              const showTodayStats = dayCell.isToday;
-              const showPastStats = !dayCell.isToday && !dayCell.isFuture;
+              const showTodayStats = dayCell.isToday && !isHoliday;
+              const showPastStats = !dayCell.isToday && !dayCell.isFuture && !isHoliday;
 
               return (
                 <button
@@ -174,12 +179,19 @@ const CohortDailyBreakdown = ({
                   disabled={!clickable}
                   onClick={() => clickable && onDayClick(record)}
                   className={`min-h-[130px] border-b border-r border-slate-200 p-2 text-left transition-colors ${
-                    dayCell.isCurrentMonth ? 'bg-white' : 'bg-slate-100 text-slate-400'
+                    isHoliday
+                      ? 'bg-slate-50 text-slate-400'
+                      : dayCell.isCurrentMonth ? 'bg-white' : 'bg-slate-100 text-slate-400'
                   } ${clickable ? 'hover:bg-slate-50' : 'cursor-default'} ${dayCell.isToday ? 'ring-2 ring-inset ring-[#4242EA]' : ''}`}
                 >
                   <div className="flex items-start justify-between">
                     <span className="text-xs font-semibold">{dayCell.date.getDate()}</span>
-                    {hasData && !hideBadge && (
+                    {isHoliday && (
+                      <Badge className="text-[10px] bg-slate-100 text-slate-500 border-slate-200">
+                        Holiday
+                      </Badge>
+                    )}
+                    {hasData && !isHoliday && !hideBadge && (
                       <Badge
                         className={`text-[10px] ${
                           isMeetingRequirement
@@ -192,20 +204,19 @@ const CohortDailyBreakdown = ({
                     )}
                   </div>
 
-                  {hasData && !showNoStats && (
+                  {isHoliday && (
+                    <div className="mt-3 text-center">
+                      <p className="text-xs text-slate-400 italic">No Class</p>
+                    </div>
+                  )}
+
+                  {hasData && !isHoliday && !showNoStats && (
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center justify-between text-[11px] text-slate-600">
                         <span>Day #{record.dayNumber}</span>
-                        <div className="flex items-center gap-1 font-semibold">
-                          {isMeetingRequirement ? (
-                            <TrendingUp className="h-3 w-3 text-emerald-500" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3 text-red-500" />
-                          )}
-                          <span className={isMeetingRequirement ? 'text-emerald-600' : 'text-red-600'}>
-                            {record.attendanceRate}%
-                          </span>
-                        </div>
+                        <span className={`font-semibold ${isMeetingRequirement ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {record.attendanceRate}%
+                        </span>
                       </div>
                       {showPastStats && (
                         <div className="grid grid-cols-3 gap-1 text-[11px]">
@@ -240,7 +251,11 @@ const CohortDailyBreakdown = ({
 
         <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
           <div className="flex items-center gap-4">
-            <span>Total Days: <strong>{dailyBreakdown.length}</strong></span>
+            <span>Total Class Days: <strong>{dailyBreakdown.filter(d => !d.isHoliday).length}</strong></span>
+            {dailyBreakdown.some(d => d.isHoliday) && (
+              <><span className="text-slate-400">|</span>
+              <span>Holidays: <strong>{dailyBreakdown.filter(d => d.isHoliday).length}</strong></span></>
+            )}
             <span className="text-slate-400">|</span>
             <span>
               Target: <strong className="text-slate-900">{requirement}%</strong>
@@ -248,7 +263,7 @@ const CohortDailyBreakdown = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500">
-              Days meeting target: {dailyBreakdown.filter(d => d.attendanceRate >= requirement).length} / {dailyBreakdown.length}
+              Days meeting target: {dailyBreakdown.filter(d => !d.isHoliday && d.attendanceRate >= requirement).length} / {dailyBreakdown.filter(d => !d.isHoliday).length}
             </span>
           </div>
         </div>

@@ -218,15 +218,16 @@ const AttendanceCalendarGrid = React.memo(function AttendanceCalendarGrid({
   );
 });
 
-const AttendanceManagement = () => {
+const AttendanceManagement = ({ cohortName = '', initialBuilder = null, compact = false }) => {
   const token = useAuthStore((s) => s.token);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedBuilder, setSelectedBuilder] = useState(null);
 
-  const [cohortFilter, setCohortFilter] = useState('all');
+  const [selectedBuilder, setSelectedBuilder] = useState(initialBuilder || null);
+
+  const [cohortFilter, setCohortFilter] = useState(cohortName || 'all');
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const initialBounds = getMonthBounds(new Date());
   const [startDate, setStartDate] = useState(initialBounds.start);
@@ -563,22 +564,24 @@ const AttendanceManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">Attendance Management</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Search, update, and manage builder attendance records.
-          </p>
+      {!compact && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">Attendance Management</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Search, update, and manage builder attendance records.
+            </p>
+          </div>
+          <Button
+            onClick={() => openCreateDialog()}
+            disabled={!selectedBuilder}
+            className="bg-[#4242EA] hover:bg-[#3636D8] text-white"
+          >
+            <Plus className="h-4 w-4" />
+            New Record
+          </Button>
         </div>
-        <Button
-          onClick={() => openCreateDialog()}
-          disabled={!selectedBuilder}
-          className="bg-[#4242EA] hover:bg-[#3636D8] text-white"
-        >
-          <Plus className="h-4 w-4" />
-          New Record
-        </Button>
-      </div>
+      )}
 
       {successMessage && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
@@ -595,74 +598,54 @@ const AttendanceManagement = () => {
       )}
 
       <Card className="border-slate-200">
-        <CardContent className="space-y-4 p-6">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-            <div className="relative lg:col-span-6">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search builder by name or email..."
-                className="pl-10"
-              />
-              {searching && (
-                <RefreshCw className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[#4242EA]" />
-              )}
-            </div>
-
-            <div className="lg:col-span-2">
-              <Select value={cohortFilter} onValueChange={setCohortFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Cohort" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cohortOptions.map((cohort) => (
-                    <SelectItem key={cohort} value={cohort}>
-                      {cohort === 'all' ? 'All Cohorts' : cohort}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="lg:col-span-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handlePrevMonth}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="flex-1 justify-center font-medium">
-                      {currentMonthDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={currentMonthDate}
-                      onSelect={(d) => {
-                        if (d) setCurrentMonthDate(d);
-                        setStartDateOpen(false);
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleNextMonth}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+        <CardContent className={`space-y-4 ${compact ? 'p-3' : 'p-6'}`}>
+          {!compact && (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-8">
+              <div className="relative lg:col-span-5">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search builder by name or email..."
+                  className="pl-10"
+                />
+                {searching && (
+                  <RefreshCw className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[#4242EA]" />
+                )}
+              </div>
+              <div className="lg:col-span-3">
+                <Select value={cohortFilter} onValueChange={setCohortFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohortOptions.map((cohort) => (
+                      <SelectItem key={cohort} value={cohort}>
+                        {cohort === 'all' ? 'All Cohorts' : cohort}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+          )}
+
+          {/* Month navigation — matches overview calendar style */}
+          <div className="flex items-center gap-2 bg-slate-50 rounded-lg border border-slate-200 p-2">
+            <button type="button" onClick={handlePrevMonth}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-100">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <p className="flex-1 text-center text-sm font-semibold text-slate-900">
+              {currentMonthDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+            </p>
+            <button type="button" onClick={handleNextMonth}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-100">
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
 
-          {searchResults.length > 0 && (
+          {!compact && searchResults.length > 0 && (
             <div className="rounded-lg border border-slate-200 bg-white">
               {searchResults.map((builder) => (
                 <button
@@ -685,21 +668,23 @@ const AttendanceManagement = () => {
       </Card>
 
       <Card className="border-slate-200">
-        <CardContent className="p-6">
+        <CardContent className={compact ? 'p-3' : 'p-6'}>
           {selectedBuilder ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm text-slate-600">
-                  Builder:{' '}
-                  <span className="font-semibold text-slate-900">
-                    {selectedBuilder.firstName} {selectedBuilder.lastName}
-                  </span>{' '}
-                  | Cohort: <span className="font-medium text-slate-900">{selectedBuilder.cohort}</span> | Showing:{' '}
-                  <span className="font-medium text-slate-900">
-                    {formatDateDisplay(formatDate(startDate))} - {formatDateDisplay(formatDate(endDate))}
-                  </span>
-                </p>
-              </div>
+              {!compact && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm text-slate-600">
+                    Builder:{' '}
+                    <span className="font-semibold text-slate-900">
+                      {selectedBuilder.firstName} {selectedBuilder.lastName}
+                    </span>{' '}
+                    | Cohort: <span className="font-medium text-slate-900">{selectedBuilder.cohort}</span> | Showing:{' '}
+                    <span className="font-medium text-slate-900">
+                      {formatDateDisplay(formatDate(startDate))} - {formatDateDisplay(formatDate(endDate))}
+                    </span>
+                  </p>
+                </div>
+              )}
 
               <AttendanceCalendarGrid
                 historyLoading={historyLoading}

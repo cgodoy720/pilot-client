@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import useAuthStore from '../../stores/authStore';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import WorkIcon from '@mui/icons-material/Work';
 import SearchIcon from '@mui/icons-material/Search';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -10,9 +9,13 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import PersonIcon from '@mui/icons-material/Person';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { safeExternalUrl } from '../../utils/safeUrl';
 import './PathfinderJobs.css';
 
 const API = import.meta.env.VITE_API_URL;
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 
 const EXPERIENCE_LEVELS = [
   { value: '', label: 'All levels' },
@@ -20,6 +23,12 @@ const EXPERIENCE_LEVELS = [
   { value: 'mid', label: 'Mid level' },
   { value: 'senior', label: 'Senior' },
 ];
+
+function isStale(job) {
+  const posted = job.shared_date || job.created_at;
+  if (!posted) return false;
+  return Date.now() - new Date(posted).getTime() > TWO_WEEKS_MS;
+}
 
 export default function PathfinderJobs() {
   const token = useAuthStore((s) => s.token);
@@ -31,6 +40,8 @@ export default function PathfinderJobs() {
   const [search, setSearch] = useState('');
   const [experienceLevel, setExperienceLevel] = useState('');
   const [interestedIds, setInterestedIds] = useState(new Set());
+  const [appliedIds, setAppliedIds] = useState(new Set());
+  const [applyingId, setApplyingId] = useState(null);
 
   const fetchJobs = useCallback(async (page = 1, searchTerm = search, level = experienceLevel) => {
     try {
@@ -53,6 +64,121 @@ export default function PathfinderJobs() {
   }, [token, search, experienceLevel]);
 
   useEffect(() => { fetchJobs(1, search, experienceLevel); }, [token, search, experienceLevel]);
+
+  // Track applied jobs in two namespaces so double-click protection works
+  // regardless of whether the posting has a job_url:
+  //   - `job:<id>` is set optimistically on click (always available, prevents
+  //     duplicate POST in the same browser session even if job_url is empty).
+  //   - `url:<job_url>` is what the server can reconcile against on the next
+  //     fetch (job_applications stores job_url, not the source_job posting id).
+  const fetchAppliedIds = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/pathfinder/applications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        // Without this log a 4xx/5xx silently leaves appliedIds empty,
+        // making every "Applied?" button render as un-applied until the
+        // next successful fetch. Logging at warn so operators can spot
+        // intermittent 5xx storms in production logs.
+        console.warn(`Failed to fetch applied jobs: ${res.status} ${res.statusText}`);
+        return;
+      }
+      const apps = await res.json();
+      setAppliedIds(prev => {
+        // Preserve any optimistic `job:<id>` marks while reconciling
+        // `url:<job_url>` from the server response.
+        const next = new Set();
+        for (const key of prev) {
+          if (key.startsWith('job:')) next.add(key);
+        }
+        for (const a of apps) {
+          if (a.job_url) next.add(`url:${a.job_url}`);
+        }
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to load existing applications:', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchAppliedIds();
+  }, [fetchAppliedIds]);
+
+  const isJobApplied = useCallback((job) => {
+    if (!job) return false;
+    if (job.id != null && appliedIds.has(`job:${job.id}`)) return true;
+    if (job.job_url && appliedIds.has(`url:${job.job_url}`)) return true;
+    return false;
+  }, [appliedIds]);
+
+  const handleMarkApplied = async (job) => {
+    if (isJobApplied(job) || applyingId === job.id) return;
+    setApplyingId(job.id);
+    // Pre-mark locally on job.id so a fast double-click can't fire twice
+    // even before the server round-trip resolves.
+    setAppliedIds(prev => {
+      const next = new Set(prev);
+      if (job.id != null) next.add(`job:${job.id}`);
+      if (job.job_url) next.add(`url:${job.job_url}`);
+      return next;
+    });
+    try {
+      const res = await fetch(`${API}/api/pathfinder/applications`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: job.company_name,
+          roleTitle: job.job_title,
+          stage: 'applied',
+          dateApplied: new Date().toISOString().split('T')[0],
+          jobUrl: job.job_url || '',
+          location: job.location || '',
+          salaryRange: job.salary_range || '',
+          source: 'Jobs Feed',
+          sourceType: 'staff_sourced',
+          // Jobs in the Jobs Feed are staff-shared listings from the
+          // job_postings table — they are NOT internal referrals.
+          // An "internal referral" in job_applications.internal_referral
+          // means the builder personally knows someone at the company
+          // who referred them (a very different signal that staff use
+          // to measure relationship-driven outcomes). The prior
+          // unconditional `true` was tagging every Jobs Feed
+          // application as an internal referral, corrupting the
+          // tracking data staff rely on. Builders can still mark a
+          // referral after the fact via the editable application
+          // form on /pathfinder/applications.
+          internalReferral: false,
+        }),
+      });
+      if (res.ok) {
+        await fetchAppliedIds();
+      } else {
+        // Roll back the optimistic mark on server failure.
+        setAppliedIds(prev => {
+          const next = new Set(prev);
+          if (job.id != null) next.delete(`job:${job.id}`);
+          if (job.job_url) next.delete(`url:${job.job_url}`);
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to mark as applied:', err);
+      setAppliedIds(prev => {
+        const next = new Set(prev);
+        if (job.id != null) next.delete(`job:${job.id}`);
+        if (job.job_url) next.delete(`url:${job.job_url}`);
+        return next;
+      });
+    } finally {
+      setApplyingId(null);
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -129,7 +255,9 @@ export default function PathfinderJobs() {
         </div>
 
         {isLoading ? (
-          <LoadingCurtain isLoading />
+          <div className="pf-jobs__empty">
+            <p>Loading jobs...</p>
+          </div>
         ) : jobs.length === 0 ? (
           <div className="pf-jobs__empty">
             <WorkIcon style={{ fontSize: 48, color: '#ccc' }} />
@@ -139,8 +267,11 @@ export default function PathfinderJobs() {
         ) : (
           <>
             <div className="pf-jobs__list">
-              {jobs.map(job => (
-                <Card key={job.id} className="pf-jobs__card">
+              {jobs.map(job => {
+                const stale = isStale(job);
+                const alreadyApplied = isJobApplied(job);
+                return (
+                <Card key={job.id} className={`pf-jobs__card${stale ? ' pf-jobs__card--stale' : ''}`}>
                   <CardContent className="pf-jobs__card-content">
                     <div className="pf-jobs__card-main">
                       <div className="pf-jobs__card-icon">
@@ -162,8 +293,11 @@ export default function PathfinderJobs() {
                             <PersonIcon fontSize="inherit" /> via {job.posted_by_name}
                           </span>
                           <span className="pf-jobs__date">
-                            {new Date(job.created_at).toLocaleDateString()}
+                            {new Date(job.shared_date || job.created_at).toLocaleDateString()}
                           </span>
+                          {stale && (
+                            <span className="pf-jobs__stale-label">2+ weeks ago</span>
+                          )}
                         </div>
                         {job.notes && (
                           <p className="pf-jobs__notes">{job.notes}</p>
@@ -172,6 +306,19 @@ export default function PathfinderJobs() {
                     </div>
 
                     <div className="pf-jobs__card-actions">
+                      <button
+                        className={`pf-jobs__applied-btn ${alreadyApplied ? 'pf-jobs__applied-btn--active' : ''}`}
+                        onClick={() => handleMarkApplied(job)}
+                        disabled={alreadyApplied || applyingId === job.id}
+                        title={alreadyApplied ? 'Already applied' : 'Mark as applied'}
+                      >
+                        {alreadyApplied
+                          ? <CheckCircleIcon fontSize="small" />
+                          : <CheckCircleOutlineIcon fontSize="small" />
+                        }
+                        <span>{alreadyApplied ? 'Applied' : applyingId === job.id ? 'Saving…' : 'Applied?'}</span>
+                      </button>
+
                       <button
                         className={`pf-jobs__interest-btn ${interestedIds.has(job.id) ? 'pf-jobs__interest-btn--active' : ''}`}
                         onClick={() => handleInterest(job.id)}
@@ -184,20 +331,25 @@ export default function PathfinderJobs() {
                         <span>{job.builder_interest_count}</span>
                       </button>
 
-                      {job.job_url && (
-                        <a
-                          href={job.job_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="pf-jobs__apply-link"
-                        >
-                          View role <OpenInNewIcon fontSize="inherit" />
-                        </a>
-                      )}
+                      {(() => {
+                        const safeJobUrl = safeExternalUrl(job.job_url);
+                        if (!safeJobUrl) return null;
+                        return (
+                          <a
+                            href={safeJobUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="pf-jobs__apply-link"
+                          >
+                            View role <OpenInNewIcon fontSize="inherit" />
+                          </a>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
 
             {pagination.totalPages > 1 && (

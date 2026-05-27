@@ -3,7 +3,6 @@ import useAuthStore from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import Swal from 'sweetalert2';
 import { formatSalary } from '../../utils/salaryFormatter';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Button } from '../../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
@@ -378,7 +377,7 @@ function PathfinderAdmin() {
               await Promise.all([fetchProjects(), fetchProjectsOverview(), fetchPendingApprovals(), fetchApprovedPRDs()]);
               break;
             case 'job-applications':
-              await fetchJobApplications();
+              await Promise.all([fetchJobApplications(), fetchBuilders()]);
               break;
             case 'employment-records':
               fetchUnreviewedCount();
@@ -597,12 +596,33 @@ function PathfinderAdmin() {
     return colors[charCode % colors.length];
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const url = cohortFilter && cohortFilter !== 'all'
       ? `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/export?cohort=${encodeURIComponent(cohortFilter)}`
       : `${import.meta.env.VITE_API_URL}/api/pathfinder/admin/export`;
 
-    window.open(url, '_blank');
+    try {
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'pathfinder-export.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Failed to export pathfinder data:', err);
+      alert('Failed to export data. Please try again.');
+    }
   };
 
   const handleProjectsExport = () => {
@@ -1253,6 +1273,9 @@ function PathfinderAdmin() {
 
   return (
     <div className="w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto p-6 font-proxima">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading admin dashboard...</div>
+      )}
       <div className="max-w-full mx-auto">
         <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-6">
@@ -1320,6 +1343,13 @@ function PathfinderAdmin() {
                   setWeekOffset={setWeekOffset}
                   expandedHighlightGroups={expandedHighlightGroups}
                   toggleHighlightGroup={toggleHighlightGroup}
+                  token={token}
+                  cohortFilter={cohortFilter}
+                  onRefresh={() => {
+                    fetchOverview();
+                    fetchHighlights();
+                    fetchLeaderboard();
+                  }}
                 />
               )}
             </Suspense>
@@ -1443,7 +1473,9 @@ function PathfinderAdmin() {
                 setShowBuilderFilterModal={setShowBuilderFilterModal}
                 collapsedColumns={collapsedColumns}
                 toggleColumnCollapse={toggleColumnCollapse}
-                getUniqueBuilders={getUniqueBuilders}
+                builders={builders}
+                token={token}
+                onRefresh={fetchJobApplications}
               />
             </Suspense>
           </TabsContent>
@@ -1483,8 +1515,6 @@ function PathfinderAdmin() {
         />
       </div>
       
-      {/* Loading Curtain */}
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

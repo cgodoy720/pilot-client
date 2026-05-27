@@ -54,6 +54,9 @@ function AssessmentTemplatesTab({ token }) {
   const [selectedTemplateForInstance, setSelectedTemplateForInstance] = useState(null);
   const [expandedTemplates, setExpandedTemplates] = useState(new Set());
   const [collapsedLevels, setCollapsedLevels] = useState(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchTemplates = async () => {
     try {
@@ -109,6 +112,25 @@ function AssessmentTemplatesTab({ token }) {
       fetchTemplates();
     } catch (error) {
       toast.error('Failed to update template');
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+    try {
+      setDeleting(true);
+      await axios.delete(
+        `${API_URL}/api/admin/templates/assessments/${templateToDelete.template_id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Template deleted');
+      setDeleteConfirmOpen(false);
+      setTemplateToDelete(null);
+      fetchTemplates();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to delete template');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -209,9 +231,18 @@ function AssessmentTemplatesTab({ token }) {
                             </div>
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(template); }}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(template); }}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); setTemplateToDelete(template); setDeleteConfirmOpen(true); }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Expanded Content */}
@@ -319,6 +350,32 @@ function AssessmentTemplatesTab({ token }) {
         token={token}
         onCreated={fetchTemplates}
       />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={(open) => { if (!deleting) setDeleteConfirmOpen(open); }}>
+        <AlertDialogContent className="font-proxima">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Assessment Template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{templateToDelete?.assessment_name}</strong>
+              {templateToDelete?.assessments?.length > 0 && (
+                <> and its {templateToDelete.assessments.length} instance(s)</>
+              )}.
+              {' '}This action cannot be undone. If any student submissions exist for this template's assessments, the delete will be blocked.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTemplate}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1301,6 +1358,8 @@ function AssessmentEmailTemplatesTab({ token }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [originalSlug, setOriginalSlug] = useState(null);
+  const [slugConfirmOpen, setSlugConfirmOpen] = useState(false);
 
   const fetchTemplates = async () => {
     try {
@@ -1334,10 +1393,11 @@ function AssessmentEmailTemplatesTab({ token }) {
 
   const handleEdit = (template) => {
     setEditingTemplate({ ...template });
+    setOriginalSlug(template.slug);
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = async () => {
+  const doSaveEdit = async () => {
     try {
       const { template_id, created_at, updated_at, ...data } = editingTemplate;
       await axios.put(
@@ -1349,8 +1409,16 @@ function AssessmentEmailTemplatesTab({ token }) {
       setEditDialogOpen(false);
       fetchTemplates();
     } catch (error) {
-      toast.error('Failed to update email template');
+      toast.error(error.response?.data?.error || 'Failed to update email template');
     }
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingTemplate.slug !== originalSlug) {
+      setSlugConfirmOpen(true);
+      return;
+    }
+    await doSaveEdit();
   };
 
   const handleCreate = async (form) => {
@@ -1431,6 +1499,30 @@ function AssessmentEmailTemplatesTab({ token }) {
         onOpenChange={setCreateDialogOpen}
         onCreate={handleCreate}
       />
+
+      {/* Slug Change Confirmation */}
+      <AlertDialog open={slugConfirmOpen} onOpenChange={setSlugConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-proxima">Change template slug?</AlertDialogTitle>
+            <AlertDialogDescription className="font-proxima">
+              Renaming the slug from <span className="font-mono font-semibold">{originalSlug}</span> to{' '}
+              <span className="font-mono font-semibold">{editingTemplate?.slug}</span> will break any
+              backend code, cron jobs, or API calls that reference the old slug. Make sure all
+              references are updated before proceeding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-proxima">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#4242EA] hover:bg-[#3535cc] font-proxima"
+              onClick={() => { setSlugConfirmOpen(false); doSaveEdit(); }}
+            >
+              Change Slug & Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1555,14 +1647,12 @@ function EmailTemplateFormWithPreview({ template, setTemplate, isEdit, token }) 
             />
           </div>
           <div>
-            <Label className="font-proxima">Slug (unique key) {isEdit ? '(read-only)' : '*'}</Label>
+            <Label className="font-proxima">Slug (unique key) *</Label>
             <Input
               value={template.slug || ''}
-              onChange={(e) => !isEdit && setTemplate({ ...template, slug: e.target.value })}
-              placeholder="e.g. week_2"
+              onChange={(e) => setTemplate({ ...template, slug: e.target.value })}
+              placeholder="e.g. l3_week_10"
               className="font-proxima font-mono"
-              readOnly={isEdit}
-              disabled={isEdit}
             />
           </div>
         </div>

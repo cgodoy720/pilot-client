@@ -165,7 +165,7 @@ const Workshops = () => {
             const registrationData = {
                 applicantId: currentApplicantId,
                 name: user?.firstName || 'Applicant',
-                email: user?.email || 'jac@pursuit.org',
+                email: user?.email,
                 needsLaptop: needsLaptop
             };
 
@@ -202,7 +202,7 @@ const Workshops = () => {
                             registration_id: responseData.registration_id || `temp-${Date.now()}`,
                             applicant_id: currentApplicantId,
                             name: user?.firstName || 'Applicant',
-                            email: user?.email || 'jac@pursuit.org',
+                            email: user?.email,
                             status: 'registered',
                             registered_at: new Date().toISOString(),
                             needs_laptop: needsLaptop
@@ -249,7 +249,7 @@ const Workshops = () => {
             const registrationData = {
                 applicantId: currentApplicantId,
                 name: user?.firstName || 'Applicant',
-                email: user?.email || 'jac@pursuit.org'
+                email: user?.email
             };
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/workshops/${eventId}/register`, {
@@ -284,7 +284,7 @@ const Workshops = () => {
                             registration_id: responseData.registration_id || `temp-${Date.now()}`,
                             applicant_id: currentApplicantId,
                             name: user?.firstName || 'Applicant',
-                            email: user?.email || 'jac@pursuit.org',
+                            email: user?.email,
                             status: 'registered',
                             registered_at: new Date().toISOString()
                         };

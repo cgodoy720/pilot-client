@@ -65,11 +65,16 @@ const JobPostings = () => {
   const [totalJobs, setTotalJobs] = useState(0);
   const [pageSize, setPageSize] = useState(20);
 
+  // Reset to page 1 when filters change (not when page itself changes)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortBy, pageSize]);
+
   useEffect(() => {
     const fetchJobPostings = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const response = await getAllJobPostings({
           search: searchTerm,
@@ -77,14 +82,14 @@ const JobPostings = () => {
           page: currentPage,
           limit: pageSize
         });
-        
+
         setJobPostings(response.jobPostings || []);
         setTotalJobs(response.totalCount || 0);
         setTotalPages(response.totalPages || 1);
       } catch (err) {
         console.error('Failed to fetch job postings:', err);
         setError(handleApiError(err));
-        
+
         // Fallback to mock data on error
         const mockJobPostings = [
           {
@@ -126,13 +131,8 @@ const JobPostings = () => {
       }
     };
 
-    // Reset page when filters change
-    if (currentPage === 1) {
-      const searchTimer = setTimeout(fetchJobPostings, 300);
-      return () => clearTimeout(searchTimer);
-    } else {
-      setCurrentPage(1);
-    }
+    const searchTimer = setTimeout(fetchJobPostings, 300);
+    return () => clearTimeout(searchTimer);
   }, [searchTerm, sortBy, currentPage, pageSize]);
 
   const filteredJobPostings = jobPostings.filter(job =>
@@ -343,7 +343,7 @@ const JobPostings = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-        <h2 className="text-2xl font-bold text-gray-900">Job Postings</h2>
+        <h2 className="text-2xl font-proxima-bold text-gray-900">Job Postings</h2>
         <div className="flex space-x-3">
           <Button onClick={handleAddJobPosting} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="w-4 h-4 mr-2" />
@@ -421,25 +421,25 @@ const JobPostings = () => {
           {jobPostings.map((job) => (
             <Card key={job.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900 line-clamp-2">
+                <CardTitle className="text-lg font-proxima-bold text-gray-900 line-clamp-2">
                   {job.title}
                 </CardTitle>
-                <p className="text-gray-600 font-medium">{job.company}</p>
+                <p className="text-gray-600 font-proxima">{job.company}</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Job Details */}
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-gray-500">Level:</span>
-                    <span className="ml-1 font-medium">{job.level}</span>
+                    <span className="ml-1 font-proxima">{job.level}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Posted:</span>
-                    <span className="ml-1 font-medium">{job.posted}</span>
+                    <span className="ml-1 font-proxima">{job.posted}</span>
                   </div>
                   <div className="col-span-2">
                     <span className="text-gray-500">Owner:</span>
-                    <span className="ml-1 font-medium">{job.owner}</span>
+                    <span className="ml-1 font-proxima">{job.owner}</span>
                   </div>
                 </div>
 
@@ -447,7 +447,7 @@ const JobPostings = () => {
                 {job.salary && (
                   <div>
                     <span className="text-gray-500 text-sm">Salary:</span>
-                    <p className="font-semibold text-green-600">{job.salary}</p>
+                    <p className="font-proxima-bold text-green-600">{job.salary}</p>
                   </div>
                 )}
 
@@ -582,7 +582,7 @@ const JobPostings = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 leading-tight">{viewDetailsModal.job?.title}</h2>
+                <h2 className="text-xl font-proxima-bold text-gray-900 leading-tight">{viewDetailsModal.job?.title}</h2>
                 <p className="text-sm text-gray-600 mt-1">{viewDetailsModal.job?.company}</p>
               </div>
               <div className="flex items-center space-x-3">
@@ -614,21 +614,21 @@ const JobPostings = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Level</label>
-                        <p className="text-sm font-medium text-gray-900 mt-1">{viewDetailsModal.job.level || 'Not specified'}</p>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Level</label>
+                        <p className="text-sm font-proxima text-gray-900 mt-1">{viewDetailsModal.job.level || 'Not specified'}</p>
                       </div>
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Posted</label>
-                        <p className="text-sm font-medium text-gray-900 mt-1">{viewDetailsModal.job.posted || 'Unknown'}</p>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Posted</label>
+                        <p className="text-sm font-proxima text-gray-900 mt-1">{viewDetailsModal.job.posted || 'Unknown'}</p>
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Owner</label>
-                        <p className="text-sm font-medium text-gray-900 mt-1">{viewDetailsModal.job.owner || 'Unassigned'}</p>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Owner</label>
+                        <p className="text-sm font-proxima text-gray-900 mt-1">{viewDetailsModal.job.owner || 'Unassigned'}</p>
                       </div>
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Salary</label>
+                        <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Salary</label>
                         {viewDetailsModal.isEditing ? (
                           <Input
                             value={editForm.salary}
@@ -637,7 +637,7 @@ const JobPostings = () => {
                             className="mt-1 h-8"
                           />
                         ) : (
-                          <p className="text-sm font-semibold text-green-600 mt-1">
+                          <p className="text-sm font-proxima-bold text-green-600 mt-1">
                             {viewDetailsModal.job.salary || 'Not specified'}
                           </p>
                         )}
@@ -649,7 +649,7 @@ const JobPostings = () => {
 
               {/* Sectors */}
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sectors</label>
+                <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Sectors</label>
                 {viewDetailsModal.isEditing ? (
                   <div className="mt-2 space-y-2">
                     <div className="flex flex-wrap gap-2">
@@ -704,7 +704,7 @@ const JobPostings = () => {
               {/* Job URL */}
               {viewDetailsModal.job.jobUrl && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Job Posting</label>
+                  <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Job Posting</label>
                   <div className="mt-1">
                     <Button
                       variant="outline"
@@ -723,13 +723,13 @@ const JobPostings = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {viewDetailsModal.job.location && (
                   <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Location</label>
+                    <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Location</label>
                     <p className="text-sm text-gray-900 mt-1">{viewDetailsModal.job.location}</p>
                   </div>
                 )}
                 {viewDetailsModal.job.jobType && (
                   <div>
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Job Type</label>
+                    <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Job Type</label>
                     <p className="text-sm text-gray-900 mt-1">{viewDetailsModal.job.jobType}</p>
                   </div>
                 )}
@@ -738,7 +738,7 @@ const JobPostings = () => {
               {/* Description */}
               {viewDetailsModal.job.description && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+                  <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Description</label>
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{viewDetailsModal.job.description}</p>
                   </div>
@@ -748,7 +748,7 @@ const JobPostings = () => {
               {/* Requirements */}
               {viewDetailsModal.job.requirements && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Requirements</label>
+                  <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Requirements</label>
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{viewDetailsModal.job.requirements}</p>
                   </div>
@@ -757,7 +757,7 @@ const JobPostings = () => {
 
               {/* Notes */}
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</label>
+                <label className="text-xs font-proxima text-gray-500 uppercase tracking-wide">Notes</label>
                 {viewDetailsModal.isEditing ? (
                   <Textarea
                     value={editForm.notes}

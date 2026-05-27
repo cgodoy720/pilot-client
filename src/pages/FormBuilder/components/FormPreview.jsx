@@ -1,3 +1,5 @@
+import FormDescription from './FormDescription';
+
 const FormPreview = ({ title, description, questions, settings }) => {
   const renderQuestionPreview = (question, index) => {
     switch (question.type) {
@@ -91,9 +93,11 @@ const FormPreview = ({ title, description, questions, settings }) => {
           <h2 className="text-3xl font-bold text-gray-800 mb-3">
             {title || 'Untitled Form'}
           </h2>
-          {description && (
-            <p className="text-base text-gray-600 leading-relaxed">{description}</p>
-          )}
+          <FormDescription
+            description={description}
+            className="font-proxima text-base text-white leading-relaxed"
+            linkClassName="text-[#4242ea] underline hover:text-[#3333d1]"
+          />
         </div>
 
         {/* Questions */}
@@ -107,7 +111,7 @@ const FormPreview = ({ title, description, questions, settings }) => {
             {questions.map((question, index) => (
               <div key={question.question_id} className="pb-6 border-b border-gray-100 last:border-0">
                 <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  <h3 className="font-proxima-bold text-lg font-semibold text-gray-800 mb-2">
                     {index + 1}. {question.text || 'Untitled Question'}
                     {question.required && (
                       <span className="text-red-500 ml-1">*</span>

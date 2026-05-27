@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
  */
 export const useOverviewStats = (cohortId, deliberationFilter, token) => {
   return useQuery({
-    queryKey: ['overview-stats', cohortId, deliberationFilter],
+    queryKey: ['overview-stats', token, cohortId, deliberationFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (cohortId) params.append('cohort_id', cohortId);
@@ -46,7 +46,7 @@ export const useOverviewStats = (cohortId, deliberationFilter, token) => {
  */
 export const useOverviewDemographics = (cohortId, stage, deliberationFilter, token) => {
   return useQuery({
-    queryKey: ['overview-demographics', cohortId, stage, deliberationFilter],
+    queryKey: ['overview-demographics', token, cohortId, stage, deliberationFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (cohortId) params.append('cohort_id', cohortId);
@@ -75,6 +75,30 @@ export const useOverviewDemographics = (cohortId, stage, deliberationFilter, tok
 };
 
 /**
+ * Custom hook to fetch funnel-heatmap data (stage × activity recency, stage × source).
+ * @param {string} cohortId
+ * @param {string} token
+ */
+export const useFunnelHeatmap = (cohortId, token) => {
+  return useQuery({
+    queryKey: ['funnel-heatmap', token, cohortId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (cohortId) params.append('cohort_id', cohortId);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/dashboard/overview/funnel-heatmap?${params}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!response.ok) throw new Error('Failed to fetch funnel heatmap');
+      return response.json();
+    },
+    enabled: !!token,
+    staleTime: 30000,
+    refetchInterval: 30000,
+  });
+};
+
+/**
  * Custom hook to fetch comparison statistics for a cohort
  * @param {string} cohortId - The cohort ID to fetch stats for
  * @param {boolean} enabled - Whether to enable this query
@@ -83,7 +107,7 @@ export const useOverviewDemographics = (cohortId, stage, deliberationFilter, tok
  */
 export const useComparisonStats = (cohortId, enabled, token) => {
   return useQuery({
-    queryKey: ['comparison-stats', cohortId],
+    queryKey: ['comparison-stats', token, cohortId],
     queryFn: async () => {
       if (!cohortId) return null;
       

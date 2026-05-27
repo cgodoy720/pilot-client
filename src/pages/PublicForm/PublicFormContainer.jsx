@@ -4,6 +4,7 @@ import { getPublicForm, submitForm, generateSessionId } from '../../services/for
 import FormQuestion from './components/FormQuestion';
 import ThankYouScreen from './components/ThankYouScreen';
 import FormClosed from './components/FormClosed';
+import FormDescription from '../FormBuilder/components/FormDescription';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import logo from '../../assets/logo-full.png';
@@ -211,11 +212,11 @@ const PublicFormContainer = () => {
               <h2 className="text-white text-2xl md:text-3xl font-bold mb-6">
                 {form.title}
               </h2>
-              {form.description && (
-                <p className="text-white/70 text-lg md:text-xl leading-tight mb-6">
-                  {form.description}
-                </p>
-              )}
+              <FormDescription
+                description={form.description}
+                className="font-proxima text-white text-lg md:text-xl leading-tight mb-6"
+                linkClassName="underline text-white hover:text-white/80"
+              />
             </div>
             
             {form.settings.require_email && (

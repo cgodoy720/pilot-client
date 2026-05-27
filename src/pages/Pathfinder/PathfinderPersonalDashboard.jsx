@@ -3,10 +3,11 @@ import useAuthStore from '../../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { Badge } from '../../components/ui/badge';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { ExternalLink } from 'lucide-react';
+import { safeExternalUrl } from '../../utils/safeUrl';
 import './PathfinderPersonalDashboard.css';
 
 // ── Label maps for strategy tags ──────────────────────────────────────────────
@@ -66,6 +67,7 @@ function PathfinderPersonalDashboard() {
   const [goalInput, setGoalInput] = useState('');
   const [isSavingGoal, setIsSavingGoal] = useState(false);
   const [resumeCount, setResumeCount] = useState(null);
+  const [sharedJobs, setSharedJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showLogJobModal, setShowLogJobModal] = useState(false);
@@ -99,14 +101,14 @@ function PathfinderPersonalDashboard() {
       const headers = { Authorization: `Bearer ${token}` };
       const base = import.meta.env.VITE_API_URL;
 
-      const [interestsRes, goalRes, suggestionRes, eventsRes, dashRes, resumesRes] = await Promise.all([
+      const [interestsRes, goalRes, suggestionRes, eventsRes, dashRes, resumesRes, jobsRes] = await Promise.all([
         fetch(`${base}/api/pathfinder/interests`, { headers }),
         fetch(`${base}/api/pathfinder/weekly-goal`, { headers }),
         fetch(`${base}/api/pathfinder/weekly-goal/suggestion`, { headers }),
         fetch(`${base}/api/pathfinder/events`, { headers }),
-        // Dashboard endpoint used for streak data only — non-critical
         fetch(`${base}/api/pathfinder/applications/dashboard`, { headers }),
         fetch(`${base}/api/pathfinder/resumes`, { headers }),
+        fetch(`${base}/api/employment-engine/jobs?limit=6`, { headers }),
       ]);
 
       if (interestsRes.ok) {
@@ -143,6 +145,18 @@ function PathfinderPersonalDashboard() {
         setResumeCount(resumesData.length);
       } else {
         setResumeCount(0);
+      }
+
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json();
+        setSharedJobs(jobsData.jobs || []);
+      } else {
+        // Every other branch in this Promise.all has an error path; the
+        // jobs fetch silently dropped non-ok responses, leaving the
+        // "Recommended Jobs" panel empty with no console signal. Match
+        // the rest of the block by logging at warn level.
+        console.warn(`Jobs fetch returned non-ok: ${jobsRes.status} ${jobsRes.statusText}`);
+        setSharedJobs([]);
       }
     } catch (err) {
       console.error('Error loading dashboard:', err);
@@ -386,7 +400,15 @@ function PathfinderPersonalDashboard() {
         )}
         {(() => {
           const lookbookUrl = buildLookbookUrl();
-          const hasLinks = lookbookUrl || interests.portfolio_url;
+          // SECURITY: portfolio_url is builder-edited free text from the
+          // interests profile and ends up in an `href` attribute. Without
+          // sanitization a `javascript:` payload here is a clickable XSS
+          // vector. `safeExternalUrl` enforces an http/https allowlist
+          // (same helper used everywhere else in this file for
+          // application_url, etc.) and returns null for anything else,
+          // which we then treat as "no link to render".
+          const safePortfolioUrl = safeExternalUrl(interests.portfolio_url);
+          const hasLinks = lookbookUrl || safePortfolioUrl;
           if (!hasLinks) return null;
           return (
             <div className="pathfinder-personal-dashboard__goal-statement-links">
@@ -400,12 +422,12 @@ function PathfinderPersonalDashboard() {
                   🔗 Lookbook
                 </a>
               )}
-              {lookbookUrl && interests.portfolio_url && (
+              {lookbookUrl && safePortfolioUrl && (
                 <span className="pathfinder-personal-dashboard__profile-link-sep">·</span>
               )}
-              {interests.portfolio_url && (
+              {safePortfolioUrl && (
                 <a
-                  href={interests.portfolio_url}
+                  href={safePortfolioUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="pathfinder-personal-dashboard__profile-link"
@@ -601,6 +623,77 @@ function PathfinderPersonalDashboard() {
     );
   };
 
+  const renderSharedJobs = () => {
+    if (!sharedJobs.length) return null;
+
+    return (
+      <div className="pathfinder-personal-dashboard__events">
+        <div className="pathfinder-personal-dashboard__events-header">
+          <h3 className="pathfinder-personal-dashboard__events-title">Job Opportunities</h3>
+          <Link to="/pathfinder/jobs" className="pathfinder-personal-dashboard__events-link">
+            View All →
+          </Link>
+        </div>
+        <div className="pathfinder-personal-dashboard__events-list">
+          {sharedJobs.map(job => (
+            <Card
+              // The /api/employment-engine/jobs payload returns `id`, not
+              // `job_posting_id`. Keying on `job_posting_id` alone collapsed
+              // every card to `key={undefined}` → React reconciliation
+              // collisions → wrong card animations / state on update. Fall
+              // through to `id`, then to `job_url`, before giving up to the
+              // index — same shape as PathfinderJobs.jsx uses for its grid.
+              key={job.job_posting_id ?? job.id ?? job.job_url}
+              className="bg-white border-[#e0e0e0] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <CardContent className="p-4">
+                <div className="font-semibold text-[#1a1a1a] mb-1">{job.job_title}</div>
+                <div className="text-sm text-[#666666] mb-2">{job.company_name}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {job.experience_level && (
+                    <Badge className="bg-purple-100 text-purple-700 text-[10px]">
+                      {job.experience_level.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                  {job.location && (
+                    <Badge className="bg-gray-100 text-gray-600 text-[10px]">
+                      {job.location}
+                    </Badge>
+                  )}
+                  {job.salary && (
+                    <Badge className="bg-green-100 text-green-700 text-[10px]">
+                      {job.salary}
+                    </Badge>
+                  )}
+                  {job.shared_date && (
+                    <span className="text-[10px] text-[#999]">
+                      Posted {new Date(job.shared_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+                {(() => {
+                  const safeApplyHref = safeExternalUrl(job.application_url);
+                  if (!safeApplyHref) return null;
+                  return (
+                    <a
+                      href={safeApplyHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-2 text-xs text-[#4242ea] hover:underline"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      Apply <ExternalLink size={11} />
+                    </a>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderQuickActions = () => (
     <div className="pathfinder-personal-dashboard__actions">
       <div className="pathfinder-personal-dashboard__action-cards">
@@ -630,6 +723,9 @@ function PathfinderPersonalDashboard() {
 
   return (
     <div className="pathfinder-personal-dashboard">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading dashboard...</div>
+      )}
       {error && (
         <div className="pathfinder-personal-dashboard__error">{error}</div>
       )}
@@ -637,6 +733,7 @@ function PathfinderPersonalDashboard() {
       {renderGoalStatementCard()}
       {renderResumeCta()}
       {renderFeaturedEvents()}
+      {renderSharedJobs()}
       {renderProgressSection()}
       {renderQuickActions()}
 
@@ -813,7 +910,6 @@ function PathfinderPersonalDashboard() {
         </DialogContent>
       </Dialog>
 
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

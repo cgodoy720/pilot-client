@@ -1,41 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import React, { useState, useEffect, useMemo } from 'react';
 import useAuthStore from '../../stores/authStore';
 import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import SummaryTab from './tabs/SummaryTab';
-import BuildersTab from './tabs/BuildersTab';
-import SurveyTab from './tabs/SurveyTab';
+import OverviewTab from './tabs/OverviewTab';
+import TodayTab from './tabs/TodayTab';
+import AssessmentsTab from './tabs/AssessmentsTab';
 import L2SelectionsTab from './tabs/L2SelectionsTab';
-import VideoSubmissionsTab from './tabs/VideoSubmissionsTab';
-import { fetchPursuitBuilderCohorts } from './utils/cohortUtils';
-import { ExternalLink, BarChart3, Users, Star, UserCheck, Video } from 'lucide-react';
+import LogsTab from './tabs/LogsTab';
 
-const LEGACY_URL = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
+const STORAGE_KEY = 'pursuit_program_slug';
+const COHORT_STORAGE_KEY = 'pursuit_selected_cohort';
+const DEFAULT_COHORT_NAME = 'March 2026 L1';
 
-const TAB_TRIGGER_CLASS =
-  'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-600 font-medium px-4 py-2 rounded-md transition-all text-sm gap-1.5';
+const TABS = [
+  { id: 'today',       label: 'Today' },
+  { id: 'overview',    label: 'Overview' },
+  { id: 'assessments', label: 'Assessments' },
+  { id: 'l2',          label: 'L2' },
+  { id: 'logs',        label: 'Logs' },
+];
+
+const TAB_BASE = 'px-5 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap';
+const TAB_ACTIVE = 'border-[#4242EA] text-[#4242EA]';
+const TAB_INACTIVE = 'border-transparent text-slate-500 hover:text-[#1E1E1E] hover:border-slate-300';
 
 const AdminDashboard = () => {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
-  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
-  const [activeTab, setActiveTab] = useState('summary');
-  const [iframeLoading, setIframeLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('today');
 
+  const [programs, setPrograms] = useState([]);
+  const [programSlug, setProgramSlug] = useState(() => localStorage.getItem(STORAGE_KEY) || 'ai-native-builder');
   const [cohorts, setCohorts] = useState([]);
-  const [selectedCohortId, setSelectedCohortId] = useState('');
+  const [selectedCohortId, setSelectedCohortId] = useState(() => localStorage.getItem(COHORT_STORAGE_KEY) || '');
 
+  // Load programs once
   useEffect(() => {
     if (!token) return;
-    fetchPursuitBuilderCohorts(token)
-      .then(data => {
-        setCohorts(data);
-        if (data.length > 0) setSelectedCohortId(data[0].cohort_id);
-      })
-      .catch(console.error);
+    fetch(`${API_BASE}/api/admin/dashboard/programs`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.json())
+      .then(data => { if (data.success) setPrograms(data.programs); })
+      .catch(() => {});
   }, [token]);
+
+  // Load cohorts when program changes
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE}/api/admin/dashboard/program-cohorts?programSlug=${programSlug}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.json())
+      .then(data => {
+        const list = data.cohorts || [];
+        setCohorts(list);
+        // If we have a persisted selection and it exists in this program's cohorts, keep it
+        const persisted = localStorage.getItem(COHORT_STORAGE_KEY);
+        if (persisted && list.some(c => c.cohort_id === persisted)) {
+          setSelectedCohortId(persisted);
+        } else if (list.length > 0) {
+          // Default to March 2026 L1 if it exists, otherwise first cohort
+          const defaultCohort = list.find(c => c.name === DEFAULT_COHORT_NAME);
+          const id = defaultCohort ? defaultCohort.cohort_id : list[0].cohort_id;
+          setSelectedCohortId(id);
+          localStorage.setItem(COHORT_STORAGE_KEY, id);
+        } else {
+          setSelectedCohortId('');
+        }
+      })
+      .catch(() => { setCohorts([]); setSelectedCohortId(''); });
+  }, [token, programSlug]);
+
+  const handleProgramChange = (slug) => {
+    setProgramSlug(slug);
+    localStorage.setItem(STORAGE_KEY, slug);
+    // Clear persisted cohort when switching programs — will re-default on load
+    localStorage.removeItem(COHORT_STORAGE_KEY);
+  };
+
+  // L2 tab: only show when selected cohort's course level = L1
+  const selectedCohort = useMemo(
+    () => cohorts.find(c => c.cohort_id === selectedCohortId),
+    [cohorts, selectedCohortId]
+  );
+
+  // L2 tab: show for L1 cohorts in week 7+ OR completed cohorts (is_active=false)
+  const visibleTabs = useMemo(
+    () => TABS.filter(tab => {
+      if (tab.id === 'l2') {
+        if (selectedCohort?.level !== 'L1') return false;
+        if (selectedCohort?.is_active === false) return true; // cohort finished — always show
+        return (parseInt(selectedCohort?.current_week) || 0) >= 7;
+      }
+      return true;
+    }),
+    [selectedCohort]
+  );
+
+  // If active tab became hidden (e.g., L2 hidden), reset to overview
+  useEffect(() => {
+    if (!visibleTabs.find(t => t.id === activeTab)) {
+      setActiveTab('overview');
+    }
+  }, [visibleTabs, activeTab]);
 
   if (!canAccessPage('admin_dashboard')) {
     return (
@@ -50,112 +118,68 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#EFEFEF]">
-      {!isSecondaryNavPage && (
-        <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
-                Admin Dashboard
-              </h1>
-              <p className="text-slate-500 text-sm mt-0.5">
-                Platform overview for {user?.firstName ? `${user.firstName} ${user.lastName}` : 'administrators'}
-              </p>
-            </div>
-            <a
-              href={LEGACY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#4242EA] transition-colors"
-            >
-              <ExternalLink size={13} />
-              Legacy dashboard
-            </a>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto px-8 py-6">
-        {/* Global cohort selector */}
-        <div className="flex flex-wrap items-end gap-3 mb-6">
+      {/* Header */}
+      <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">Cohort</label>
-            <select
-              value={selectedCohortId}
-              onChange={e => setSelectedCohortId(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
-            >
-              {cohorts.map(c => <option key={c.cohort_id} value={c.cohort_id}>{c.name}</option>)}
-            </select>
+            <h1 className="text-xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
+              Cohort Hub
+            </h1>
+            <p className="text-slate-500 text-sm mt-0.5">Per-cohort facilitator workspace</p>
+          </div>
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {programs.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500 font-medium">Program</label>
+                <select
+                  value={programSlug}
+                  onChange={(e) => handleProgramChange(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
+                >
+                  {programs.map(p => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.name}{p.organization ? ` — ${p.organization}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-500 font-medium">Cohort</label>
+              <select
+                value={selectedCohortId}
+                onChange={e => { setSelectedCohortId(e.target.value); localStorage.setItem(COHORT_STORAGE_KEY, e.target.value); }}
+                className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
+              >
+                {cohorts.map(c => <option key={c.cohort_id} value={c.cohort_id}>{c.name}</option>)}
+              </select>
+            </div>
           </div>
         </div>
+      </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-white border border-[#E3E3E3] p-1 mb-6 rounded-lg inline-flex flex-wrap gap-0.5">
-            <TabsTrigger value="summary" className={TAB_TRIGGER_CLASS}>
-              <BarChart3 size={14} />
-              Summary
-            </TabsTrigger>
-            <TabsTrigger value="builders" className={TAB_TRIGGER_CLASS}>
-              <Users size={14} />
-              Builders
-            </TabsTrigger>
-            <TabsTrigger value="survey" className={TAB_TRIGGER_CLASS}>
-              <Star size={14} />
-              NPS / Survey
-            </TabsTrigger>
-            <TabsTrigger value="l2" className={TAB_TRIGGER_CLASS}>
-              <UserCheck size={14} />
-              L2 Selections
-            </TabsTrigger>
-            <TabsTrigger value="videos" className={TAB_TRIGGER_CLASS}>
-              <Video size={14} />
-              Videos
-            </TabsTrigger>
-            <TabsTrigger value="legacy" className={TAB_TRIGGER_CLASS}>
-              <ExternalLink size={14} />
-              Legacy View
-            </TabsTrigger>
-          </TabsList>
+      {/* Tab bar */}
+      <div className="bg-white border-b border-[#E3E3E3] px-8">
+        <div className="max-w-7xl mx-auto w-full flex">
+          {visibleTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`${TAB_BASE} ${activeTab === tab.id ? TAB_ACTIVE : TAB_INACTIVE}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          <TabsContent value="summary">
-            <SummaryTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
-          </TabsContent>
-
-          <TabsContent value="builders">
-            <BuildersTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
-          </TabsContent>
-
-          <TabsContent value="survey">
-            <SurveyTab />
-          </TabsContent>
-
-          <TabsContent value="l2">
-            <L2SelectionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
-          </TabsContent>
-
-          <TabsContent value="videos">
-            <VideoSubmissionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
-          </TabsContent>
-
-          <TabsContent value="legacy" className="rounded-lg overflow-hidden shadow">
-            <div className="relative bg-white rounded-lg overflow-hidden" style={{ minHeight: 'calc(100vh - 220px)' }}>
-              {iframeLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 gap-3">
-                  <div className="w-8 h-8 border-2 border-[#4242EA] border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm text-slate-400">Loading legacy dashboard...</span>
-                </div>
-              )}
-              <iframe
-                src={LEGACY_URL}
-                title="Legacy Admin Dashboard"
-                className="w-full border-none"
-                style={{ height: 'calc(100vh - 220px)' }}
-                onLoad={() => setIframeLoading(false)}
-                allow="fullscreen"
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-8 py-6">
+        {activeTab === 'overview'    && <OverviewTab    selectedCohortId={selectedCohortId} cohorts={cohorts} programSlug={programSlug} />}
+        {activeTab === 'today'       && <TodayTab       selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+        {activeTab === 'assessments' && <AssessmentsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+        {activeTab === 'l2'          && <L2SelectionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+        {activeTab === 'logs'        && <LogsTab        selectedCohortId={selectedCohortId} cohorts={cohorts} />}
       </div>
     </div>
   );

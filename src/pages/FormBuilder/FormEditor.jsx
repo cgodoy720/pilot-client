@@ -23,7 +23,11 @@ const FormEditor = () => {
       thank_you_message: 'Thank you for your submission!',
       redirect_url: null,
       email_notifications: false,
-      notification_emails: []
+      notification_emails: [],
+      confirmation_email_enabled: false,
+      confirmation_email_subject: '',
+      confirmation_email_body: '',
+      confirmation_email_from_name: ''
     }
   });
 
@@ -197,6 +201,17 @@ const FormEditor = () => {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={2}
             />
+            <div className="text-xs text-gray-500 px-2 pt-1">
+              <div className="flex flex-wrap gap-x-3 gap-y-1 items-baseline">
+                <span className="font-medium text-gray-600">Markdown:</span>
+                <span><code className="bg-gray-100 px-1 rounded">**bold**</code> → <strong>bold</strong></span>
+                <span><code className="bg-gray-100 px-1 rounded">*italic*</code> → <em>italic</em></span>
+                <span><code className="bg-gray-100 px-1 rounded">[text](url)</code> → link</span>
+                <span><code className="bg-gray-100 px-1 rounded">- item</code> → bullet list</span>
+                <span><code className="bg-gray-100 px-1 rounded">1. item</code> → numbered list</span>
+                <span><code className="bg-gray-100 px-1 rounded">blank line</code> → new paragraph</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-start pt-2">
             <button 
@@ -382,6 +397,7 @@ const FormEditor = () => {
         {activeTab === 'settings' && (
           <FormSettings
             settings={formData.settings}
+            questions={formData.questions}
             onUpdate={handleUpdateSettings}
           />
         )}

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
+import { safeExternalUrl } from '../../utils/safeUrl';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import confetti from 'canvas-confetti';
 import CompanyAutocomplete from '../../components/CompanyAutocomplete';
 import RichTextEditor from '../../components/RichTextEditor';
-import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -1078,6 +1078,9 @@ function PathfinderApplications() {
 
   return (
     <div className="w-full max-w-full h-full bg-[#f5f5f5] text-[#1a1a1a] overflow-y-auto overflow-x-hidden p-0 px-6 pb-6 box-border relative">
+      {isLoading && (
+        <div className="text-sm text-[#666666] mb-3">Loading applications...</div>
+      )}
       <div className="max-w-full w-full mx-auto box-border flex flex-col overflow-x-hidden">
         <MyStrategy />
         <MyResumes />
@@ -1874,10 +1877,13 @@ function PathfinderApplications() {
                                   Target: {new Date(build.target_date).toLocaleDateString()}
                                 </div>
                               )}
-                              {build.deployment_url && (
+                              {(() => {
+                                const buildHref = safeExternalUrl(build.deployment_url);
+                                if (!buildHref) return null;
+                                return (
                                 <div className="pathfinder-applications__build-link">
                                   <a 
-                                    href={build.deployment_url} 
+                                    href={buildHref} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
@@ -1885,7 +1891,8 @@ function PathfinderApplications() {
                                     🔗 View Live App
                                   </a>
                                 </div>
-                              )}
+                                );
+                              })()}
                               {build.notes && (
                                 <div className="pathfinder-applications__build-notes">
                                   {build.notes}
@@ -2485,8 +2492,6 @@ function PathfinderApplications() {
         </div>
       )}
       
-      {/* Loading Curtain */}
-      <LoadingCurtain isLoading={isLoading} />
     </div>
   );
 }

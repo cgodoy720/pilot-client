@@ -18,7 +18,7 @@ import EmploymentRecordForm from './EmploymentRecordForm';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const ADMIN_ENDPOINT = `${API_URL}/api/pathfinder/admin/employment-records`;
-const BUILDERS_ENDPOINT = `${API_URL}/api/users/builders`;
+const BUILDERS_ENDPOINT = `${API_URL}/api/users/builders?limit=500&enrolled=true`;
 const LIMIT = 100;
 
 const DEFAULT_FILTERS = {
@@ -190,33 +190,46 @@ const EmploymentRecordsAdmin = () => {
   };
 
   const handleUpdate = async (formData) => {
-    const res = await fetch(`${ADMIN_ENDPOINT}/${editRecord.id}`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData),
-    });
+    try {
+      const res = await fetch(`${ADMIN_ENDPOINT}/${editRecord.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to update record');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to update record');
+      }
+
+      Swal.fire({
+        toast: true,
+        icon: 'success',
+        title: 'Employment record updated',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+      });
+
+      setFormOpen(false);
+      setEditRecord(null);
+      fetchRecords();
+    } catch (err) {
+      console.error('Error updating employment record:', err);
+      Swal.fire({
+        toast: true,
+        icon: 'error',
+        title: err.message || 'Could not update record',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 4000,
+        timerProgressBar: true,
+      });
     }
-
-    Swal.fire({
-      toast: true,
-      icon: 'success',
-      title: 'Employment record updated',
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 3000,
-      timerProgressBar: true,
-    });
-
-    setFormOpen(false);
-    setEditRecord(null);
-    fetchRecords();
   };
 
   const handleDelete = async (record) => {

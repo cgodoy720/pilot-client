@@ -10,6 +10,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { AnimatedRadioGroup, AnimatedRadioItem } from '../../components/ui/animated-radio';
 import { AnimatedCheckbox } from '../../components/ui/animated-checkbox';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
@@ -21,6 +22,31 @@ const ApplicationForm = () => {
   const handleLogout = () => {
     localStorage.removeItem('user');
     navigate('/login');
+  };
+
+  const formatCohortDate = (dateValue) => {
+    if (!dateValue) return null;
+    try {
+      return new Date(dateValue).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const getCohortOptionLabel = (cohort, index) => {
+    const cycleLabel = index === 0 ? 'Current cycle' : 'Next cycle';
+    const startDate = formatCohortDate(cohort.start_date);
+    const cutoffDate = formatCohortDate(cohort.cutoff_date || cohort.effective_cutoff);
+    const dateParts = [
+      startDate ? `starts ${startDate}` : null,
+      cutoffDate ? `deadline ${cutoffDate}` : null
+    ].filter(Boolean);
+
+    return `${cycleLabel}: ${cohort.name}${dateParts.length ? ` (${dateParts.join(', ')})` : ''}`;
   };
   
   const [applicationQuestions, setApplicationQuestions] = useState([]);
@@ -37,6 +63,17 @@ const ApplicationForm = () => {
   const [showValidation, setShowValidation] = useState(false);
   const [isIneligible, setIsIneligible] = useState(false);
   const [eligibilityFailures, setEligibilityFailures] = useState([]);
+  const [cohortOptions, setCohortOptions] = useState([]);
+  const [selectedCohortId, setSelectedCohortId] = useState('');
+  const [isUpdatingCohort, setIsUpdatingCohort] = useState(false);
+  // Surfaces the most recent auto-save failure to the applicant. Previously
+  // the catch in the debounced save just console.error'd, which meant any
+  // server-side gate (e.g., assertEditableApplication, expired token) would
+  // silently swallow the user's edits — they'd keep typing into a form that
+  // wasn't persisting anything, then hit "Submit" and see a generic error.
+  // We hold the message until the next save succeeds, at which point it
+  // clears. Non-blocking so applicants can still try to recover.
+  const [autoSaveError, setAutoSaveError] = useState(null);
 
   useEffect(() => {
     const initializeApplication = async () => {
@@ -47,23 +84,47 @@ const ApplicationForm = () => {
         setApplicationQuestions(questions);
         
         const savedUser = localStorage.getItem('user');
-        let email = 'jac@pursuit.org';
-        let firstName = 'John';
-        let lastName = 'Doe';
-        
-        if (savedUser) {
-          try {
-            const userData = JSON.parse(savedUser);
-            email = userData.email || email;
-            firstName = userData.firstName || userData.first_name || firstName;
-            lastName = userData.lastName || userData.last_name || lastName;
-          } catch (e) {
-            console.warn('Could not parse saved user data');
-          }
+        if (!savedUser) {
+          navigate('/login');
+          return;
+        }
+
+        let email, firstName, lastName;
+        try {
+          const userData = JSON.parse(savedUser);
+          email = userData.email;
+          firstName = userData.firstName || userData.first_name;
+          lastName = userData.lastName || userData.last_name;
+        } catch (e) {
+          console.warn('Could not parse saved user data');
+          navigate('/login');
+          return;
+        }
+
+        if (!email) {
+          console.warn('No email found in user data');
+          navigate('/login');
+          return;
         }
         
+        const urlParams = new URLSearchParams(window.location.search);
+        const editSubmitted = urlParams.get('editSubmitted') === 'true';
         const applicant = await databaseService.createOrGetApplicant(email, firstName, lastName);
         console.log('Applicant:', applicant);
+
+        let cohortChoices = [];
+        try {
+          const cohortResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/applications/cohort-options`, {
+            headers: databaseService.getAuthHeaders()
+          });
+          if (cohortResponse.ok) {
+            cohortChoices = await cohortResponse.json();
+            setCohortOptions(cohortChoices || []);
+          }
+        } catch (cohortError) {
+          console.warn('Failed to load cohort options for application form:', cohortError);
+        }
+        const defaultCohortId = cohortChoices?.[0]?.cohort_id || '';
         
         let existingApplication = null;
         try {
@@ -83,13 +144,40 @@ const ApplicationForm = () => {
         if (!application) {
           console.log('Creating new application...');
           databaseService.currentApplicant = applicant;
-          application = await databaseService.createApplication();
+          application = await databaseService.createApplication(defaultCohortId || null);
           console.log('Created new application:', application);
+        }
+
+        if (application?.status === 'submitted' && editSubmitted) {
+          try {
+            const reopenedApplication = await databaseService.reopenSubmittedApplication(
+              application.application_id
+            );
+            application = {
+              ...application,
+              ...reopenedApplication,
+              cohort_id: reopenedApplication.cohort_id || application.cohort_id
+            };
+            localStorage.setItem('applicationStatus', 'in_progress');
+
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('editSubmitted');
+            window.history.replaceState({}, '', cleanUrl);
+          } catch (reopenError) {
+            console.error('Failed to reopen submitted application:', reopenError);
+            await Swal.fire({
+              icon: 'error',
+              title: 'Application Cannot Be Edited',
+              text: reopenError.message || 'This application can no longer be edited.',
+              confirmButtonColor: '#4242ea'
+            });
+            navigate('/apply');
+            return;
+          }
         }
         
         if (application && application.status === 'ineligible') {
           const wasResetForEditing = localStorage.getItem('eligibilityResetForEditing');
-          const urlParams = new URLSearchParams(window.location.search);
           const resetFromUrl = urlParams.get('resetEligibility') === 'true';
           
           console.log('🔍 RESET DEBUG: Found ineligible application', {
@@ -163,6 +251,7 @@ const ApplicationForm = () => {
           application
         };
         setCurrentSession(session);
+        setSelectedCohortId(application?.cohort_id || defaultCohortId || '');
         
         databaseService.currentApplication = application;
         
@@ -262,7 +351,7 @@ const ApplicationForm = () => {
             if (value !== null && value !== undefined && value !== '') {
               const responseValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
               console.log(`Saving response: Q${questionId} = ${responseValue}`);
-              
+
               await databaseService.saveResponse(
                 currentSession.application.application_id,
                 questionId,
@@ -272,11 +361,20 @@ const ApplicationForm = () => {
             }
           }
           console.log(`Auto-save completed: ${savedCount} responses saved to database`);
+          if (savedCount > 0) {
+            setAutoSaveError((prev) => (prev ? null : prev));
+          }
       } else {
           console.warn('No application ID available for database save');
         }
       } catch (error) {
         console.error('Error auto-saving:', error);
+        const message = error?.message?.trim();
+        setAutoSaveError(
+          message && !/^HTTP error/i.test(message)
+            ? `Your changes weren't saved: ${message}`
+            : "Your changes weren't saved. Please check your connection and try again, or contact admissions if this keeps happening."
+        );
       }
     }, 1000);
     
@@ -778,10 +876,27 @@ const ApplicationForm = () => {
       }
 
       if (currentSession?.application) {
+        if (!selectedCohortId) {
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Select a Cohort',
+            text: 'Please select which cohort you are applying to before submitting.',
+            confirmButtonColor: '#4242ea'
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (currentSession.application.cohort_id !== selectedCohortId) {
+          await updateApplicationCohort(selectedCohortId);
+        }
+
         console.log('🎯 Submitting application:', currentSession.application.application_id);
-        const result = await databaseService.submitApplication(currentSession.application.application_id);
+        const result = await databaseService.submitApplication(
+          currentSession.application.application_id
+        );
         console.log('✅ Submission result:', result);
-        
+
         localStorage.removeItem('applicationFormData');
         localStorage.removeItem('applicationCurrentSection');
         localStorage.removeItem('applicationCurrentQuestionIndex');
@@ -811,10 +926,19 @@ const ApplicationForm = () => {
       }
     } catch (error) {
       console.error('Error submitting application:', error);
+      // Surface the server-supplied reason whenever it's user-meaningful
+      // (the new databaseService.submitApplication propagates the parsed
+      // body.error). Fall back to the generic message only when we have
+      // nothing useful to show.
+      const rawMessage = error?.message?.trim();
+      const friendlyMessage =
+        rawMessage && !/^HTTP error/i.test(rawMessage) && !/^Submit failed/i.test(rawMessage)
+          ? rawMessage
+          : 'Error submitting application. Please try again.';
       await Swal.fire({
         icon: 'error',
         title: 'Submission Failed',
-        text: 'Error submitting application. Please try again.',
+        text: friendlyMessage,
         confirmButtonColor: '#4242ea',
         confirmButtonText: 'Try Again'
       });
@@ -873,7 +997,66 @@ const ApplicationForm = () => {
     navigate('/apply');
   };
 
-  const handleBeginApplication = () => {
+  const updateApplicationCohort = async (nextCohortId) => {
+    if (!currentSession?.application?.application_id || !currentSession?.applicant?.applicant_id || !nextCohortId) {
+      return;
+    }
+
+    setIsUpdatingCohort(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/applications/application/${currentSession.application.application_id}/cohort`,
+        {
+          method: 'PUT',
+          headers: databaseService.getAuthHeaders(),
+          body: JSON.stringify({
+            cohortId: nextCohortId
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update cohort assignment');
+      }
+
+      setCurrentSession((prev) => ({
+        ...prev,
+        application: {
+          ...prev.application,
+          cohort_id: nextCohortId
+        }
+      }));
+    } finally {
+      setIsUpdatingCohort(false);
+    }
+  };
+
+  const handleBeginApplication = async () => {
+    if (!selectedCohortId) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Select a Cohort',
+        text: 'Please select which cohort you are applying to before continuing.',
+        confirmButtonColor: '#4242ea'
+      });
+      return;
+    }
+
+    if (currentSession?.application?.cohort_id !== selectedCohortId) {
+      try {
+        await updateApplicationCohort(selectedCohortId);
+      } catch (error) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Could Not Save Cohort',
+          text: error.message || 'Please try again.',
+          confirmButtonColor: '#4242ea'
+        });
+        return;
+      }
+    }
+
     setCurrentSection(0);
     setCurrentQuestionIndex(0);
   };
@@ -1241,6 +1424,22 @@ const ApplicationForm = () => {
 
       {/* Main Content */}
       <div className="max-w-[1200px] mx-auto px-8 py-8">
+          {autoSaveError && (
+            <div
+              role="alert"
+              className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 flex items-start justify-between gap-3 text-sm text-red-900"
+            >
+              <span className="flex-1">{autoSaveError}</span>
+              <button
+                type="button"
+                onClick={() => setAutoSaveError(null)}
+                className="text-red-700 hover:text-red-900 font-medium"
+                aria-label="Dismiss"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {/* Section Navigation */}
           <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
             <button 
@@ -1286,8 +1485,46 @@ const ApplicationForm = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <p className="text-lg leading-relaxed text-[#1E1E1E]">
-                      We're excited you're here. Applications for our next cohort launching on <strong>March 14th</strong> close <strong>February 15th</strong>, so now's the time to share your story.
+                      We're excited you're here. Choose the cohort you want to apply for below, then share your story.
                   </p>
+
+                  <Card className="bg-indigo-50 border-indigo-200">
+                    <CardContent className="p-5 space-y-3">
+                      <h3 className="text-lg font-bold text-[#1E1E1E]">Choose Your Cohort</h3>
+                      <p className="text-sm text-gray-600">
+                        You can apply to the currently active cohort or the next upcoming cohort.
+                      </p>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                        <div className="w-full md:max-w-[360px]">
+                          <Select
+                            value={selectedCohortId || '_none'}
+                            onValueChange={(value) => setSelectedCohortId(value === '_none' ? '' : value)}
+                          >
+                            <SelectTrigger className="bg-white">
+                              <SelectValue placeholder="Select a cohort" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">Select a cohort</SelectItem>
+                              {cohortOptions.map((cohort, index) => (
+                                <SelectItem key={cohort.cohort_id} value={cohort.cohort_id}>
+                                  {getCohortOptionLabel(cohort, index)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {currentSession?.application?.application_id && (
+                          <Button
+                            variant="outline"
+                            onClick={() => updateApplicationCohort(selectedCohortId)}
+                            disabled={!selectedCohortId || isUpdatingCohort || currentSession?.application?.cohort_id === selectedCohortId}
+                          >
+                            {isUpdatingCohort ? 'Saving...' : 'Save Cohort Selection'}
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
 
                     <div>
                       <h3 className="text-xl font-bold text-[#1E1E1E] mb-4">When filling out your application, keep these things in mind:</h3>

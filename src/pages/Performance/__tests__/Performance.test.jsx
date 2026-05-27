@@ -4,17 +4,8 @@ import { MemoryRouter } from 'react-router-dom';
 import useAuthStore from '@/stores/authStore';
 import Performance from '../Performance';
 
-// Mock child components to isolate the cohort-gating logic
 vi.mock('../components/AttendanceCalendar', () => ({
   default: () => <div data-testid="attendance-calendar">AttendanceCalendar</div>,
-}));
-
-vi.mock('../components/FeedbackInbox', () => ({
-  default: (props) => (
-    <div data-testid="feedback-inbox" data-user-id={props.userId}>
-      FeedbackInbox
-    </div>
-  ),
 }));
 
 vi.mock('../components/WeeklyFeedbackReport', () => ({
@@ -30,13 +21,8 @@ vi.mock('../../../components/LoadingCurtain/LoadingCurtain', () => ({
     isLoading ? <div data-testid="loading-curtain">Loading...</div> : null,
 }));
 
-// Mock service calls so they don't fire real requests
 vi.mock('../../../utils/attendanceService', () => ({
   fetchUserAttendance: vi.fn().mockResolvedValue({ attendance: [], programInfo: null }),
-}));
-
-vi.mock('../../../utils/performanceFeedbackService', () => ({
-  fetchCombinedFeedback: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../../utils/userPhotoService', () => ({
@@ -69,7 +55,7 @@ const renderPerformance = (storeOverrides = {}) => {
   );
 };
 
-describe('Performance page — cohort gating', () => {
+describe('Performance page — right panel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -89,12 +75,10 @@ describe('Performance page — cohort gating', () => {
     await waitFor(() => {
       expect(screen.getByTestId('weekly-feedback-report')).toBeInTheDocument();
     });
-
-    expect(screen.queryByTestId('feedback-inbox')).not.toBeInTheDocument();
     expect(screen.getByTestId('attendance-calendar')).toBeInTheDocument();
   });
 
-  it('renders FeedbackInbox for January 2026 L2 builder', async () => {
+  it('renders WeeklyFeedbackReport for January 2026 L2 builder', async () => {
     renderPerformance({
       user: {
         user_id: 101,
@@ -107,14 +91,11 @@ describe('Performance page — cohort gating', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('feedback-inbox')).toBeInTheDocument();
+      expect(screen.getByTestId('weekly-feedback-report')).toBeInTheDocument();
     });
-
-    expect(screen.queryByTestId('weekly-feedback-report')).not.toBeInTheDocument();
-    expect(screen.getByTestId('attendance-calendar')).toBeInTheDocument();
   });
 
-  it('renders FeedbackInbox for December 2025 L1 builder', async () => {
+  it('renders WeeklyFeedbackReport for December 2025 L1 builder', async () => {
     renderPerformance({
       user: {
         user_id: 55,
@@ -127,13 +108,11 @@ describe('Performance page — cohort gating', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('feedback-inbox')).toBeInTheDocument();
+      expect(screen.getByTestId('weekly-feedback-report')).toBeInTheDocument();
     });
-
-    expect(screen.queryByTestId('weekly-feedback-report')).not.toBeInTheDocument();
   });
 
-  it('does NOT show WeeklyFeedbackReport for a similar but different cohort name', async () => {
+  it('renders WeeklyFeedbackReport for March 2026 L2 builder', async () => {
     renderPerformance({
       user: {
         user_id: 200,
@@ -146,14 +125,11 @@ describe('Performance page — cohort gating', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('feedback-inbox')).toBeInTheDocument();
+      expect(screen.getByTestId('weekly-feedback-report')).toBeInTheDocument();
     });
-
-    expect(screen.queryByTestId('weekly-feedback-report')).not.toBeInTheDocument();
   });
 
-  it('passes correct userId to the rendered right-panel component', async () => {
-    // March 2026 L1 builder
+  it('passes correct userId to WeeklyFeedbackReport regardless of cohort', async () => {
     const { unmount } = renderPerformance({
       user: {
         user_id: 279,
@@ -172,7 +148,6 @@ describe('Performance page — cohort gating', () => {
 
     unmount();
 
-    // Different cohort builder
     renderPerformance({
       user: {
         user_id: 101,
@@ -185,8 +160,8 @@ describe('Performance page — cohort gating', () => {
     });
 
     await waitFor(() => {
-      const inbox = screen.getByTestId('feedback-inbox');
-      expect(inbox).toHaveAttribute('data-user-id', '101');
+      const report = screen.getByTestId('weekly-feedback-report');
+      expect(report).toHaveAttribute('data-user-id', '101');
     });
   });
 });

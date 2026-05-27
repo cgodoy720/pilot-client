@@ -59,7 +59,7 @@ const Leaderboard = () => {
       case 'bronze':
         return <Award className="text-amber-600" {...iconProps} />;
       default:
-        return <span className="text-gray-500 font-medium">#{rank}</span>;
+        return <span className="text-gray-500 font-proxima">#{rank}</span>;
     }
   };
 
@@ -67,7 +67,7 @@ const Leaderboard = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Staff Outreach Leaderboard</h2>
+        <h2 className="text-2xl font-proxima-bold text-gray-900">Staff Outreach Leaderboard</h2>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">Time Period:</span>
           <Select value={timePeriod} onValueChange={setTimePeriod}>
@@ -91,9 +91,9 @@ const Leaderboard = () => {
           {/* Table Header */}
           <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-sm font-semibold text-gray-900">Rank</div>
-              <div className="text-sm font-semibold text-gray-900">Name</div>
-              <div className="text-sm font-semibold text-gray-900 text-right">Outreach Count</div>
+              <div className="text-sm font-proxima-bold text-gray-900">Rank</div>
+              <div className="text-sm font-proxima-bold text-gray-900">Name</div>
+              <div className="text-sm font-proxima-bold text-gray-900 text-right">Outreach Count</div>
             </div>
           </div>
 
@@ -128,13 +128,13 @@ const Leaderboard = () => {
 
                   {/* Name */}
                   <div className="flex items-center space-x-2">
-                    <span className={`font-medium ${
+                    <span className={`font-proxima ${
                       item.isCurrentUser ? 'text-blue-900' : 'text-gray-900'
                     }`}>
                       {item.name}
                     </span>
                     {item.isCurrentUser && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-proxima bg-blue-100 text-blue-800">
                         You
                       </span>
                     )}
@@ -142,7 +142,7 @@ const Leaderboard = () => {
 
                   {/* Outreach Count */}
                   <div className="text-right">
-                    <span className="text-lg font-semibold text-gray-900">
+                    <span className="text-lg font-proxima-bold text-gray-900">
                       {item.outreachCount}
                     </span>
                   </div>
@@ -159,8 +159,8 @@ const Leaderboard = () => {
           <div className="flex items-center">
             <Trophy className="h-8 w-8 text-yellow-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Top Performer</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-sm font-proxima text-gray-500">Top Performer</p>
+              <p className="text-lg font-proxima-bold text-gray-900">
                 {stats.topPerformer || (leaderboardData.length > 0 ? leaderboardData[0]?.name : 'N/A')}
               </p>
             </div>
@@ -171,8 +171,8 @@ const Leaderboard = () => {
           <div className="flex items-center">
             <Award className="h-8 w-8 text-blue-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Outreach</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-sm font-proxima text-gray-500">Total Outreach</p>
+              <p className="text-lg font-proxima-bold text-gray-900">
                 {stats.totalOutreach || leaderboardData.reduce((sum, item) => sum + item.outreachCount, 0)}
               </p>
             </div>
@@ -183,8 +183,8 @@ const Leaderboard = () => {
           <div className="flex items-center">
             <Medal className="h-8 w-8 text-green-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Active Staff</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-sm font-proxima text-gray-500">Active Staff</p>
+              <p className="text-lg font-proxima-bold text-gray-900">
                 {stats.activeStaff || leaderboardData.filter(item => item.outreachCount > 0).length}
               </p>
             </div>
