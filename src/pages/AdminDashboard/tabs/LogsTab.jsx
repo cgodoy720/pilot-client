@@ -394,6 +394,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
           onOpenChange={(open) => { if (!open) setShowLogModal(false); }}
           builder={null}
           cohortId={selectedCohortId}
+          cohorts={cohorts}
           onSaved={() => { setRefreshKey(k => k + 1); }}
         />
       )}
