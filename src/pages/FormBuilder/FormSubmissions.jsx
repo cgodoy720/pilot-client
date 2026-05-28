@@ -21,6 +21,7 @@ const FormSubmissions = () => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [interestsOpen, setInterestsOpen] = useState(false);
   const interestsRef = useRef(null);
+  const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState({
     search: '',
     start_date: '',
@@ -28,6 +29,15 @@ const FormSubmissions = () => {
     flagged: false,
     interests: []
   });
+
+  // Debounce the search box so the backend is only queried after typing pauses,
+  // instead of on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((prev) => (prev.search === searchInput ? prev : { ...prev, search: searchInput }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     loadFormAndSubmissions();
@@ -264,7 +274,7 @@ const FormSubmissions = () => {
     );
   };
 
-  if (loading) {
+  if (loading && !form) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-gray-600">
         <div className="w-12 h-12 border-4 border-gray-200 border-t-[#4242ea] rounded-full animate-spin mb-4"></div>
@@ -327,8 +337,8 @@ const FormSubmissions = () => {
             type="text"
             className="flex-1 min-w-[250px] px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#4242ea] focus:border-transparent"
             placeholder="Search submissions..."
-            value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
           <input
             type="date"
