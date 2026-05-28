@@ -740,8 +740,17 @@ function LearningPreview({ dayId, cohort, onBack }) {
               );
             });
           } else if (chunk.type === 'error') {
-            // Remove any in-flight streaming AI bubbles
-            setMessages(prev => prev.filter(msg => !(msg.sender === 'ai' && msg.isStreaming)));
+            // Keep partial content if any was streamed; drop only empty bubbles.
+            setMessages(prev => prev
+              .filter(msg => {
+                if (msg.sender !== 'ai' || !msg.isStreaming) return true;
+                return !!(msg.content && msg.content.trim());
+              })
+              .map(msg => (msg.sender === 'ai' && msg.isStreaming)
+                ? { ...msg, isStreaming: false, isThinking: false, thinkingLabel: null }
+                : msg
+              )
+            );
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);
@@ -835,7 +844,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
       toast.error("Task not found");
       return;
     }
-    
+
     try {
       const response = await fetch(`${API_URL}/api/submissions`, {
         method: 'POST',
@@ -845,9 +854,140 @@ function LearningPreview({ dayId, cohort, onBack }) {
         },
         body: JSON.stringify({ taskId: currentTask.id, content: deliverableData, isPreviewMode: true }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to submit');
-      
+
+      // V2 personalized + has-deliverable tasks return SSE with the agent's
+      // grade output; everything else returns JSON. Branch accordingly.
+      const contentType = response.headers.get('content-type') || '';
+
+      if (contentType.includes('text/event-stream')) {
+        toast.success("Submitted! The coach is reviewing your work…", { duration: 3000 });
+        setIsStreaming(true);
+
+        const baseBubbleId = `v2-submit-${Date.now()}`;
+        setMessages(prev => [
+          ...prev,
+          {
+            id: baseBubbleId,
+            content: '',
+            sender: 'ai',
+            timestamp: new Date().toISOString(),
+            isStreaming: true,
+            isThinking: true,
+            thinkingLabel: 'Reviewing your submission…'
+          }
+        ]);
+
+        const findActiveBubbleIdx = (msgs) => {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].sender === 'ai' && msgs[i].isStreaming) return i;
+          }
+          return -1;
+        };
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const processChunk = (data) => {
+          if (data.type === 'submission' && data.submission) {
+            setTaskSubmissions(prev => ({ ...prev, [currentTask.id]: data.submission }));
+          } else if (data.type === 'thinking') {
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              const current = idx >= 0 ? prev[idx] : null;
+              if (current && current.content && current.content.trim().length > 0) {
+                const updated = [...prev];
+                updated[idx] = { ...current, isStreaming: false, isThinking: false, thinkingLabel: null };
+                updated.push({
+                  id: `v2-submit-${Date.now()}-${updated.length}`,
+                  content: '',
+                  sender: 'ai',
+                  timestamp: new Date().toISOString(),
+                  isStreaming: true,
+                  isThinking: true,
+                  thinkingLabel: data.label
+                });
+                return updated;
+              }
+              if (current) {
+                const updated = [...prev];
+                updated[idx] = { ...current, isThinking: true, thinkingLabel: data.label };
+                return updated;
+              }
+              return prev;
+            });
+          } else if (data.type === 'text') {
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              if (idx === -1) return prev;
+              return prev.map((m, i) =>
+                i === idx
+                  ? {
+                      ...m,
+                      content: `${m.content || ''}${data.content || ''}`,
+                      isThinking: false,
+                      thinkingLabel: null
+                    }
+                  : m
+              );
+            });
+          } else if (data.type === 'done') {
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              if (idx === -1) return prev;
+              const finalContent = data.message?.content;
+              return prev.map((m, i) =>
+                i === idx
+                  ? {
+                      ...m,
+                      content: m.content || finalContent || '',
+                      sender: 'ai',
+                      timestamp: data.message?.timestamp || m.timestamp,
+                      isStreaming: false,
+                      isThinking: false,
+                      thinkingLabel: null
+                    }
+                  : m
+              );
+            });
+            setIsStreaming(false);
+          } else if (data.type === 'error') {
+            setMessages(prev => prev.filter(m => !(m.sender === 'ai' && m.isStreaming)));
+            setIsStreaming(false);
+            toast.error(data.error || "Coach failed to review the submission.");
+          }
+        };
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  processChunk(JSON.parse(line.slice(6)));
+                } catch (parseErr) {
+                  console.error('Failed to parse v2 submission SSE line:', line, parseErr);
+                }
+              }
+            }
+          }
+          if (buffer.startsWith('data: ')) {
+            try { processChunk(JSON.parse(buffer.slice(6))); } catch {}
+          }
+        } finally {
+          setIsStreaming(false);
+          await checkTaskCompletion(currentTask.id);
+        }
+        return;
+      }
+
+      // Standard JSON path
       const submission = await response.json();
       setTaskSubmissions(prev => ({ ...prev, [currentTask.id]: submission }));
       await checkTaskCompletion(currentTask.id);
