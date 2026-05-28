@@ -92,9 +92,8 @@ const FormSubmissions = () => {
 
   const interestOptions = interestsQuestion?.options || [];
 
-  const interestsValue = (submission) => {
-    if (!interestsQuestion) return '';
-    const response = submission.responses?.[interestsQuestion.question_id];
+  const responseValue = (submission, questionId) => {
+    const response = submission.responses?.[questionId];
     if (!response) return '';
     return Array.isArray(response.answer)
       ? response.answer.join(', ')
@@ -286,6 +285,7 @@ const FormSubmissions = () => {
   const totalCount = submissions.length;
   const visibleCount = filteredSubmissions.length;
   const interestsFilterActive = filters.interests.length > 0;
+  const questionColumns = form?.questions || [];
 
   return (
     <div className="w-full max-w-full mx-auto overflow-x-hidden box-border bg-[#f5f5f5] min-h-screen text-[#1a1a1a]">
@@ -447,11 +447,16 @@ const FormSubmissions = () => {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Submitted
                     </th>
-                    {interestsQuestion && (
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Interests
+                    {questionColumns.map((q) => (
+                      <th
+                        key={q.question_id}
+                        className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[180px]"
+                      >
+                        <span className="line-clamp-2" title={q.text}>
+                          {q.text}
+                        </span>
                       </th>
-                    )}
+                    ))}
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Note
                     </th>
@@ -465,7 +470,6 @@ const FormSubmissions = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {filteredSubmissions.map((submission) => {
-                    const interests = interestsValue(submission);
                     return (
                       <tr
                         key={submission.submission_id}
@@ -480,17 +484,23 @@ const FormSubmissions = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {new Date(submission.submitted_at).toLocaleString()}
                         </td>
-                        {interestsQuestion && (
-                          <td className="px-6 py-4 text-sm text-gray-700 max-w-xs">
-                            {interests ? (
-                              <span className="line-clamp-2" title={interests}>
-                                {interests}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">—</span>
-                            )}
-                          </td>
-                        )}
+                        {questionColumns.map((q) => {
+                          const value = responseValue(submission, q.question_id);
+                          return (
+                            <td
+                              key={q.question_id}
+                              className="px-6 py-4 text-sm text-gray-700 max-w-xs"
+                            >
+                              {value ? (
+                                <span className="line-clamp-2" title={value}>
+                                  {value}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )}
+                            </td>
+                          );
+                        })}
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {submission.notes ? (
                             <span title={submission.notes} className="inline-flex items-center gap-1">
