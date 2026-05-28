@@ -75,6 +75,7 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
+import CoachRuns from './pages/Admin/CoachRuns/CoachRuns';
 
 // Platform Intake pages
 import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
@@ -439,7 +440,16 @@ function App() {
             </PermissionRoute>
           </Layout>
         } />
-        
+
+        {/* Coach Runs — v2 coach agent observability (Staff/Admin) */}
+        <Route path="/admin/coach-runs" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.COACH_OBSERVABILITY}>
+              <CoachRuns />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Content Preview (Staff/Admin/Volunteer - permission-based) */}
         <Route path="/content-preview" element={
           <Layout>
