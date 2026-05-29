@@ -48,7 +48,8 @@ export const PAGE_PERMISSIONS = {
   PLATFORM_ANALYTICS: 'page:platform_analytics',
   DEMO_COHORT: 'page:demo_cohort',
   COACH_OBSERVABILITY: 'page:coach_observability',
-  
+  COACH_EVALS: 'page:coach_evals',
+
   // Workshop admin
   WORKSHOP_ADMIN: 'page:workshop_admin',
 
@@ -142,6 +143,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
 
     // Coach agent observability
     PAGE_PERMISSIONS.COACH_OBSERVABILITY,
+
+    // Coach agent eval harness
+    PAGE_PERMISSIONS.COACH_EVALS,
 
     // Feature permissions
     FEATURE_PERMISSIONS.EDIT_CURRICULUM,

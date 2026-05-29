@@ -249,6 +249,14 @@ const CoachRuns = () => {
 
   useEffect(() => { loadRuns(); }, [loadRuns]);
 
+  // Deep-link: /admin/coach-runs?thread=<id> (used by Coach Evals case drill-down).
+  // RunDetail loads by thread id independently of the list, so this works even
+  // for eval-cohort threads that are filtered out of the list below.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('thread');
+    if (t) setSelected(parseInt(t, 10));
+  }, []);
+
   if (!canAccessPage('coach_observability')) {
     return (
       <div className="min-h-screen bg-[#EFEFEF] p-8 flex items-center justify-center">
@@ -260,11 +268,14 @@ const CoachRuns = () => {
     );
   }
 
+  // Hide synthetic eval-harness personas from the real run list (they still
+  // open via the ?thread= deep-link from Coach Evals).
+  const realRuns = runs.filter((r) => r.cohort !== 'Eval Harness');
   const q = search.trim().toLowerCase();
   const filtered = q
-    ? runs.filter((r) =>
+    ? realRuns.filter((r) =>
         `${r.first_name} ${r.last_name} ${r.email} ${r.task_title} ${r.cohort}`.toLowerCase().includes(q))
-    : runs;
+    : realRuns;
 
   return (
     <div className="min-h-screen bg-[#EFEFEF]">
