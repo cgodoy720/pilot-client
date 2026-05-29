@@ -161,7 +161,8 @@ describe('Layout Component', () => {
       const dashboardLinks = screen.getAllByRole('link', { name: /Dashboard/i });
       expect(dashboardLinks.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByRole('link', { name: /Learning/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
+      // Enterprise Admin nav link removed in dev (16454ee); assertion disabled.
+      // expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Admissions Dashboard/i })).toBeInTheDocument();
 
       // Admin sees dropdown trigger buttons (not links)
@@ -177,7 +178,8 @@ describe('Layout Component', () => {
       // Staff sees standard links
       const dashboardLinks = screen.getAllByRole('link', { name: /Dashboard/i });
       expect(dashboardLinks.length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
+      // Enterprise Admin nav link removed in dev (16454ee); assertion disabled.
+      // expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Admissions Dashboard/i })).toBeInTheDocument();
 
       // Staff sees dropdown trigger buttons
@@ -273,7 +275,8 @@ describe('Layout Component', () => {
       expect(screen.getByText('Admin')).toBeInTheDocument();
 
       // Admin also sees standard links
-      expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
+      // Enterprise Admin nav link removed in dev (16454ee); assertion disabled.
+      // expect(screen.getByRole('link', { name: /Enterprise Admin/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Admissions Dashboard/i })).toBeInTheDocument();
     });
   });
@@ -347,12 +350,13 @@ describe('Layout Component', () => {
       expect(usersIcons.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should show building2 icon for enterprise admin route', () => {
-      renderLayout({ user: { role: 'admin' } }, '/cohort-admin-dashboard');
-
-      // Building2 icon is rendered for the Enterprise Admin nav link
-      expect(screen.getByTestId('building2-icon')).toBeInTheDocument();
-    });
+    // Enterprise Admin nav link removed in dev (16454ee); test disabled.
+    // it('should show building2 icon for enterprise admin route', () => {
+    //   renderLayout({ user: { role: 'admin' } }, '/cohort-admin-dashboard');
+    //
+    //   // Building2 icon is rendered for the Enterprise Admin nav link
+    //   expect(screen.getByTestId('building2-icon')).toBeInTheDocument();
+    // });
 
     it('should show briefcase icon via Employment dropdown trigger for admin users', () => {
       renderLayout({ user: { role: 'admin' } }, '/sputnik');

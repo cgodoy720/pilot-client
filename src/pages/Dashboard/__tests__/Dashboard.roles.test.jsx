@@ -319,7 +319,8 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).getByText('Calendar')).toBeInTheDocument();
       expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
       expect(within(nav).getByText('Performance')).toBeInTheDocument();
-      expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
+      // Enterprise Admin nav link removed in dev (16454ee); assertion disabled.
+      // expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
       expect(within(nav).getByText('Admissions Dashboard')).toBeInTheDocument();
 
       // Dropdown triggers visible for staff
@@ -389,7 +390,8 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).getByText('Calendar')).toBeInTheDocument();
       expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
       expect(within(nav).getByText('Performance')).toBeInTheDocument();
-      expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
+      // Enterprise Admin nav link removed in dev (16454ee); assertion disabled.
+      // expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
       expect(within(nav).getByText('Admissions Dashboard')).toBeInTheDocument();
 
       // Logout button
@@ -460,13 +462,15 @@ describe('Dashboard - Role-Based Access Control', () => {
       },
       {
         name: 'staff',
-        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Enterprise Admin', 'Admissions Dashboard'],
+        // 'Enterprise Admin' removed — nav link dropped in dev (16454ee).
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Admissions Dashboard'],
         expectedDropdowns: ['Program', 'Employment', 'Staff'],
         hasVolunteersLink: false,
       },
       {
         name: 'admin',
-        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Enterprise Admin', 'Admissions Dashboard'],
+        // 'Enterprise Admin' removed — nav link dropped in dev (16454ee).
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Admissions Dashboard'],
         expectedDropdowns: ['Program', 'Employment', 'Staff', 'Admin'],
         hasVolunteersLink: false,
       },
