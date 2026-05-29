@@ -26,7 +26,6 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewCalendar = canAccessPage('calendar');
   const canViewPathfinder = canAccessPage('pathfinder');
   const canViewPerformance = canAccessPage('performance');
-  const canViewCohortAdmin = canAccessPage('cohort_admin');
   const canViewMySchedule = canAccessPage('my_schedule');
   const canViewAdmissions = canAccessPage('admissions');
   const canViewAssessmentGrades = canAccessPage('assessment_grades');
@@ -417,11 +416,6 @@ const Layout = ({ children, isLoading = false }) => {
               <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           ), 'Performance', canViewPerformance)}
-          
-          {/* Enterprise Admin Dashboard - permission-based */}
-          {renderNavLink('/cohort-admin-dashboard', <Building2 className="h-4 w-4 text-[#E3E3E3]" />, 'Enterprise Admin', 
-            canViewCohortAdmin
-          )}
           
           {/* Program Dropdown (permission-based) */}
           <NavDropdown
