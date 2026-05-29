@@ -649,41 +649,6 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     });
   }, [storageKey]);
 
-  // Fetch full message history from DB on mount (localStorage is just a fast cache)
-  const historyFetchedRef = useRef(false);
-  useEffect(() => {
-    if (historyFetchedRef.current || !token) return;
-    historyFetchedRef.current = true;
-    (async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/pathfinder/compass/history`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.messages?.length > 0) {
-          const dbMessages = data.messages.map((m, i) => ({
-            id: `db-${i}`,
-            role: m.role,
-            content: m.content,
-          }));
-          setMessages(prev => {
-            // If DB has more messages than localStorage, use DB as source of truth
-            // but keep any in-flight streaming message from the current session
-            const streaming = prev.filter(m => m.streaming);
-            if (dbMessages.length >= prev.filter(m => !m.streaming).length) {
-              const merged = attachStableClientKeys([...dbMessages, ...streaming]);
-              messagesRef.current = merged;
-              safeWriteCompassHistory(storageKey, merged);
-              return merged;
-            }
-            return prev;
-          });
-        }
-      } catch { /* fall back to localStorage */ }
-    })();
-  }, [token, storageKey]);
-
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
