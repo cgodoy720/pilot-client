@@ -43,6 +43,101 @@
   flex-shrink: 0;
 }
 
+.compass__search-toggle {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #888;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.compass__search-toggle:hover {
+  color: #4242ea;
+  background: #f0f0ff;
+}
+
+.compass__search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.compass__search-input {
+  flex: 1;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.compass__search-input:focus {
+  border-color: #4242ea;
+}
+
+.compass__search-count {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: center;
+}
+
+.compass__search-nav,
+.compass__search-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #666;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.compass__search-nav:hover:not(:disabled),
+.compass__search-close:hover {
+  color: #4242ea;
+  background: #f0f0ff;
+}
+
+.compass__search-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.compass__search-highlight {
+  background: #fff3a8;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.compass__search-highlight--active {
+  background: #ffb347;
+  outline: 2px solid #4242ea;
+  outline-offset: 1px;
+}
+
 .compass__chat-avatar {
   width: 36px;
   height: 36px;
@@ -142,17 +237,38 @@
   margin-top: 8px;
   margin-bottom: 2px;
 }
+.compass__md-li {
+  padding-left: 4px;
+  margin-top: 8px;
+  margin-bottom: 2px;
+  text-indent: -12px;
+  padding-left: 16px;
+}
 .compass__md-li::before {
   content: '•';
   margin-right: 6px;
   color: #4242ea;
 }
-.compass__md-li {
-  display: flex;
+.compass__md-ol {
+  margin-top: 8px;
+  margin-bottom: 2px;
   padding-left: 4px;
+}
+.compass__md-ol-num {
+  color: #4242ea;
+  font-weight: 600;
+  margin-right: 4px;
 }
 .compass__md-gap {
   height: 6px;
+}
+.compass__link {
+  color: #4242ea;
+  text-decoration: underline;
+  word-break: break-all;
+}
+.compass__link:hover {
+  opacity: 0.8;
 }
 
 .compass__message--coach .compass__message-bubble {
@@ -181,12 +297,24 @@
 }
 
 /* Progressive goal dots */
+.compass__goal-dots-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .compass__goal-dots {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
   align-items: center;
   margin-top: 2px;
+}
+
+.compass__goal-dots-rows .compass__goal-dots {
+  margin-top: 0;
 }
 
 .compass__goal-dot {
@@ -236,10 +364,11 @@
   font-family: inherit;
   color: #1a1a1a;
   background: #ffffff;
+  height: 42px;
   max-height: 168px;
   min-height: 42px;
   overflow-y: auto;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, height 0.1s ease;
 }
 
 .compass__input:focus {
@@ -250,6 +379,79 @@
 .compass__input:disabled {
   background: #f5f5f5;
   color: #999999;
+}
+
+.compass__mic-btn {
+  height: 42px;
+  width: 42px;
+  background: #ffffff;
+  color: #666666;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.compass__mic-btn:hover:not(:disabled) {
+  border-color: #4242ea;
+  color: #4242ea;
+}
+
+.compass__mic-btn--active {
+  background: #4242ea;
+  border-color: #4242ea;
+  color: #ffffff;
+  animation: micPulse 1.5s ease infinite;
+}
+
+.compass__mic-btn--active:hover:not(:disabled) {
+  background: #3333d1;
+  color: #ffffff;
+}
+
+.compass__mic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(66, 66, 234, 0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(66, 66, 234, 0); }
+}
+
+.compass__waveform-container {
+  flex: 1;
+  height: 42px;
+  border: 1px solid #4242ea;
+  border-radius: 8px;
+  background: #f0f0ff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  overflow: hidden;
+}
+
+.compass__waveform-canvas {
+  flex: 1;
+  height: 32px;
+}
+
+.compass__waveform-label {
+  font-size: 12px;
+  color: #4242ea;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: waveLabel 1.5s ease infinite;
+}
+
+@keyframes waveLabel {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .compass__send-btn {
@@ -462,6 +664,11 @@
 .compass__goal-check--done {
   background: #4242ea;
   border-color: #4242ea;
+}
+
+.compass__goal-item--readonly .compass__goal-check--done {
+  background: #999;
+  border-color: #999;
 }
 
 .compass__goals-empty {
