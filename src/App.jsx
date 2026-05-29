@@ -76,6 +76,7 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 import CoachRuns from './pages/Admin/CoachRuns/CoachRuns';
+import CoachEvals from './pages/Admin/CoachEvals/CoachEvals';
 
 // Platform Intake pages
 import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
@@ -446,6 +447,15 @@ function App() {
           <Layout>
             <PermissionRoute permission={PAGE_PERMISSIONS.COACH_OBSERVABILITY}>
               <CoachRuns />
+            </PermissionRoute>
+          </Layout>
+        } />
+
+        {/* Coach Evals — v2 coach agent eval harness (Staff/Admin) */}
+        <Route path="/admin/coach-evals" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.COACH_EVALS}>
+              <CoachEvals />
             </PermissionRoute>
           </Layout>
         } />
