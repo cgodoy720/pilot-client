@@ -7,6 +7,7 @@ import ProgramContextsTab from './components/ProgramContextsTab';
 import ModesTab from './components/ModesTab';
 import ContentGenerationPromptsTab from './components/ContentGenerationPromptsTab';
 import StatusTab from './components/StatusTab';
+import V2CoachEngineTab from './components/V2CoachEngineTab';
 import { usePermissions } from '../../hooks/usePermissions';
 import './AdminPrompts.css';
 
@@ -51,95 +52,123 @@ const AdminPrompts = () => {
   return (
     <div className="w-full min-h-full p-6 bg-[#EFEFEF]">
       <div className="max-w-[1400px] mx-auto">
-        <Tabs defaultValue="base" className="w-full">
-          <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
-            <TabsTrigger 
-              value="base" 
-              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+        {/* Top-level engine selector */}
+        <Tabs defaultValue="v1" className="w-full">
+          <TabsList className="bg-white border border-[#C8C8C8] p-1 mb-6">
+            <TabsTrigger
+              value="v1"
+              className="font-proxima-bold px-6 data-[state=active]:bg-[#1E1E1E] data-[state=active]:text-white"
             >
-              Base Prompts
+              V1 Engine
             </TabsTrigger>
-            <TabsTrigger 
-              value="personas"
-              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            <TabsTrigger
+              value="v2"
+              className="font-proxima-bold px-6 data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
             >
-              Personas
-            </TabsTrigger>
-            <TabsTrigger 
-              value="contexts"
-              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
-            >
-              Program Contexts
-            </TabsTrigger>
-            <TabsTrigger 
-              value="modes"
-              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
-            >
-              Modes
-            </TabsTrigger>
-            <TabsTrigger 
-              value="content"
-              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
-            >
-              Content Generation
-            </TabsTrigger>
-            <TabsTrigger 
-              value="status"
-              className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
-            >
-              Current AI Prompt
+              V2 Coach Engine
             </TabsTrigger>
           </TabsList>
 
-          <div className="mt-6">
-            <TabsContent value="base" className="m-0">
-              <BasePromptsTab 
-                showNotification={showNotification}
-                reloadPrompts={reloadPrompts}
-                canEdit={canEditPrompts}
-              />
-            </TabsContent>
+          {/* V1 Engine — all original tabs */}
+          <TabsContent value="v1" className="m-0">
+            <Tabs defaultValue="base" className="w-full">
+              <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+                <TabsTrigger
+                  value="base"
+                  className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                >
+                  Base Prompts
+                </TabsTrigger>
+                <TabsTrigger
+                  value="personas"
+                  className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                >
+                  Personas
+                </TabsTrigger>
+                <TabsTrigger
+                  value="contexts"
+                  className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                >
+                  Program Contexts
+                </TabsTrigger>
+                <TabsTrigger
+                  value="modes"
+                  className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                >
+                  Modes
+                </TabsTrigger>
+                <TabsTrigger
+                  value="content"
+                  className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                >
+                  Content Generation
+                </TabsTrigger>
+                <TabsTrigger
+                  value="status"
+                  className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                >
+                  Current AI Prompt
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="personas" className="m-0">
-              <PersonasTab 
-                showNotification={showNotification}
-                reloadPrompts={reloadPrompts}
-                canEdit={canEditPrompts}
-              />
-            </TabsContent>
+              <div className="mt-6">
+                <TabsContent value="base" className="m-0">
+                  <BasePromptsTab
+                    showNotification={showNotification}
+                    reloadPrompts={reloadPrompts}
+                    canEdit={canEditPrompts}
+                  />
+                </TabsContent>
 
-            <TabsContent value="contexts" className="m-0">
-              <ProgramContextsTab 
-                showNotification={showNotification}
-                reloadPrompts={reloadPrompts}
-                canEdit={canEditPrompts}
-              />
-            </TabsContent>
+                <TabsContent value="personas" className="m-0">
+                  <PersonasTab
+                    showNotification={showNotification}
+                    reloadPrompts={reloadPrompts}
+                    canEdit={canEditPrompts}
+                  />
+                </TabsContent>
 
-            <TabsContent value="modes" className="m-0">
-              <ModesTab 
-                showNotification={showNotification}
-                reloadPrompts={reloadPrompts}
-                canEdit={canEditPrompts}
-              />
-            </TabsContent>
+                <TabsContent value="contexts" className="m-0">
+                  <ProgramContextsTab
+                    showNotification={showNotification}
+                    reloadPrompts={reloadPrompts}
+                    canEdit={canEditPrompts}
+                  />
+                </TabsContent>
 
-            <TabsContent value="content" className="m-0">
-              <ContentGenerationPromptsTab 
-                showNotification={showNotification}
-                reloadPrompts={reloadPrompts}
-                canEdit={canEditPrompts}
-              />
-            </TabsContent>
+                <TabsContent value="modes" className="m-0">
+                  <ModesTab
+                    showNotification={showNotification}
+                    reloadPrompts={reloadPrompts}
+                    canEdit={canEditPrompts}
+                  />
+                </TabsContent>
 
-            <TabsContent value="status" className="m-0">
-              <StatusTab 
-                showNotification={showNotification}
-                reloadPrompts={reloadPrompts}
-                canEdit={canEditPrompts}
-              />
-            </TabsContent>
-          </div>
+                <TabsContent value="content" className="m-0">
+                  <ContentGenerationPromptsTab
+                    showNotification={showNotification}
+                    reloadPrompts={reloadPrompts}
+                    canEdit={canEditPrompts}
+                  />
+                </TabsContent>
+
+                <TabsContent value="status" className="m-0">
+                  <StatusTab
+                    showNotification={showNotification}
+                    reloadPrompts={reloadPrompts}
+                    canEdit={canEditPrompts}
+                  />
+                </TabsContent>
+              </div>
+            </Tabs>
+          </TabsContent>
+
+          {/* V2 Coach Engine — single view, no sub-tabs needed */}
+          <TabsContent value="v2" className="m-0">
+            <V2CoachEngineTab
+              showNotification={showNotification}
+            />
+          </TabsContent>
         </Tabs>
 
         {/* Global loading overlay */}

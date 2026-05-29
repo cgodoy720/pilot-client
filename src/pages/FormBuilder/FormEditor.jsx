@@ -17,7 +17,7 @@ const FormEditor = () => {
     questions: [],
     settings: {
       allow_multiple_submissions: false,
-      require_email: false,
+      require_email: true,
       show_progress: true,
       enable_save_continue: false,
       thank_you_message: 'Thank you for your submission!',

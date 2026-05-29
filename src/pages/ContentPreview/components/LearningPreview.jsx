@@ -607,7 +607,9 @@ function LearningPreview({ dayId, cohort, onBack }) {
           content: '',
           sender: 'ai',
           timestamp: new Date().toISOString(),
-          isStreaming: true
+          isStreaming: true,
+          isThinking: true,
+          thinkingLabel: 'Thinking…'
         }
       ]);
 
@@ -626,53 +628,129 @@ function LearningPreview({ dayId, cohort, onBack }) {
             return;
           }
 
-          if (chunk.type === 'text') {
+          // Helper: find the index of the last AI bubble that's still streaming.
+          // We always target THAT bubble for updates — no ref needed.
+          const findActiveBubbleIdx = (msgs) => {
+            for (let i = msgs.length - 1; i >= 0; i--) {
+              if (msgs[i].sender === 'ai' && msgs[i].isStreaming) return i;
+            }
+            return -1;
+          };
+
+          if (chunk.type === 'thinking') {
+            // Phase transition: if current bubble has content, finalize it and
+            // create a new thinking bubble. Otherwise just update the label.
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              const current = idx >= 0 ? prev[idx] : null;
+
+              if (current && current.content && current.content.trim().length > 0) {
+                // Finalize current, append a new thinking bubble
+                const updated = [...prev];
+                updated[idx] = {
+                  ...current,
+                  isStreaming: false,
+                  isThinking: false,
+                  thinkingLabel: null
+                };
+                updated.push({
+                  id: `v2-${Date.now()}-${updated.length}`,
+                  content: '',
+                  sender: 'ai',
+                  timestamp: new Date().toISOString(),
+                  isStreaming: true,
+                  isThinking: true,
+                  thinkingLabel: chunk.label
+                });
+                return updated;
+              }
+
+              if (current) {
+                // Current bubble is empty — update its label in place
+                const updated = [...prev];
+                updated[idx] = { ...current, isThinking: true, thinkingLabel: chunk.label };
+                return updated;
+              }
+
+              // No current bubble — create one (defensive)
+              return [...prev, {
+                id: `v2-${Date.now()}-${prev.length}`,
+                content: '',
+                sender: 'ai',
+                timestamp: new Date().toISOString(),
+                isStreaming: true,
+                isThinking: true,
+                thinkingLabel: chunk.label
+              }];
+            });
+          } else if (chunk.type === 'text') {
             receivedChunk = true;
             const safeText = streamBuffer.append(chunk.content);
             if (safeText) {
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === streamingMessageId
-                    ? { ...msg, content: `${msg.content || ''}${safeText}` }
-                    : msg
-                )
-              );
+              setMessages(prev => {
+                const idx = findActiveBubbleIdx(prev);
+                if (idx === -1) return prev;
+                return prev.map((m, i) =>
+                  i === idx
+                    ? {
+                        ...m,
+                        content: `${m.content || ''}${safeText}`,
+                        isThinking: false,
+                        thinkingLabel: null
+                      }
+                    : m
+                );
+              });
             }
           } else if (chunk.type === 'done' && chunk.message) {
             receivedChunk = true;
-            // Flush any remaining buffered text before final replace
+            // Flush any remaining buffered text into the active bubble
             const remaining = streamBuffer.flush();
             if (remaining) {
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === streamingMessageId
-                    ? { ...msg, content: `${msg.content || ''}${remaining}` }
-                    : msg
-                )
-              );
+              setMessages(prev => {
+                const idx = findActiveBubbleIdx(prev);
+                if (idx === -1) return prev;
+                return prev.map((m, i) =>
+                  i === idx ? { ...m, content: `${m.content || ''}${remaining}` } : m
+                );
+              });
             }
-            // Enable input immediately
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);
             checkTaskCompletion(messageTaskId);
 
+            // Finalize the active bubble — populate from finalMessage if empty
             const finalMessage = chunk.message;
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === streamingMessageId
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              if (idx === -1) return prev;
+              return prev.map((m, i) =>
+                i === idx
                   ? {
-                      ...msg,
-                      content: finalMessage.content,
+                      ...m,
+                      content: m.content || finalMessage.content,
                       sender: 'ai',
                       timestamp: finalMessage.timestamp,
-                      isStreaming: false
+                      isStreaming: false,
+                      isThinking: false,
+                      thinkingLabel: null
                     }
-                  : msg
+                  : m
+              );
+            });
+          } else if (chunk.type === 'error') {
+            // Keep partial content if any was streamed; drop only empty bubbles.
+            setMessages(prev => prev
+              .filter(msg => {
+                if (msg.sender !== 'ai' || !msg.isStreaming) return true;
+                return !!(msg.content && msg.content.trim());
+              })
+              .map(msg => (msg.sender === 'ai' && msg.isStreaming)
+                ? { ...msg, isStreaming: false, isThinking: false, thinkingLabel: null }
+                : msg
               )
             );
-          } else if (chunk.type === 'error') {
-            setMessages(prev => prev.filter(msg => msg.id !== streamingMessageId));
             setIsStreaming(false);
             setIsAiThinking(false);
             setIsSending(false);
@@ -701,9 +779,10 @@ function LearningPreview({ dayId, cohort, onBack }) {
           }));
 
           setMessages(prev => {
-            // Remove transient placeholder before reconciliation.
+            // Remove transient placeholder(s) before reconciliation.
+            // Filter out any still-in-flight streaming/thinking bubbles.
             const localMessages = prev.filter(
-              msg => msg.id !== streamingMessageId && !(msg.isStreaming && !msg.content)
+              msg => msg.id !== streamingMessageId && !msg.isStreaming
             );
             const merged = [...fallbackMessages];
 
@@ -765,7 +844,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
       toast.error("Task not found");
       return;
     }
-    
+
     try {
       const response = await fetch(`${API_URL}/api/submissions`, {
         method: 'POST',
@@ -775,9 +854,140 @@ function LearningPreview({ dayId, cohort, onBack }) {
         },
         body: JSON.stringify({ taskId: currentTask.id, content: deliverableData, isPreviewMode: true }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to submit');
-      
+
+      // V2 personalized + has-deliverable tasks return SSE with the agent's
+      // grade output; everything else returns JSON. Branch accordingly.
+      const contentType = response.headers.get('content-type') || '';
+
+      if (contentType.includes('text/event-stream')) {
+        toast.success("Submitted! The coach is reviewing your work…", { duration: 3000 });
+        setIsStreaming(true);
+
+        const baseBubbleId = `v2-submit-${Date.now()}`;
+        setMessages(prev => [
+          ...prev,
+          {
+            id: baseBubbleId,
+            content: '',
+            sender: 'ai',
+            timestamp: new Date().toISOString(),
+            isStreaming: true,
+            isThinking: true,
+            thinkingLabel: 'Reviewing your submission…'
+          }
+        ]);
+
+        const findActiveBubbleIdx = (msgs) => {
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].sender === 'ai' && msgs[i].isStreaming) return i;
+          }
+          return -1;
+        };
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const processChunk = (data) => {
+          if (data.type === 'submission' && data.submission) {
+            setTaskSubmissions(prev => ({ ...prev, [currentTask.id]: data.submission }));
+          } else if (data.type === 'thinking') {
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              const current = idx >= 0 ? prev[idx] : null;
+              if (current && current.content && current.content.trim().length > 0) {
+                const updated = [...prev];
+                updated[idx] = { ...current, isStreaming: false, isThinking: false, thinkingLabel: null };
+                updated.push({
+                  id: `v2-submit-${Date.now()}-${updated.length}`,
+                  content: '',
+                  sender: 'ai',
+                  timestamp: new Date().toISOString(),
+                  isStreaming: true,
+                  isThinking: true,
+                  thinkingLabel: data.label
+                });
+                return updated;
+              }
+              if (current) {
+                const updated = [...prev];
+                updated[idx] = { ...current, isThinking: true, thinkingLabel: data.label };
+                return updated;
+              }
+              return prev;
+            });
+          } else if (data.type === 'text') {
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              if (idx === -1) return prev;
+              return prev.map((m, i) =>
+                i === idx
+                  ? {
+                      ...m,
+                      content: `${m.content || ''}${data.content || ''}`,
+                      isThinking: false,
+                      thinkingLabel: null
+                    }
+                  : m
+              );
+            });
+          } else if (data.type === 'done') {
+            setMessages(prev => {
+              const idx = findActiveBubbleIdx(prev);
+              if (idx === -1) return prev;
+              const finalContent = data.message?.content;
+              return prev.map((m, i) =>
+                i === idx
+                  ? {
+                      ...m,
+                      content: m.content || finalContent || '',
+                      sender: 'ai',
+                      timestamp: data.message?.timestamp || m.timestamp,
+                      isStreaming: false,
+                      isThinking: false,
+                      thinkingLabel: null
+                    }
+                  : m
+              );
+            });
+            setIsStreaming(false);
+          } else if (data.type === 'error') {
+            setMessages(prev => prev.filter(m => !(m.sender === 'ai' && m.isStreaming)));
+            setIsStreaming(false);
+            toast.error(data.error || "Coach failed to review the submission.");
+          }
+        };
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  processChunk(JSON.parse(line.slice(6)));
+                } catch (parseErr) {
+                  console.error('Failed to parse v2 submission SSE line:', line, parseErr);
+                }
+              }
+            }
+          }
+          if (buffer.startsWith('data: ')) {
+            try { processChunk(JSON.parse(buffer.slice(6))); } catch {}
+          }
+        } finally {
+          setIsStreaming(false);
+          await checkTaskCompletion(currentTask.id);
+        }
+        return;
+      }
+
+      // Standard JSON path
       const submission = await response.json();
       setTaskSubmissions(prev => ({ ...prev, [currentTask.id]: submission }));
       await checkTaskCompletion(currentTask.id);
@@ -1054,9 +1264,16 @@ function LearningPreview({ dayId, cohort, onBack }) {
                             </div>
                           </div>
                         ) : message.isStreaming && !message.content ? (
-                          // Streaming AI message waiting for first chunk — show preloader inline
-                          // Keeps preloader inside the same wrapper div so no layout shift when text arrives
-                          <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
+                          // Streaming AI message waiting for first chunk — show preloader inline.
+                          // If a thinkingLabel is set (phase transition), show it next to the spinner.
+                          <div className="flex items-center gap-3">
+                            <img src="/preloader.gif" alt="Loading..." className="w-8 h-8" />
+                            {message.thinkingLabel && (
+                              <span className="italic text-gray-500 text-sm font-proxima">
+                                {message.thinkingLabel}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           // AI message - StreamingMarkdownMessage handles both streaming and static
                           <StreamingMarkdownMessage
