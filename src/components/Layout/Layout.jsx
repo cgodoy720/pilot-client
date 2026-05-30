@@ -26,7 +26,6 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewCalendar = canAccessPage('calendar');
   const canViewPathfinder = canAccessPage('pathfinder');
   const canViewPerformance = canAccessPage('performance');
-  const canViewCohortAdmin = canAccessPage('cohort_admin');
   const canViewMySchedule = canAccessPage('my_schedule');
   const canViewAdmissions = canAccessPage('admissions');
   const canViewAssessmentGrades = canAccessPage('assessment_grades');
@@ -48,6 +47,8 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewWeeklyReports = canAccessPage('weekly_reports');
   const canViewPlatformAnalytics = canAccessPage('platform_analytics');
   const canViewDemoCohort = canAccessPage('demo_cohort');
+  const canViewCoachRuns = canAccessPage('coach_observability');
+  const canViewCoachEvals = canAccessPage('coach_evals');
   const canViewPlatformIntake = canAccessPage('platform_intake');
 
   // Check if on Pathfinder pages for light mode styling
@@ -87,6 +88,8 @@ const Layout = ({ children, isLoading = false }) => {
     canViewOrganizationManagement && { to: '/admin/organization-management', label: 'Organizations' },
     canViewPermissionManagement && { to: '/admin/permissions', label: 'Permissions' },
     canViewPlatformAnalytics && { to: '/admin/platform-analytics', label: 'Platform Analytics' },
+    canViewCoachRuns && { to: '/admin/coach-runs', label: 'Coach Runs' },
+    canViewCoachEvals && { to: '/admin/coach-evals', label: 'Coach Evals' },
     canViewWeeklyReports && { to: '/admin/weekly-reports', label: 'Weekly Reports' },
     canViewDemoCohort && { to: '/admin/demo-cohort-refresh', label: 'Demo Cohort' },
   ].filter(Boolean) : [];
@@ -136,6 +139,8 @@ const Layout = ({ children, isLoading = false }) => {
     '/admin/organization-management': 'Organizations',
     '/admin/permissions': 'Permissions',
     '/admin/platform-analytics': 'Platform Analytics',
+    '/admin/coach-runs': 'Coach Runs',
+    '/admin/coach-evals': 'Coach Evals',
     '/admin/weekly-reports': 'Weekly Reports',
     '/admin/demo-cohort-refresh': 'Demo Cohort',
   };
@@ -253,7 +258,7 @@ const Layout = ({ children, isLoading = false }) => {
     }
 
     // Admin section routes → Settings
-    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/platform-analytics', '/admin/weekly-reports', '/admin/demo-cohort-refresh'];
+    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/platform-analytics', '/admin/coach-runs', '/admin/coach-evals', '/admin/weekly-reports', '/admin/demo-cohort-refresh'];
     if (adminRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
     }
@@ -411,11 +416,6 @@ const Layout = ({ children, isLoading = false }) => {
               <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" stroke="#E3E3E3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           ), 'Performance', canViewPerformance)}
-          
-          {/* Enterprise Admin Dashboard - permission-based */}
-          {renderNavLink('/cohort-admin-dashboard', <Building2 className="h-4 w-4 text-[#E3E3E3]" />, 'Enterprise Admin', 
-            canViewCohortAdmin
-          )}
           
           {/* Program Dropdown (permission-based) */}
           <NavDropdown

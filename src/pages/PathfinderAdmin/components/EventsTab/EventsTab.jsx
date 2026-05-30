@@ -36,9 +36,12 @@ const EventsTab = () => {
   const [viewingRegistrations, setViewingRegistrations] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [isLoadingRegistrations, setIsLoadingRegistrations] = useState(false);
+  const [pendingEvents, setPendingEvents] = useState([]);
+  const [moderatingId, setModeratingId] = useState(null);
 
   useEffect(() => {
     fetchEvents();
+    fetchPendingEvents();
   }, [token]);
 
   const fetchEvents = async () => {
@@ -70,6 +73,120 @@ const EventsTab = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fetch builder-submitted events awaiting moderation
+  const fetchPendingEvents = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/pathfinder/events/admin/events?status=pending_review`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch pending events');
+      const data = await response.json();
+      setPendingEvents(data);
+    } catch (error) {
+      console.error('Error fetching pending events:', error);
+    }
+  };
+
+  // Approve a pending event → publish it
+  const handleApprove = async (event) => {
+    setModeratingId(event.event_id);
+    try {
+      const response = await fetch(`${API_URL}/api/pathfinder/events/admin/events/${event.event_id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'published' })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to approve event');
+      }
+      const approved = await response.json();
+      setPendingEvents(prev => prev.filter(e => e.event_id !== event.event_id));
+      // Surface it in the published list right away
+      setEvents(prev => prev.some(e => e.event_id === event.event_id)
+        ? prev
+        : [...prev, { ...event, ...approved }]);
+      Swal.fire({
+        toast: true,
+        icon: 'success',
+        title: 'Event approved & published',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+      });
+    } catch (error) {
+      console.error('Error approving event:', error);
+      Swal.fire({
+        toast: true,
+        icon: 'error',
+        title: error.message || 'Failed to approve event',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
+    } finally {
+      setModeratingId(null);
+    }
+  };
+
+  // Reject a pending event → soft-delete (cancelled), never published
+  const handleReject = async (event) => {
+    const result = await Swal.fire({
+      title: 'Reject Event',
+      text: `Reject "${event.title}"? It won't be published.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Reject',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280'
+    });
+    if (!result.isConfirmed) return;
+
+    setModeratingId(event.event_id);
+    try {
+      const response = await fetch(`${API_URL}/api/pathfinder/events/admin/events/${event.event_id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to reject event');
+      }
+      setPendingEvents(prev => prev.filter(e => e.event_id !== event.event_id));
+      Swal.fire({
+        toast: true,
+        icon: 'success',
+        title: 'Event rejected',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+      });
+    } catch (error) {
+      console.error('Error rejecting event:', error);
+      Swal.fire({
+        toast: true,
+        icon: 'error',
+        title: error.message || 'Failed to reject event',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
+    } finally {
+      setModeratingId(null);
     }
   };
 
@@ -435,6 +552,59 @@ const EventsTab = () => {
         <h2 className="text-xl font-semibold text-gray-900 mb-1">Events Management</h2>
         <p className="text-sm text-gray-600">Manage upcoming events, registrations, and featured visibility.</p>
       </div>
+
+      {/* Pending review — builder-submitted events awaiting moderation */}
+      {pendingEvents.length > 0 && (
+        <Card className="bg-amber-50 border-amber-200 mb-4">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-base font-semibold text-amber-900">Pending Review</h3>
+                <p className="text-sm text-amber-700">Builder-submitted events awaiting approval before they go live.</p>
+              </div>
+              <Badge className="bg-amber-200 text-amber-900">{pendingEvents.length}</Badge>
+            </div>
+            <div className="space-y-2">
+              {pendingEvents.map((event) => (
+                <div
+                  key={event.event_id}
+                  className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-white px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 truncate">{event.title}</div>
+                    <div className="text-xs text-gray-500">
+                      {formatDate(event.event_date)}
+                      {event.event_type ? ` · ${event.event_type}` : ''}
+                      {(event.submitted_by_first_name || event.submitted_by_last_name)
+                        ? ` · submitted by ${[event.submitted_by_first_name, event.submitted_by_last_name].filter(Boolean).join(' ')}`
+                        : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(event)}
+                      disabled={moderatingId === event.event_id}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleReject(event)}
+                      disabled={moderatingId === event.event_id}
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Controls */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
