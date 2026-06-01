@@ -920,6 +920,9 @@ export const getDemoSeedJob = (jobId, token) =>
 export const advanceDemoCohort = (token, body = {}) =>
   demoCohortRequest('/advance', token, { method: 'POST', body });
 
+export const startDemoConversationSeed = (payload, token) =>
+  demoCohortRequest('/seed-conversations', token, { method: 'POST', body: payload });
+
 export const adminApi = {
   getAdminQuickStats,
   getAssessmentGradesSummary,
@@ -956,6 +959,7 @@ export const adminApi = {
   startDemoSeedJob,
   getDemoSeedJob,
   advanceDemoCohort,
+  startDemoConversationSeed,
 };
 
 export default adminApi;

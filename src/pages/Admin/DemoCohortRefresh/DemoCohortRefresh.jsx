@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarIcon, RefreshCw, AlertTriangle, CheckCircle2, PlayCircle } from 'lucide-react';
+import { CalendarIcon, RefreshCw, AlertTriangle, CheckCircle2, PlayCircle, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 import useAuthStore from '../../../stores/authStore';
@@ -44,6 +44,7 @@ import {
   startDemoSeedJob,
   getDemoSeedJob,
   advanceDemoCohort,
+  startDemoConversationSeed,
 } from '../../../services/adminApi';
 
 const DEMO_COHORT_ID = 'bf0af959-11ec-4903-860b-f9f6243a0a44';
@@ -122,6 +123,7 @@ function DemoCohortManager() {
       <StatusCard status={status} onRefresh={fetchStatus} />
       <SeedTwelveMonthsCard token={token} sources={sources} onSeeded={fetchStatus} />
       <AdvanceTodayCard token={token} onAdvanced={fetchStatus} />
+      <SeedConversationsCard token={token} onSeeded={fetchStatus} />
       <SingleWeekRefreshCard token={token} sources={sources} onRefreshed={fetchStatus} />
     </div>
   );
@@ -497,6 +499,104 @@ function AdvanceTodayCard({ token, onAdvanced }) {
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             +{lastResult.addedDays} day{lastResult.addedDays === 1 ? '' : 's'}
           </span>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
+// Seed conversations (weekly)
+// ============================================================================
+
+function SeedConversationsCard({ token, onSeeded }) {
+  const [windowDays, setWindowDays] = useState(7);
+  const [activeJob, setActiveJob] = useState(null);
+  const [jobProgress, setJobProgress] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
+  const pollRef = useRef(null);
+
+  const pollJob = async (jobId) => {
+    try {
+      const { job } = await getDemoSeedJob(jobId, token);
+      setJobProgress(job);
+      if (job.status === 'completed' || job.status === 'failed') {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+        setActiveJob(null);
+        if (job.status === 'completed') {
+          const summary = job.progress || {};
+          setLastResult(summary);
+          toast.success(
+            `Seeded ${summary.seeded ?? 0} thread(s); skipped ${summary.skipped ?? 0}, failed ${summary.failed ?? 0}.`
+          );
+          onSeeded?.();
+        } else {
+          toast.error(`Seed failed: ${job.error || 'unknown'}`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const run = async () => {
+    try {
+      const { jobId } = await startDemoConversationSeed({ windowDays }, token);
+      toast.success(`Conversation seed job ${jobId} started.`);
+      setActiveJob(jobId);
+      setJobProgress({ status: 'running', progress: {} });
+      pollRef.current = setInterval(() => pollJob(jobId), 2_000);
+    } catch (err) {
+      toast.error(`Failed to start conversation seed: ${err.message}`);
+    }
+  };
+
+  useEffect(() => () => clearInterval(pollRef.current), []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Seed conversations</CardTitle>
+        <CardDescription>
+          AI-generate realistic builder ↔ coach conversations for the demo user&apos;s recently-completed tasks.
+          Append-only — never deletes existing threads. Runs automatically every Sunday at 02:00 ET when
+          <code className="mx-1 px-1 py-0.5 rounded bg-gray-100 text-[11px]">ENABLE_DEMO_CONV_CRON</code>
+          is set; trigger manually here for testing or before a demo.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-end gap-3">
+          <div className="w-40">
+            <Label>Window (days)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={windowDays}
+              onChange={(e) => setWindowDays(Number(e.target.value) || 7)}
+              className="mt-1"
+            />
+            <p className="text-xs text-gray-500 mt-1">Lookback for eligible tasks.</p>
+          </div>
+          <Button onClick={run} disabled={!!activeJob}>
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Seed conversations
+          </Button>
+          {activeJob && (
+            <div className="text-sm text-gray-700">
+              Job #{activeJob} running…
+              {jobProgress?.progress?.processed != null && (
+                <span className="ml-2">{jobProgress.progress.processed}/{jobProgress.progress.total}</span>
+              )}
+            </div>
+          )}
+        </div>
+        {lastResult && (
+          <div className="text-xs text-gray-700 rounded border bg-gray-50 p-2">
+            Last run: <strong>{lastResult.seeded ?? 0}</strong> new, {lastResult.skipped ?? 0} skipped,
+            {' '}{lastResult.failed ?? 0} failed (of {lastResult.eligible ?? 0} eligible in last {lastResult.windowDays ?? windowDays}d).
+          </div>
         )}
       </CardContent>
     </Card>
