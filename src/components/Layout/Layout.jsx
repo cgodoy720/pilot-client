@@ -71,7 +71,7 @@ const Layout = ({ children, isLoading = false }) => {
   const employmentDropdownItems = isStaffOrAdminRole ? [
     canViewPathfinderAdmin && { to: '/pathfinder/admin', label: 'Pathfinder' },
     canViewSputnik && { to: '/sputnik', label: 'Sputnik' },
-    canViewPaymentAdmin && { to: '/payment-admin', label: 'Payment' },
+    canViewPaymentAdmin && { to: '/payment-admin', label: 'Payments Admin' },
   ].filter(Boolean) : [];
 
   // Staff dropdown (remaining items) -- staff/admin roles
@@ -131,7 +131,7 @@ const Layout = ({ children, isLoading = false }) => {
     '/external-cohorts': 'External Cohorts',
     '/pathfinder/admin': 'Pathfinder',
     '/sputnik': 'Sputnik',
-    '/payment-admin': 'Payment',
+    '/payment-admin': 'Payments Admin',
     '/content-preview': 'Content Mgmt',
     '/forms': 'Form Builder',
     '/volunteer-management': 'Volunteers',

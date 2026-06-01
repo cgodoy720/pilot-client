@@ -9,6 +9,7 @@ import { Separator } from '../../components/ui/separator';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { CheckCircle, Upload, Users, Search, Eye, FileSignature, Clock, RefreshCw } from 'lucide-react';
+import MetricsDashboard from './components/MetricsDashboard';
 
 const PaymentAdmin = () => {
   const token = useAuthStore((s) => s.token);
@@ -269,13 +270,14 @@ const PaymentAdmin = () => {
       <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-[#4242EA] to-[#8b5cf6] bg-clip-text text-transparent">
-            Admin Payments View
+            Payments Admin View
           </h1>
-          <p className="text-gray-600 mt-1">
-            Upload and manage signed Good Job Agreements for Builders
-          </p>
+
         </div>
       </div>
+
+      {/* Metrics Dashboard */}
+      <MetricsDashboard />
 
       {/* Alerts Section */}
       {(message || error) && (
