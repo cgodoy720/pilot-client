@@ -61,6 +61,7 @@ const TodayTab = ({ selectedCohortId, cohorts = [] }) => {
         selectedDate={selectedDate}
         selectedCohortId={selectedCohortId}
         cohortName={cohortName}
+        cohorts={cohorts}
         onBuilderClick={(builder) => setSelectedBuilder(builder)}
         onAttendanceChange={() => setAttendanceRefreshKey(k => k + 1)}
       />

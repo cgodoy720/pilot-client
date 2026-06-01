@@ -25,7 +25,7 @@ const STATUS_COLORS = {
 
 const EXCUSE_REASONS = ['Sick', 'Personal', 'Program Event', 'Technical Issue', 'Other'];
 
-const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilderClick, onAttendanceChange }) => {
+const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, cohorts, onBuilderClick, onAttendanceChange }) => {
   const token = useAuthStore((s) => s.token);
   const [open, setOpen] = useState(() => localStorage.getItem('pursuit_todos_open') !== 'false');
   const [nextStepLogs, setNextStepLogs] = useState([]);
@@ -599,6 +599,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, onBuilde
         onOpenChange={setShowLogModal}
         builder={null}
         cohortId={selectedCohortId}
+        cohorts={cohorts}
         onSaved={() => { setShowLogModal(false); }}
       />
     </>
