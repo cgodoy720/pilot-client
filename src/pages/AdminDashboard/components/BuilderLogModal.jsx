@@ -10,6 +10,7 @@ import {
   X, AlertTriangle, MessageSquare, UserCheck, Plus, Search, Loader2,
   Users, BookOpen, ThumbsUp, ThumbsDown, Minus, Flag, ChevronDown,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import useAuthStore from '../../../stores/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -134,7 +135,8 @@ const BuilderTab = ({ builder, cohortId, onSaved, onClose }) => {
       const res  = await fetch(`${API_URL}/api/admin/dashboard/builder-logs`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
       const data = await res.json();
       if (data.success) { onSaved?.(); onClose(); }
-    } catch (err) { console.error('Failed to save builder log:', err); }
+      else { toast.error(data.error || 'Failed to save log'); }
+    } catch (err) { toast.error('Failed to save log — check your connection'); }
     setSaving(false);
   };
 
@@ -340,7 +342,7 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
     curriculumStatusNotes.trim() ||
     (todayEnabled   && todayNotes.trim()) ||
     (nextDayEnabled && nextDayNotes.trim()) ||
-    (flagsEnabled   && (flags.trim() || actionRequired))
+    (flagsEnabled   && flags.trim())
   );
 
   const handleSave = async () => {
@@ -363,7 +365,8 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
       });
       const data = await res.json();
       if (data.success) { onSaved?.(); onClose(); }
-    } catch (err) { console.error('Failed to save cohort log:', err); }
+      else { toast.error(data.error || 'Failed to save cohort log'); }
+    } catch (err) { toast.error('Failed to save cohort log — check your connection'); }
     setSaving(false);
   };
 

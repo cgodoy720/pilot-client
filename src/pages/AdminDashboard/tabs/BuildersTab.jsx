@@ -385,6 +385,7 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
         onOpenChange={(open) => { if (!open) setLogModalBuilder(null); }}
         builder={logModalBuilder}
         cohortId={selectedCohortId}
+        cohorts={cohorts}
         onSaved={() => setRefreshKey(k => k + 1)}
       />
 
