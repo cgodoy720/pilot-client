@@ -1,0 +1,79 @@
+import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import useNavStore from '../../../stores/navStore';
+import CoachRuns from '../CoachRuns/CoachRuns';
+import CoachEvals from '../CoachEvals/CoachEvals';
+
+const TAB_TRIGGER_CLASS =
+  'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium font-proxima px-6 py-2 rounded-md transition-all';
+
+/**
+ * Coach — combined admin surface for the v2 coach agent, with tabs for
+ * observability (Coach Runs) and automated quality evaluation (Coach Evals).
+ * Mirrors the Organization Management tabbed layout.
+ *
+ * Tabs sync to ?tab=runs|evals. The Evals tab's "View agent timeline" switches
+ * to the Runs tab with that run preselected (no full navigation).
+ */
+const Coach = () => {
+  const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'evals' ? 'evals' : 'runs');
+  const [runThread, setRunThread] = useState(() => {
+    const t = searchParams.get('thread');
+    return t ? parseInt(t, 10) : null;
+  });
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    if (tab !== 'runs') next.delete('thread');
+    setSearchParams(next, { replace: true });
+  };
+
+  // From a Coach Evals case → open that run on the Runs tab.
+  const openRunTimeline = (threadId) => {
+    setRunThread(threadId);
+    setActiveTab('runs');
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', 'runs');
+    next.set('thread', String(threadId));
+    setSearchParams(next, { replace: true });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#EFEFEF]">
+      {!isSecondaryNavPage && (
+        <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
+          <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
+            Coach
+          </h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Observability and automated quality evaluation for the v2 coach agent
+          </p>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <div className="bg-white border-b border-[#E3E3E3] px-8 pt-3">
+          <TabsList className="bg-white border border-slate-200 p-1 mb-3 rounded-lg inline-flex">
+            <TabsTrigger value="runs" className={TAB_TRIGGER_CLASS}>Coach Runs</TabsTrigger>
+            <TabsTrigger value="evals" className={TAB_TRIGGER_CLASS}>Coach Evals</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="runs" className="mt-0">
+          <CoachRuns embedded openThreadId={runThread} />
+        </TabsContent>
+        <TabsContent value="evals" className="mt-0">
+          <CoachEvals embedded onViewTimeline={openRunTimeline} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default Coach;
