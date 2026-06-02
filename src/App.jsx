@@ -75,8 +75,7 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
-import CoachRuns from './pages/Admin/CoachRuns/CoachRuns';
-import CoachEvals from './pages/Admin/CoachEvals/CoachEvals';
+import Coach from './pages/Admin/Coach/Coach';
 
 // Platform Intake pages
 import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
@@ -89,6 +88,7 @@ import { isCompassEligibleUser } from './utils/pathfinderAccess';
 import { Toaster } from './components/ui/sonner';
 import {
   PermissionRoute,
+  MultiPermissionRoute,
   WorkshopAdminRoute,
   EnterpriseAdminRoute
 } from './components/RouteGuards';
@@ -442,23 +442,17 @@ function App() {
           </Layout>
         } />
 
-        {/* Coach Runs — v2 coach agent observability (Staff/Admin) */}
-        <Route path="/admin/coach-runs" element={
+        {/* Coach — v2 coach agent: observability (Runs) + eval harness (Evals) tabs */}
+        <Route path="/admin/coach" element={
           <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.COACH_OBSERVABILITY}>
-              <CoachRuns />
-            </PermissionRoute>
+            <MultiPermissionRoute permissions={[PAGE_PERMISSIONS.COACH_OBSERVABILITY, PAGE_PERMISSIONS.COACH_EVALS]}>
+              <Coach />
+            </MultiPermissionRoute>
           </Layout>
         } />
-
-        {/* Coach Evals — v2 coach agent eval harness (Staff/Admin) */}
-        <Route path="/admin/coach-evals" element={
-          <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.COACH_EVALS}>
-              <CoachEvals />
-            </PermissionRoute>
-          </Layout>
-        } />
+        {/* Back-compat: old standalone routes redirect into the combined page */}
+        <Route path="/admin/coach-runs" element={<Navigate to="/admin/coach?tab=runs" replace />} />
+        <Route path="/admin/coach-evals" element={<Navigate to="/admin/coach?tab=evals" replace />} />
 
         {/* Content Preview (Staff/Admin/Volunteer - permission-based) */}
         <Route path="/content-preview" element={
