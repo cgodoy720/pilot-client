@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import useAuthStore from '../../../stores/authStore';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell
@@ -358,7 +358,7 @@ function ComplianceListCard({ status, items, month, defaultOpen }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 const MetricsDashboard = () => {
-  const { token } = useAuth();
+  const token = useAuthStore((s) => s.token);
   const mtd = getPresetRange('mtd');
   const [startDate, setStartDate] = useState(mtd.start);
   const [endDate, setEndDate] = useState(mtd.end);
