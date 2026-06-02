@@ -16,6 +16,19 @@ const DIMENSION_LABELS = {
   end_to_end: 'End-to-end',
 };
 
+// Short, unambiguous labels for the compact per-case dimension chips.
+// (The slice(0,4) approach collapsed "Grading quality" and "Grading
+// consistency" both to "Grad".)
+const DIMENSION_SHORT = {
+  teaching: 'Teach',
+  challenge_design: 'Chall',
+  grading_quality: 'Grade',
+  grading_consistency: 'Consist',
+  remediation: 'Remed',
+  completion: 'Compl',
+  end_to_end: 'E2E',
+};
+
 const fmtTime = (ts) => (ts ? new Date(ts).toLocaleString() : '—');
 const scoreTone = (s) => (s == null ? 'slate' : s >= 80 ? 'green' : s >= 60 ? 'amber' : 'red');
 
@@ -161,7 +174,7 @@ const BatchDetail = ({ token, batchId, onViewTimeline }) => {
               <td className="px-3 py-2">
                 <div className="flex flex-wrap gap-1">
                   {Object.entries(c.dimension_scores || {}).map(([d, v]) => (
-                    <Chip key={d} tone={scoreTone(v.score)}>{(DIMENSION_LABELS[d] || d).slice(0, 4)} {v.score}</Chip>
+                    <Chip key={d} tone={scoreTone(v.score)}>{DIMENSION_SHORT[d] || d} {v.score}</Chip>
                   ))}
                 </div>
               </td>
