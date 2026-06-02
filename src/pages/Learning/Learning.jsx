@@ -22,6 +22,7 @@ import AssessmentInterface from '../../components/AssessmentInterface/Assessment
 import BreakInterface from '../../components/BreakInterface/BreakInterface';
 import DeliverablePanel from './components/DeliverablePanel/DeliverablePanel';
 import TaskCompletionBar from '../../components/TaskCompletionBar/TaskCompletionBar';
+import OnboardingInterface from './components/OnboardingInterface';
 
 import './Learning.css';
 import '../../styles/smart-tasks.css';
@@ -1412,6 +1413,9 @@ function Learning() {
     return currentTask?.task_type === 'break';
   };
 
+  // Check if current task is an onboarding (voice-first coach meet-and-greet)
+  const isCurrentTaskOnboarding = () => tasks[currentTaskIndex]?.task_type === 'onboarding';
+
   // Check if current task is a retrospective (for peer feedback)
   const isRetrospectiveTask = () => {
     const currentTask = tasks[currentTaskIndex];
@@ -1536,6 +1540,68 @@ function Learning() {
     }
   };
 
+  // Handle onboarding completion (mirrors handleSurveyComplete)
+  const handleOnboardingComplete = async () => {
+    const currentTask = tasks[currentTaskIndex];
+    const isLastTask = currentTaskIndex === tasks.length - 1;
+
+    if (!currentTask?.id) {
+      toast.error("Unable to proceed - current task not found");
+      return;
+    }
+
+    try {
+      // Mark current task as complete
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/learning/complete-task/${currentTask.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: 'Onboarding completed'
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to mark task as complete');
+      }
+
+      console.log('✅ Onboarding task marked as complete');
+
+      // Update local completion status
+      setTaskCompletionMap(prev => ({
+        ...prev,
+        [currentTask.id]: {
+          ...prev[currentTask.id],
+          isComplete: true,
+          reason: 'Onboarding completed'
+        }
+      }));
+
+      // Navigate based on whether this is the last task
+      if (isLastTask) {
+        // If last task, navigate back to overview after delay
+        setTimeout(() => {
+          setShowDailyOverview(true);
+        }, 2000);
+      } else {
+        // If not last task, navigate to next task after delay
+        setTimeout(async () => {
+          const nextTaskIndex = currentTaskIndex + 1;
+          await handleTaskChange(nextTaskIndex);
+        }, 2000);
+      }
+
+    } catch (error) {
+      console.error('Error marking onboarding task complete:', error);
+      toast.error("Failed to mark task complete. Please try again.");
+    }
+  };
+
   // Show daily overview first
   if (showDailyOverview) {
     // Determine if this day is in the past by comparing dates
@@ -1655,6 +1721,19 @@ function Learning() {
               taskTitle={tasks[currentTaskIndex]?.task_title}
             />
           </div>
+        ) : isCurrentTaskOnboarding() ? (
+          // Onboarding Interface (voice-first coach meet-and-greet)
+          <div className="flex-1 flex flex-col relative overflow-hidden">
+            <OnboardingInterface
+              key={`onboarding-${tasks[currentTaskIndex]?.id}`}
+              taskId={tasks[currentTaskIndex]?.id}
+              cohort={currentDay?.cohort}
+              userId={user?.id}
+              isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
+              isLastTask={currentTaskIndex === tasks.length - 1}
+              onComplete={handleOnboardingComplete}
+            />
+          </div>
         ) : (
           // Chat Interface
         <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
@@ -1750,7 +1829,7 @@ function Learning() {
         )}
 
         {/* Deliverable Sidebar - Only show for non-survey, non-assessment, and non-break tasks */}
-        {tasks[currentTaskIndex] && !isCurrentTaskSurvey() && !isCurrentTaskAssessment() && !isCurrentTaskBreak() && (
+        {tasks[currentTaskIndex] && !isCurrentTaskSurvey() && !isCurrentTaskAssessment() && !isCurrentTaskBreak() && !isCurrentTaskOnboarding() && (
           <DeliverablePanel
             task={tasks[currentTaskIndex]}
             currentSubmission={taskSubmissions[tasks[currentTaskIndex].id]}
