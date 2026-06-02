@@ -49,6 +49,7 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewDemoCohort = canAccessPage('demo_cohort');
   const canViewCoach = canAccessPage('coach_observability') || canAccessPage('coach_evals');
   const canViewPlatformIntake = canAccessPage('platform_intake');
+  const canViewHeadshotUpload = canAccessPage('headshot_upload');
 
   // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
@@ -78,6 +79,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewFormBuilder && { to: '/forms', label: 'Form Builder' },
     canViewTemplateManagement && { to: '/template-management', label: 'Templates' },
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
+    canViewHeadshotUpload && { to: '/admin/headshots', label: 'Headshot Upload' },
   ].filter(Boolean) : [];
 
   // Admin dropdown -- admin role, or staff with any admin page permission
@@ -140,6 +142,7 @@ const Layout = ({ children, isLoading = false }) => {
     '/admin/coach': 'Coach',
     '/admin/weekly-reports': 'Weekly Reports',
     '/admin/demo-cohort-refresh': 'Demo Cohort',
+    '/admin/headshots': 'Headshot Upload',
   };
   const matchedSecondaryRoute = Object.keys(secondaryPageTitles).find(
     route => location.pathname === route || location.pathname.startsWith(route + '/')
@@ -249,7 +252,7 @@ const Layout = ({ children, isLoading = false }) => {
     }
 
     // Staff section routes → Users
-    const staffRoutes = ['/forms', '/volunteer-management'];
+    const staffRoutes = ['/forms', '/volunteer-management', '/admin/headshots'];
     if (staffRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Users className="h-4 w-4 text-[#E3E3E3]" />;
     }

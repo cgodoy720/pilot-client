@@ -77,6 +77,9 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
 import Coach from './pages/Admin/Coach/Coach';
 
+// Headshot Upload page
+import HeadshotUploadPage from './pages/HeadshotUpload/HeadshotUploadPage';
+
 // Platform Intake pages
 import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
 import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog';
@@ -453,6 +456,15 @@ function App() {
         {/* Back-compat: old standalone routes redirect into the combined page */}
         <Route path="/admin/coach-runs" element={<Navigate to="/admin/coach?tab=runs" replace />} />
         <Route path="/admin/coach-evals" element={<Navigate to="/admin/coach?tab=evals" replace />} />
+
+        {/* Headshot Bulk Upload (Staff + Admin) */}
+        <Route path="/admin/headshots" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.HEADSHOT_UPLOAD}>
+              <HeadshotUploadPage />
+            </PermissionRoute>
+          </Layout>
+        } />
 
         {/* Content Preview (Staff/Admin/Volunteer - permission-based) */}
         <Route path="/content-preview" element={

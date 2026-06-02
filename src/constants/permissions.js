@@ -39,6 +39,7 @@ export const PAGE_PERMISSIONS = {
   ADMIN_VOLUNTEER_FEEDBACK: 'page:admin_volunteer_feedback',
   VOLUNTEER_MANAGEMENT: 'page:volunteer_management',
   TEMPLATE_MANAGEMENT: 'page:template_management',
+  HEADSHOT_UPLOAD: 'page:headshot_upload',
 
   // Admin only section
   ADMIN_SECTION: 'page:admin_section',
@@ -146,6 +147,9 @@ export const DEFAULT_ROLE_PERMISSIONS = {
 
     // Coach agent eval harness
     PAGE_PERMISSIONS.COACH_EVALS,
+
+    // Headshot bulk upload tool
+    PAGE_PERMISSIONS.HEADSHOT_UPLOAD,
 
     // Feature permissions
     FEATURE_PERMISSIONS.EDIT_CURRICULUM,
