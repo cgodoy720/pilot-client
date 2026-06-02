@@ -242,16 +242,16 @@ const CoachEvals = ({ embedded = false, onViewTimeline = null }) => {
   };
 
   return (
-    <div className={embedded ? '' : 'min-h-screen bg-[#EFEFEF]'}>
+    <div className={`flex flex-col min-h-0 font-proxima ${embedded ? 'h-full' : 'h-screen bg-[#EFEFEF]'}`}>
       {!embedded && (
-        <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-          <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>Coach Evals</h1>
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 py-4">
+          <h1 className="text-2xl font-bold text-[#1E1E1E]">Coach Evals</h1>
           <p className="text-slate-500 text-sm mt-0.5">Automated quality evaluation of the v2 coach agent</p>
         </div>
       )}
 
       {/* run bar */}
-      <div className="bg-white border-b border-[#E3E3E3] px-8 py-3 flex flex-wrap items-end gap-3">
+      <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 py-3 flex flex-wrap items-end gap-3">
         <label className="text-xs text-slate-500">
           <div className="mb-1">Suite</div>
           <select value={suiteKey} onChange={(e) => setSuiteKey(e.target.value)} className="text-sm border border-[#E3E3E3] rounded-md px-2 py-1.5 min-w-48">
@@ -277,9 +277,9 @@ const CoachEvals = ({ embedded = false, onViewTimeline = null }) => {
         {error && <span className="text-xs text-rose-600">{error}</span>}
       </div>
 
-      <div className="flex max-w-[1600px] mx-auto" style={{ minHeight: embedded ? 'calc(100vh - 280px)' : 'calc(100vh - 145px)' }}>
-        {/* batch list */}
-        <aside className="w-80 shrink-0 border-r border-[#E3E3E3] bg-white overflow-auto">
+      <div className="flex flex-1 min-h-0">
+        {/* batch list — scrolls independently */}
+        <aside className="w-80 shrink-0 border-r border-[#E3E3E3] bg-white overflow-y-auto min-h-0">
           {batches.length === 0 && <div className="p-4 text-slate-400 text-sm">No eval batches yet.</div>}
           {batches.map((b) => {
             const active = selectedBatch === b.id;
@@ -300,7 +300,7 @@ const CoachEvals = ({ embedded = false, onViewTimeline = null }) => {
           })}
         </aside>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto bg-[#EFEFEF]">
           {selectedBatch ? (
             <BatchDetail token={token} batchId={selectedBatch} onViewTimeline={onViewTimeline} />
           ) : (

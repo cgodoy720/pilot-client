@@ -45,30 +45,28 @@ const Coach = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFEFEF]">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#EFEFEF] font-proxima">
       {!isSecondaryNavPage && (
-        <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-          <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
-            Coach
-          </h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 pt-5">
+          <h1 className="text-2xl font-bold text-[#1E1E1E]">Coach</h1>
+          <p className="text-slate-500 text-sm mt-0.5 mb-4">
             Observability and automated quality evaluation for the v2 coach agent
           </p>
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <div className="bg-white border-b border-[#E3E3E3] px-8 pt-3">
-          <TabsList className="bg-white border border-slate-200 p-1 mb-3 rounded-lg inline-flex">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 pt-3 pb-3">
+          <TabsList className="bg-transparent p-0 gap-1 rounded-none inline-flex h-auto">
             <TabsTrigger value="runs" className={TAB_TRIGGER_CLASS}>Coach Runs</TabsTrigger>
             <TabsTrigger value="evals" className={TAB_TRIGGER_CLASS}>Coach Evals</TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="runs" className="mt-0">
+        <TabsContent value="runs" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
           <CoachRuns embedded openThreadId={runThread} />
         </TabsContent>
-        <TabsContent value="evals" className="mt-0">
+        <TabsContent value="evals" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
           <CoachEvals embedded onViewTimeline={openRunTimeline} />
         </TabsContent>
       </Tabs>

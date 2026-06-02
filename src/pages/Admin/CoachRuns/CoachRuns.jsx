@@ -277,22 +277,20 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
     : realRuns;
 
   return (
-    <div className={embedded ? '' : 'min-h-screen bg-[#EFEFEF]'}>
+    <div className={`flex flex-col min-h-0 font-proxima ${embedded ? 'h-full' : 'h-screen bg-[#EFEFEF]'}`}>
       {!embedded && (
-        <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-          <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
-            Coach Runs
-          </h1>
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 py-4">
+          <h1 className="text-2xl font-bold text-[#1E1E1E]">Coach Runs</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             Per-agent observability for v2 personalized-task runs
           </p>
         </div>
       )}
 
-      <div className="flex max-w-[1600px] mx-auto" style={{ minHeight: embedded ? 'calc(100vh - 210px)' : 'calc(100vh - 73px)' }}>
-        {/* left: run list */}
-        <aside className="w-96 shrink-0 border-r border-[#E3E3E3] bg-white flex flex-col">
-          <div className="p-3 border-b border-[#E3E3E3] flex gap-2">
+      <div className="flex flex-1 min-h-0">
+        {/* left: run list — scrolls independently */}
+        <aside className="w-96 shrink-0 border-r border-[#E3E3E3] bg-white flex flex-col min-h-0">
+          <div className="shrink-0 p-3 border-b border-[#E3E3E3] flex gap-2">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -307,7 +305,7 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
               ↻
             </button>
           </div>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {loading && <div className="p-4 text-slate-400 text-sm">Loading…</div>}
             {error && <div className="p-4 text-rose-600 text-sm">{error}</div>}
             {!loading && filtered.length === 0 && (
@@ -344,8 +342,8 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
           </div>
         </aside>
 
-        {/* right: detail */}
-        <main className="flex-1 overflow-auto">
+        {/* right: detail — scrolls independently */}
+        <main className="flex-1 min-h-0 overflow-y-auto bg-[#EFEFEF]">
           {selected ? (
             <RunDetail token={token} threadId={selected} />
           ) : (
