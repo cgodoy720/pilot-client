@@ -224,7 +224,7 @@ const RunDetail = ({ token, threadId }) => {
   );
 };
 
-const CoachRuns = () => {
+const CoachRuns = ({ embedded = false, openThreadId = null }) => {
   const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
 
@@ -232,7 +232,7 @@ const CoachRuns = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(openThreadId);
 
   const loadRuns = useCallback(async () => {
     setLoading(true);
@@ -249,13 +249,12 @@ const CoachRuns = () => {
 
   useEffect(() => { loadRuns(); }, [loadRuns]);
 
-  // Deep-link: /admin/coach-runs?thread=<id> (used by Coach Evals case drill-down).
-  // RunDetail loads by thread id independently of the list, so this works even
-  // for eval-cohort threads that are filtered out of the list below.
+  // Open a specific run when requested (e.g. the Coach Evals tab passes the
+  // eval case's thread). RunDetail loads by thread id independently of the
+  // list, so this works even for eval-cohort threads filtered out below.
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('thread');
-    if (t) setSelected(parseInt(t, 10));
-  }, []);
+    if (openThreadId != null) setSelected(openThreadId);
+  }, [openThreadId]);
 
   if (!canAccessPage('coach_observability')) {
     return (
@@ -278,20 +277,20 @@ const CoachRuns = () => {
     : realRuns;
 
   return (
-    <div className="min-h-screen bg-[#EFEFEF]">
-      <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-        <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
-          Coach Runs
-        </h1>
-        <p className="text-slate-500 text-sm mt-0.5">
-          Per-agent observability for v2 personalized-task runs
-        </p>
-      </div>
+    <div className={`flex flex-col min-h-0 font-proxima ${embedded ? 'h-full' : 'h-screen bg-[#EFEFEF]'}`}>
+      {!embedded && (
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 py-4">
+          <h1 className="text-2xl font-bold text-[#1E1E1E]">Coach Runs</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Per-agent observability for v2 personalized-task runs
+          </p>
+        </div>
+      )}
 
-      <div className="flex max-w-[1600px] mx-auto" style={{ minHeight: 'calc(100vh - 73px)' }}>
-        {/* left: run list */}
-        <aside className="w-96 shrink-0 border-r border-[#E3E3E3] bg-white flex flex-col">
-          <div className="p-3 border-b border-[#E3E3E3] flex gap-2">
+      <div className="flex flex-1 min-h-0">
+        {/* left: run list — scrolls independently */}
+        <aside className="w-96 shrink-0 border-r border-[#E3E3E3] bg-white flex flex-col min-h-0">
+          <div className="shrink-0 p-3 border-b border-[#E3E3E3] flex gap-2">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -306,7 +305,7 @@ const CoachRuns = () => {
               ↻
             </button>
           </div>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {loading && <div className="p-4 text-slate-400 text-sm">Loading…</div>}
             {error && <div className="p-4 text-rose-600 text-sm">{error}</div>}
             {!loading && filtered.length === 0 && (
@@ -343,8 +342,8 @@ const CoachRuns = () => {
           </div>
         </aside>
 
-        {/* right: detail */}
-        <main className="flex-1 overflow-auto">
+        {/* right: detail — scrolls independently */}
+        <main className="flex-1 min-h-0 overflow-y-auto bg-[#EFEFEF]">
           {selected ? (
             <RunDetail token={token} threadId={selected} />
           ) : (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { enableErrorTesting } from './utils/errorTestingUtils';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard/Dashboard';
@@ -75,8 +75,10 @@ import WeeklyReports from './pages/Admin/WeeklyReports/WeeklyReports';
 
 // Platform Analytics page
 import PlatformAnalytics from './pages/Admin/PlatformAnalytics/PlatformAnalytics';
-import CoachRuns from './pages/Admin/CoachRuns/CoachRuns';
-import CoachEvals from './pages/Admin/CoachEvals/CoachEvals';
+import Coach from './pages/Admin/Coach/Coach';
+
+// Headshot Upload page
+import HeadshotUploadPage from './pages/HeadshotUpload/HeadshotUploadPage';
 
 // Platform Intake pages
 import PlatformIntake from './pages/PlatformIntake/PlatformIntake';
@@ -89,6 +91,7 @@ import { isCompassEligibleUser } from './utils/pathfinderAccess';
 import { Toaster } from './components/ui/sonner';
 import {
   PermissionRoute,
+  MultiPermissionRoute,
   WorkshopAdminRoute,
   EnterpriseAdminRoute
 } from './components/RouteGuards';
@@ -141,6 +144,14 @@ function CompassRouteGuard() {
   }
 
   return <PathfinderCompass />;
+}
+
+function CoachRunsRedirect() {
+  const [searchParams] = useSearchParams();
+  const thread = searchParams.get('thread');
+  const parsed = parseInt(thread, 10);
+  const dest = (!isNaN(parsed)) ? `/admin/coach?tab=runs&thread=${parsed}` : '/admin/coach?tab=runs';
+  return <Navigate to={dest} replace />;
 }
 
 function App() {
@@ -442,20 +453,23 @@ function App() {
           </Layout>
         } />
 
-        {/* Coach Runs — v2 coach agent observability (Staff/Admin) */}
-        <Route path="/admin/coach-runs" element={
+        {/* Coach — v2 coach agent: observability (Runs) + eval harness (Evals) tabs */}
+        <Route path="/admin/coach" element={
           <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.COACH_OBSERVABILITY}>
-              <CoachRuns />
-            </PermissionRoute>
+            <MultiPermissionRoute permissions={[PAGE_PERMISSIONS.COACH_OBSERVABILITY, PAGE_PERMISSIONS.COACH_EVALS]}>
+              <Coach />
+            </MultiPermissionRoute>
           </Layout>
         } />
+        {/* Back-compat: old standalone routes redirect into the combined page, forwarding ?thread= */}
+        <Route path="/admin/coach-runs" element={<CoachRunsRedirect />} />
+        <Route path="/admin/coach-evals" element={<Navigate to="/admin/coach?tab=evals" replace />} />
 
-        {/* Coach Evals — v2 coach agent eval harness (Staff/Admin) */}
-        <Route path="/admin/coach-evals" element={
+        {/* Headshot Bulk Upload (Staff + Admin) */}
+        <Route path="/admin/headshots" element={
           <Layout>
-            <PermissionRoute permission={PAGE_PERMISSIONS.COACH_EVALS}>
-              <CoachEvals />
+            <PermissionRoute permission={PAGE_PERMISSIONS.HEADSHOT_UPLOAD}>
+              <HeadshotUploadPage />
             </PermissionRoute>
           </Layout>
         } />

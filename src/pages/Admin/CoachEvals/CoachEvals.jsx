@@ -16,6 +16,19 @@ const DIMENSION_LABELS = {
   end_to_end: 'End-to-end',
 };
 
+// Short, unambiguous labels for the compact per-case dimension chips.
+// (The slice(0,4) approach collapsed "Grading quality" and "Grading
+// consistency" both to "Grad".)
+const DIMENSION_SHORT = {
+  teaching: 'Teach',
+  challenge_design: 'Chall',
+  grading_quality: 'Grade',
+  grading_consistency: 'Consist',
+  remediation: 'Remed',
+  completion: 'Compl',
+  end_to_end: 'E2E',
+};
+
 const fmtTime = (ts) => (ts ? new Date(ts).toLocaleString() : '—');
 const scoreTone = (s) => (s == null ? 'slate' : s >= 80 ? 'green' : s >= 60 ? 'amber' : 'red');
 
@@ -38,7 +51,7 @@ const StatusBadge = ({ status }) => {
 };
 
 /** Per-case verdict detail panel. */
-const CaseDetail = ({ token, caseId, onClose }) => {
+const CaseDetail = ({ token, caseId, onClose, onViewTimeline }) => {
   const [c, setC] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -63,11 +76,15 @@ const CaseDetail = ({ token, caseId, onClose }) => {
           {c.overall_score != null && <span className="ml-2"><Chip tone={scoreTone(c.overall_score)}>overall {c.overall_score}</Chip></span>}
         </div>
         <div className="flex items-center gap-3">
-          {c.thread_id && (
-            <Link to={`/admin/coach-runs?thread=${c.thread_id}`} className="text-xs font-medium" style={{ color: BRAND }}>
+          {c.thread_id && (onViewTimeline ? (
+            <button onClick={() => onViewTimeline(c.thread_id)} className="text-xs font-medium" style={{ color: BRAND }}>
+              View agent timeline →
+            </button>
+          ) : (
+            <Link to={`/admin/coach?tab=runs&thread=${c.thread_id}`} className="text-xs font-medium" style={{ color: BRAND }}>
               View agent timeline →
             </Link>
-          )}
+          ))}
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
         </div>
       </div>
@@ -92,7 +109,7 @@ const CaseDetail = ({ token, caseId, onClose }) => {
 };
 
 /** Selected batch: cases table + case detail. */
-const BatchDetail = ({ token, batchId }) => {
+const BatchDetail = ({ token, batchId, onViewTimeline }) => {
   const [data, setData] = useState(null);
   const [openCase, setOpenCase] = useState(null);
 
@@ -157,7 +174,7 @@ const BatchDetail = ({ token, batchId }) => {
               <td className="px-3 py-2">
                 <div className="flex flex-wrap gap-1">
                   {Object.entries(c.dimension_scores || {}).map(([d, v]) => (
-                    <Chip key={d} tone={scoreTone(v.score)}>{(DIMENSION_LABELS[d] || d).slice(0, 4)} {v.score}</Chip>
+                    <Chip key={d} tone={scoreTone(v.score)}>{DIMENSION_SHORT[d] || d} {v.score}</Chip>
                   ))}
                 </div>
               </td>
@@ -167,12 +184,12 @@ const BatchDetail = ({ token, batchId }) => {
         </tbody>
       </table>
 
-      {openCase && <CaseDetail token={token} caseId={openCase} onClose={() => setOpenCase(null)} />}
+      {openCase && <CaseDetail token={token} caseId={openCase} onClose={() => setOpenCase(null)} onViewTimeline={onViewTimeline} />}
     </div>
   );
 };
 
-const CoachEvals = () => {
+const CoachEvals = ({ embedded = false, onViewTimeline = null }) => {
   const token = useAuthStore((s) => s.token);
   const { canAccessPage } = usePermissions();
 
@@ -238,14 +255,16 @@ const CoachEvals = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFEFEF]">
-      <div className="bg-white border-b border-[#E3E3E3] px-8 py-4">
-        <h1 className="text-2xl font-bold text-[#1E1E1E]" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>Coach Evals</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Automated quality evaluation of the v2 coach agent</p>
-      </div>
+    <div className={`flex flex-col min-h-0 font-proxima ${embedded ? 'h-full' : 'h-screen bg-[#EFEFEF]'}`}>
+      {!embedded && (
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 py-4">
+          <h1 className="text-2xl font-bold text-[#1E1E1E]">Coach Evals</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Automated quality evaluation of the v2 coach agent</p>
+        </div>
+      )}
 
       {/* run bar */}
-      <div className="bg-white border-b border-[#E3E3E3] px-8 py-3 flex flex-wrap items-end gap-3">
+      <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 py-3 flex flex-wrap items-end gap-3">
         <label className="text-xs text-slate-500">
           <div className="mb-1">Suite</div>
           <select value={suiteKey} onChange={(e) => setSuiteKey(e.target.value)} className="text-sm border border-[#E3E3E3] rounded-md px-2 py-1.5 min-w-48">
@@ -271,9 +290,9 @@ const CoachEvals = () => {
         {error && <span className="text-xs text-rose-600">{error}</span>}
       </div>
 
-      <div className="flex max-w-[1600px] mx-auto" style={{ minHeight: 'calc(100vh - 145px)' }}>
-        {/* batch list */}
-        <aside className="w-80 shrink-0 border-r border-[#E3E3E3] bg-white overflow-auto">
+      <div className="flex flex-1 min-h-0">
+        {/* batch list — scrolls independently */}
+        <aside className="w-80 shrink-0 border-r border-[#E3E3E3] bg-white overflow-y-auto min-h-0">
           {batches.length === 0 && <div className="p-4 text-slate-400 text-sm">No eval batches yet.</div>}
           {batches.map((b) => {
             const active = selectedBatch === b.id;
@@ -294,9 +313,9 @@ const CoachEvals = () => {
           })}
         </aside>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto bg-[#EFEFEF]">
           {selectedBatch ? (
-            <BatchDetail token={token} batchId={selectedBatch} />
+            <BatchDetail token={token} batchId={selectedBatch} onViewTimeline={onViewTimeline} />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400 text-sm">Run a suite or select a batch.</div>
           )}

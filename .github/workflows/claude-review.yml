@@ -27,4 +27,4 @@ jobs:
           prompt: |
             Review this pull request. Focus only on: security issues, bugs, and breaking changes.
             Be concise. Post a single summary comment with your findings. Skip minor style issues.
-          claude_args: "--model claude-sonnet-4-6 --max-turns 40 --allowedTools Bash,Read,Glob,Grep,WebSearch"
+          claude_args: "--model claude-sonnet-4-6 --max-turns 80 --allowedTools Bash,Read,Glob,Grep,WebSearch"

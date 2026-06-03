@@ -37,6 +37,9 @@ const Payment = () => {
   const [isFaqsLoading, setIsFaqsLoading] = useState(false);
   const [faqsError, setFaqsError] = useState('');
 
+  // Signed agreement state (DocuSign or manual upload)
+  const [signedAgreement, setSignedAgreement] = useState(null); // { source: 'docusign'|'manual', url, signedAt, uploadedAt }
+
   // Employment Contract modal states
   const [isEmploymentContractModalOpen, setIsEmploymentContractModalOpen] = useState(false);
   const [employmentContractText, setEmploymentContractText] = useState('');
@@ -95,7 +98,43 @@ const Payment = () => {
   // Load existing data on component mount
   useEffect(() => {
     loadExistingData();
+    loadSignedAgreement();
   }, []);
+
+  // Revoke blob URLs when gjaText changes to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (gjaText && gjaText.startsWith('blob:')) {
+        URL.revokeObjectURL(gjaText);
+      }
+    };
+  }, [gjaText]);
+
+  const loadSignedAgreement = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/docusign/my-agreement`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+
+      if (data.docusign?.hasSigned) {
+        setSignedAgreement({
+          source: 'docusign',
+          url: `${import.meta.env.VITE_API_URL}/api/docusign/my-agreement/download`,
+          signedAt: data.docusign.signedAt,
+        });
+      } else if (data.manualUpload?.url) {
+        setSignedAgreement({
+          source: 'manual',
+          url: data.manualUpload.url,
+          uploadedAt: data.manualUpload.uploadedAt,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading signed agreement:', error);
+    }
+  };
 
   const loadExistingData = async () => {
     try {
@@ -208,35 +247,38 @@ const Payment = () => {
       setIsGjaLoading(true);
       setGjaError('');
       setIsGjaModalOpen(true);
+
+      if (signedAgreement) {
+        // Signed agreement: always a PDF (DocuSign stream or GCS PDF)
+        setGjaFileType('pdf');
+        if (signedAgreement.source === 'docusign') {
+          // Fetch through server with auth header, convert to blob URL
+          const response = await fetch(signedAgreement.url, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (!response.ok) throw new Error('Failed to load signed agreement');
+          const blob = await response.blob();
+          setGjaText(URL.createObjectURL(blob));
+        } else {
+          setGjaText(signedAgreement.url);
+        }
+        return;
+      }
+
+      // No signed agreement — show admin-uploaded template if available, else default
       const toAbsolute = (p) => {
         if (!p) return '';
         return p.startsWith('http') ? p : `${import.meta.env.VITE_API_URL}${p}`;
       };
-      const url = toAbsolute(uploadedFiles?.goodJobAgreement?.url || '/uploads/payment-documents/Good_Job_Agreement.pdf');
-      
-      // Check file type based on filename, not URL
-      const fileName = uploadedFiles?.goodJobAgreement?.name || 'Good_Job_Agreement.pdf';
-      const isImage = fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
-      const isPdf = fileName.toLowerCase().match(/\.pdf$/);
-      
-      if (isImage) {
-        // For images, just set the URL directly
-        setGjaFileType('image');
-        setGjaText(url);
-      } else if (isPdf) {
-        // For PDFs, set the URL for embedding
-        setGjaFileType('pdf');
-        setGjaText(url);
-      } else {
-        // For text files, fetch the content
-        setGjaFileType('text');
-        const response = await fetch(url, { cache: 'no-store' });
-        if (!response.ok) {
-          throw new Error('Failed to load Good Job Agreement');
-        }
-        const text = await response.text();
-        setGjaText(text);
-      }
+      const templateUrl = uploadedFiles?.goodJobAgreement?.url
+        ? toAbsolute(uploadedFiles.goodJobAgreement.url)
+        : toAbsolute('/uploads/payment-documents/Good_Job_Agreement.pdf');
+      const ext = templateUrl.split('?')[0].split('.').pop().toLowerCase();
+      const fileType = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? 'image'
+        : ext === 'pdf' ? 'pdf'
+        : 'text';
+      setGjaFileType(fileType);
+      setGjaText(templateUrl);
     } catch (e) {
       setGjaError(e.message || 'Unable to load Good Job Agreement');
     } finally {
@@ -424,7 +466,7 @@ const Payment = () => {
                   <CardTitle className="text-lg">Good Job Agreement</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {uploadedFiles.goodJobAgreement ? (
+                  {signedAgreement ? (
                     <>
                       <Button
                         onClick={openGjaModal}
@@ -432,14 +474,19 @@ const Payment = () => {
                       >
                         View Your Signed Agreement
                       </Button>
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <div className="flex items-center gap-2 text-green-600 text-sm">
                           <CheckCircle className="h-4 w-4" />
                           Your signed agreement is on file
                         </div>
-                        {uploadedFiles.goodJobAgreement.uploadedAt && (
+                        {signedAgreement.signedAt && (
                           <p className="text-xs text-gray-500">
-                            Uploaded: {new Date(uploadedFiles.goodJobAgreement.uploadedAt).toLocaleDateString()}
+                            Signed: {new Date(signedAgreement.signedAt).toLocaleDateString()}
+                          </p>
+                        )}
+                        {signedAgreement.uploadedAt && (
+                          <p className="text-xs text-gray-500">
+                            Uploaded: {new Date(signedAgreement.uploadedAt).toLocaleDateString()}
                           </p>
                         )}
                       </div>
@@ -825,7 +872,7 @@ const Payment = () => {
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>
-              {uploadedFiles.goodJobAgreement ? 'Your Signed Good Job Agreement' : 'Good Job Agreement Template'}
+              {signedAgreement ? 'Your Signed Good Job Agreement' : 'Good Job Agreement Template'}
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto">
@@ -860,12 +907,10 @@ const Payment = () => {
               className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white"
             >
               <a
-                href={(() => {
-                  const url = uploadedFiles?.goodJobAgreement?.url || '/uploads/payment-documents/Good_Job_Agreement.pdf';
-                  return url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`;
-                })()}
+                href={gjaText || `${import.meta.env.VITE_API_URL}/uploads/payment-documents/Good_Job_Agreement.pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
+                download={signedAgreement ? 'Good_Job_Agreement_Signed.pdf' : undefined}
               >
                 Open in new tab
               </a>

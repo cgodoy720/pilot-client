@@ -47,9 +47,9 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewWeeklyReports = canAccessPage('weekly_reports');
   const canViewPlatformAnalytics = canAccessPage('platform_analytics');
   const canViewDemoCohort = canAccessPage('demo_cohort');
-  const canViewCoachRuns = canAccessPage('coach_observability');
-  const canViewCoachEvals = canAccessPage('coach_evals');
+  const canViewCoach = canAccessPage('coach_observability') || canAccessPage('coach_evals');
   const canViewPlatformIntake = canAccessPage('platform_intake');
+  const canViewHeadshotUpload = canAccessPage('headshot_upload');
 
   // Check if on Pathfinder pages for light mode styling
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
@@ -71,7 +71,7 @@ const Layout = ({ children, isLoading = false }) => {
   const employmentDropdownItems = isStaffOrAdminRole ? [
     canViewPathfinderAdmin && { to: '/pathfinder/admin', label: 'Pathfinder' },
     canViewSputnik && { to: '/sputnik', label: 'Sputnik' },
-    canViewPaymentAdmin && { to: '/payment-admin', label: 'Payment' },
+    canViewPaymentAdmin && { to: '/payment-admin', label: 'Payments Admin' },
   ].filter(Boolean) : [];
 
   // Staff dropdown (remaining items) -- staff/admin roles
@@ -79,6 +79,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewFormBuilder && { to: '/forms', label: 'Form Builder' },
     canViewTemplateManagement && { to: '/template-management', label: 'Templates' },
     canViewVolunteerManagement && { to: '/volunteer-management', label: 'Volunteers' },
+    canViewHeadshotUpload && { to: '/admin/headshots', label: 'Headshot Upload' },
   ].filter(Boolean) : [];
 
   // Admin dropdown -- admin role, or staff with any admin page permission
@@ -88,8 +89,7 @@ const Layout = ({ children, isLoading = false }) => {
     canViewOrganizationManagement && { to: '/admin/organization-management', label: 'Organizations' },
     canViewPermissionManagement && { to: '/admin/permissions', label: 'Permissions' },
     canViewPlatformAnalytics && { to: '/admin/platform-analytics', label: 'Platform Analytics' },
-    canViewCoachRuns && { to: '/admin/coach-runs', label: 'Coach Runs' },
-    canViewCoachEvals && { to: '/admin/coach-evals', label: 'Coach Evals' },
+    canViewCoach && { to: '/admin/coach', label: 'Coach' },
     canViewWeeklyReports && { to: '/admin/weekly-reports', label: 'Weekly Reports' },
     canViewDemoCohort && { to: '/admin/demo-cohort-refresh', label: 'Demo Cohort' },
   ].filter(Boolean) : [];
@@ -131,7 +131,7 @@ const Layout = ({ children, isLoading = false }) => {
     '/external-cohorts': 'External Cohorts',
     '/pathfinder/admin': 'Pathfinder',
     '/sputnik': 'Sputnik',
-    '/payment-admin': 'Payment',
+    '/payment-admin': 'Payments Admin',
     '/content-preview': 'Content Mgmt',
     '/forms': 'Form Builder',
     '/volunteer-management': 'Volunteers',
@@ -139,10 +139,10 @@ const Layout = ({ children, isLoading = false }) => {
     '/admin/organization-management': 'Organizations',
     '/admin/permissions': 'Permissions',
     '/admin/platform-analytics': 'Platform Analytics',
-    '/admin/coach-runs': 'Coach Runs',
-    '/admin/coach-evals': 'Coach Evals',
+    '/admin/coach': 'Coach',
     '/admin/weekly-reports': 'Weekly Reports',
     '/admin/demo-cohort-refresh': 'Demo Cohort',
+    '/admin/headshots': 'Headshot Upload',
   };
   const matchedSecondaryRoute = Object.keys(secondaryPageTitles).find(
     route => location.pathname === route || location.pathname.startsWith(route + '/')
@@ -252,13 +252,13 @@ const Layout = ({ children, isLoading = false }) => {
     }
 
     // Staff section routes → Users
-    const staffRoutes = ['/forms', '/volunteer-management'];
+    const staffRoutes = ['/forms', '/volunteer-management', '/admin/headshots'];
     if (staffRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Users className="h-4 w-4 text-[#E3E3E3]" />;
     }
 
     // Admin section routes → Settings
-    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/platform-analytics', '/admin/coach-runs', '/admin/coach-evals', '/admin/weekly-reports', '/admin/demo-cohort-refresh'];
+    const adminRoutes = ['/admin-prompts', '/admin/organization-management', '/admin/permissions', '/admin/platform-analytics', '/admin/coach', '/admin/weekly-reports', '/admin/demo-cohort-refresh'];
     if (adminRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
     }
