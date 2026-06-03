@@ -270,7 +270,7 @@ const Payment = () => {
         if (!p) return '';
         return p.startsWith('http') ? p : `${import.meta.env.VITE_API_URL}${p}`;
       };
-      const templateUrl = uploadedFiles.goodJobAgreement?.url
+      const templateUrl = uploadedFiles?.goodJobAgreement?.url
         ? toAbsolute(uploadedFiles.goodJobAgreement.url)
         : toAbsolute('/uploads/payment-documents/Good_Job_Agreement.pdf');
       setGjaFileType('pdf');

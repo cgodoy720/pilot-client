@@ -149,7 +149,7 @@ function CompassRouteGuard() {
 function CoachRunsRedirect() {
   const [searchParams] = useSearchParams();
   const thread = searchParams.get('thread');
-  const dest = thread ? `/admin/coach?tab=runs&thread=${thread}` : '/admin/coach?tab=runs';
+  const dest = thread ? `/admin/coach?tab=runs&thread=${encodeURIComponent(parseInt(thread, 10))}` : '/admin/coach?tab=runs';
   return <Navigate to={dest} replace />;
 }
 

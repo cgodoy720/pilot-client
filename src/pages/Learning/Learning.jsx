@@ -1570,8 +1570,6 @@ function Learning() {
         throw new Error('Failed to mark task as complete');
       }
 
-      console.log('✅ Onboarding task marked as complete');
-
       // Update local completion status
       setTaskCompletionMap(prev => ({
         ...prev,
