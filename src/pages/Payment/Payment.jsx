@@ -101,6 +101,15 @@ const Payment = () => {
     loadSignedAgreement();
   }, []);
 
+  // Revoke blob URLs when gjaText changes to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (gjaText && gjaText.startsWith('blob:')) {
+        URL.revokeObjectURL(gjaText);
+      }
+    };
+  }, [gjaText]);
+
   const loadSignedAgreement = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/docusign/my-agreement`, {
@@ -256,14 +265,16 @@ const Payment = () => {
         return;
       }
 
-      // No signed agreement — show the template
+      // No signed agreement — show admin-uploaded template if available, else default
       const toAbsolute = (p) => {
         if (!p) return '';
         return p.startsWith('http') ? p : `${import.meta.env.VITE_API_URL}${p}`;
       };
-      const url = toAbsolute('/uploads/payment-documents/Good_Job_Agreement.pdf');
+      const templateUrl = uploadedFiles.goodJobAgreement?.url
+        ? toAbsolute(uploadedFiles.goodJobAgreement.url)
+        : toAbsolute('/uploads/payment-documents/Good_Job_Agreement.pdf');
       setGjaFileType('pdf');
-      setGjaText(url);
+      setGjaText(templateUrl);
     } catch (e) {
       setGjaError(e.message || 'Unable to load Good Job Agreement');
     } finally {

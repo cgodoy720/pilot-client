@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import useNavStore from '../../../stores/navStore';
@@ -25,6 +25,11 @@ const Coach = () => {
     const t = searchParams.get('thread');
     return t ? parseInt(t, 10) : null;
   });
+
+  useEffect(() => {
+    const t = searchParams.get('thread');
+    setRunThread(t ? parseInt(t, 10) : null);
+  }, [searchParams]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { enableErrorTesting } from './utils/errorTestingUtils';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard/Dashboard';
@@ -144,6 +144,13 @@ function CompassRouteGuard() {
   }
 
   return <PathfinderCompass />;
+}
+
+function CoachRunsRedirect() {
+  const [searchParams] = useSearchParams();
+  const thread = searchParams.get('thread');
+  const dest = thread ? `/admin/coach?tab=runs&thread=${thread}` : '/admin/coach?tab=runs';
+  return <Navigate to={dest} replace />;
 }
 
 function App() {
@@ -453,8 +460,8 @@ function App() {
             </MultiPermissionRoute>
           </Layout>
         } />
-        {/* Back-compat: old standalone routes redirect into the combined page */}
-        <Route path="/admin/coach-runs" element={<Navigate to="/admin/coach?tab=runs" replace />} />
+        {/* Back-compat: old standalone routes redirect into the combined page, forwarding ?thread= */}
+        <Route path="/admin/coach-runs" element={<CoachRunsRedirect />} />
         <Route path="/admin/coach-evals" element={<Navigate to="/admin/coach?tab=evals" replace />} />
 
         {/* Headshot Bulk Upload (Staff + Admin) */}

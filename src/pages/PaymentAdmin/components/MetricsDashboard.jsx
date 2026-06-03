@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import useAuthStore from '../../../stores/authStore';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -135,10 +135,24 @@ function AgingBar({ current, late1to90, late90plus }) {
 // ─── Cohort multi-select ──────────────────────────────────────────────────────
 function CohortFilter({ cohorts, selected, onChange }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef(null);
   const toggle = (c) => onChange(selected.includes(c) ? selected.filter(x => x !== c) : [...selected, c]);
   const label = selected.length === 0 || selected.length === cohorts.length ? 'All Cohorts' : `Cohort ${selected.join(', ')}`;
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handleEsc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button onClick={() => setOpen(o => !o)} className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:border-gray-300 text-gray-700 min-w-[140px]">
         <span className="flex-1 text-left truncate">{label}</span>
         <ChevronDown className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
