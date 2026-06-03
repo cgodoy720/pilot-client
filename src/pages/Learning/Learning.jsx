@@ -1541,7 +1541,7 @@ function Learning() {
   };
 
   // Handle onboarding completion (mirrors handleSurveyComplete)
-  const handleOnboardingComplete = async () => {
+  const handleOnboardingComplete = useCallback(async () => {
     const currentTask = tasks[currentTaskIndex];
     const isLastTask = currentTaskIndex === tasks.length - 1;
 
@@ -1598,7 +1598,7 @@ function Learning() {
       console.error('Error marking onboarding task complete:', error);
       toast.error("Failed to mark task complete. Please try again.");
     }
-  };
+  }, [tasks, currentTaskIndex, token, handleTaskChange]);
 
   // Show daily overview first
   if (showDailyOverview) {

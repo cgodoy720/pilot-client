@@ -273,7 +273,11 @@ const Payment = () => {
       const templateUrl = uploadedFiles?.goodJobAgreement?.url
         ? toAbsolute(uploadedFiles.goodJobAgreement.url)
         : toAbsolute('/uploads/payment-documents/Good_Job_Agreement.pdf');
-      setGjaFileType('pdf');
+      const ext = templateUrl.split('?')[0].split('.').pop().toLowerCase();
+      const fileType = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? 'image'
+        : ext === 'pdf' ? 'pdf'
+        : 'text';
+      setGjaFileType(fileType);
       setGjaText(templateUrl);
     } catch (e) {
       setGjaError(e.message || 'Unable to load Good Job Agreement');
