@@ -1,14 +1,12 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
-import { isCompassEligibleUser } from '../../utils/pathfinderAccess';
 
 function Pathfinder() {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const isStaff = user?.role === 'staff' || user?.role === 'admin';
-  const canAccessCompass = isCompassEligibleUser(user);
-  
+
   // Redirect to dashboard if on /pathfinder root
   if (location.pathname === '/pathfinder' || location.pathname === '/pathfinder/') {
     return <Navigate to="/pathfinder/dashboard" replace />;
@@ -30,20 +28,18 @@ function Pathfinder() {
         >
           Dashboard
         </NavLink>
-        {canAccessCompass && (
-          <NavLink
-            to="/pathfinder/compass"
-            className={({ isActive }) =>
-              `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
-                isActive
-                  ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
-                  : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
-              }`
-            }
-          >
-            Compass
-          </NavLink>
-        )}
+        <NavLink
+          to="/pathfinder/compass"
+          className={({ isActive }) =>
+            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
+              isActive
+                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
+                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
+            }`
+          }
+        >
+          Compass
+        </NavLink>
         <NavLink
           to="/pathfinder/networking"
           className={({ isActive }) =>

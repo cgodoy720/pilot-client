@@ -87,7 +87,6 @@ import PlatformIntakeBacklog from './pages/PlatformIntake/PlatformIntakeBacklog'
 import useAuthStore from './stores/authStore';
 import { resetAuthModalState } from './utils/globalErrorHandler';
 import RouteResolver from './components/RouteResolver/RouteResolver';
-import { isCompassEligibleUser } from './utils/pathfinderAccess';
 import { Toaster } from './components/ui/sonner';
 import {
   PermissionRoute,
@@ -98,53 +97,6 @@ import {
 import { PAGE_PERMISSIONS } from './constants/permissions';
 
 import './App.css';
-
-// Guards the /pathfinder/compass route against the auth-rehydration race.
-//
-// Original behavior: `<Navigate to="/pathfinder/dashboard" />` was emitted
-// any time `isCompassEligibleUser(user)` returned false. On a hard reload
-// (e.g., a builder bookmarked /pathfinder/compass), the auth store
-// rehydrates in two phases:
-//   1. `onRehydrateStorage` synchronously flips `isLoading: false` with
-//      whatever `user` was persisted in localStorage. That `user` may
-//      lack `cohort` if it was persisted by an older build before
-//      `cohort` was added to the store, or if the persisted snapshot
-//      pre-dates the latest L3+ cohort assignment.
-//   2. A background `Promise.all([_fetchAndSetUserFields, _fetchAndSetPermissions])`
-//      kicked off by step 1 fetches `/api/users/me` and merges the fresh
-//      `cohort` (and any other server-side fields) into `user`. This
-//      resolves anywhere from a few milliseconds to several hundred ms
-//      after `isLoading: false`.
-//   3. authStore sets `_userFieldsHydrated: true` when (2) finishes,
-//      including in the failure path so the gate never deadlocks.
-//
-// Gating on `isLoading` ALONE is insufficient: it flips false at the end
-// of step 1, leaving a window where eligible builders read with a stale
-// user object and get bounced to /pathfinder/dashboard. We must wait on
-// `_userFieldsHydrated` too.
-//
-// Guard rules:
-//   - while either `isLoading` is true OR `_userFieldsHydrated` is false,
-//     render a quiet loading state — never redirect during this window
-//   - once both signals are settled, evaluate eligibility once and
-//     either render Compass or redirect
-function CompassRouteGuard() {
-  const isLoading = useAuthStore((s) => s.isLoading);
-  const userFieldsHydrated = useAuthStore((s) => s._userFieldsHydrated);
-  const user = useAuthStore((s) => s.user);
-
-  if (isLoading || !userFieldsHydrated) {
-    return (
-      <div className="px-6 py-12 text-sm text-[#666666]">Loading Compass…</div>
-    );
-  }
-
-  if (!isCompassEligibleUser(user)) {
-    return <Navigate to="/pathfinder/dashboard" replace />;
-  }
-
-  return <PathfinderCompass />;
-}
 
 function CoachRunsRedirect() {
   const [searchParams] = useSearchParams();
@@ -524,7 +476,7 @@ function App() {
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
-          <Route path="compass" element={<CompassRouteGuard />} />
+          <Route path="compass" element={<PathfinderCompass />} />
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
