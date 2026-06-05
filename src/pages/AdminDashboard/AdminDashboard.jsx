@@ -7,6 +7,10 @@ import TodayTab from './tabs/TodayTab';
 import AssessmentsTab from './tabs/AssessmentsTab';
 import L2SelectionsTab from './tabs/L2SelectionsTab';
 import LogsTab from './tabs/LogsTab';
+import BuilderMetricsTab from './tabs/BuilderMetricsTab';
+import EngagementTodayTab from './tabs/EngagementTodayTab';
+import ScheduleTab from './tabs/ScheduleTab';
+import PlanProgressTab from './tabs/PlanProgressTab';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 const STORAGE_KEY = 'pursuit_program_slug';
@@ -79,23 +83,37 @@ const AdminDashboard = () => {
     localStorage.removeItem(COHORT_STORAGE_KEY);
   };
 
-  // L2 tab: only show when selected cohort's course level = L1
   const selectedCohort = useMemo(
     () => cohorts.find(c => c.cohort_id === selectedCohortId),
     [cohorts, selectedCohortId]
   );
 
+  const isL3Plus = selectedCohort?.name?.includes('L3+');
+  const isClassDay = [1, 2, 3, 4].includes(new Date().getDay()); // Mon/Tue/Wed/Thu
+
   // L2 tab: show for L1 cohorts in week 7+ OR completed cohorts (is_active=false)
+  // L3+ gets Schedule or Plan Progress tab instead of L2
   const visibleTabs = useMemo(
-    () => TABS.filter(tab => {
-      if (tab.id === 'l2') {
-        if (selectedCohort?.level !== 'L1') return false;
-        if (selectedCohort?.is_active === false) return true; // cohort finished — always show
-        return (parseInt(selectedCohort?.current_week) || 0) >= 7;
-      }
-      return true;
-    }),
-    [selectedCohort]
+    () => {
+      const base = TABS.filter(tab => {
+        if (tab.id === 'l2') {
+          if (selectedCohort?.level !== 'L1') return false;
+          if (selectedCohort?.is_active === false) return true;
+          return (parseInt(selectedCohort?.current_week) || 0) >= 7;
+        }
+        return true;
+      });
+
+      if (!isL3Plus) return base;
+
+      // Insert Schedule or Plan Progress tab after Today for L3+ cohorts
+      const l3Tab = { id: isClassDay ? 'schedule' : 'plan_progress', label: isClassDay ? 'Schedule' : 'Plan Progress' };
+      const todayIdx = base.findIndex(t => t.id === 'today');
+      const result = [...base];
+      result.splice(todayIdx + 1, 0, l3Tab);
+      return result;
+    },
+    [selectedCohort, isL3Plus, isClassDay]
   );
 
   // If active tab became hidden (e.g., L2 hidden), reset to overview
@@ -174,12 +192,22 @@ const AdminDashboard = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-8 py-6">
-        {activeTab === 'overview'    && <OverviewTab    selectedCohortId={selectedCohortId} cohorts={cohorts} programSlug={programSlug} />}
-        {activeTab === 'today'       && <TodayTab       selectedCohortId={selectedCohortId} cohorts={cohorts} />}
-        {activeTab === 'assessments' && <AssessmentsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+      <div className={`${isL3Plus && activeTab === 'overview' ? 'max-w-screen-2xl' : 'max-w-7xl'} mx-auto px-8 py-6`}>
+        {activeTab === 'today' && (
+          isL3Plus
+            ? <EngagementTodayTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
+            : <TodayTab           selectedCohortId={selectedCohortId} cohorts={cohorts} />
+        )}
+        {activeTab === 'schedule'      && <ScheduleTab      selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+        {activeTab === 'plan_progress' && <PlanProgressTab  selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+        {activeTab === 'overview' && (
+          isL3Plus
+            ? <BuilderMetricsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />
+            : <OverviewTab       selectedCohortId={selectedCohortId} cohorts={cohorts} programSlug={programSlug} />
+        )}
+        {activeTab === 'assessments' && <AssessmentsTab  selectedCohortId={selectedCohortId} cohorts={cohorts} />}
         {activeTab === 'l2'          && <L2SelectionsTab selectedCohortId={selectedCohortId} cohorts={cohorts} />}
-        {activeTab === 'logs'        && <LogsTab        selectedCohortId={selectedCohortId} cohorts={cohorts} />}
+        {activeTab === 'logs'        && <LogsTab         selectedCohortId={selectedCohortId} cohorts={cohorts} />}
       </div>
     </div>
   );
