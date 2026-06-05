@@ -710,11 +710,27 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
           <div className="flex items-start gap-4">
             {/* Builder headshot */}
             <div className="w-14 h-14 rounded-full overflow-hidden bg-[#EFEFEF] flex-shrink-0 flex items-center justify-center border border-[#E3E3E3]">
-              {builderPhoto && builderPhoto !== '/assets/default-avatar.png' ? (
-                <img src={builderPhoto} alt={builder.name} className="w-full h-full object-cover" />
-              ) : (
-                <User size={28} className="text-slate-300" />
-              )}
+              {builderPhoto ? (
+                <img
+                  src={builderPhoto}
+                  alt={builder.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <svg
+                style={{ display: builderPhoto ? 'none' : 'flex' }}
+                className="w-full h-full"
+                viewBox="0 0 100 100"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect width="100" height="100" fill="#EFEFEF" />
+                <circle cx="50" cy="38" r="18" fill="#C8C8C8" />
+                <path d="M 10 95 Q 12 62 50 62 Q 88 62 90 95 Z" fill="#C8C8C8" />
+              </svg>
             </div>
           <div>
             <div className="flex items-center gap-2">
