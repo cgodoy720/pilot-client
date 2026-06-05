@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink, FileText, FileSignature, CheckCircle, Clock, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award } from 'lucide-react';
+import { X, BookOpen, MessageSquare, Send, Video, ChevronDown, ChevronUp, ExternalLink, FileText, FileSignature, CheckCircle, Clock, Plus, Sparkles, RefreshCw, AlertTriangle, TrendingUp, Target, Lightbulb, Loader2, ClipboardList, Award, User } from 'lucide-react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import useAuthStore from '../../../stores/authStore';
+import { getUserProfilePhoto } from '../../../utils/userPhotoService';
 import BuilderLogEntry from './BuilderLogEntry';
 
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
@@ -364,6 +365,13 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
   const [surveyResponses, setSurveyResponses] = useState([]);
   const [surveyLoading, setSurveyLoading] = useState(false);
   const [docusignStatus, setDocusignStatus] = useState(undefined); // undefined = loading, null = not found
+  const [builderPhoto, setBuilderPhoto] = useState(null);
+
+  useEffect(() => {
+    if (!builder?.user_id) return;
+    setBuilderPhoto(null);
+    getUserProfilePhoto(builder.user_id, token).then(setBuilderPhoto);
+  }, [builder?.user_id, token]);
 
   useEffect(() => {
     if (!builder?.user_id) return;
@@ -699,6 +707,15 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
       <div className="fixed top-0 bottom-0 right-0 w-full max-w-[640px] bg-white shadow-2xl z-[101] flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-[#E3E3E3] bg-white flex-shrink-0">
+          <div className="flex items-start gap-4">
+            {/* Builder headshot */}
+            <div className="w-14 h-14 rounded-full overflow-hidden bg-[#EFEFEF] flex-shrink-0 flex items-center justify-center border border-[#E3E3E3]">
+              {builderPhoto && builderPhoto !== '/assets/default-avatar.png' ? (
+                <img src={builderPhoto} alt={builder.name} className="w-full h-full object-cover" />
+              ) : (
+                <User size={28} className="text-slate-300" />
+              )}
+            </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-[#1E1E1E]">{builder.name}</h2>
@@ -747,6 +764,7 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
                 <p className="text-[9px] text-slate-400 uppercase">Videos</p>
               </div>
             </div>
+          </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-md hover:bg-[#EFEFEF] transition-colors">
             <X size={18} className="text-slate-400" />
