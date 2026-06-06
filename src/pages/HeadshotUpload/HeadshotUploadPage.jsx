@@ -30,6 +30,8 @@ function BuilderSearchInput({ token, onSelect, currentPick }) {
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef(null);
 
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
   const handleChange = (e) => {
     const val = e.target.value;
     setQuery(val);
@@ -103,7 +105,6 @@ export default function HeadshotUploadPage() {
   const [manualPicks, setManualPicks] = useState({});
   const [driveReady, setDriveReady] = useState(false);
   const fileInputRef = useRef(null);
-  const accessTokenRef = useRef(null);
   const tokenClientRef = useRef(null);
   const gapiLoadedRef = useRef(false);
 
@@ -130,7 +131,6 @@ export default function HeadshotUploadPage() {
           scope: DRIVE_SCOPE,
           callback: (resp) => {
             if (resp.access_token) {
-              accessTokenRef.current = resp.access_token;
               openGooglePicker(resp.access_token);
             }
           },
@@ -230,11 +230,9 @@ export default function HeadshotUploadPage() {
 
   const handlePickFromDrive = () => {
     if (!driveReady) { toast.error('Google Drive not ready yet.'); return; }
-    if (accessTokenRef.current) {
-      openGooglePicker(accessTokenRef.current);
-    } else {
-      tokenClientRef.current.requestAccessToken();
-    }
+    // Always request a fresh token — Google access tokens expire after 1 hour.
+    // GIS returns silently if the user is already authenticated and token is fresh.
+    tokenClientRef.current.requestAccessToken();
   };
 
   const handleFilesSelected = async (selectedFiles) => {
@@ -276,7 +274,7 @@ export default function HeadshotUploadPage() {
 
       // Upload: confirmed matches + resolved ambiguous files
       const resolvedFilenames = new Set([
-        ...checkResult.matches.map(m => m.filename),
+        ...(checkResult.matches ?? []).map(m => m.filename),
         ...assignments.map(a => a.filename),
       ]);
       const filesToUpload = files.filter(f => resolvedFilenames.has(f.name));
@@ -300,7 +298,7 @@ export default function HeadshotUploadPage() {
   };
 
   const manuallyResolvedCount = Object.values(manualPicks).filter(Boolean).length;
-  const uploadableCount = (checkResult?.matches.length ?? 0) + manuallyResolvedCount;
+  const uploadableCount = (checkResult?.matches?.length ?? 0) + manuallyResolvedCount;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -387,17 +385,17 @@ export default function HeadshotUploadPage() {
         <div>
           <div className="flex items-center gap-3 mb-5">
             <span className="text-sm font-medium text-gray-700">{files.length} files checked</span>
-            {checkResult.matches.length > 0 && (
+            {(checkResult.matches?.length ?? 0) > 0 && (
               <Badge className="bg-green-100 text-green-700 border-green-200">
                 {checkResult.matches.length} matched
               </Badge>
             )}
-            {checkResult.ambiguous.length > 0 && (
+            {(checkResult.ambiguous?.length ?? 0) > 0 && (
               <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
                 {checkResult.ambiguous.length} needs selection
               </Badge>
             )}
-            {checkResult.unmatched.length > 0 && (
+            {(checkResult.unmatched?.length ?? 0) > 0 && (
               <Badge className="bg-red-100 text-red-700 border-red-200">
                 {checkResult.unmatched.length} no match
               </Badge>
@@ -437,7 +435,7 @@ export default function HeadshotUploadPage() {
           )}
 
           {/* Ambiguous — multiple builders share the name, pick from known options */}
-          {checkResult.ambiguous.length > 0 && (
+          {(checkResult.ambiguous?.length ?? 0) > 0 && (
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-yellow-700 uppercase tracking-wide mb-1">
                 Needs selection
@@ -488,7 +486,7 @@ export default function HeadshotUploadPage() {
           )}
 
           {/* Unmatched — search and manually assign, or leave to skip */}
-          {checkResult.unmatched.length > 0 && (
+          {(checkResult.unmatched?.length ?? 0) > 0 && (
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide mb-1">
                 No match found
