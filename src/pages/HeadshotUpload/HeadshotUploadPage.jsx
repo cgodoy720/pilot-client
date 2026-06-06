@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
-import { Camera, Upload, CheckCircle2, XCircle, RotateCcw, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Camera, Upload, CheckCircle2, XCircle, RotateCcw, Loader2, HardDrive, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
 import {
   Table,
   TableBody,
@@ -11,8 +12,85 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import useAuthStore from '../../stores/authStore';
-import { checkHeadshotMatches, bulkUploadHeadshots } from '../../services/headshotApi';
+import { checkHeadshotMatches, bulkUploadHeadshots, searchBuilders } from '../../services/headshotApi';
+
+// Inline builder search for manually matching unmatched files
+function BuilderSearchInput({ token, onSelect, currentPick }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    setOpen(true);
+    clearTimeout(debounceRef.current);
+    if (val.trim().length < 2) { setResults([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      const res = await searchBuilders(val.trim(), token);
+      setResults(res);
+      setSearching(false);
+    }, 300);
+  };
+
+  const handlePick = (builder) => {
+    onSelect(builder);
+    setQuery(`${builder.name} — ${builder.cohort}`);
+    setOpen(false);
+    setResults([]);
+  };
+
+  return (
+    <div className="relative w-64">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+        <Input
+          value={currentPick ? `${currentPick.name} — ${currentPick.cohort}` : query}
+          onChange={currentPick ? undefined : handleChange}
+          onFocus={() => { if (currentPick) { onSelect(null); setQuery(''); } }}
+          placeholder="Search builder name…"
+          className="pl-7 h-8 text-sm"
+        />
+      </div>
+      {open && (results.length > 0 || searching) && (
+        <div className="absolute z-50 bottom-full mb-1 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {searching && (
+            <div className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> Searching…
+            </div>
+          )}
+          {results.map((b) => (
+            <button
+              key={b.userId}
+              onMouseDown={() => handlePick(b)}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
+            >
+              <span className="font-medium">{b.name}</span>
+              <span className="text-xs text-gray-400">{b.cohort}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PICKER_API_KEY = import.meta.env.VITE_GOOGLE_PICKER_API_KEY;
+const PICKER_CLIENT_ID = import.meta.env.VITE_GOOGLE_PICKER_CLIENT_ID;
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 
 // phases: 'select' → 'checking' → 'preview' → 'uploading' → 'results'
 
@@ -20,10 +98,157 @@ export default function HeadshotUploadPage() {
   const token = useAuthStore((s) => s.token);
   const [phase, setPhase] = useState('select');
   const [files, setFiles] = useState([]);
-  const [checkResult, setCheckResult] = useState(null); // { matches, unmatched }
+  const [checkResult, setCheckResult] = useState(null); // { matches, ambiguous, unmatched }
   const [uploadResult, setUploadResult] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  // Manual picks: { [filename]: { userId, name, cohort } } — covers ambiguous + unmatched rows
+  const [manualPicks, setManualPicks] = useState({});
+  const [driveReady, setDriveReady] = useState(false);
   const fileInputRef = useRef(null);
+  const tokenClientRef = useRef(null);
+  const gapiLoadedRef = useRef(false);
+
+  // Load Google API scripts on mount
+  useEffect(() => {
+    if (!PICKER_API_KEY || !PICKER_CLIENT_ID) return;
+
+    const loadScript = (src) => new Promise((resolve) => {
+      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = resolve; // fail soft — missing APIs handled by the gapi guard below
+      document.head.appendChild(s);
+    });
+
+    Promise.all([
+      loadScript('https://apis.google.com/js/api.js'),
+      loadScript('https://accounts.google.com/gsi/client'),
+    ]).then(() => {
+      if (!window.gapi?.load || !window.google?.accounts?.oauth2?.initTokenClient) return;
+      window.gapi.load('picker', () => {
+        gapiLoadedRef.current = true;
+        tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+          client_id: PICKER_CLIENT_ID,
+          scope: DRIVE_SCOPE,
+          callback: (resp) => {
+            if (resp.access_token) {
+              openGooglePicker(resp.access_token);
+            }
+          },
+        });
+        setDriveReady(true);
+      });
+    });
+  }, []);
+
+  // Fetch image files inside a Drive folder (paginates, capped at 200)
+  const fetchImagesFromFolder = useCallback(async (folderId, accessToken) => {
+    const FILE_CAP = 200;
+    const IMAGE_MIMES = "mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/jpg'";
+    const q = encodeURIComponent(`'${folderId}' in parents and (${IMAGE_MIMES}) and trashed=false`);
+    const fields = encodeURIComponent('nextPageToken,files(id,name,mimeType)');
+    let files = [];
+    let pageToken = '';
+
+    do {
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=200&includeItemsFromAllDrives=true&supportsAllDrives=true${pageToken ? `&pageToken=${pageToken}` : ''}`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!resp.ok) throw new Error('Failed to list folder contents');
+      const data = await resp.json();
+      files = files.concat(data.files || []);
+      pageToken = data.nextPageToken || '';
+      if (files.length >= FILE_CAP) {
+        toast.warning(`Folder has more than ${FILE_CAP} images — only the first ${FILE_CAP} were loaded.`);
+        return files.slice(0, FILE_CAP);
+      }
+    } while (pageToken);
+
+    return files;
+  }, []);
+
+  const openGooglePicker = useCallback((accessToken) => {
+    if (!gapiLoadedRef.current) return;
+
+    // My Drive — browse folders + images
+    const myDriveView = new window.google.picker.DocsView()
+      .setIncludeFolders(true)
+      .setSelectFolderEnabled(true)
+      .setMimeTypes('application/vnd.google-apps.folder,image/jpeg,image/jpg,image/png');
+
+    // Shared Drives — same capabilities
+    const sharedDriveView = new window.google.picker.DocsView()
+      .setEnableDrives(true)
+      .setIncludeFolders(true)
+      .setSelectFolderEnabled(true)
+      .setMimeTypes('application/vnd.google-apps.folder,image/jpeg,image/jpg,image/png');
+
+    new window.google.picker.PickerBuilder()
+      .setOAuthToken(accessToken)
+      .setDeveloperKey(PICKER_API_KEY)
+      .addView(myDriveView)
+      .addView(sharedDriveView)
+      .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+      .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
+      .setCallback(async (data) => {
+        if (data.action !== window.google.picker.Action.PICKED) return;
+
+        // Expand any selected folders into their image files
+        const FOLDER_MIME = 'application/vnd.google-apps.folder';
+        let fileMetas = [];
+        for (const doc of data.docs) {
+          if (doc.mimeType === FOLDER_MIME) {
+            toast.info(`Reading folder "${doc.name}"…`);
+            try {
+              const folderFiles = await fetchImagesFromFolder(doc.id, accessToken);
+              if (folderFiles.length === 0) toast.warning(`No images found in "${doc.name}"`);
+              fileMetas = fileMetas.concat(folderFiles);
+            } catch {
+              toast.error(`Could not read folder "${doc.name}"`);
+            }
+          } else {
+            fileMetas.push({ id: doc.id, name: doc.name, mimeType: doc.mimeType });
+          }
+        }
+
+        if (fileMetas.length === 0) return;
+        toast.info(`Downloading ${fileMetas.length} image${fileMetas.length !== 1 ? 's' : ''} from Drive…`);
+
+        // Download in batches of 10 to avoid saturating browser connections
+        const BATCH = 10;
+        const downloadedFiles = [];
+        let failCount = 0;
+        for (let i = 0; i < fileMetas.length; i += BATCH) {
+          const batch = fileMetas.slice(i, i + BATCH);
+          const results = await Promise.allSettled(
+            batch.map(async (f) => {
+              const resp = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+              );
+              if (!resp.ok) throw new Error(f.name);
+              const blob = await resp.blob();
+              return new File([blob], f.name, { type: blob.type || 'image/jpeg' });
+            })
+          );
+          for (const r of results) {
+            if (r.status === 'fulfilled') downloadedFiles.push(r.value);
+            else failCount++;
+          }
+        }
+        if (failCount > 0) toast.warning(`${failCount} file(s) could not be downloaded from Drive.`);
+        if (downloadedFiles.length > 0) handleFilesSelected(downloadedFiles);
+      })
+      .build()
+      .setVisible(true);
+  }, [fetchImagesFromFolder]);
+
+  const handlePickFromDrive = () => {
+    if (!driveReady) { toast.error('Google Drive not ready yet.'); return; }
+    // Always request a fresh token — Google access tokens expire after 1 hour.
+    // GIS returns silently if the user is already authenticated and token is fresh.
+    tokenClientRef.current.requestAccessToken();
+  };
 
   const handleFilesSelected = async (selectedFiles) => {
     const fileArr = Array.from(selectedFiles).filter(f =>
@@ -34,6 +259,7 @@ export default function HeadshotUploadPage() {
       return;
     }
     setFiles(fileArr);
+    setManualPicks({});
     setPhase('checking');
 
     try {
@@ -56,10 +282,22 @@ export default function HeadshotUploadPage() {
   const handleUpload = async () => {
     setPhase('uploading');
     try {
-      // Only upload files that matched a builder
-      const matchedFilenames = new Set(checkResult.matches.map(m => m.filename));
-      const filesToUpload = files.filter(f => matchedFilenames.has(f.name));
-      const data = await bulkUploadHeadshots(filesToUpload, token);
+      // Build assignment list from all manually resolved files (ambiguous + unmatched)
+      const assignments = Object.entries(manualPicks)
+        .filter(([, pick]) => pick)
+        .map(([filename, pick]) => ({ filename, userId: pick.userId }));
+
+      // Upload: confirmed matches + resolved ambiguous files
+      const resolvedFilenames = new Set([
+        ...(checkResult.matches ?? []).map(m => m.filename),
+        ...assignments.map(a => a.filename),
+      ]);
+      const filesToUpload = files.filter(f => resolvedFilenames.has(f.name));
+
+      const data = await bulkUploadHeadshots(filesToUpload, token, assignments);
+      if (data.warnings?.length) {
+        data.warnings.forEach(w => toast.warning(w));
+      }
       setUploadResult(data);
       setPhase('results');
     } catch (error) {
@@ -73,8 +311,12 @@ export default function HeadshotUploadPage() {
     setFiles([]);
     setCheckResult(null);
     setUploadResult(null);
+    setManualPicks({});
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  const manuallyResolvedCount = Object.values(manualPicks).filter(Boolean).length;
+  const uploadableCount = (checkResult?.matches?.length ?? 0) + manuallyResolvedCount;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -84,34 +326,59 @@ export default function HeadshotUploadPage() {
       </div>
       <p className="text-sm text-gray-500 mb-8">
         Bulk-upload photographer headshots and automatically map them to builder profiles.
-        Filenames must follow: <code className="bg-gray-100 px-1 rounded">firstname_lastname_monthyear.jpg</code>
+        Accepted formats:{' '}
+        <code className="bg-gray-100 px-1 rounded">firstname_lastname_monthyear.jpg</code>
+        {' '}or{' '}
+        <code className="bg-gray-100 px-1 rounded">firstname_lastname.jpg</code>
       </p>
 
       {/* PHASE: select */}
       {phase === 'select' && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-lg p-16 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-            isDragging
-              ? 'border-[#4242EA] bg-blue-50'
-              : 'border-gray-300 bg-gray-50 hover:border-[#4242EA] hover:bg-blue-50'
-          }`}
-        >
-          <Upload className="h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-base font-medium text-gray-700">Drop headshot files here</p>
-          <p className="text-sm text-gray-400 mt-1">or click to select files</p>
-          <p className="text-xs text-gray-400 mt-3">JPEG and PNG only · up to 200 files at once</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".jpg,.jpeg,.png"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFilesSelected(e.target.files)}
-          />
+        <div className="space-y-4">
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-14 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+              isDragging
+                ? 'border-[#4242EA] bg-blue-50'
+                : 'border-gray-300 bg-gray-50 hover:border-[#4242EA] hover:bg-blue-50'
+            }`}
+          >
+            <Upload className="h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-base font-medium text-gray-700">Drop headshot files here</p>
+            <p className="text-sm text-gray-400 mt-1">or click to select from your computer</p>
+            <p className="text-xs text-gray-400 mt-3">JPEG and PNG only · up to 200 files at once</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFilesSelected(e.target.files)}
+            />
+          </div>
+
+          {PICKER_CLIENT_ID && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 border-t border-gray-200" />
+              <span className="text-xs text-gray-400">or</span>
+              <div className="flex-1 border-t border-gray-200" />
+            </div>
+          )}
+
+          {PICKER_CLIENT_ID && (
+            <Button
+              variant="outline"
+              onClick={handlePickFromDrive}
+              disabled={!driveReady}
+              className="w-full flex items-center justify-center gap-2 h-12"
+            >
+              <HardDrive className="h-4 w-4" />
+              {driveReady ? 'Pick from Google Drive' : 'Loading Drive…'}
+            </Button>
+          )}
         </div>
       )}
 
@@ -131,24 +398,30 @@ export default function HeadshotUploadPage() {
         </div>
       )}
 
-      {/* PHASE: preview — DB-verified matches, staff confirms before anything is written */}
+      {/* PHASE: preview */}
       {phase === 'preview' && checkResult && (
         <div>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-5">
             <span className="text-sm font-medium text-gray-700">{files.length} files checked</span>
-            {checkResult.matches.length > 0 && (
+            {(checkResult.matches?.length ?? 0) > 0 && (
               <Badge className="bg-green-100 text-green-700 border-green-200">
                 {checkResult.matches.length} matched
               </Badge>
             )}
-            {checkResult.unmatched.length > 0 && (
+            {(checkResult.ambiguous?.length ?? 0) > 0 && (
+              <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
+                {checkResult.ambiguous.length} needs selection
+              </Badge>
+            )}
+            {(checkResult.unmatched?.length ?? 0) > 0 && (
               <Badge className="bg-red-100 text-red-700 border-red-200">
                 {checkResult.unmatched.length} no match
               </Badge>
             )}
           </div>
 
-          {checkResult.matches.length > 0 && (
+          {/* Confirmed matches */}
+          {(checkResult.matches?.length ?? 0) > 0 && (
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
                 Will upload
@@ -160,7 +433,6 @@ export default function HeadshotUploadPage() {
                       <TableHead>Filename</TableHead>
                       <TableHead>Builder</TableHead>
                       <TableHead>Cohort</TableHead>
-                      <TableHead className="w-20">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -172,8 +444,56 @@ export default function HeadshotUploadPage() {
                           {m.name}
                         </TableCell>
                         <TableCell>{m.cohort}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {/* Ambiguous — multiple builders share the name, pick from known options */}
+          {(checkResult.ambiguous?.length ?? 0) > 0 && (
+            <div className="mb-5">
+              <h2 className="text-sm font-semibold text-yellow-700 uppercase tracking-wide mb-1">
+                Needs selection
+              </h2>
+              <p className="text-xs text-gray-500 mb-2">
+                Multiple builders share this name. Pick the right one or leave blank to skip.
+              </p>
+              <div className="border border-yellow-200 rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Filename</TableHead>
+                      <TableHead>Parsed name</TableHead>
+                      <TableHead>Select builder</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {checkResult.ambiguous.map((a, i) => (
+                      <TableRow key={i} className="bg-yellow-50">
+                        <TableCell className="font-mono text-xs text-gray-600">{a.filename}</TableCell>
+                        <TableCell className="text-gray-700">{a.parsedName}</TableCell>
                         <TableCell>
-                          <Badge className="bg-green-100 text-green-700 border-green-200">Upload</Badge>
+                          <Select
+                            value={manualPicks[a.filename] ? String(manualPicks[a.filename].userId) : ''}
+                            onValueChange={(val) => {
+                              const opt = a.options.find(o => String(o.userId) === val);
+                              setManualPicks(prev => ({ ...prev, [a.filename]: opt || null }));
+                            }}
+                          >
+                            <SelectTrigger className="w-56 h-8 text-sm">
+                              <SelectValue placeholder="Skip this file" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {a.options.map((opt) => (
+                                <SelectItem key={opt.userId} value={String(opt.userId)}>
+                                  {opt.name} — {opt.cohort}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -183,24 +503,42 @@ export default function HeadshotUploadPage() {
             </div>
           )}
 
-          {checkResult.unmatched.length > 0 && (
+          {/* Unmatched — search and manually assign, or leave to skip */}
+          {(checkResult.unmatched?.length ?? 0) > 0 && (
             <div className="mb-5">
-              <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide mb-2">
-                Will skip
+              <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide mb-1">
+                No match found
               </h2>
-              <div className="border border-red-200 rounded-lg overflow-hidden">
+              <p className="text-xs text-gray-500 mb-2">
+                Search for the right builder to manually assign, or leave blank to skip.
+              </p>
+              <div className="border border-red-200 rounded-lg overflow-visible">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Filename</TableHead>
                       <TableHead>Reason</TableHead>
+                      <TableHead>Assign to builder</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {checkResult.unmatched.map((m, i) => (
-                      <TableRow key={i} className="bg-red-50">
+                      <TableRow key={i} className={manualPicks[m.filename] ? 'bg-green-50' : 'bg-red-50'}>
                         <TableCell className="font-mono text-xs text-gray-600">{m.filename}</TableCell>
-                        <TableCell className="text-red-600 text-sm">{m.reason}</TableCell>
+                        <TableCell className="text-red-600 text-sm">
+                          {manualPicks[m.filename]
+                            ? <span className="text-green-700 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Manually assigned</span>
+                            : m.reason}
+                        </TableCell>
+                        <TableCell>
+                          <BuilderSearchInput
+                            token={token}
+                            currentPick={manualPicks[m.filename] || null}
+                            onSelect={(builder) =>
+                              setManualPicks(prev => ({ ...prev, [m.filename]: builder }))
+                            }
+                          />
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -209,20 +547,15 @@ export default function HeadshotUploadPage() {
             </div>
           )}
 
-          <div className="flex gap-3 mt-4">
-            <Button variant="outline" onClick={reset}>
-              Cancel
+          <div className="flex gap-3 mt-4 items-center">
+            <Button variant="outline" onClick={reset}>Cancel</Button>
+            <Button onClick={handleUpload} disabled={uploadableCount === 0}>
+              Confirm &amp; Upload {uploadableCount} headshot{uploadableCount !== 1 ? 's' : ''}
             </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={checkResult.matches.length === 0}
-            >
-              Confirm &amp; Upload {checkResult.matches.length} headshot{checkResult.matches.length !== 1 ? 's' : ''}
-            </Button>
+            {uploadableCount === 0 && (
+              <span className="text-sm text-gray-500">No files to upload — fix filenames and try again.</span>
+            )}
           </div>
-          {checkResult.matches.length === 0 && (
-            <p className="text-sm text-gray-500 mt-2">No matched files to upload. Fix filenames and try again.</p>
-          )}
         </div>
       )}
 
@@ -244,9 +577,7 @@ export default function HeadshotUploadPage() {
 
           {uploadResult.matched.length > 0 && (
             <div className="mb-6">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
-                Uploaded
-              </h2>
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Uploaded</h2>
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -275,9 +606,7 @@ export default function HeadshotUploadPage() {
 
           {uploadResult.unmatched.length > 0 && (
             <div className="mb-6">
-              <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide mb-2">
-                Failed
-              </h2>
+              <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide mb-2">Failed</h2>
               <div className="border border-red-200 rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
