@@ -64,7 +64,7 @@ function BuilderSearchInput({ token, onSelect, currentPick }) {
         />
       </div>
       {open && (results.length > 0 || searching) && (
-        <div className="absolute z-50 top-full mt-1 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 bottom-full mb-1 w-full bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
           {searching && (
             <div className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2">
               <Loader2 className="h-3 w-3 animate-spin" /> Searching…
@@ -496,7 +496,7 @@ export default function HeadshotUploadPage() {
               <p className="text-xs text-gray-500 mb-2">
                 Search for the right builder to manually assign, or leave blank to skip.
               </p>
-              <div className="border border-red-200 rounded-lg overflow-hidden">
+              <div className="border border-red-200 rounded-lg overflow-visible">
                 <Table>
                   <TableHeader>
                     <TableRow>
