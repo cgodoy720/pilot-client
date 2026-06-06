@@ -280,6 +280,9 @@ export default function HeadshotUploadPage() {
       const filesToUpload = files.filter(f => resolvedFilenames.has(f.name));
 
       const data = await bulkUploadHeadshots(filesToUpload, token, assignments);
+      if (data.warnings?.length) {
+        data.warnings.forEach(w => toast.warning(w));
+      }
       setUploadResult(data);
       setPhase('results');
     } catch (error) {
