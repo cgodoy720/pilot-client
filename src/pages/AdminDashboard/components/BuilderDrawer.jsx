@@ -372,7 +372,9 @@ const BuilderDrawer = ({ builder, startDate, endDate, selectedLevel, cohortId, o
     if (!builder?.user_id) return;
     setBuilderPhoto(null);
     setPhotoError(false);
-    getUserProfilePhoto(builder.user_id, token).then(setBuilderPhoto);
+    getUserProfilePhoto(builder.user_id, token)
+      .then(setBuilderPhoto)
+      .catch(() => setPhotoError(true));
   }, [builder?.user_id, token]);
 
   useEffect(() => {

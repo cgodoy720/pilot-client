@@ -117,6 +117,7 @@ export default function HeadshotUploadPage() {
       const s = document.createElement('script');
       s.src = src;
       s.onload = resolve;
+      s.onerror = resolve; // fail soft — missing APIs handled by the gapi guard below
       document.head.appendChild(s);
     });
 
@@ -124,6 +125,7 @@ export default function HeadshotUploadPage() {
       loadScript('https://apis.google.com/js/api.js'),
       loadScript('https://accounts.google.com/gsi/client'),
     ]).then(() => {
+      if (!window.gapi?.load || !window.google?.accounts?.oauth2?.initTokenClient) return;
       window.gapi.load('picker', () => {
         gapiLoadedRef.current = true;
         tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
@@ -140,8 +142,9 @@ export default function HeadshotUploadPage() {
     });
   }, []);
 
-  // Fetch all image files inside a Drive folder (handles pagination)
+  // Fetch image files inside a Drive folder (paginates, capped at 200)
   const fetchImagesFromFolder = useCallback(async (folderId, accessToken) => {
+    const FILE_CAP = 200;
     const IMAGE_MIMES = "mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/jpg'";
     const q = encodeURIComponent(`'${folderId}' in parents and (${IMAGE_MIMES}) and trashed=false`);
     const fields = encodeURIComponent('nextPageToken,files(id,name,mimeType)');
@@ -155,6 +158,10 @@ export default function HeadshotUploadPage() {
       const data = await resp.json();
       files = files.concat(data.files || []);
       pageToken = data.nextPageToken || '';
+      if (files.length >= FILE_CAP) {
+        toast.warning(`Folder has more than ${FILE_CAP} images — only the first ${FILE_CAP} were loaded.`);
+        return files.slice(0, FILE_CAP);
+      }
     } while (pageToken);
 
     return files;
@@ -207,22 +214,30 @@ export default function HeadshotUploadPage() {
         if (fileMetas.length === 0) return;
         toast.info(`Downloading ${fileMetas.length} image${fileMetas.length !== 1 ? 's' : ''} from Drive…`);
 
-        try {
-          const downloadedFiles = await Promise.all(
-            fileMetas.map(async (f) => {
+        // Download in batches of 10 to avoid saturating browser connections
+        const BATCH = 10;
+        const downloadedFiles = [];
+        let failCount = 0;
+        for (let i = 0; i < fileMetas.length; i += BATCH) {
+          const batch = fileMetas.slice(i, i + BATCH);
+          const results = await Promise.allSettled(
+            batch.map(async (f) => {
               const resp = await fetch(
                 `https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`,
                 { headers: { Authorization: `Bearer ${accessToken}` } }
               );
-              if (!resp.ok) throw new Error(`Failed to download ${f.name}`);
+              if (!resp.ok) throw new Error(f.name);
               const blob = await resp.blob();
               return new File([blob], f.name, { type: blob.type || 'image/jpeg' });
             })
           );
-          handleFilesSelected(downloadedFiles);
-        } catch (err) {
-          toast.error(`Drive download failed: ${err.message}`);
+          for (const r of results) {
+            if (r.status === 'fulfilled') downloadedFiles.push(r.value);
+            else failCount++;
+          }
         }
+        if (failCount > 0) toast.warning(`${failCount} file(s) could not be downloaded from Drive.`);
+        if (downloadedFiles.length > 0) handleFilesSelected(downloadedFiles);
       })
       .build()
       .setVisible(true);
@@ -406,7 +421,7 @@ export default function HeadshotUploadPage() {
           </div>
 
           {/* Confirmed matches */}
-          {checkResult.matches.length > 0 && (
+          {(checkResult.matches?.length ?? 0) > 0 && (
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
                 Will upload
