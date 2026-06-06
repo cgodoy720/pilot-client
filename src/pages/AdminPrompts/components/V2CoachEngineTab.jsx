@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Badge } from '../../../components/ui/badge';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { RefreshCw, Brain, BookOpen, Target, ClipboardCheck, MessageSquare, GitBranch, Users, Layers, HelpCircle } from 'lucide-react';
+import { RefreshCw, Brain, BookOpen, Target, ClipboardCheck, MessageSquare, GitBranch, Users, Layers, HelpCircle, Mic, Network, Gauge, Lock } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import LoadingState from './shared/LoadingState';
 
@@ -93,7 +93,16 @@ const V2CoachEngineTab = ({ showNotification }) => {
   if (loading) return <LoadingState count={3} />;
   if (!data) return null;
 
-  const { templates, programContext, skillTaxonomy, graphConfig, profileFields } = data;
+  const {
+    templates,
+    programContext,
+    skillTaxonomy,
+    graphConfig,
+    profileFields,
+    onboardingAgent,
+    coachv2InlineNodes,
+    evalRubric,
+  } = data;
 
   return (
     <div className="space-y-6">
@@ -115,6 +124,17 @@ const V2CoachEngineTab = ({ showNotification }) => {
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
+      </div>
+
+      {/* Read-only banner */}
+      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+        <Lock className="h-5 w-5 text-amber-700 mt-0.5 shrink-0" />
+        <div>
+          <p className="font-proxima-bold text-sm text-amber-900">Read-only</p>
+          <p className="font-proxima text-sm text-amber-800">
+            This tab shows every prompt, marker, and config the v2 coach engine actually uses in production — sourced from the deployed code at request time. Editing requires DB-backed prompts (planned).
+          </p>
+        </div>
       </div>
 
       {/* Graph Flow Overview */}
@@ -327,6 +347,190 @@ const V2CoachEngineTab = ({ showNotification }) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Onboarding Voice Agent */}
+      {onboardingAgent && (
+        <Card className="bg-white border-[#C8C8C8]">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Mic className="h-5 w-5 text-[#4242EA]" />
+              <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                {onboardingAgent.name}
+              </CardTitle>
+              <InfoTip text="The Day-0 LiveKit voice agent that runs the 15-20 minute meet-and-greet before the v2 coach takes over. It seeds the builder's profile (background, goals, learning style) and is the same coach persona that will accompany them through the program." />
+            </div>
+            <CardDescription className="font-proxima text-[#666]">
+              {onboardingAgent.description}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {onboardingAgent.sections.map((section) => (
+                <div key={section.key} className="border border-[#E3E3E3] rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-2 bg-[#F5F5F5] border-b border-[#E3E3E3] px-3 py-2">
+                    <p className="font-proxima-bold text-sm text-[#1E1E1E]">{section.label}</p>
+                    {section.isTemplate && (
+                      <Badge variant="outline" className="text-xs border-[#4242EA] text-[#4242EA] bg-white">
+                        Template — runtime data injected
+                      </Badge>
+                    )}
+                  </div>
+                  {section.description && (
+                    <p className="font-proxima text-xs text-[#666] px-3 pt-2">{section.description}</p>
+                  )}
+                  <div className="p-3">
+                    <ScrollArea className="max-h-[260px] w-full">
+                      <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed bg-white">
+                        {section.content || '(empty)'}
+                      </pre>
+                    </ScrollArea>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* CoachV2 inline node prompts */}
+      {Array.isArray(coachv2InlineNodes) && coachv2InlineNodes.length > 0 && (
+        <Card className="bg-white border-[#C8C8C8]">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Network className="h-5 w-5 text-[#4242EA]" />
+              <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                CoachV2 Inline Node Prompts
+              </CardTitle>
+              <InfoTip text="The v2 coach LangGraph has 8 nodes. Four use the phase templates above (learn / apply / grade / remediate). The other four (init, generateApply, complete, reflect) carry inline system prompts in their .js files — those are surfaced verbatim here so the tab is the single source of truth." />
+            </div>
+            <CardDescription className="font-proxima text-[#666]">
+              Every node the coachV2 LangGraph runs — system prompt source, in-band markers, and per-node caps.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {coachv2InlineNodes.map((node) => (
+                <div key={node.node} className="border border-[#E3E3E3] rounded-lg overflow-hidden">
+                  <div className="flex items-center flex-wrap gap-2 bg-[#F5F5F5] border-b border-[#E3E3E3] px-3 py-2">
+                    <Badge variant="outline" className="font-mono text-xs bg-white">
+                      {node.node}
+                    </Badge>
+                    <p className="font-proxima-bold text-sm text-[#1E1E1E]">{node.label}</p>
+                    <code className="font-mono text-xs text-[#666] ml-auto">
+                      {node.systemPromptSource}
+                    </code>
+                  </div>
+                  <div className="px-3 py-3 space-y-3">
+                    {node.description && (
+                      <p className="font-proxima text-sm text-[#666]">{node.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-3">
+                      {node.markers && node.markers.length > 0 && (
+                        <div>
+                          <p className="font-proxima text-xs text-[#666] mb-1">Markers</p>
+                          <div className="flex flex-wrap gap-1">
+                            {node.markers.map((m) => (
+                              <Badge key={m} variant="outline" className="font-mono text-xs bg-amber-50 border-amber-300 text-amber-800">
+                                {m}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {node.caps && Object.keys(node.caps).length > 0 && (
+                        <div>
+                          <p className="font-proxima text-xs text-[#666] mb-1">Caps / Config</p>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(node.caps).map(([k, v]) => (
+                              <Badge key={k} variant="outline" className="font-mono text-xs bg-white">
+                                {k}={Array.isArray(v) ? v.join('|') : String(v)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {node.content && (
+                      <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg">
+                        <ScrollArea className="max-h-[360px] w-full p-3">
+                          <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                            {node.content}
+                          </pre>
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Eval Rubric */}
+      {evalRubric && (
+        <Card className="bg-white border-[#C8C8C8]">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gauge className="h-5 w-5 text-[#4242EA]" />
+              <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                {evalRubric.name}
+              </CardTitle>
+              <InfoTip text="The rubric the v2 coach eval harness uses to judge runs. Each dimension's criterion below is the rubric text fed to the LLM judge. The judge template and simulated-builder template are the full prompts used in services/coachEvalJudges.js + the simulated-builder driver." />
+            </div>
+            <CardDescription className="font-proxima text-[#666]">
+              {evalRubric.description}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">Judge Dimensions</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(evalRubric.dimensions || []).map((d) => (
+                  <div key={d.key} className="bg-[#F5F5F5] rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="font-mono text-xs bg-white">
+                        {d.key}
+                      </Badge>
+                      <p className="font-proxima-bold text-sm text-[#1E1E1E]">{d.label}</p>
+                    </div>
+                    {d.description && (
+                      <p className="font-proxima text-xs text-[#666] mb-2">{d.description}</p>
+                    )}
+                    <p className="font-proxima text-sm text-[#1E1E1E] leading-relaxed">
+                      {d.criterion}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">Judge Template</p>
+              <p className="font-proxima text-xs text-[#666] mb-2">prompts/eval/judge.md — the system prompt every dimension's LLM judge receives, with the per-dimension rubric substituted in.</p>
+              <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg">
+                <ScrollArea className="max-h-[360px] w-full p-3">
+                  <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                    {evalRubric.judgeTemplate || '(template missing)'}
+                  </pre>
+                </ScrollArea>
+              </div>
+            </div>
+
+            <div>
+              <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">Simulated Builder Template</p>
+              <p className="font-proxima text-xs text-[#666] mb-2">prompts/eval/simulated-builder.md — the persona-driven prompt the harness uses to drive each coach run headlessly.</p>
+              <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg">
+                <ScrollArea className="max-h-[360px] w-full p-3">
+                  <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                    {evalRubric.simulatedBuilderTemplate || '(template missing)'}
+                  </pre>
+                </ScrollArea>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

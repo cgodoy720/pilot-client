@@ -5,11 +5,11 @@ const getHeaders = (token) => ({
   Authorization: `Bearer ${token}`,
 });
 
-export async function startSession(token, taskId) {
+export async function startSession(token, taskId, voiceId = null) {
   const res = await fetch(`${API_URL}/api/onboarding-session/start`, {
     method: 'POST',
     headers: getHeaders(token),
-    body: JSON.stringify({ taskId }),
+    body: JSON.stringify(voiceId ? { taskId, voiceId } : { taskId }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

@@ -7,6 +7,7 @@ import {
   completeSession,
   abandonSession,
 } from '../../../services/onboardingApi';
+import { ONBOARDING_VOICES } from '../../../services/onboardingVoices';
 import { useStreamingText } from '../../../hooks/useStreamingText';
 import AutoExpandTextarea from '../../../components/AutoExpandTextarea';
 import { Button } from '../../../components/ui/button';
@@ -126,21 +127,49 @@ function InnerRoom({ userId, initialMessages, isLastTask, onFinish }) {
     }
   }, [toggleMic]);
 
-  // Subscribe to LiveKit transcriptions (Req 2.4): render both speakers.
+  // Subscribe to LiveKit transcriptions (Req 2.4): render both speakers, and
+  // stream interim text live as the agent speaks.
+  //
+  // The agent worker (via voice.AgentSession's SyncedTextOutput) publishes
+  // text segments synchronized with TTS audio playback. Each segment has a
+  // stable `id` and arrives multiple times: first with partial text and
+  // `final: false`, then with the full text and `final: true`. We key bubbles
+  // by `segmentId` and update their content in-place so the on-screen text
+  // matches what the user is hearing in real time. Final-only would produce a
+  // 1–2 sec lag after each sentence completes.
   useEffect(() => {
     if (!room) return;
 
     const handleTranscription = (segments, participant) => {
-      const finals = segments.filter((s) => s.final);
-      if (!finals.length) return;
+      if (!segments?.length) return;
       const role = participant?.identity?.startsWith('builder-') ? 'user' : 'coach';
-      setMessages((prev) => [
-        ...prev,
-        ...finals.map((s) => {
-          seqRef.current += 1;
-          return { role, content: s.text, seq: seqRef.current, ts: Date.now() };
-        }),
-      ]);
+
+      setMessages((prev) => {
+        const next = [...prev];
+        for (const seg of segments) {
+          if (!seg?.id) continue;
+          const idx = next.findIndex((m) => m.segmentId === seg.id);
+          if (idx >= 0) {
+            // Update in place — same bubble, growing text.
+            next[idx] = {
+              ...next[idx],
+              content: seg.text,
+              final: !!seg.final,
+            };
+          } else {
+            seqRef.current += 1;
+            next.push({
+              role,
+              content: seg.text,
+              seq: seqRef.current,
+              ts: Date.now(),
+              segmentId: seg.id,
+              final: !!seg.final,
+            });
+          }
+        }
+        return next;
+      });
     };
 
     room.on('transcriptionReceived', handleTranscription);
@@ -306,17 +335,93 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
   const [connection, setConnection] = useState(null); // { sessionId, livekitToken, livekitUrl }
   const [initialMessages, setInitialMessages] = useState([]);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  // Pre-call state: builder hasn't picked a voice yet. We deliberately do NOT
+  // call startSession on mount — it only fires once they click "Start". A nice
+  // side effect: React StrictMode's mount→unmount→remount no longer triggers
+  // duplicate dispatches because there's nothing to dispatch until the user
+  // confirms. selectedVoiceId starts null so the user has to actively pick.
+  const [selectedVoiceId, setSelectedVoiceId] = useState(null);
+  const [previewingVoiceId, setPreviewingVoiceId] = useState(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const startTimeRef = useRef(Date.now());
   const completedRef = useRef(false);
+  const previewAudioRef = useRef(null);
+  const previewAbortRef = useRef(null);
+  const previewBlobUrlRef = useRef(null);
 
-  // On mount: start (or resume) the session, hydrating prior turns for resume (Req 14.7).
+  const playVoicePreview = useCallback(
+    async (voiceId) => {
+      setSelectedVoiceId(voiceId);
+
+      // Cancel any in-flight preview fetch from a prior click.
+      if (previewAbortRef.current) previewAbortRef.current.abort();
+      previewAbortRef.current = new AbortController();
+
+      // Stop any currently playing preview.
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current.currentTime = 0;
+      }
+      // Release the previous Blob URL to avoid leaking memory across clicks.
+      if (previewBlobUrlRef.current) {
+        URL.revokeObjectURL(previewBlobUrlRef.current);
+        previewBlobUrlRef.current = null;
+      }
+
+      setPreviewingVoiceId(voiceId);
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/onboarding-session/voice-preview/${encodeURIComponent(voiceId)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: previewAbortRef.current.signal,
+          },
+        );
+        if (!res.ok) {
+          setPreviewingVoiceId(null);
+          return; // silent fail; user can click again to retry
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        previewBlobUrlRef.current = url;
+        if (previewAudioRef.current) {
+          previewAudioRef.current.src = url;
+          await previewAudioRef.current.play().catch(() => {});
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Voice preview failed:', err);
+        }
+      } finally {
+        setPreviewingVoiceId((current) => (current === voiceId ? null : current));
+      }
+    },
+    [token],
+  );
+
+  // Cleanup any in-flight preview state on unmount.
   useEffect(() => {
+    return () => {
+      if (previewAbortRef.current) previewAbortRef.current.abort();
+      if (previewAudioRef.current) previewAudioRef.current.pause();
+      if (previewBlobUrlRef.current) {
+        URL.revokeObjectURL(previewBlobUrlRef.current);
+        previewBlobUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  // Fires when the builder clicks "Start" with a chosen voice.
+  useEffect(() => {
+    if (!hasStarted) return;
     let cancelled = false;
+    setIsLoading(true);
+    startTimeRef.current = Date.now();
 
     (async () => {
       try {
-        const data = await startSession(token, taskId);
+        const data = await startSession(token, taskId, selectedVoiceId);
         if (cancelled) return;
 
         // Resume hydration (Req 14.7): pull prior transcript turns before connecting.
@@ -356,7 +461,7 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId]);
+  }, [hasStarted, taskId]);
 
   // Completion: complete the session (enqueues extraction) then advance the task.
   const handleComplete = useCallback(async () => {
@@ -384,6 +489,89 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
       }
     };
   }, [connection, token]);
+
+  // Pre-call: voice picker. Only renders when the builder hasn't clicked "Start"
+  // yet. After they click, hasStarted=true → the useEffect above fires startSession
+  // → we transition to the loading state below, then to the LiveKitRoom.
+  if (!hasStarted) {
+    const genderPillClass = (gender) => {
+      if (gender === 'female')  return 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200';
+      if (gender === 'male')    return 'bg-sky-50 text-sky-700 border-sky-200';
+      if (gender === 'neutral') return 'bg-slate-100 text-slate-700 border-slate-300';
+      return 'bg-gray-100 text-gray-700 border-gray-200';
+    };
+
+    return (
+      <div className="flex-1 flex flex-col items-center justify-start bg-bg-light px-6 py-10 overflow-y-auto">
+        <div className="max-w-5xl w-full">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-proxima-bold text-carbon-black mb-2">
+              Pick your coach&apos;s voice
+            </h2>
+            <p className="text-[#666] font-proxima">
+              Click a voice to hear a quick sample. Pick the one you&apos;d most enjoy
+              hearing for the next 15–20 minutes.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+            {ONBOARDING_VOICES.map((voice) => {
+              const selected = voice.id === selectedVoiceId;
+              const previewing = voice.id === previewingVoiceId;
+              return (
+                <button
+                  key={voice.id}
+                  type="button"
+                  onClick={() => playVoicePreview(voice.id)}
+                  className={`text-left rounded-lg border-2 px-4 py-3 transition-colors font-proxima
+                    ${selected
+                      ? 'border-pursuit-purple bg-pursuit-purple/5'
+                      : 'border-gray-200 bg-white hover:border-gray-300'}
+                  `}
+                  aria-pressed={selected}
+                >
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <span className="flex items-center gap-2 font-proxima-bold text-carbon-black">
+                      {voice.name}
+                      {previewing && (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-pursuit-purple" />
+                      )}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border shrink-0 ${genderPillClass(voice.gender)}`}>
+                      {voice.gender}
+                    </span>
+                  </div>
+                  <p className="text-sm text-[#666] leading-snug">
+                    {voice.description}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col items-center gap-2 sticky bottom-4">
+            <Button
+              onClick={() => setHasStarted(true)}
+              disabled={!selectedVoiceId}
+              className="bg-pursuit-purple hover:bg-pursuit-purple/90 disabled:bg-gray-300 disabled:cursor-not-allowed px-8 py-6 text-base font-proxima-bold shadow-lg"
+            >
+              <Mic className="w-4 h-4 mr-2" />
+              Start conversation
+            </Button>
+            {!selectedVoiceId && (
+              <p className="text-xs text-[#888] font-proxima">
+                Pick a voice to continue
+              </p>
+            )}
+          </div>
+
+          {/* Hidden audio element used for all voice previews. Single ref so
+              switching voices interrupts the previous sample cleanly. */}
+          <audio ref={previewAudioRef} className="hidden" />
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

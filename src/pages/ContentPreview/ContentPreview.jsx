@@ -180,6 +180,8 @@ function ContentPreview() {
         details.assessmentSubmissions > 0 && `${details.assessmentSubmissions} assessment submission(s)`,
         details.taskProgress > 0 && `${details.taskProgress} task progress record(s)`,
         details.feedback > 0 && `${details.feedback} survey response(s)`,
+        details.onboardingSessions > 0 && `${details.onboardingSessions} onboarding voice session(s)`,
+        details.onboardingProfileEnvelopes > 0 && `onboarding profile envelopes cleared`,
         details.submissionImagesFound > 0 && `${details.submissionImagesDeleted || 0}/${details.submissionImagesFound} submission image(s) deleted`
       ].filter(Boolean).join('<br>');
       

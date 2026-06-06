@@ -15,6 +15,7 @@ import PeerFeedbackSheet from '../../../components/PeerFeedbackSheet';
 import SurveyInterface from '../../../components/SurveyInterface/SurveyInterface';
 import AssessmentInterface from '../../../components/AssessmentInterface/AssessmentInterface';
 import BreakInterface from '../../../components/BreakInterface/BreakInterface';
+import OnboardingInterface from '../../Learning/components/OnboardingInterface';
 import DeliverablePanel from '../../Learning/components/DeliverablePanel/DeliverablePanel';
 import TaskCompletionBar from '../../../components/TaskCompletionBar/TaskCompletionBar';
 import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
@@ -1091,6 +1092,63 @@ function LearningPreview({ dayId, cohort, onBack }) {
     }
   };
 
+  // Handle onboarding completion — mirrors handleSurveyComplete. The voice
+  // session itself runs against /api/onboarding-session/* (real LiveKit room +
+  // agent dispatch); this handler only records that the preview-side task is
+  // done so the carousel advances.
+  const handleOnboardingComplete = async () => {
+    const currentTask = tasks[currentTaskIndex];
+    const isLastTask = currentTaskIndex === tasks.length - 1;
+
+    if (!currentTask?.id) {
+      toast.error("Unable to proceed - current task not found");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/learning/complete-task/${currentTask.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: 'Onboarding voice session completed',
+            isPreviewMode: true
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to mark task as complete');
+      }
+
+      setTaskCompletionMap(prev => ({
+        ...prev,
+        [currentTask.id]: {
+          ...prev[currentTask.id],
+          isComplete: true,
+          reason: 'Onboarding completed'
+        }
+      }));
+
+      if (isLastTask) {
+        setTimeout(() => {
+          setShowDailyOverview(true);
+        }, 2000);
+      } else {
+        setTimeout(async () => {
+          await handleTaskChange(currentTaskIndex + 1);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error marking onboarding complete in preview:', error);
+      toast.error("Failed to mark task complete. Please try again.");
+    }
+  };
+
   // Handle assessment completion
   const handleAssessmentComplete = async () => {
     const currentTask = tasks[currentTaskIndex];
@@ -1142,6 +1200,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
   const isCurrentTaskAssessment = () => tasks[currentTaskIndex]?.task_type === 'assessment';
   const isCurrentTaskBreak = () => tasks[currentTaskIndex]?.task_type === 'break';
+  const isCurrentTaskOnboarding = () => tasks[currentTaskIndex]?.task_type === 'onboarding';
   const isRetrospectiveTask = () => {
     const task = tasks[currentTaskIndex];
     return task?.task_title?.toLowerCase().includes('retro') || false;
@@ -1240,6 +1299,23 @@ function LearningPreview({ dayId, cohort, onBack }) {
             <div className="flex-1 flex flex-col relative overflow-hidden">
               <BreakInterface taskTitle={tasks[currentTaskIndex]?.task_title} />
             </div>
+          ) : isCurrentTaskOnboarding() ? (
+            // Onboarding (task_type='onboarding') — render the real voice
+            // interface, same as Learning.jsx. Preview is 1:1 with the builder
+            // experience; the only thing wrapping it is the preview banner.
+            // OnboardingInterface owns LiveKit session start/resume/complete via
+            // /api/onboarding-session/*.
+            <div className="flex-1 flex flex-col relative overflow-hidden">
+              <OnboardingInterface
+                key={`onboarding-${tasks[currentTaskIndex]?.id}`}
+                taskId={tasks[currentTaskIndex]?.id}
+                cohort={currentDay?.cohort}
+                userId={user?.id}
+                isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
+                isLastTask={currentTaskIndex === tasks.length - 1}
+                onComplete={handleOnboardingComplete}
+              />
+            </div>
           ) : (
             <div className="flex-1 flex flex-col relative overflow-hidden">
               <div 
@@ -1324,7 +1400,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
             </div>
           )}
 
-          {tasks[currentTaskIndex] && !isCurrentTaskSurvey() && !isCurrentTaskAssessment() && !isCurrentTaskBreak() && (
+          {tasks[currentTaskIndex] && !isCurrentTaskSurvey() && !isCurrentTaskAssessment() && !isCurrentTaskBreak() && !isCurrentTaskOnboarding() && (
             <DeliverablePanel
               task={tasks[currentTaskIndex]}
               currentSubmission={taskSubmissions[tasks[currentTaskIndex].id]}
