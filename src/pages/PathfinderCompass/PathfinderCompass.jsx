@@ -40,6 +40,8 @@ const COACH_FLAG_START = '[COMPASS_COACH_FLAG]';
 const COACH_FLAG_END = '[/COMPASS_COACH_FLAG]';
 const LOG_START = '[COMPASS_LOG]';
 const LOG_END = '[/COMPASS_LOG]';
+const EDIT_GOAL_START = '[COMPASS_EDIT_GOAL]';
+const EDIT_GOAL_END = '[/COMPASS_EDIT_GOAL]';
 
 function extractBetween(text, start, end) {
   const s = text.indexOf(start);
@@ -55,6 +57,7 @@ function stripForDisplay(text) {
     [ADD_GOALS_START, ADD_GOALS_END],
     [COACH_FLAG_START, COACH_FLAG_END],
     [LOG_START, LOG_END],
+    [EDIT_GOAL_START, EDIT_GOAL_END],
   ];
   let result = text;
   // Remove complete signal blocks (start tag through end tag)
@@ -73,7 +76,7 @@ function stripForDisplay(text) {
   }
   // Strip any partial signal prefix at the tail (streaming artifact where
   // only part of a start tag has arrived, e.g. "[COMPASS_CO")
-  const allSignals = [COMPLETE_START, ADD_GOALS_START, COACH_FLAG_START, LOG_START];
+  const allSignals = [COMPLETE_START, ADD_GOALS_START, COACH_FLAG_START, LOG_START, EDIT_GOAL_START];
   for (const signal of allSignals) {
     for (let len = signal.length - 1; len > 0; len--) {
       if (result.endsWith(signal.slice(0, len))) {
@@ -651,7 +654,8 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
 
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isCompleting, setIsCompleting] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(null); // null | 'cycle' | 'adding' | 'editing'
+  const completingTypeRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchIndex, setSearchIndex] = useState(0);
@@ -895,7 +899,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   }, [status, user, cycleEnded]);
 
   const handleCompletionPayload = useCallback(async (payload) => {
-    setIsCompleting(true);
+    setIsCompleting('cycle');
     try {
       // Read from `cycleEndedRef` (kept in sync with the `cycleEnded` prop
       // synchronously during render — see `cycleEndedRef.current = cycleEnded`
@@ -933,7 +937,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     } catch (err) {
       console.error('Failed to complete onboarding/new cycle:', err);
     } finally {
-      if (isMountedRef.current) setIsCompleting(false);
+      if (isMountedRef.current) setIsCompleting(null);
     }
   }, [token, onEnrollmentComplete]);
 
@@ -983,7 +987,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
   }, [token, onEnrollmentComplete]);
 
   const handleAddGoalsPayload = useCallback(async (payload) => {
-    setIsCompleting(true);
+    setIsCompleting('adding');
     try {
       const res = await fetch(`${API_URL}/api/pathfinder/compass/goals/add`, {
         method: 'POST',
@@ -1005,7 +1009,37 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     } catch (err) {
       console.error('Failed to add goals:', err);
     } finally {
-      if (isMountedRef.current) setIsCompleting(false);
+      if (isMountedRef.current) setIsCompleting(null);
+    }
+  }, [token, onEnrollmentComplete]);
+
+  const handleEditGoalPayload = useCallback(async (payload) => {
+    setIsCompleting('editing');
+    try {
+      const res = await fetch(`${API_URL}/api/pathfinder/compass/goals/edit`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          goal_key: payload.goal_key,
+          goal_text: payload.goal_text,
+          is_human_interaction_goal: payload.is_human_interaction_goal,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error('Compass goals/edit endpoint returned error:', res.status, errBody);
+      }
+      const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (statusRes.ok) {
+        const statusJson = await statusRes.json();
+        if (isMountedRef.current) onEnrollmentComplete(statusJson);
+      }
+    } catch (err) {
+      console.error('Failed to edit goal:', err);
+    } finally {
+      if (isMountedRef.current) setIsCompleting(null);
     }
   }, [token, onEnrollmentComplete]);
 
@@ -1159,8 +1193,17 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
                 if (data.type === 'text') {
                   firstChunkReceived = true;
                   fullContent += data.content;
-                  if (fullContent.includes(COMPLETE_START) || fullContent.includes(ADD_GOALS_START)) {
-                    setIsCompleting(true);
+                  if (!completingTypeRef.current) {
+                    if (fullContent.includes(COMPLETE_START)) {
+                      completingTypeRef.current = 'cycle';
+                      setIsCompleting('cycle');
+                    } else if (fullContent.includes(EDIT_GOAL_START)) {
+                      completingTypeRef.current = 'editing';
+                      setIsCompleting('editing');
+                    } else if (fullContent.includes(ADD_GOALS_START)) {
+                      completingTypeRef.current = 'adding';
+                      setIsCompleting('adding');
+                    }
                   }
                   // Batch display updates to animation frames — smooth 60fps render
                   if (!rafId) rafId = requestAnimationFrame(flushDisplay);
@@ -1194,6 +1237,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           // Check for completion signals
           const completionPayload = extractBetween(fullContent, COMPLETE_START, COMPLETE_END);
           const addGoalsPayload = extractBetween(fullContent, ADD_GOALS_START, ADD_GOALS_END);
+          const editGoalPayload = extractBetween(fullContent, EDIT_GOAL_START, EDIT_GOAL_END);
           const coachFlagPayload = extractBetween(fullContent, COACH_FLAG_START, COACH_FLAG_END);
           const displayContent = stripForDisplay(fullContent);
           updateMessages(prev =>
@@ -1207,6 +1251,10 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
           const logPayload = extractBetween(fullContent, LOG_START, LOG_END);
           if (logPayload) {
             handleLogPayload(logPayload);
+          }
+
+          if (editGoalPayload) {
+            await handleEditGoalPayload(editGoalPayload);
           }
 
           if (completionPayload) {
@@ -1279,14 +1327,16 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       }
       if (isMountedRef.current) {
         setIsStreaming(false);
-        setIsCompleting(false); // safety net — clears banner if no handler ran
+        setIsCompleting(null); // safety net — clears banner if no handler ran
+        completingTypeRef.current = null;
+        setTimeout(() => textareaRef.current?.focus(), 50);
       }
     }
     // isStreaming intentionally NOT in deps — see isStreamingRef declaration
     // above. Including it would recreate sendMessage on every flip, schedule
     // a useEffect to update sendMessageRef, and leave a one-frame window
     // where the cycle-end / init effects fire through the previous closure.
-  }, [token, handleCompletionPayload, handleAddGoalsPayload, handleCoachFlagPayload, handleLogPayload, updateMessages]);
+  }, [token, handleCompletionPayload, handleAddGoalsPayload, handleEditGoalPayload, handleCoachFlagPayload, handleLogPayload, updateMessages]);
 
   useEffect(() => {
     sendMessageRef.current = sendMessage;
@@ -1537,7 +1587,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     };
   }, [stopWaveform]);
 
-  const isDisabled = isStreaming || isCompleting;
+  const isDisabled = isStreaming || !!isCompleting;
   const placeholder = status?.enrolled ? 'Ask Compass anything...' : 'Talk to Compass...';
 
   // ── Search logic ─────────────────────────────────────────────────────────────
@@ -1683,8 +1733,8 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       {isCompleting && (
         <div className="compass__completing">
           <div className="compass__spinner" />
-          {status?.enrolled && !cycleEnded
-            ? 'Adding goal...'
+          {isCompleting === 'editing' ? 'Editing goal...'
+            : isCompleting === 'adding' ? 'Adding goal...'
             : 'Setting up your cycle...'}
         </div>
       )}
@@ -1711,6 +1761,7 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={isDisabled}
+              autoFocus
               rows={1}
             />
           )}
