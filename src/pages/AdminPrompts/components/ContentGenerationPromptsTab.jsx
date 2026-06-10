@@ -38,7 +38,13 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts, canEdit 
 
       if (response.ok) {
         const data = await response.json();
-        setPrompts(data.prompts || []);
+        // Defense-in-depth: server already filters to V1_PROMPT_TYPES via the
+        // queries/contentGenerationPrompts.js whitelist; we also filter on the
+        // client so V2 coach / onboarding / eval rows can never appear here
+        // even if a future server change drops the whitelist.
+        const V1_TYPES = ['json_builder', 'facilitator_notes', 'other'];
+        const v1Only = (data.prompts || []).filter((p) => V1_TYPES.includes(p.prompt_type));
+        setPrompts(v1Only);
       } else {
         throw new Error('Failed to fetch content generation prompts');
       }
@@ -240,7 +246,7 @@ const ContentGenerationPromptsTab = ({ showNotification, reloadPrompts, canEdit 
             Content Generation Prompts
           </h2>
           <p className="font-proxima text-[#666]">
-            Specialized prompts used for generating different types of content.
+            V1 content-generation prompts only (JSON Builder, Facilitator Notes, Other). V2 coach + onboarding + eval prompts live on the V2 Coach Engine tab.
           </p>
         </div>
 

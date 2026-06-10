@@ -181,7 +181,7 @@ const ProgramContextsTab = ({ showNotification, reloadPrompts, canEdit }) => {
             Program Contexts
           </h2>
           <p className="font-proxima text-[#666]">
-            Program-specific context information that provides background about the learning program.
+            Program-specific context information that provides background about the learning program. <span className="font-proxima-bold text-[#4242EA]">The default context is also injected into V2 Coach Engine phase prompts — edits here affect both engines.</span>
           </p>
         </div>
         {canEdit && (

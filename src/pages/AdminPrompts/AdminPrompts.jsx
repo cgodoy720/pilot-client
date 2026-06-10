@@ -167,6 +167,8 @@ const AdminPrompts = () => {
           <TabsContent value="v2" className="m-0">
             <V2CoachEngineTab
               showNotification={showNotification}
+              reloadPrompts={reloadPrompts}
+              canEdit={canEditPrompts}
             />
           </TabsContent>
         </Tabs>

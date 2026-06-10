@@ -138,9 +138,25 @@ const BatchDetail = ({ token, batchId, onViewTimeline }) => {
         <StatusBadge status={batch.status} />
         <span className="text-xs text-slate-400">{batch.completed_cases}/{batch.total_cases} cases</span>
       </div>
-      <p className="text-xs text-slate-500 mb-4">
+      <p className="text-xs text-slate-500 mb-2">
         {fmtTime(batch.started_at)} · model {batch.model_under_test || 'default'} · judge {batch.judge_model || 'default'}
       </p>
+      {batch.prompt_snapshot ? (
+        <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-1.5 inline-flex items-center gap-1.5 mb-4">
+          <span aria-hidden>🧊</span>
+          Frozen prompts — {Object.keys(batch.prompt_snapshot.v2_templates || {}).length} templates,{' '}
+          {Object.keys(batch.prompt_snapshot.v2_config || {}).length} config values,{' '}
+          {Object.keys(batch.prompt_snapshot.skill_taxonomy?.skills || {}).length} skills
+          {batch.prompt_snapshot.captured_at && (
+            <span className="text-emerald-600/70 ml-1">· captured {fmtTime(batch.prompt_snapshot.captured_at)}</span>
+          )}
+        </p>
+      ) : (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5 inline-flex items-center gap-1.5 mb-4">
+          <span aria-hidden>⚠️</span>
+          No prompt snapshot — scores reflect live values, not a frozen baseline (legacy batch).
+        </p>
+      )}
 
       {batch.status === 'done' && (
         <div className="flex flex-wrap gap-4 mb-5 bg-[#F7F7F9] border border-[#E3E3E3] rounded-lg px-4 py-3 text-xs">
