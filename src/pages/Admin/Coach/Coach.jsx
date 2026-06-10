@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui
 import useNavStore from '../../../stores/navStore';
 import CoachRuns from '../CoachRuns/CoachRuns';
 import CoachEvals from '../CoachEvals/CoachEvals';
+import CoachProfiles from '../CoachProfiles/CoachProfiles';
 
 const TAB_TRIGGER_CLASS =
   'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium font-proxima px-6 py-2 rounded-md transition-all';
@@ -13,14 +14,17 @@ const TAB_TRIGGER_CLASS =
  * observability (Coach Runs) and automated quality evaluation (Coach Evals).
  * Mirrors the Organization Management tabbed layout.
  *
- * Tabs sync to ?tab=runs|evals. The Evals tab's "View agent timeline" switches
- * to the Runs tab with that run preselected (no full navigation).
+ * Tabs sync to ?tab=runs|evals|profiles. The Evals tab's "View agent timeline"
+ * switches to the Runs tab with that run preselected (no full navigation).
  */
 const Coach = () => {
   const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'evals' ? 'evals' : 'runs');
+  const initialTabParam = searchParams.get('tab');
+  const initialTab =
+    initialTabParam === 'evals' || initialTabParam === 'profiles' ? initialTabParam : 'runs';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [runThread, setRunThread] = useState(() => {
     const t = searchParams.get('thread');
     return t ? parseInt(t, 10) : null;
@@ -65,6 +69,7 @@ const Coach = () => {
           <TabsList className="bg-transparent p-0 gap-1 rounded-none inline-flex h-auto">
             <TabsTrigger value="runs" className={TAB_TRIGGER_CLASS}>Coach Runs</TabsTrigger>
             <TabsTrigger value="evals" className={TAB_TRIGGER_CLASS}>Coach Evals</TabsTrigger>
+            <TabsTrigger value="profiles" className={TAB_TRIGGER_CLASS}>Profiles</TabsTrigger>
           </TabsList>
         </div>
 
@@ -73,6 +78,9 @@ const Coach = () => {
         </TabsContent>
         <TabsContent value="evals" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
           <CoachEvals embedded onViewTimeline={openRunTimeline} />
+        </TabsContent>
+        <TabsContent value="profiles" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
+          <CoachProfiles embedded />
         </TabsContent>
       </Tabs>
     </div>
