@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Badge } from '../../../components/ui/badge';
 import {
   ChevronRight, AlertTriangle, ArrowRight, Plus, MessageSquarePlus, Search, FileText,
+  BookOpen, Flag, ThumbsUp, ThumbsDown, Minus,
 } from 'lucide-react';
 import BuilderLogModal from '../components/BuilderLogModal';
 import BuilderDrawer from '../components/BuilderDrawer';
@@ -20,6 +21,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
   const [expandedItemId, setExpandedItemId] = useState(null);
   const [ticketNoteInputs, setTicketNoteInputs] = useState({});
   const [ticketNoteSaving, setTicketNoteSaving] = useState({});
+  const [cohortLogs, setCohortLogs] = useState([]);
   const [showLogModal, setShowLogModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [builderFilter, setBuilderFilter] = useState('');
@@ -40,6 +42,15 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
       }
     } catch (err) {
       console.error('Logs fetch failed:', err);
+    }
+    try {
+      const cohortRes = await fetch(`${API_URL}/api/admin/dashboard/cohort-logs?cohortId=${selectedCohortId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const cohortData = await cohortRes.json();
+      if (cohortData.success) setCohortLogs(cohortData.data.logs || []);
+    } catch {
+      /* silently ignore — cohort sections simply won't render */
     }
     setLoading(false);
   };
@@ -67,7 +78,10 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
     return allLogs.filter(l => l.builder_name?.toLowerCase().includes(builderFilter.toLowerCase()));
   }, [allLogs, builderFilter]);
 
-  const totalLogs = filteredTickets.length + filteredNextSteps.length + filteredAllLogs.length;
+  const cohortFlags       = cohortLogs.filter(l => l.flags);
+  const regularCohortLogs = cohortLogs.filter(l => !l.flags);
+
+  const totalLogs = filteredTickets.length + filteredNextSteps.length + filteredAllLogs.length + cohortLogs.length;
 
   const handleTicketStatusChange = async (supportId, newStatus) => {
     try {
@@ -373,6 +387,146 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                               {log.notes && <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.notes}</p>}
                               <div className="flex items-center gap-1 text-[10px] text-slate-400">
                                 <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                <span>by {log.created_by_name}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Cohort Logs */}
+              {regularCohortLogs.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <BookOpen size={12} className="text-violet-500" />
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Cohort Logs</span>
+                    <Badge className="bg-violet-50 text-violet-600 text-[10px]">{regularCohortLogs.length}</Badge>
+                  </div>
+                  <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
+                    {regularCohortLogs.map(log => {
+                      const itemKey = `cohortlog-${log.log_id}`;
+                      const isExpanded = expandedItemId === itemKey;
+                      const createdAt = log.created_at ? new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                      const curriculumStatusMeta = {
+                        thumbs_up:       { icon: ThumbsUp,   cls: 'bg-emerald-50 text-emerald-700', label: 'Thumbs Up' },
+                        thumbs_sideways: { icon: Minus,      cls: 'bg-amber-50 text-amber-700',     label: 'Neutral'   },
+                        thumbs_down:     { icon: ThumbsDown, cls: 'bg-red-50 text-red-700',         label: 'Thumbs Down' },
+                      };
+                      const statusMeta = log.curriculum_status ? curriculumStatusMeta[log.curriculum_status] : null;
+                      const categoryLabel = log.log_category === 'facilitator_feedback' ? 'Facilitator Feedback' : 'Cohort Feedback';
+                      const categoryClass = log.log_category === 'facilitator_feedback' ? 'bg-violet-100 text-violet-700' : 'bg-teal-100 text-teal-700';
+                      return (
+                        <div key={log.log_id}>
+                          <button type="button" onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
+                            className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors">
+                            <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ChevronRight size={12} className="text-slate-400" />
+                            </span>
+                            <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 ${categoryClass}`}>{categoryLabel}</Badge>
+                            {statusMeta && (
+                              <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 flex items-center gap-1 ${statusMeta.cls}`}>
+                                <statusMeta.icon size={10} />{statusMeta.label}
+                              </Badge>
+                            )}
+                            <span className="text-[10px] text-slate-500 flex-1 min-w-0 truncate">
+                              {log.curriculum_status_notes || log.curriculum_changes_today || log.curriculum_changes_next || '—'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 flex-shrink-0">{createdAt}</span>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-8 pb-3 space-y-2 bg-[#FAFAFA]">
+                              {log.curriculum_status_notes && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Curriculum Status Notes</p>
+                                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_status_notes}</p>
+                                </div>
+                              )}
+                              {log.curriculum_changes_today && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Today's Changes</p>
+                                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_changes_today}</p>
+                                </div>
+                              )}
+                              {log.curriculum_changes_next && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Next Day's Changes</p>
+                                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_changes_next}</p>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                <span>·</span>
+                                <span>by {log.created_by_name}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Cohort Flags */}
+              {cohortFlags.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Flag size={12} className="text-amber-500" />
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Cohort Flags</span>
+                    <Badge className="bg-amber-50 text-amber-600 text-[10px]">{cohortFlags.length}</Badge>
+                  </div>
+                  <div className="space-y-0 divide-y divide-amber-100 border border-amber-100 rounded-md overflow-hidden">
+                    {cohortFlags.map(log => {
+                      const itemKey = `cohortflag-${log.log_id}`;
+                      const isExpanded = expandedItemId === itemKey;
+                      const createdAt = log.created_at ? new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                      const categoryLabel = log.log_category === 'facilitator_feedback' ? 'Facilitator Feedback' : 'Cohort Feedback';
+                      const categoryClass = log.log_category === 'facilitator_feedback' ? 'bg-violet-100 text-violet-700' : 'bg-teal-100 text-teal-700';
+                      return (
+                        <div key={log.log_id}>
+                          <button type="button" onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
+                            className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-amber-50/40 transition-colors">
+                            <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ChevronRight size={12} className="text-slate-400" />
+                            </span>
+                            <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 ${categoryClass}`}>{categoryLabel}</Badge>
+                            {log.action_required && (
+                              <Badge className="text-[10px] px-1.5 py-0 flex-shrink-0 bg-red-50 text-red-600">Action Required</Badge>
+                            )}
+                            <span className="text-[10px] text-slate-500 flex-1 min-w-0 truncate">{log.flags}</span>
+                            <span className="text-[10px] text-slate-400 flex-shrink-0">{createdAt}</span>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-8 pb-3 space-y-2 bg-amber-50/30">
+                              {log.curriculum_status_notes && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Curriculum Status Notes</p>
+                                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_status_notes}</p>
+                                </div>
+                              )}
+                              {log.curriculum_changes_today && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Today's Changes</p>
+                                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_changes_today}</p>
+                                </div>
+                              )}
+                              {log.curriculum_changes_next && (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Next Day's Changes</p>
+                                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_changes_next}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-[10px] font-semibold text-amber-600 uppercase mb-0.5">Flag Details</p>
+                                <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.flags}</p>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                <span>·</span>
                                 <span>by {log.created_by_name}</span>
                               </div>
                             </div>
