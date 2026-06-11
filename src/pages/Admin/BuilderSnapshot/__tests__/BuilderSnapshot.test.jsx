@@ -245,17 +245,32 @@ describe('BuilderSnapshot', () => {
     expect(container.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
   });
 
-  it('renders the radar with one series per skill category', async () => {
+  it('renders one radar per skill category', async () => {
     currentSearch = 'userId=42';
     // FAKE_TAXONOMY has 3 categories — default route mock serves it.
     renderUI();
     await waitFor(() => {
-      expect(screen.getByTestId('recharts-radar')).toBeInTheDocument();
+      expect(screen.getAllByTestId('recharts-radar')).toHaveLength(3);
     });
-    // Three category series should render (one <Radar /> per category).
+    // Each category's chart renders its own <Radar /> series keyed by category.
     expect(screen.getByTestId('recharts-series-ai')).toBeInTheDocument();
     expect(screen.getByTestId('recharts-series-swe')).toBeInTheDocument();
     expect(screen.getByTestId('recharts-series-pro')).toBeInTheDocument();
+  });
+
+  it('clicking a category card opens an enlarged radar dialog', async () => {
+    currentSearch = 'userId=42';
+    renderUI();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('recharts-radar')).toHaveLength(3);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /enlarge ai fluency radar/i }));
+    // The dialog renders a 4th radar (the large one) plus the category title.
+    await waitFor(() => {
+      expect(screen.getAllByTestId('recharts-radar')).toHaveLength(4);
+    });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getAllByTestId('recharts-series-ai')).toHaveLength(2);
   });
 
   it('renders the themed sections with markdown content', async () => {

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   RadarChart,
@@ -7,7 +7,14 @@ import {
   PolarRadiusAxis,
   Radar,
 } from 'recharts';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Maximize2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../../../../components/ui/dialog';
 
 // Three distinct, palette-disciplined colors — one per category. Used by both
 // the radar fills and the per-row chips in the leaderboard so the visual
@@ -19,40 +26,109 @@ const CATEGORY_COLORS = {
 };
 const FALLBACK_COLOR = { stroke: '#1E1E1E', fill: '#1E1E1E', label: 'Other' };
 
-// Short label so axis tick text doesn't crowd the radar.
-const shortLabel = (name) => {
-  if (!name) return '';
-  if (name.length <= 22) return name;
-  return name.slice(0, 20).trim() + '…';
+// Wrap an axis label onto up to two short lines so ~11 ticks fit around a
+// one-third-width radar without colliding.
+const wrapLabel = (name, maxChars = 16) => {
+  const words = String(name || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  for (const word of words) {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && (last + ' ' + word).length <= maxChars) {
+      lines[lines.length - 1] = last + ' ' + word;
+    } else {
+      lines.push(word);
+    }
+  }
+  if (lines.length > 2) {
+    const rest = lines.slice(1).join(' ');
+    return [lines[0], rest.slice(0, maxChars - 1).trim() + '…'];
+  }
+  return lines;
 };
 
-const CustomTick = ({ payload, x, y, textAnchor }) => (
-  <text
-    x={x}
-    y={y}
-    textAnchor={textAnchor}
-    fill="#1E1E1E"
-    fontSize="10"
-    fontFamily="inherit"
-  >
-    {shortLabel(payload?.value)}
-  </text>
-);
+const CustomTick = ({ payload, x, y, textAnchor, maxChars = 16, fontSize = 10 }) => {
+  const lines = wrapLabel(payload?.value, maxChars);
+  const lineHeight = fontSize + 1;
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor={textAnchor}
+      fill="#1E1E1E"
+      fontSize={fontSize}
+      fontFamily="inherit"
+    >
+      {lines.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? (lines.length > 1 ? -4 : 0) : lineHeight}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+};
+
+/**
+ * CategoryRadar — one category's skills on a full-circle radar. Rendered
+ * small inside the grid cards and large inside the enlarge dialog.
+ */
+const CategoryRadar = ({ category, size = 'small' }) => {
+  const large = size === 'large';
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <RadarChart
+        data={category.rows}
+        cx="50%"
+        cy="50%"
+        outerRadius={large ? '72%' : '64%'}
+        margin={
+          large
+            ? { top: 28, right: 48, bottom: 28, left: 48 }
+            : { top: 20, right: 28, bottom: 20, left: 28 }
+        }
+      >
+        <PolarGrid stroke="#E3E3E3" strokeDasharray="3 4" />
+        <PolarAngleAxis
+          dataKey="skill"
+          tick={<CustomTick maxChars={large ? 24 : 16} fontSize={large ? 12 : 10} />}
+        />
+        <PolarRadiusAxis
+          angle={90}
+          domain={[0, 100]}
+          tickCount={large ? 5 : 3}
+          tick={{ fontSize: large ? 10 : 9, fill: '#999' }}
+          stroke="#E3E3E3"
+        />
+        <Radar
+          name={category.name}
+          dataKey={category.key}
+          stroke={category.color.stroke}
+          fill={category.color.fill}
+          fillOpacity={0.35}
+          strokeWidth={2}
+          dot={{ r: large ? 3 : 2, strokeWidth: 0, fill: category.color.stroke }}
+        />
+      </RadarChart>
+    </ResponsiveContainer>
+  );
+};
 
 /**
  * BuilderSnapshotSkillsPanel
  *
- * Two-column skills view: large radar on the left, a leaderboard of top
- * strengths + growth areas on the right. The radar plots one series per
- * category over the union of all skills; the leaderboard is sorted globally
- * (not per category) so staff see the absolute top 5 and bottom 5 at a glance.
+ * Small-multiples skills view: one radar per category (so each category's
+ * ~11 skills spread around a full circle with readable labels) over a
+ * two-column leaderboard of top strengths + growth areas. The leaderboard is
+ * sorted globally (not per category) so staff see the absolute top 5 and
+ * bottom 5 at a glance.
  *
  * Props:
  *   - skillTaxonomy: { categories, skills } as returned by /v2-coach-engine
  *   - skillLevels:   { [slug]: 0..100 } from builder_profiles
  */
 const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
-  const { data, categoryEntries, topStrengths, growthAreas, stats } = useMemo(() => {
+  const [expandedKey, setExpandedKey] = useState(null);
+
+  const { categoryEntries, topStrengths, growthAreas, stats } = useMemo(() => {
     const taxonomySkills = skillTaxonomy?.skills || {};
     const taxonomyCategories = skillTaxonomy?.categories || {};
     const levels = skillLevels || {};
@@ -74,26 +150,32 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
       (k) => (skillsByCategory.get(k) || []).length > 0,
     );
 
-    // Build radar rows — one per skill, with a value on its own category key.
-    const rows = [];
+    // One radar per category — each category's rows only carry its own skills,
+    // so every shape fills its full circle instead of collapsing to zero
+    // outside its wedge.
     const allScored = []; // flat list for top/bottom rankings
-    for (const catKey of orderedCategoryKeys) {
+    const entries = orderedCategoryKeys.map((catKey) => {
       const skills = skillsByCategory.get(catKey) || [];
-      for (const skill of skills) {
+      const rows = skills.map((skill) => {
         const raw = Number(levels[skill.slug] ?? 0);
         const value = Math.max(0, Math.min(100, Number.isFinite(raw) ? raw : 0));
-        const row = { skill: skill.name, slug: skill.slug, category: catKey };
-        for (const k of orderedCategoryKeys) row[k] = k === catKey ? value : 0;
-        rows.push(row);
         allScored.push({ slug: skill.slug, name: skill.name, category: catKey, value });
-      }
-    }
-
-    const entries = orderedCategoryKeys.map((key) => ({
-      key,
-      color: CATEGORY_COLORS[key] || FALLBACK_COLOR,
-      name: taxonomyCategories[key]?.name || CATEGORY_COLORS[key]?.label || key,
-    }));
+        return { skill: skill.name, slug: skill.slug, [catKey]: value };
+      });
+      const catScored = rows.map((r) => r[catKey]).filter((v) => v > 0);
+      const catAvg =
+        catScored.length > 0
+          ? Math.round(catScored.reduce((sum, v) => sum + v, 0) / catScored.length)
+          : 0;
+      return {
+        key: catKey,
+        color: CATEGORY_COLORS[catKey] || FALLBACK_COLOR,
+        name: taxonomyCategories[catKey]?.name || CATEGORY_COLORS[catKey]?.label || catKey,
+        rows,
+        avg: catAvg,
+        scoredCount: catScored.length,
+      };
+    });
 
     // Rankings — exclude unscored (value=0) skills from "strengths" but keep
     // them in "growth areas" since 0 IS a real gap.
@@ -107,7 +189,6 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
         : 0;
 
     return {
-      data: rows,
       categoryEntries: entries,
       topStrengths: strengths,
       growthAreas: growth,
@@ -128,7 +209,7 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
           <h2 className="text-2xl font-proxima-bold text-[#1E1E1E]">Skill Profile</h2>
           <p className="text-sm text-[#666] mt-1">
             Proficiency across the 33-skill taxonomy. Higher is stronger;
-            each category is plotted as its own colored series.
+            each category gets its own radar.
           </p>
         </div>
         {stats.totalSkills > 0 && (
@@ -148,68 +229,81 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
         )}
       </header>
 
-      {data.length === 0 ? (
+      {stats.totalSkills === 0 ? (
         <div className="py-16 text-center text-[#999] italic">
           No skills available to plot yet.
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8 items-start">
-          {/* RADAR — left 3/5 */}
-          <div className="lg:col-span-3">
-            <div className="w-full" style={{ height: 460 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius="76%"
-                  margin={{ top: 16, right: 32, bottom: 16, left: 32 }}
-                >
-                  <PolarGrid stroke="#E3E3E3" strokeDasharray="3 4" />
-                  <PolarAngleAxis dataKey="skill" tick={<CustomTick />} />
-                  <PolarRadiusAxis
-                    angle={90}
-                    domain={[0, 100]}
-                    tickCount={5}
-                    tick={{ fontSize: 9, fill: '#999' }}
-                    stroke="#E3E3E3"
-                  />
-                  {categoryEntries.map((cat) => (
-                    <Radar
-                      key={cat.key}
-                      name={cat.name}
-                      dataKey={cat.key}
-                      stroke={cat.color.stroke}
-                      fill={cat.color.fill}
-                      fillOpacity={0.35}
-                      strokeWidth={2}
-                      dot={{ r: 2, strokeWidth: 0, fill: cat.color.stroke }}
+        <>
+          {/* SMALL MULTIPLES — one radar per category; click a card to enlarge */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {categoryEntries.map((cat) => (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setExpandedKey(cat.key)}
+                aria-label={`Enlarge ${cat.name} radar`}
+                className="group/card rounded-xl border border-[#F0F0F0] bg-[#FAFAFA] p-4 text-left cursor-pointer transition-shadow hover:shadow-md hover:border-[#E3E3E3] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4242EA]"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="inline-flex items-center gap-2 text-sm font-proxima-bold text-[#1E1E1E]">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: cat.color.stroke }}
                     />
-                  ))}
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Legend chips — color swatch + category name */}
-            <ul className="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Categories">
-              {categoryEntries.map((cat) => (
-                <li
-                  key={cat.key}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#E3E3E3] bg-white px-3 py-1"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: cat.color.stroke }}
-                  />
-                  <span className="text-xs font-medium text-[#1E1E1E]">{cat.name}</span>
-                </li>
-              ))}
-            </ul>
+                    {cat.name}
+                  </h3>
+                  <span className="inline-flex items-center gap-2 text-xs text-[#666] whitespace-nowrap">
+                    <span>
+                      Avg{' '}
+                      <span className="text-[#1E1E1E] font-proxima-bold">{cat.avg}</span>
+                    </span>
+                    <Maximize2
+                      aria-hidden="true"
+                      className="w-3.5 h-3.5 text-[#C8C8C8] transition-colors group-hover/card:text-[#4242EA]"
+                    />
+                  </span>
+                </div>
+                <div className="w-full" style={{ height: 300 }}>
+                  <CategoryRadar category={cat} size="small" />
+                </div>
+              </button>
+            ))}
           </div>
 
-          {/* LEADERBOARD — right 2/5 */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* ENLARGE DIALOG — full-size radar for the clicked category */}
+          <Dialog open={!!expandedKey} onOpenChange={(open) => !open && setExpandedKey(null)}>
+            <DialogContent className="max-w-4xl">
+              {(() => {
+                const cat = categoryEntries.find((c) => c.key === expandedKey);
+                if (!cat) return null;
+                return (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle className="inline-flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="inline-block h-3 w-3 rounded-full"
+                          style={{ backgroundColor: cat.color.stroke }}
+                        />
+                        {cat.name}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {cat.scoredCount} of {cat.rows.length} skills scored · Avg {cat.avg} / 100
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="w-full" style={{ height: 560 }}>
+                      <CategoryRadar category={cat} size="large" />
+                    </div>
+                  </>
+                );
+              })()}
+            </DialogContent>
+          </Dialog>
+
+          {/* LEADERBOARD — below the radars */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <Leaderboard
               icon={<TrendingUp className="w-4 h-4 text-[#4242EA]" />}
               title="Top Strengths"
@@ -226,7 +320,7 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
               variant="growth"
             />
           </div>
-        </div>
+        </>
       )}
     </section>
   );
