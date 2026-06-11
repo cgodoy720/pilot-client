@@ -11,6 +11,7 @@ import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Clock, RotateCcw, Loader2 } from 'lucide-react';
+import useAuthStore from '../../../stores/authStore';
 
 /**
  * PromptChangeHistoryDialog — modal listing recent edits for one entity
@@ -25,6 +26,9 @@ import { Clock, RotateCcw, Loader2 } from 'lucide-react';
  *   showNotification: (msg, severity) => void
  */
 export default function PromptChangeHistoryDialog({ open, onClose, target, onReverted, showNotification }) {
+  // Read the token via the auth store selector so a renamed/rotated key
+  // doesn't silently send `Bearer null` — matches the project pattern.
+  const token = useAuthStore((s) => s.token);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [reverting, setReverting] = useState(null); // id being reverted
@@ -35,7 +39,6 @@ export default function PromptChangeHistoryDialog({ open, onClose, target, onRev
     (async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('token');
         const url = `${import.meta.env.VITE_API_URL}/api/admin/prompts/change-history?entityType=${encodeURIComponent(target.entityType)}&entityId=${encodeURIComponent(target.entityId)}`;
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
@@ -49,13 +52,12 @@ export default function PromptChangeHistoryDialog({ open, onClose, target, onRev
       }
     })();
     return () => { cancelled = true; };
-  }, [open, target, showNotification]);
+  }, [open, target, token, showNotification]);
 
   const handleRevert = async (rowId) => {
     if (!confirm('Revert to this version? The current state will be saved as a new history entry, then the entity will be set to the snapshot from this row.')) return;
     try {
       setReverting(rowId);
-      const token = localStorage.getItem('token');
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/admin/prompts/change-history/${rowId}/revert`,
         { method: 'POST', headers: { Authorization: `Bearer ${token}` } }

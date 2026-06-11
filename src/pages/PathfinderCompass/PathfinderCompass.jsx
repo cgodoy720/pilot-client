@@ -1028,6 +1028,10 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         console.error('Compass goals/edit endpoint returned error:', res.status, errBody);
+        // Skip the status refetch + onEnrollmentComplete — otherwise the
+        // UI looks like the edit succeeded (spinner clears, banner clears)
+        // even though the PATCH failed and the goal is unchanged.
+        return;
       }
       const statusRes = await fetch(`${API_URL}/api/pathfinder/compass/status`, {
         headers: { Authorization: `Bearer ${token}` },

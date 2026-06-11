@@ -1300,16 +1300,16 @@ function LearningPreview({ dayId, cohort, onBack }) {
               <BreakInterface taskTitle={tasks[currentTaskIndex]?.task_title} />
             </div>
           ) : isCurrentTaskOnboarding() ? (
-            // Onboarding (task_type='onboarding') — render the real voice
+            // Onboarding (task_type='onboarding') — render the real coach
             // interface, same as Learning.jsx. Preview is 1:1 with the builder
             // experience; the only thing wrapping it is the preview banner.
-            // OnboardingInterface owns LiveKit session start/resume/complete via
+            // OnboardingInterface owns SSE-streamed chat (with optional browser
+            // mic dictation) and session start/resume/complete via
             // /api/onboarding-session/*.
             <div className="flex-1 flex flex-col relative overflow-hidden">
               <OnboardingInterface
                 key={`onboarding-${tasks[currentTaskIndex]?.id}`}
                 taskId={tasks[currentTaskIndex]?.id}
-                cohort={currentDay?.cohort}
                 userId={user?.id}
                 isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
                 isLastTask={currentTaskIndex === tasks.length - 1}
