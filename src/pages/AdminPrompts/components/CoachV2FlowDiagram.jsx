@@ -17,6 +17,13 @@ import CoachV2NodeTooltip, { NODES } from './CoachV2NodeTooltip';
 // loop arcing back from Remediate to Generate Apply. No decision diamonds —
 // the routing logic lives in graphs/coachV2/edges.js; this is the bird's-eye
 // process view, not a detailed state machine.
+//
+// SECURITY: FLOW_SPEC MUST remain a static, hardcoded template literal — NEVER
+// interpolate user input, props, server-supplied content, or runtime data
+// into it. Mermaid is initialized with securityLevel:'strict' below AND the
+// SVG is injected via dangerouslySetInnerHTML, but those mitigations only
+// cover what Mermaid catches. If user-controlled text ever flows into this
+// constant, it becomes a direct XSS vector at the SVG-injection point.
 const FLOW_SPEC = `flowchart LR
   init["Init"]:::node --> learn["Learn"]:::node
   learn --> generateApply["Generate Apply"]:::node

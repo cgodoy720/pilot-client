@@ -79,8 +79,21 @@ export async function streamChat(token, sessionId, message, { onText, onDone, on
       signal,
     }
   );
-  if (!res.ok && res.status !== 429) {
-    throw new Error(`Chat request failed: ${res.status}`);
+  // Non-OK responses (including 429 rate-limit) are JSON, not SSE — if we
+  // pass them to getReader() the coach bubble stays in streaming:true
+  // forever because the body never emits `data:` lines or a `done` event.
+  // Route the error through onError so the UI surfaces it cleanly.
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    onError?.({
+      error:
+        body?.error ||
+        (res.status === 429
+          ? 'You are sending messages too quickly — slow down.'
+          : `Chat request failed: ${res.status}`),
+      status: res.status,
+    });
+    return;
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

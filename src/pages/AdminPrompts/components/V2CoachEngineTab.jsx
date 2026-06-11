@@ -157,6 +157,13 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
   // existing controller. So we GET the full row first, swap `content`, and
   // PUT back. After a successful write, reloadPrompts() invalidates the
   // server-side promptManager cache and fetchData() refreshes our view.
+  //
+  // KNOWN LIMITATION: this GET-then-PUT is not optimistically locked, so two
+  // admins editing the same row concurrently will silently last-write-wins.
+  // Acceptable today because this surface is admin-only with effectively
+  // zero concurrent edit traffic and every save lands in prompt_change_history
+  // (audit + revert), so a stomp is recoverable. Promote to a PATCH endpoint
+  // with an If-Match/updated_at guard if concurrent editing becomes real.
   const handleSaveContent = async ({ content }) => {
     if (!editTarget || isSaving) return;
     setIsSaving(true);

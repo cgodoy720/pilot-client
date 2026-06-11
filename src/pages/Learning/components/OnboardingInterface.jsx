@@ -168,25 +168,29 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
         sessionIdRef.current = startData.sessionId;
         setSessionId(startData.sessionId);
 
-        // Resume: pull prior transcript if the session already has turns.
+        // Resume: pull prior transcript ONLY when the server tells us the
+        // session was resumed. Skips an unnecessary network round-trip on
+        // every fresh session start.
         let hadPriorTurns = false;
-        try {
-          const { messages: priorMessages } = await getSession(token, startData.sessionId);
-          if (!cancelled && Array.isArray(priorMessages) && priorMessages.length > 0) {
-            hadPriorTurns = true;
-            const hydrated = priorMessages.map((m) => {
-              seqRef.current += 1;
-              return {
-                id: `r-${seqRef.current}`,
-                role: m.role === 'builder' ? 'user' : 'coach',
-                content: m.content || '',
-                seq: seqRef.current,
-              };
-            });
-            setMessages(hydrated);
+        if (startData.resumed) {
+          try {
+            const { messages: priorMessages } = await getSession(token, startData.sessionId);
+            if (!cancelled && Array.isArray(priorMessages) && priorMessages.length > 0) {
+              hadPriorTurns = true;
+              const hydrated = priorMessages.map((m) => {
+                seqRef.current += 1;
+                return {
+                  id: `r-${seqRef.current}`,
+                  role: m.role === 'builder' ? 'user' : 'coach',
+                  content: m.content || '',
+                  seq: seqRef.current,
+                };
+              });
+              setMessages(hydrated);
+            }
+          } catch (hydrateErr) {
+            console.error('Failed to hydrate prior onboarding turns:', hydrateErr);
           }
-        } catch (hydrateErr) {
-          console.error('Failed to hydrate prior onboarding turns:', hydrateErr);
         }
 
         setIsLoading(false);

@@ -134,7 +134,8 @@ describe('OnboardingInterface', () => {
   // -------------------------------------------------------------------------
   // Resume: prior transcript → hydrate, skip the opening sendChat
   // -------------------------------------------------------------------------
-  it('hydrates prior turns via getSession and SKIPS the opening sendChat', async () => {
+  it('hydrates prior turns via getSession when startSession reports resumed:true', async () => {
+    startSession.mockResolvedValueOnce({ ...SESSION, resumed: true });
     getSession.mockResolvedValueOnce({
       messages: [
         { role: 'builder', content: 'Earlier builder message', seq: 1 },
@@ -151,6 +152,15 @@ describe('OnboardingInterface', () => {
     }, { timeout: 3000 });
     // No opening sendChat — only hydration.
     expect(streamChat).not.toHaveBeenCalled();
+  });
+
+  it('SKIPS the getSession round-trip on a fresh session (resumed:false)', async () => {
+    // Default SESSION mock has no resumed flag → component must not fetch
+    // the transcript, since there's nothing to hydrate.
+    await renderOnboarding();
+    expect(getSession).not.toHaveBeenCalled();
+    // It does call streamChat with empty message to get the coach's opener.
+    expect(streamChat).toHaveBeenCalledTimes(1);
   });
 
   // -------------------------------------------------------------------------

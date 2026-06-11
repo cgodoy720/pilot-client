@@ -10,7 +10,7 @@ import {
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { ScrollArea } from '../../../components/ui/scroll-area';
-import { Clock, RotateCcw, Loader2 } from 'lucide-react';
+import { Clock, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
 
 /**
@@ -32,6 +32,11 @@ export default function PromptChangeHistoryDialog({ open, onClose, target, onRev
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [reverting, setReverting] = useState(null); // id being reverted
+  // confirmRowId: which history row the user has armed for revert (null = none).
+  // We use an in-dialog confirmation banner instead of window.confirm() because
+  // confirm() is silently suppressed in some embedded/iframe contexts — the
+  // destructive action could execute without user acknowledgment.
+  const [confirmRowId, setConfirmRowId] = useState(null);
 
   useEffect(() => {
     if (!open || !target) return;
@@ -54,8 +59,9 @@ export default function PromptChangeHistoryDialog({ open, onClose, target, onRev
     return () => { cancelled = true; };
   }, [open, target, token, showNotification]);
 
-  const handleRevert = async (rowId) => {
-    if (!confirm('Revert to this version? The current state will be saved as a new history entry, then the entity will be set to the snapshot from this row.')) return;
+  // Step 1: clicking Revert on a row arms the confirmation banner.
+  // Step 2: clicking Confirm in the banner calls performRevert.
+  const performRevert = async (rowId) => {
     try {
       setReverting(rowId);
       const res = await fetch(
@@ -74,6 +80,7 @@ export default function PromptChangeHistoryDialog({ open, onClose, target, onRev
       showNotification?.(`Revert failed: ${e.message}`, 'error');
     } finally {
       setReverting(null);
+      setConfirmRowId(null);
     }
   };
 
@@ -114,6 +121,54 @@ export default function PromptChangeHistoryDialog({ open, onClose, target, onRev
             Recent edits to <code className="font-mono text-[#4242EA]">{target?.entityName || target?.entityId}</code>. Click revert to restore that snapshot — it will be saved as a new entry, not destructive.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Confirmation banner — replaces the browser-native confirm() so the
+            destructive revert action can never execute without explicit
+            in-dialog acknowledgment. Inline (not a nested AlertDialog) to
+            avoid Radix portal/focus-trap conflicts inside this Dialog. */}
+        {confirmRowId !== null && (
+          <div
+            role="alertdialog"
+            aria-labelledby="revert-confirm-title"
+            className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-start gap-3"
+          >
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p id="revert-confirm-title" className="font-proxima-bold text-sm text-[#1E1E1E]">
+                Revert to version #{confirmRowId}?
+              </p>
+              <p className="font-proxima text-xs text-[#666] mt-1">
+                The current state will be saved as a new history entry first, then the entity will be set to that snapshot. This is reversible — the current version stays in history.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmRowId(null)}
+                disabled={reverting !== null}
+                className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => performRevert(confirmRowId)}
+                disabled={reverting !== null}
+                className="bg-amber-600 text-white hover:bg-amber-700"
+              >
+                {reverting !== null ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                    Reverting…
+                  </>
+                ) : (
+                  'Confirm revert'
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto py-3">
           {loading ? (
@@ -156,8 +211,8 @@ export default function PromptChangeHistoryDialog({ open, onClose, target, onRev
                           variant="outline"
                           size="sm"
                           className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3] shrink-0"
-                          onClick={() => handleRevert(row.id)}
-                          disabled={reverting !== null}
+                          onClick={() => setConfirmRowId(row.id)}
+                          disabled={reverting !== null || confirmRowId !== null}
                         >
                           {reverting === row.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
