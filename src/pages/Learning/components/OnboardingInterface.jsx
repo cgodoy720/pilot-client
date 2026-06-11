@@ -145,6 +145,12 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
       } finally {
         setIsSending(false);
         streamingMsgIdRef.current = null;
+        // Belt-and-suspenders: clear streaming:true on ANY bubble that's
+        // still flagged. The service layer's onDone fires when the SSE
+        // stream closes cleanly even without a {type:done} event, but
+        // covering this here too means a thrown error (network drop,
+        // abort, etc.) can't leave a permanent loading indicator.
+        setMessages((prev) => prev.map((m) => (m.streaming ? { ...m, streaming: false } : m)));
       }
     },
     [token]  // Intentionally NOT depending on sessionId — we read it via sessionIdRef.current.

@@ -98,6 +98,11 @@ export async function streamChat(token, sessionId, message, { onText, onDone, on
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  // Track whether the server sent {"type":"done"} during the stream. If the
+  // reader closes WITHOUT having seen that event (network drop, server crash
+  // mid-stream, proxy timeout), we still fire onDone so the caller's coach
+  // bubble clears its streaming:true flag — otherwise it stays stuck forever.
+  let sawDone = false;
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const { done, value } = await reader.read();
@@ -116,10 +121,12 @@ export async function streamChat(token, sessionId, message, { onText, onDone, on
       if (data.type === 'text') {
         onText?.(data);
       } else if (data.type === 'done') {
+        sawDone = true;
         onDone?.(data);
       } else if (data.type === 'error') {
         onError?.(data);
       }
     }
   }
+  if (!sawDone) onDone?.();
 }
