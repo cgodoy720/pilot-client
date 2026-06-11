@@ -51,8 +51,9 @@ const StreamingMarkdownMessage = ({ content }) => {
 // with the new opt-in showMicButton prop — the visual is identical to the
 // regular chat input, with a Voice button added on the bottom-left.
 // ---------------------------------------------------------------------------
-function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComplete }) {
+function OnboardingInterface({ taskId, userId, isCompleted, onComplete }) {
   const token = useAuthStore((s) => s.token);
+  const authUser = useAuthStore((s) => s.user);
 
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]); // [{ role: 'user'|'coach', content, seq }]
@@ -72,6 +73,12 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
   const streamingMsgIdRef = useRef(null);
   const messagesEndRef = useRef(null);
   const abortRef = useRef(null);
+  // Imperative ref into AutoExpandTextarea so we can focus() the input after
+  // a coach turn completes — mirrors Learning.jsx (regular chat).
+  const textareaRef = useRef(null);
+  // Ref-mirror of handleComplete so sendChat (which closes over `token` only)
+  // can fire the latest version when it detects the completion marker.
+  const handleCompleteRef = useRef(() => {});
   // Ref-synced session id so sendChat reads the latest value without closing
   // over a stale state read. setState is async — the useEffect that calls
   // setSessionId(...) followed by sendChat('') in the same tick would
@@ -84,7 +91,33 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-focus the input when the most recent coach turn finishes streaming,
+  // so the builder doesn't have to click into the textarea to reply. Mirrors
+  // the same pattern in Learning.jsx for the regular chat.
+  useEffect(() => {
+    if (isSending || isFinishing || isCompleted) return;
+    if (messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.role !== 'coach' || last.streaming) return;
+    // Small delay so the reveal animation visibly completes before focus
+    // steals attention, and so the auto-scroll has a chance to settle.
+    const t = setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [messages, isSending, isFinishing, isCompleted]);
+
   // ---- Stream a chat turn through SSE, threading chunks into one bubble ----
+  // The coach emits [ONBOARDING_COMPLETE] as the very last token of its
+  // final message when it has wrapped the conversation. We:
+  //   1. accumulate the full streamed text per turn,
+  //   2. strip the marker substring from the visible bubble,
+  //   3. if the marker was present, fire handleComplete() after the stream
+  //      closes so the carousel advances without a manual Finish button.
+  const COMPLETION_MARKER = '[ONBOARDING_COMPLETE]';
+  const stripMarker = (s) =>
+    typeof s === 'string' ? s.split(COMPLETION_MARKER).join('').trimEnd() : s;
+
   const sendChat = useCallback(
     async (messageText) => {
       const sid = sessionIdRef.current;
@@ -114,12 +147,22 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
 
+      // Per-turn marker tracking. The marker may arrive split across chunks,
+      // so we scan the accumulated text — never just the latest chunk.
+      let accumulated = '';
+      let sawCompletionMarker = false;
+
       try {
         await streamChat(token, sid, messageText, {
           signal: abortRef.current.signal,
           onText: ({ content }) => {
+            accumulated += content;
+            if (!sawCompletionMarker && accumulated.includes(COMPLETION_MARKER)) {
+              sawCompletionMarker = true;
+            }
+            const visible = sawCompletionMarker ? stripMarker(accumulated) : accumulated;
             setMessages((prev) => prev.map((m) =>
-              m.id === coachBubbleId ? { ...m, content: (m.content || '') + content } : m
+              m.id === coachBubbleId ? { ...m, content: visible } : m
             ));
           },
           onDone: () => {
@@ -133,6 +176,21 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
             ));
           },
         });
+
+        // Final safety pass — catches the marker if it landed in a chunk
+        // boundary that didn't trip the inclusion check.
+        if (!sawCompletionMarker && accumulated.includes(COMPLETION_MARKER)) {
+          sawCompletionMarker = true;
+          setMessages((prev) => prev.map((m) =>
+            m.id === coachBubbleId ? { ...m, content: stripMarker(accumulated) } : m
+          ));
+        }
+
+        if (sawCompletionMarker) {
+          // Defer one tick so the bubble's final render commits and the
+          // user sees the closing message before the carousel advances.
+          setTimeout(() => { handleCompleteRef.current?.(); }, 400);
+        }
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('Chat stream failed:', err);
@@ -272,6 +330,12 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
     }
   }, [token, onComplete]);
 
+  // Keep the ref pointed at the latest handleComplete so the marker-detection
+  // path inside sendChat always invokes the current callback.
+  useEffect(() => {
+    handleCompleteRef.current = handleComplete;
+  }, [handleComplete]);
+
   // ---- Pre-call screen ----
   if (!hasStarted) {
     return (
@@ -321,7 +385,12 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
     );
   }
 
-  const userInitial = userId ? String(userId).charAt(0).toUpperCase() : 'U';
+  // Match the regular chat interface (Learning.jsx): first letter of the
+  // signed-in user's first name from authStore, uppercase, with 'U' as a
+  // last-ditch fallback. The userId prop was wrong here — String(814) → "8".
+  const userInitial = authUser?.firstName
+    ? authUser.firstName.charAt(0).toUpperCase()
+    : 'U';
 
   // ---- Chat surface ----
   return (
@@ -386,31 +455,8 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
           pointer events for the textarea itself. */}
       <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
         <div className="max-w-2xl mx-auto pointer-events-auto">
-          {/* Discrete Finish action — a small chip above the textarea so the
-              builder always has a clean exit when they feel the conversation
-              is done. Replaces the old "Your Coach" header bar the user asked
-              us to remove; the action stays but the chrome is gone. */}
-          <div className="flex justify-end mb-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleComplete}
-              disabled={isFinishing || isCompleted}
-              title="Finish onboarding"
-              className="text-xs font-proxima text-pursuit-purple border-pursuit-purple/40 hover:bg-pursuit-purple/5"
-            >
-              {isFinishing ? (
-                <>
-                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                  Wrapping up…
-                </>
-              ) : (
-                isLastTask ? 'Finish & wrap up' : 'Finish onboarding'
-              )}
-            </Button>
-          </div>
           <AutoExpandTextarea
+            ref={textareaRef}
             onSubmit={handleSubmit}
             disabled={isSending || isCompleted || isFinishing}
             showMicButton

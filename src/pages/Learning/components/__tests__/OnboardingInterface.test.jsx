@@ -185,48 +185,51 @@ describe('OnboardingInterface', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Finish button: completeSession + onComplete (the High-severity reviewer
-  // fix — ContentPreview / Learning carousel can't advance without this.)
+  // Marker-driven completion: when the coach emits [ONBOARDING_COMPLETE] as
+  // its last token, the client must strip it from the visible bubble AND
+  // auto-fire onComplete so the carousel advances. No manual Finish button.
   // -------------------------------------------------------------------------
-  it('Finish action calls completeSession then onComplete', async () => {
+  it('strips [ONBOARDING_COMPLETE] from the visible coach bubble', async () => {
+    streamChat.mockImplementationOnce(async (_t, _s, _m, { onText, onDone }) => {
+      onText?.({ content: 'Great chatting! [ONBOARDING_COMPLETE]' });
+      onDone?.({ sequenceNumber: 1 });
+    });
+    await renderOnboarding();
+    await waitFor(() => {
+      expect(screen.getByText(/Great chatting!/i)).toBeInTheDocument();
+    });
+    // The marker itself must NOT be visible to the builder.
+    expect(screen.queryByText(/ONBOARDING_COMPLETE/)).toBeNull();
+    // Drain the deferred handleComplete timer scheduled by the marker path
+    // so it can't leak into the next test as a stale completeSession call.
+    await waitFor(
+      () => { expect(completeSession).toHaveBeenCalled(); },
+      { timeout: 2000 },
+    );
+  });
+
+  it('marker on the coach turn triggers completeSession + onComplete (no button needed)', async () => {
+    streamChat.mockImplementationOnce(async (_t, _s, _m, { onText, onDone }) => {
+      onText?.({ content: 'All set!\n[ONBOARDING_COMPLETE]' });
+      onDone?.({ sequenceNumber: 1 });
+    });
     const onComplete = vi.fn();
     await renderOnboarding({ onComplete });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTitle('Finish onboarding'));
-      // Let completeSession() resolve and the onComplete callback fire.
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(completeSession).toHaveBeenCalledTimes(1);
-    expect(completeSession).toHaveBeenCalledWith(
-      'test-token',
-      SESSION.sessionId,
-      expect.objectContaining({ durationSeconds: expect.any(Number) })
+    // The component defers handleComplete by 400ms after the marker; wait
+    // for completeSession to be called rather than racing the timer.
+    await waitFor(
+      () => {
+        expect(completeSession).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 2000 },
     );
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it('shows "Finish & wrap up" when isLastTask is true', async () => {
-    await renderOnboarding({ isLastTask: true });
-    expect(screen.getByText(/finish & wrap up/i)).toBeInTheDocument();
-  });
-
-  it('Finish is idempotent — double-click only completes once', async () => {
-    const onComplete = vi.fn();
-    await renderOnboarding({ onComplete });
-
-    const finish = screen.getByTitle('Finish onboarding');
-    await act(async () => {
-      fireEvent.click(finish);
-      fireEvent.click(finish);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(completeSession).toHaveBeenCalledTimes(1);
-    expect(onComplete).toHaveBeenCalledTimes(1);
+  it('Finish button is gone — the input tray has no manual completion control', async () => {
+    await renderOnboarding();
+    expect(screen.queryByTitle(/finish onboarding/i)).toBeNull();
+    expect(screen.queryByText(/finish & wrap up/i)).toBeNull();
   });
 
   // -------------------------------------------------------------------------
@@ -242,24 +245,25 @@ describe('OnboardingInterface', () => {
     expect(abandonSession).toHaveBeenCalledWith('test-token', SESSION.sessionId);
   });
 
-  it('does NOT abandon on unmount when the session was completed', async () => {
-    await renderOnboarding();
-    await act(async () => {
-      fireEvent.click(screen.getByTitle('Finish onboarding'));
-      await Promise.resolve();
-      await Promise.resolve();
+  it('does NOT abandon on unmount when the session was completed via marker', async () => {
+    // Coach emits the completion marker → handleComplete fires → completedRef
+    // is set → the unmount cleanup should skip abandonSession.
+    streamChat.mockImplementationOnce(async (_t, _s, _m, { onText, onDone }) => {
+      onText?.({ content: 'See you soon! [ONBOARDING_COMPLETE]' });
+      onDone?.({ sequenceNumber: 1 });
     });
-    abandonSession.mockClear();
-    // Now unmount — abandon should not fire because completedRef is set.
     const { unmount } = await renderOnboarding();
+    await waitFor(
+      () => {
+        expect(completeSession).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 2000 },
+    );
+    abandonSession.mockClear();
     await act(async () => {
       unmount();
       await Promise.resolve();
     });
-    // First render's session was already finished; the second render's
-    // session is fresh so it WILL abandon on its own unmount. The contract
-    // we care about: completing flips completedRef so the SAME instance's
-    // unmount doesn't re-abandon.
-    expect(abandonSession).toHaveBeenCalledTimes(1);
+    expect(abandonSession).not.toHaveBeenCalled();
   });
 });

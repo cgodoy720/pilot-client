@@ -1727,7 +1727,6 @@ function Learning() {
               taskId={tasks[currentTaskIndex]?.id}
               userId={user?.id}
               isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
-              isLastTask={currentTaskIndex === tasks.length - 1}
               onComplete={handleOnboardingComplete}
             />
           </div>
