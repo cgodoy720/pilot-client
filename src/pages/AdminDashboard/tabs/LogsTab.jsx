@@ -47,10 +47,19 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
       const cohortRes = await fetch(`${API_URL}/api/admin/dashboard/cohort-logs?cohortId=${selectedCohortId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      // Check .ok BEFORE reading the body. The global fetch interceptor already
+      // dispatches `authError` on 401/403, but treating the response as data
+      // anyway hides hard failures (5xx, network errors with non-JSON bodies)
+      // from logs and from this catch — matches the .ok guard the other
+      // fetches in this file use.
+      if (!cohortRes.ok) {
+        throw new Error(`cohort-logs fetch failed: ${cohortRes.status}`);
+      }
       const cohortData = await cohortRes.json();
       if (cohortData.success) setCohortLogs(cohortData.data.logs || []);
-    } catch {
-      /* silently ignore — cohort sections simply won't render */
+    } catch (err) {
+      console.error('Cohort logs fetch failed:', err);
+      // Cohort sections simply won't render — non-critical for the page.
     }
     setLoading(false);
   };

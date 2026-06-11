@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { toast } from 'sonner';
 import useAuthStore from '../../stores/authStore';
 import { useStreamingText } from '../../hooks/useStreamingText';
 import './PathfinderCompass.css';
@@ -1028,6 +1029,14 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         console.error('Compass goals/edit endpoint returned error:', res.status, errBody);
+        // Surface the failure to the user — the previous silent return left
+        // the spinner clearing as if the edit succeeded. The toast message
+        // prefers the server's error string when present.
+        toast.error(
+          errBody?.error
+            ? `Couldn't update goal: ${errBody.error}`
+            : "Couldn't update goal — please try again."
+        );
         // Skip the status refetch + onEnrollmentComplete — otherwise the
         // UI looks like the edit succeeded (spinner clears, banner clears)
         // even though the PATCH failed and the goal is unchanged.
@@ -1257,12 +1266,15 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
             handleLogPayload(logPayload);
           }
 
-          if (editGoalPayload) {
-            await handleEditGoalPayload(editGoalPayload);
-          }
-
+          // Mutually exclusive — a single coach turn should only emit one
+          // of these signals. If a malformed LLM response includes more
+          // than one, completion takes precedence over add/edit so the
+          // enrollment-status refresh runs exactly once (was: edit + completion
+          // both called onEnrollmentComplete on the same turn).
           if (completionPayload) {
             await handleCompletionPayload(completionPayload);
+          } else if (editGoalPayload) {
+            await handleEditGoalPayload(editGoalPayload);
           } else if (addGoalsPayload) {
             await handleAddGoalsPayload(addGoalsPayload);
           }
