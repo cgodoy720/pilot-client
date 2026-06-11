@@ -363,7 +363,13 @@ const BuilderSnapshot = ({ embedded = false }) => {
       .join(' ')
       .trim();
   const cohortName = snapshot?.cohort_name || identity.cohort || null;
-  const headshotUrl = snapshot?.headshot_url || null;
+  // Legacy lookbook rows store server-relative paths (/uploads/profiles/…)
+  // served by the API host, not the client host — make them absolute.
+  const rawHeadshotUrl = snapshot?.headshot_url || null;
+  const headshotUrl =
+    rawHeadshotUrl && rawHeadshotUrl.startsWith('/')
+      ? `${apiBase}${rawHeadshotUrl}`
+      : rawHeadshotUrl;
 
   return (
     <div
