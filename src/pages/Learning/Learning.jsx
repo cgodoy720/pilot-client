@@ -1725,7 +1725,6 @@ function Learning() {
             <OnboardingInterface
               key={`onboarding-${tasks[currentTaskIndex]?.id}`}
               taskId={tasks[currentTaskIndex]?.id}
-              cohort={currentDay?.cohort}
               userId={user?.id}
               isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
               isLastTask={currentTaskIndex === tasks.length - 1}

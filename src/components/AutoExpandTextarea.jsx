@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from './ui/select';
 import ArrowButton from './ArrowButton/ArrowButton';
+import { Mic, MicOff } from 'lucide-react';
 
 // Available LLM models
 const LLM_MODELS = [
@@ -35,13 +36,105 @@ const AutoExpandTextarea = forwardRef(({
   onPeerFeedbackClick,
   peerFeedbackButtonText = "Peer Feedback",
   showLlmDropdown = false,
+  showMicButton = false,
   shouldFocus = false,
   onHeightChange
 }, ref) => {
   const textareaRef = useRef(null);
   const containerRef = useRef(null);
+  const recognitionRef = useRef(null);
+  // Snapshot of the textarea value at the moment dictation began. The
+  // SpeechRecognition event handler rebuilds the textarea content as
+  // `baseValueAtStart + dictationFinals + dictationInterim`, so anything the
+  // user already typed before clicking the mic is preserved as a prefix.
+  const dictationBaseRef = useRef('');
   const [localModel, setLocalModel] = useState(LLM_MODELS[0].value);
   const [hasContent, setHasContent] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  // Browser SpeechRecognition feature-detect. Falls through to false on
+  // browsers without it (Firefox, some mobile) — the mic button just doesn't
+  // render in that case.
+  const speechSupported = typeof window !== 'undefined' &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const startDictation = () => {
+    if (!speechSupported || isListening) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SR();
+    recognition.lang = 'en-US';
+    // Live streaming: interim results stream in as the user speaks, getting
+    // progressively refined and finalized into the textarea each chunk.
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    // Capture the prefix the user already typed so we can append, not replace.
+    const textarea = textareaRef.current;
+    const prefix = textarea?.value || '';
+    const sep = prefix.length > 0 && !/\s$/.test(prefix) ? ' ' : '';
+    dictationBaseRef.current = prefix + sep;
+
+    recognition.onresult = (event) => {
+      // Rebuild the dictation tail from scratch each event — the
+      // SpeechRecognition spec says results[].isFinal can transition from
+      // false to true between events, so we can't just append. Walking all
+      // results and re-rendering keeps the textarea in sync with the
+      // engine's current best guess.
+      let finals = '';
+      let interim = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finals += transcript;
+        else interim += transcript;
+      }
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.value = dictationBaseRef.current + finals + interim;
+      setHasContent(ta.value.trim().length > 0);
+      handleResize();
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      // On end, locked-in finals are already in the textarea. Bake the
+      // current value as the new base in case the user starts dictating
+      // again without typing.
+      const ta = textareaRef.current;
+      if (ta) {
+        const trimmed = ta.value;
+        dictationBaseRef.current = trimmed + (trimmed.length > 0 && !/\s$/.test(trimmed) ? ' ' : '');
+      }
+    };
+    recognition.onerror = (event) => {
+      console.error('SpeechRecognition error:', event.error);
+      setIsListening(false);
+    };
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsListening(true);
+    } catch (err) {
+      console.error('Failed to start dictation:', err);
+      setIsListening(false);
+    }
+  };
+
+  const stopDictation = () => {
+    try { recognitionRef.current?.stop(); } catch { /* not started */ }
+    setIsListening(false);
+  };
+
+  const toggleDictation = () => {
+    if (isListening) stopDictation();
+    else startDictation();
+  };
+
+  // Stop dictation on unmount.
+  useEffect(() => {
+    return () => {
+      try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    };
+  }, []);
 
   // Auto-resize textarea based on content
   const handleResize = () => {
@@ -170,8 +263,24 @@ const AutoExpandTextarea = forwardRef(({
 
         {/* Bottom row with buttons */}
         <div className="flex justify-between items-center">
-          {/* Left side - Assignment, Instructions, and Peer Feedback buttons */}
-          <div className="flex gap-2">
+          {/* Left side - Mic + Assignment + Instructions + Peer Feedback buttons */}
+          <div className="flex gap-2 items-center">
+            {showMicButton && speechSupported && (
+              <Button
+                onClick={toggleDictation}
+                disabled={disabled}
+                size="sm"
+                title={isListening ? 'Stop dictation' : 'Start voice dictation'}
+                className={`text-xs px-3 py-1 h-6 rounded-full flex items-center gap-1 ${
+                  isListening
+                    ? 'bg-mastery-pink hover:bg-mastery-pink/90 text-white'
+                    : 'bg-pursuit-purple hover:bg-pursuit-purple/90 text-stardust'
+                }`}
+              >
+                {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                {isListening ? 'Listening' : 'Voice'}
+              </Button>
+            )}
             {showInstructionsButton && (
               <Button
                 onClick={onInstructionsClick}

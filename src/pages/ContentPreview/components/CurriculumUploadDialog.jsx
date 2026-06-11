@@ -33,6 +33,7 @@ function CurriculumUploadDialog({ open, onOpenChange, cohort, token, onUploadCom
     setJsonInput('');
     setParsedDays([]);
     setUploadErrors([]);
+    setTaskWarnings([]);
     setShowConfirmation(false);
   };
 
@@ -65,9 +66,75 @@ function CurriculumUploadDialog({ open, onOpenChange, cohort, token, onUploadCom
     parseAndValidateJSON(jsonInput);
   };
 
+  // Inspect a task object and return { kind, label, badgeClass } for the badge.
+  // Routing key for the Learning page is task.type (writes task_type column) —
+  // 'onboarding'/'assessment'/'break' all flow through it. task_mode handles
+  // the coachV2-personalized vs. legacy-conversation/basic distinction.
+  const classifyTask = (task) => {
+    if (!task) return { kind: 'empty', label: 'no task', badgeClass: 'bg-gray-100 text-gray-500 border-gray-300' };
+    if (task.type === 'onboarding')  return { kind: 'onboarding',  label: 'onboarding',  badgeClass: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300' };
+    if (task.type === 'assessment')  return { kind: 'assessment',  label: 'assessment',  badgeClass: 'bg-amber-100 text-amber-700 border-amber-300' };
+    if (task.type === 'break')       return { kind: 'break',       label: 'break',       badgeClass: 'bg-slate-100 text-slate-600 border-slate-300' };
+    if (task.task_mode === 'personalized')  return { kind: 'personalized',  label: 'personalized',  badgeClass: 'bg-indigo-100 text-indigo-700 border-indigo-300' };
+    if (task.task_mode === 'conversation')  return { kind: 'conversation',  label: 'conversation',  badgeClass: 'bg-sky-100 text-sky-700 border-sky-300' };
+    return { kind: 'basic', label: task.task_mode || 'basic', badgeClass: 'bg-gray-100 text-gray-600 border-gray-300' };
+  };
+
+  // Lightweight, non-blocking checks that surface above the parsed banner.
+  // Returns ['warning string', …].
+  const collectTaskWarnings = (days) => {
+    const warnings = [];
+    let onboardingCount = 0;
+
+    days.forEach((day) => {
+      (day.time_blocks || []).forEach((tb, blockIdx) => {
+        const task = tb.task;
+        if (!task) return;
+
+        if (task.type === 'onboarding') {
+          onboardingCount++;
+          if (day.day_number !== 1) {
+            warnings.push(`Day ${day.day_number} block ${blockIdx + 1}: onboarding task is usually on day 1 (this is day ${day.day_number}).`);
+          }
+        }
+
+        if (task.task_mode === 'personalized') {
+          if (!task.v2_learning_goal) {
+            warnings.push(`Day ${day.day_number} "${task.title || 'untitled'}": personalized task is missing v2_learning_goal.`);
+          }
+          if (!Array.isArray(task.v2_competency_criteria) || task.v2_competency_criteria.length === 0) {
+            warnings.push(`Day ${day.day_number} "${task.title || 'untitled'}": personalized task has no v2_competency_criteria.`);
+          }
+        }
+      });
+    });
+
+    if (onboardingCount > 1) {
+      warnings.unshift(`This upload contains ${onboardingCount} onboarding tasks. Only one Day-0 task per cohort is typical.`);
+    }
+
+    return warnings;
+  };
+
+  // Aggregate count of task kinds across all days, for the parsed banner.
+  const summarizeTaskKinds = (days) => {
+    const counts = {};
+    days.forEach((day) => {
+      (day.time_blocks || []).forEach((tb) => {
+        const { kind } = classifyTask(tb.task);
+        if (kind === 'empty') return;
+        counts[kind] = (counts[kind] || 0) + 1;
+      });
+    });
+    return counts;
+  };
+
+  const [taskWarnings, setTaskWarnings] = useState([]);
+
   const parseAndValidateJSON = (jsonString) => {
     try {
       setUploadErrors([]);
+      setTaskWarnings([]);
       const parsed = JSON.parse(jsonString);
 
       let daysArray = Array.isArray(parsed) ? parsed : [parsed];
@@ -94,13 +161,16 @@ function CurriculumUploadDialog({ open, onOpenChange, cohort, token, onUploadCom
       if (errors.length > 0) {
         setUploadErrors(errors);
         setParsedDays([]);
+        setTaskWarnings([]);
       } else {
         setParsedDays(validDays);
         setUploadErrors([]);
+        setTaskWarnings(collectTaskWarnings(validDays));
       }
     } catch (error) {
       setUploadErrors([`Invalid JSON: ${error.message}`]);
       setParsedDays([]);
+      setTaskWarnings([]);
     }
   };
 
@@ -137,14 +207,20 @@ function CurriculumUploadDialog({ open, onOpenChange, cohort, token, onUploadCom
       const data = await response.json();
 
       if (response.ok) {
+        const tasksCreated = data.summary.tasksCreated ?? 0;
+        const tasksUpdated = data.summary.tasksUpdated ?? 0;
+        const noTaskWrites = tasksCreated === 0 && tasksUpdated === 0;
         Swal.fire({
-          icon: 'success',
-          title: 'Upload Complete',
+          icon: noTaskWrites ? 'warning' : 'success',
+          title: noTaskWrites ? 'Uploaded — but no tasks written' : 'Upload Complete',
           html: `
             <div class="text-left">
-              <p><strong>Created:</strong> ${data.summary.created} days</p>
-              <p><strong>Updated:</strong> ${data.summary.updated} days</p>
+              <p><strong>Days created:</strong> ${data.summary.created}</p>
+              <p><strong>Days updated:</strong> ${data.summary.updated}</p>
+              <p><strong>Tasks created:</strong> ${tasksCreated}</p>
+              <p><strong>Tasks updated:</strong> ${tasksUpdated}</p>
               ${data.summary.errors > 0 ? `<p class="text-red-600"><strong>Errors:</strong> ${data.summary.errors} days</p>` : ''}
+              ${noTaskWrites ? '<p class="text-amber-700 mt-2 text-sm">Day metadata was applied but no task rows changed. If you expected a new task, verify the time_blocks have task objects.</p>' : ''}
             </div>
           `
         });
@@ -242,8 +318,40 @@ function CurriculumUploadDialog({ open, onOpenChange, cohort, token, onUploadCom
               {parsedDays.length > 0 && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="font-bold text-green-700 mb-2">Parsed Successfully</p>
-                  <p className="text-sm text-green-600">
+                  <p className="text-sm text-green-600 mb-2">
                     {parsedDays.length} {parsedDays.length === 1 ? 'day' : 'days'} ready to edit
+                  </p>
+                  {(() => {
+                    const counts = summarizeTaskKinds(parsedDays);
+                    const entries = Object.entries(counts);
+                    if (entries.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1.5">
+                        {entries.map(([kind, count]) => {
+                          const { badgeClass } = classifyTask({ type: kind, task_mode: kind });
+                          return (
+                            <Badge key={kind} variant="outline" className={`${badgeClass} text-xs`}>
+                              {count} {kind}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Non-blocking task-level warnings */}
+              {taskWarnings.length > 0 && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="font-bold text-amber-800 mb-2">Heads up ({taskWarnings.length})</p>
+                  <ul className="list-disc list-inside text-amber-700 text-sm space-y-1">
+                    {taskWarnings.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-amber-600 mt-2">
+                    Warnings only — upload will still proceed.
                   </p>
                 </div>
               )}
@@ -341,6 +449,32 @@ function CurriculumUploadDialog({ open, onOpenChange, cohort, token, onUploadCom
                               placeholder="Enter daily goal..."
                             />
                           </div>
+
+                          {/* Per-task preview — read-only summary of what's about to be written. */}
+                          {Array.isArray(day.time_blocks) && day.time_blocks.length > 0 && (
+                            <div className="space-y-1 pt-2 border-t">
+                              <Label className="text-xs font-proxima-bold">Tasks in this day</Label>
+                              <ul className="space-y-1.5">
+                                {day.time_blocks.map((tb, blockIdx) => {
+                                  const task = tb.task;
+                                  const { label, badgeClass } = classifyTask(task);
+                                  return (
+                                    <li key={blockIdx} className="flex items-start gap-2 text-xs">
+                                      <span className="text-gray-400 font-mono shrink-0 mt-0.5">
+                                        {tb.start_time || '--:--'}
+                                      </span>
+                                      <Badge variant="outline" className={`${badgeClass} shrink-0`}>
+                                        {label}
+                                      </Badge>
+                                      <span className="text-gray-700 truncate">
+                                        {task?.title || <em className="text-gray-400">no task</em>}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}

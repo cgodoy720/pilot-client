@@ -3,9 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Badge } from '../../../components/ui/badge';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { RefreshCw, Brain, BookOpen, Target, ClipboardCheck, MessageSquare, GitBranch, Users, Layers, HelpCircle } from 'lucide-react';
+import { RefreshCw, Brain, BookOpen, Target, ClipboardCheck, MessageSquare, GitBranch, Users, Layers, HelpCircle, Network, Gauge, Pencil, Clock } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import LoadingState from './shared/LoadingState';
+import PromptFormDialog from './shared/PromptFormDialog';
+import CoachV2FlowDiagram from './CoachV2FlowDiagram';
+import SkillEditDialog from './SkillEditDialog';
+import PromptChangeHistoryDialog from './PromptChangeHistoryDialog';
+import useAuthStore from '../../../stores/authStore';
 
 const PHASE_ICONS = {
   learn: BookOpen,
@@ -27,7 +32,11 @@ const InfoTip = ({ text }) => (
   </span>
 );
 
-const TemplateCard = ({ phase, template }) => {
+const SubTabCaption = ({ children }) => (
+  <p className="font-proxima text-sm text-[#666] -mt-2">{children}</p>
+);
+
+const TemplateCard = ({ phase, template, canEdit, onEdit, onHistory }) => {
   const Icon = PHASE_ICONS[phase] || BookOpen;
 
   return (
@@ -43,6 +52,30 @@ const TemplateCard = ({ phase, template }) => {
               Internal Only
             </Badge>
           )}
+          {template.id && (
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
+                onClick={onHistory}
+                title="View change history"
+              >
+                <Clock className="h-4 w-4" />
+              </Button>
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+                  onClick={onEdit}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         <CardDescription className="font-proxima text-[#666]">
           {template.description}
@@ -52,7 +85,7 @@ const TemplateCard = ({ phase, template }) => {
         <ScrollArea className="h-[400px] w-full rounded-lg">
           <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
             <pre className="font-mono text-sm text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
-              {template.content}
+              {template.content || '(not yet seeded — run migration)'}
             </pre>
           </div>
         </ScrollArea>
@@ -61,9 +94,37 @@ const TemplateCard = ({ phase, template }) => {
   );
 };
 
-const V2CoachEngineTab = ({ showNotification }) => {
+const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
+  // Read the token via the auth store selector instead of localStorage so
+  // (a) any future token-refresh logic in the store applies here, and (b)
+  // a renamed localStorage key never silently sends `Bearer null`.
+  const token = useAuthStore((s) => s.token);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Disable Save buttons while a write is in flight. Prevents double-submit
+  // races where a second save fires before the first reloadPrompts/fetchData
+  // settle, interleaving state updates.
+  const [isSaving, setIsSaving] = useState(false);
+  // editTarget shape: { id, content, endpoint, title }
+  //   endpoint: 'content-generation' (for v2_coach_* + onboarding_coach_* rows)
+  //          | 'contexts'           (for program_contexts row)
+  const [editTarget, setEditTarget] = useState(null);
+  // configEditTarget shape: { key, value, displayName, description, valueType, min, max }
+  // Drives the editable graph-config scalars (max_learn_turns, ema_*,
+  // difficulty_thresholds, etc.) under the Config & Reference tab.
+  const [configEditTarget, setConfigEditTarget] = useState(null);
+  // skillEditSlug: which skill slug is currently being edited (null = none).
+  // The dialog reads the skill object from data.skillTaxonomy.skills[slug].
+  const [skillEditSlug, setSkillEditSlug] = useState(null);
+  // Local filter for the skill list. null = show all categories.
+  const [skillCategoryFilter, setSkillCategoryFilter] = useState(null);
+  // historyTarget: { entityType, entityId, entityName } — drives the
+  // shared PromptChangeHistoryDialog (null = closed). Set by every "History"
+  // button across the page; revert refreshes data via fetchData().
+  const [historyTarget, setHistoryTarget] = useState(null);
+
+  const openHistory = (entityType, entityId, entityName) =>
+    setHistoryTarget({ entityType, entityId, entityName });
 
   useEffect(() => {
     fetchData();
@@ -72,7 +133,6 @@ const V2CoachEngineTab = ({ showNotification }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/v2-coach-engine`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -90,10 +150,217 @@ const V2CoachEngineTab = ({ showNotification }) => {
     }
   };
 
+  // Save handler shared across every editable section.
+  //
+  // Both backing tables (content_generation_prompts, program_contexts) need
+  // their full row sent on PUT — partial updates aren't supported by the
+  // existing controller. So we GET the full row first, swap `content`, and
+  // PUT back. After a successful write, reloadPrompts() invalidates the
+  // server-side promptManager cache and fetchData() refreshes our view.
+  //
+  // KNOWN LIMITATION: this GET-then-PUT is not optimistically locked, so two
+  // admins editing the same row concurrently will silently last-write-wins.
+  // Acceptable today because this surface is admin-only with effectively
+  // zero concurrent edit traffic and every save lands in prompt_change_history
+  // (audit + revert), so a stomp is recoverable. Promote to a PATCH endpoint
+  // with an If-Match/updated_at guard if concurrent editing becomes real.
+  const handleSaveContent = async ({ content }) => {
+    if (!editTarget || isSaving) return;
+    setIsSaving(true);
+    const { id, endpoint, title } = editTarget;
+    const base = `${import.meta.env.VITE_API_URL}/api/admin/prompts/${endpoint}/${id}`;
+    try {
+      const getRes = await fetch(base, { headers: { Authorization: `Bearer ${token}` } });
+      if (!getRes.ok) throw new Error(`GET failed: ${getRes.status}`);
+      const getBody = await getRes.json();
+      // GET responses wrap the row in `{program_context: {...}}` for contexts
+      // and `{prompt: {...}}` for content-generation. Normalize.
+      const row = getBody.program_context || getBody.prompt || getBody;
+      const putBody = { ...row, content };
+      delete putBody.id;
+      delete putBody.created_at;
+      delete putBody.updated_at;
+      const putRes = await fetch(base, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(putBody),
+      });
+      if (!putRes.ok) {
+        const err = await putRes.json().catch(() => ({}));
+        throw new Error(err.error || `PUT failed: ${putRes.status}`);
+      }
+      setEditTarget(null);
+      showNotification(`${title} saved`);
+      // Await both refreshes so isSaving stays true until the new state is
+      // mounted — otherwise a second save could race against the in-flight
+      // reload and interleave updates.
+      await Promise.all([
+        reloadPrompts ? reloadPrompts() : Promise.resolve(),
+        fetchData(),
+      ]);
+    } catch (error) {
+      console.error(`Error saving ${title}:`, error);
+      showNotification(`Failed to save ${title}: ${error.message}`, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Convenience: open the dialog with the right endpoint + title.
+  const openEditor = (id, content, endpoint, title) => {
+    if (!id) {
+      showNotification(`${title} is not yet seeded — run the seed migration first`, 'error');
+      return;
+    }
+    setEditTarget({ id, content: content || '', endpoint, title });
+  };
+
+  // Save handler for graph-config scalars. PUT /coach-v2-config/:key with
+  // either a number (integer / number value_types) or an object (e.g.,
+  // difficulty_thresholds = {advanced, intermediate}). Form fields are
+  // generated dynamically based on valueType.
+  const handleSaveConfig = async (formData) => {
+    if (!configEditTarget || isSaving) return;
+    setIsSaving(true);
+    const { key, valueType, displayName } = configEditTarget;
+
+    // Build the value payload from form data based on type.
+    let value;
+    if (valueType === 'object' && key === 'difficulty_thresholds') {
+      value = {
+        advanced: Number(formData.advanced),
+        intermediate: Number(formData.intermediate),
+      };
+    } else {
+      // integer / number: form has a single "value" field
+      value = valueType === 'integer'
+        ? Number.parseInt(formData.value, 10)
+        : Number.parseFloat(formData.value);
+    }
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admin/prompts/coach-v2-config/${encodeURIComponent(key)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ value }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `PUT failed: ${res.status}`);
+      }
+      setConfigEditTarget(null);
+      showNotification(`${displayName} saved`);
+      await Promise.all([
+        reloadPrompts ? reloadPrompts() : Promise.resolve(),
+        fetchData(),
+      ]);
+    } catch (error) {
+      console.error(`Error saving ${displayName}:`, error);
+      showNotification(`Failed to save ${displayName}: ${error.message}`, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save handler for individual skill edits. Builds an updated taxonomy
+  // (merging the edited skill into skills[slug]) and PUTs the whole thing.
+  const handleSaveSkill = async (updatedSkill) => {
+    if (!data?.skillTaxonomy || isSaving) return;
+    setIsSaving(true);
+    const updatedTaxonomy = {
+      categories: data.skillTaxonomy.categories,
+      skills: {
+        ...data.skillTaxonomy.skills,
+        [updatedSkill.slug]: updatedSkill,
+      },
+      foundationalCompetencies: data.skillTaxonomy.foundationalCompetencies,
+      // The two focus-area maps get regenerated server-side eventually; for
+      // this iteration we send the existing maps unchanged. The interview
+      // routing for the edited skill changes when interviewFocus.area
+      // changes — that's not reflected in the derived maps until the next
+      // taxonomy reseed. Documented limitation; flag for the user.
+      focusAreaToSkillDomains: data.skillTaxonomy.focusAreaToSkillDomains,
+      skillDomainToFocusArea: data.skillTaxonomy.skillDomainToFocusArea,
+    };
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admin/prompts/skill-taxonomy`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(updatedTaxonomy),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `PUT failed: ${res.status}`);
+      }
+      setSkillEditSlug(null);
+      showNotification(`Skill "${updatedSkill.name}" saved`);
+      await Promise.all([
+        reloadPrompts ? reloadPrompts() : Promise.resolve(),
+        fetchData(),
+      ]);
+    } catch (error) {
+      console.error(`Error saving skill ${updatedSkill.slug}:`, error);
+      showNotification(`Failed to save skill: ${error.message}`, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Compute the field list for the config-edit dialog from the target's shape.
+  const configFields = (() => {
+    if (!configEditTarget) return [];
+    const { key, valueType, value, min, max, description } = configEditTarget;
+    if (valueType === 'object' && key === 'difficulty_thresholds') {
+      return [
+        {
+          name: 'advanced',
+          label: 'Advanced threshold (avg skill_level ≥)',
+          type: 'number',
+          required: true,
+          defaultValue: value?.advanced ?? '',
+          helpText: 'Builders averaging at or above this level get the advanced teaching mode.',
+        },
+        {
+          name: 'intermediate',
+          label: 'Intermediate threshold (avg skill_level ≥)',
+          type: 'number',
+          required: true,
+          defaultValue: value?.intermediate ?? '',
+          helpText: 'Below this, the coach defaults to beginner mode. Must be less than the advanced threshold.',
+        },
+      ];
+    }
+    return [
+      {
+        name: 'value',
+        label: configEditTarget.displayName,
+        type: 'number',
+        required: true,
+        defaultValue: value ?? '',
+        helpText: `${description}${min != null || max != null ? ` Range: ${min ?? '−∞'}–${max ?? '∞'}.` : ''}`,
+      },
+    ];
+  })();
+
   if (loading) return <LoadingState count={3} />;
   if (!data) return null;
 
-  const { templates, programContext, skillTaxonomy, graphConfig, profileFields } = data;
+  const {
+    templates,
+    programContext,
+    skillTaxonomy,
+    graphConfig,
+    profileFields,
+    onboardingAgent,
+    coachv2InlineNodes,
+    evalRubric,
+  } = data;
 
   return (
     <div className="space-y-6">
@@ -104,7 +371,7 @@ const V2CoachEngineTab = ({ showNotification }) => {
             V2 Coach Engine
           </h2>
           <p className="font-proxima text-[#666]">
-            The complete context that makes up the v2 coaching engine's "mind" — phase templates, program context, skill taxonomy, and orchestrator configuration.
+            The complete context that makes up the v2 coaching engine's "mind" — phase templates, onboarding chat, eval harness, and orchestrator configuration. Use the sub-tabs below to navigate.
           </p>
         </div>
         <Button
@@ -117,216 +384,819 @@ const V2CoachEngineTab = ({ showNotification }) => {
         </Button>
       </div>
 
-      {/* Graph Flow Overview */}
-      <Card className="bg-white border-[#C8C8C8]">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-[#4242EA]" />
-            <CardTitle className="font-proxima-bold text-[#1E1E1E]">
-              {graphConfig.name}
-            </CardTitle>
-            <InfoTip text="This is the orchestrator that controls how the AI coach interacts with each builder. Each conversation follows this flow: the coach teaches, then gives a challenge, grades the response, and either completes the task or gives targeted feedback for a retry." />
-          </div>
-          <CardDescription className="font-proxima text-[#666]">
-            {graphConfig.description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Flow visualization */}
-          <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
-            <p className="font-mono text-sm text-[#1E1E1E] mb-3">{graphConfig.flow}</p>
-            <div className="flex flex-wrap gap-2">
-              {graphConfig.phases.map((phase) => (
-                <Badge
-                  key={phase}
-                  className={`font-proxima text-xs ${
-                    phase === 'complete'
-                      ? 'bg-green-100 text-green-800 border-green-300'
-                      : phase === 'grade'
-                      ? 'bg-amber-100 text-amber-800 border-amber-300'
-                      : phase === 'remediate'
-                      ? 'bg-orange-100 text-orange-800 border-orange-300'
-                      : 'bg-[#4242EA]/10 text-[#4242EA] border-[#4242EA]/30'
-                  }`}
-                  variant="outline"
-                >
-                  {phase}
-                </Badge>
-              ))}
-            </div>
-          </div>
+      {/* Sub-tabs — Config & Reference leads as the orientation surface
+          (graph flow diagram, program context, profile fields, skill
+          taxonomy); then the editable surfaces in execution order:
+          coaching loop → onboarding → inline nodes → eval harness. */}
+      <Tabs defaultValue="config" className="w-full">
+        <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+          <TabsTrigger
+            value="config"
+            className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+          >
+            <GitBranch className="h-4 w-4 mr-2" />
+            Config &amp; Reference
+          </TabsTrigger>
+          <TabsTrigger
+            value="loop"
+            className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+          >
+            <Brain className="h-4 w-4 mr-2" />
+            Coaching Loop
+          </TabsTrigger>
+          <TabsTrigger
+            value="onboarding"
+            className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Onboarding
+          </TabsTrigger>
+          <TabsTrigger
+            value="nodes"
+            className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+          >
+            <Network className="h-4 w-4 mr-2" />
+            Inline Nodes
+          </TabsTrigger>
+          <TabsTrigger
+            value="eval"
+            className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+          >
+            <Gauge className="h-4 w-4 mr-2" />
+            Eval Harness
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Config details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-[#F5F5F5] rounded-lg p-3">
-              <div className="flex items-center gap-1 mb-1">
-                <p className="font-proxima text-xs text-[#666]">Max Learn Turns</p>
-                <InfoTip text="The maximum number of back-and-forth exchanges during the teaching phase before the coach moves the builder to the apply challenge, even if the readiness signal hasn't been detected." />
-              </div>
-              <p className="font-proxima-bold text-lg text-[#1E1E1E]">{graphConfig.maxLearnTurns}</p>
-            </div>
-            <div className="bg-[#F5F5F5] rounded-lg p-3">
-              <div className="flex items-center gap-1 mb-1">
-                <p className="font-proxima text-xs text-[#666]">Max Apply Attempts</p>
-                <InfoTip text="How many times a builder can retry the apply challenge if they don't pass. After this many attempts, the task completes with partial credit." />
-              </div>
-              <p className="font-proxima-bold text-lg text-[#1E1E1E]">{graphConfig.maxApplyAttempts}</p>
-            </div>
-            <div className="bg-[#F5F5F5] rounded-lg p-3">
-              <div className="flex items-center gap-1 mb-1">
-                <p className="font-proxima text-xs text-[#666]">Pass Threshold</p>
-                <InfoTip text="The minimum overall score (out of 100) a builder needs on their apply challenge to pass. Below this, they get remediation and a retry (if attempts remain)." />
-              </div>
-              <p className="font-proxima-bold text-lg text-[#1E1E1E]">{graphConfig.passThreshold}/100</p>
-            </div>
-          </div>
+        {/* ========== Sub-tab 1: Coaching Loop ========== */}
+        <TabsContent value="loop" className="space-y-6 mt-6">
+          <SubTabCaption>
+            The 4 phase templates the coach runs builders through during a task. All editable — saves take effect on the next coach turn.
+          </SubTabCaption>
 
-          {/* Difficulty thresholds */}
+          {/* Phase Templates */}
           <div>
-            <div className="flex items-center gap-1 mb-2">
-              <p className="font-proxima text-sm text-[#666]">Difficulty Auto-Selection (from builder profile)</p>
-              <InfoTip text="When a builder starts a task, the engine looks at their existing skill levels for the relevant domains and automatically picks the right difficulty. This determines how the coach teaches — simple analogies for beginners, edge cases for advanced." />
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="h-5 w-5 text-[#4242EA]" />
+              <h3 className="font-proxima-bold text-xl text-[#1E1E1E]">Phase Templates</h3>
+              <InfoTip text="These are the system prompts sent to the AI for each phase of the conversation. They define how the coach behaves — what it says, what it hides, when it transitions. Variables in {curly_braces} are filled in at runtime with the builder's profile, task content, etc." />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {Object.entries(graphConfig.difficultyThresholds).map(([level, desc]) => (
-                <div key={level} className="bg-[#F5F5F5] rounded-lg p-2 flex items-center gap-2">
-                  <Badge variant="outline" className="font-proxima text-xs capitalize">{level}</Badge>
-                  <span className="font-mono text-xs text-[#666]">{desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* EMA config */}
-          <div className="bg-[#F5F5F5] rounded-lg p-3">
-            <div className="flex items-center gap-1 mb-1">
-              <p className="font-proxima text-xs text-[#666]">Skill Level EMA Update</p>
-              <InfoTip text="After each completed task, the builder's skill level for the relevant domains is updated using an Exponential Moving Average. This means recent performance has a 30% influence while historical performance retains 70% weight, so one bad day doesn't tank their level." />
-            </div>
-            <p className="font-mono text-sm text-[#1E1E1E]">
-              new_level = (existing * {graphConfig.skillLevelEma.existingWeight}) + (apply_score * {graphConfig.skillLevelEma.newWeight})
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Phase Templates */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <Brain className="h-5 w-5 text-[#4242EA]" />
-          <h3 className="font-proxima-bold text-xl text-[#1E1E1E]">Phase Templates</h3>
-          <InfoTip text="These are the system prompts sent to the AI for each phase of the conversation. They define how the coach behaves — what it says, what it hides, when it transitions. Variables in {curly_braces} are filled in at runtime with the builder's profile, task content, etc." />
-        </div>
-
-        <Tabs defaultValue="learn" className="w-full">
-          <TabsList className="bg-white border border-[#C8C8C8] p-1">
-            {Object.entries(templates).map(([key, template]) => (
-              <TabsTrigger
-                key={key}
-                value={key}
-                className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
-              >
-                {template.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <div className="mt-4">
-            {Object.entries(templates).map(([key, template]) => (
-              <TabsContent key={key} value={key} className="m-0">
-                <TemplateCard phase={key} template={template} />
-              </TabsContent>
-            ))}
-          </div>
-        </Tabs>
-      </div>
-
-      {/* Program Context */}
-      <Card className="bg-white border-[#C8C8C8]">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-[#4242EA]" />
-            <CardTitle className="font-proxima-bold text-[#1E1E1E]">
-              {programContext.name}
-            </CardTitle>
-            <InfoTip text="This is injected into the coach's system prompt during the Learn and Remediate phases so it understands what program the builder is in, the philosophy (AI-first), and the trajectory. Without this, the coach would give generic tutoring instead of program-relevant guidance." />
-          </div>
-          <CardDescription className="font-proxima text-[#666]">
-            {programContext.description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
-            <pre className="font-mono text-sm text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
-              {programContext.content}
-            </pre>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Builder Profile Fields */}
-      <Card className="bg-white border-[#C8C8C8]">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#4242EA]" />
-            <CardTitle className="font-proxima-bold text-[#1E1E1E]">
-              {profileFields.name}
-            </CardTitle>
-            <InfoTip text="Each builder has a profile that the engine reads at the start of every task and writes to after completion. This is how the coach 'remembers' the builder across sessions — their skill levels, how they learn best, and where they've struggled." />
-          </div>
-          <CardDescription className="font-proxima text-[#666]">
-            {profileFields.description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {Object.entries(profileFields.fields).map(([field, description]) => (
-              <div key={field} className="flex items-start gap-3 bg-[#F5F5F5] rounded-lg p-3">
-                <code className="font-mono text-sm text-[#4242EA] bg-white px-2 py-0.5 rounded border border-[#E3E3E3] shrink-0">
-                  {field}
-                </code>
-                <span className="font-proxima text-sm text-[#666]">{description}</span>
+            <Tabs defaultValue="learn" className="w-full">
+              <TabsList className="bg-white border border-[#C8C8C8] p-1">
+                {Object.entries(templates).map(([key, template]) => (
+                  <TabsTrigger
+                    key={key}
+                    value={key}
+                    className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                  >
+                    {template.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <div className="mt-4">
+                {Object.entries(templates).map(([key, template]) => (
+                  <TabsContent key={key} value={key} className="m-0">
+                    <TemplateCard
+                      phase={key}
+                      template={template}
+                      canEdit={canEdit}
+                      onEdit={() => openEditor(template.id, template.content, 'content-generation', `${template.name} template`)}
+                      onHistory={() => openHistory('content_generation_prompt', String(template.id), template.name)}
+                    />
+                  </TabsContent>
+                ))}
               </div>
-            ))}
+            </Tabs>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Skill Taxonomy */}
-      <Card className="bg-white border-[#C8C8C8]">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle className="font-proxima-bold text-[#1E1E1E]">
-              {skillTaxonomy.name}
-            </CardTitle>
-            <InfoTip text="This mapping connects the fine-grained skill domains used by tasks (like 'css' or 'react') to broader interview focus areas (like 'frontend'). The coach uses it to recommend mock interviews after strong apply performance, and the interview system will use it to calibrate questions based on coach data." />
-          </div>
-          <CardDescription className="font-proxima text-[#666]">
-            {skillTaxonomy.description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Object.entries(skillTaxonomy.focusAreaToSkillDomains).map(([area, domains]) => (
-              <div key={area} className="bg-[#F5F5F5] rounded-lg p-3">
-                <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2 capitalize">
-                  {area.replace(/_/g, ' ')}
+        {/* ========== Sub-tab 2: Onboarding ========== */}
+        <TabsContent value="onboarding" className="space-y-6 mt-6">
+          <SubTabCaption>
+            Day-0 onboarding chat that runs before the coaching loop and seeds the builder profile. 5 editable sections; the 4 build-artifact / opening-line variants are computed at runtime.
+          </SubTabCaption>
+
+          {onboardingAgent && (
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-[#4242EA]" />
+                  <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                    {onboardingAgent.name}
+                  </CardTitle>
+                  <InfoTip text="The Day-0 onboarding chat that runs before the v2 coach takes over. SSE-streamed text with optional browser dictation. It seeds the builder's profile (background, goals, learning style) and is the same coach persona that will accompany them through the program." />
+                </div>
+                <CardDescription className="font-proxima text-[#666]">
+                  {onboardingAgent.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {onboardingAgent.sections.map((section) => (
+                    <div key={section.key} className="border border-[#E3E3E3] rounded-lg overflow-hidden">
+                      <div className="flex items-center gap-2 bg-[#F5F5F5] border-b border-[#E3E3E3] px-3 py-2">
+                        <p className="font-proxima-bold text-sm text-[#1E1E1E]">{section.label}</p>
+                        {section.isTemplate && (
+                          <Badge variant="outline" className="text-xs border-[#4242EA] text-[#4242EA] bg-white">
+                            Template — runtime data injected
+                          </Badge>
+                        )}
+                        {section.editable === false && (
+                          <Badge variant="outline" className="text-xs border-[#999] text-[#666] bg-white">
+                            Computed at runtime
+                          </Badge>
+                        )}
+                        {section.editable !== false && section.id && (
+                          <div className="ml-auto flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
+                              onClick={() => openHistory('content_generation_prompt', String(section.id), section.label)}
+                              title="View change history"
+                            >
+                              <Clock className="h-4 w-4" />
+                            </Button>
+                            {canEdit && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+                                onClick={() => openEditor(section.id, section.content, 'content-generation', section.label)}
+                              >
+                                <Pencil className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {section.description && (
+                        <p className="font-proxima text-xs text-[#666] px-3 pt-2">{section.description}</p>
+                      )}
+                      <div className="p-3">
+                        <ScrollArea className="max-h-[260px] w-full">
+                          <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed bg-white">
+                            {section.content || '(empty)'}
+                          </pre>
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ========== Sub-tab 3: Inline Nodes ========== */}
+        <TabsContent value="nodes" className="space-y-6 mt-6">
+          <SubTabCaption>
+            The 7 LangGraph nodes orchestrating the coaching loop. 3 carry inline prompts (Generate Apply / Complete / Reflect) and are editable; the other 4 reference the Coaching Loop phase templates.
+          </SubTabCaption>
+
+          {Array.isArray(coachv2InlineNodes) && coachv2InlineNodes.length > 0 && (
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Network className="h-5 w-5 text-[#4242EA]" />
+                  <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                    CoachV2 Inline Node Prompts
+                  </CardTitle>
+                  <InfoTip text="The v2 coach LangGraph has 8 nodes. Four use the phase templates from the Coaching Loop tab. The other three carry their own DB-backed prompts editable here; init reuses the Learn template." />
+                </div>
+                <CardDescription className="font-proxima text-[#666]">
+                  Every node the coachV2 LangGraph runs — system prompt source, in-band markers, and per-node caps.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {coachv2InlineNodes.map((node) => (
+                    <div key={node.node} className="border border-[#E3E3E3] rounded-lg overflow-hidden">
+                      <div className="flex items-center flex-wrap gap-2 bg-[#F5F5F5] border-b border-[#E3E3E3] px-3 py-2">
+                        <Badge variant="outline" className="font-mono text-xs bg-white">
+                          {node.node}
+                        </Badge>
+                        <p className="font-proxima-bold text-sm text-[#1E1E1E]">{node.label}</p>
+                        <code className="font-mono text-xs text-[#666] ml-auto">
+                          {node.systemPromptSource}
+                        </code>
+                        {node.editableNode && node.id && (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
+                              onClick={() => openHistory('content_generation_prompt', String(node.id), node.label)}
+                              title="View change history"
+                            >
+                              <Clock className="h-4 w-4" />
+                            </Button>
+                            {canEdit && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+                                onClick={() => openEditor(node.id, node.content, 'content-generation', `${node.label} template`)}
+                              >
+                                <Pencil className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-3 py-3 space-y-3">
+                        {node.description && (
+                          <p className="font-proxima text-sm text-[#666]">{node.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-3">
+                          {node.markers && node.markers.length > 0 && (
+                            <div>
+                              <p className="font-proxima text-xs text-[#666] mb-1">Markers</p>
+                              <div className="flex flex-wrap gap-1">
+                                {node.markers.map((m) => (
+                                  <Badge key={m} variant="outline" className="font-mono text-xs bg-amber-50 border-amber-300 text-amber-800">
+                                    {m}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {node.caps && Object.keys(node.caps).length > 0 && (
+                            <div>
+                              <p className="font-proxima text-xs text-[#666] mb-1">Caps / Config</p>
+                              <div className="flex flex-wrap gap-1">
+                                {Object.entries(node.caps).map(([k, v]) => (
+                                  <Badge key={k} variant="outline" className="font-mono text-xs bg-white">
+                                    {k}={Array.isArray(v) ? v.join('|') : String(v)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {node.content && (
+                          <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg">
+                            <ScrollArea className="max-h-[360px] w-full p-3">
+                              <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                                {node.content}
+                              </pre>
+                            </ScrollArea>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ========== Sub-tab 4: Eval Harness ========== */}
+        <TabsContent value="eval" className="space-y-6 mt-6">
+          <SubTabCaption>
+            Headless quality-evaluation rubric and templates. The 6 judge dimensions are read-only code constants; the Judge and Simulated Builder templates are editable.
+          </SubTabCaption>
+
+          {evalRubric && (
+            <Card className="bg-white border-[#C8C8C8]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-5 w-5 text-[#4242EA]" />
+                  <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                    {evalRubric.name}
+                  </CardTitle>
+                  <InfoTip text="The rubric the v2 coach eval harness uses to judge runs. Each dimension's criterion below is the rubric text fed to the LLM judge. The judge template and simulated-builder template are the full prompts used in services/coachEvalJudges.js + the simulated-builder driver." />
+                </div>
+                <CardDescription className="font-proxima text-[#666]">
+                  {evalRubric.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">Judge Dimensions</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(evalRubric.dimensions || []).map((d) => (
+                      <div key={d.key} className="bg-[#F5F5F5] rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="font-mono text-xs bg-white">
+                            {d.key}
+                          </Badge>
+                          <p className="font-proxima-bold text-sm text-[#1E1E1E]">{d.label}</p>
+                        </div>
+                        {d.description && (
+                          <p className="font-proxima text-xs text-[#666] mb-2">{d.description}</p>
+                        )}
+                        <p className="font-proxima text-sm text-[#1E1E1E] leading-relaxed">
+                          {d.criterion}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="font-proxima-bold text-sm text-[#1E1E1E]">Judge Template</p>
+                    {evalRubric.judgeTemplate?.id && (
+                      <div className="ml-auto flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
+                          onClick={() => openHistory('content_generation_prompt', String(evalRubric.judgeTemplate.id), 'Judge Template')}
+                          title="View change history"
+                        >
+                          <Clock className="h-4 w-4" />
+                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+                            onClick={() => openEditor(evalRubric.judgeTemplate.id, evalRubric.judgeTemplate.content, 'content-generation', 'Judge Template')}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <p className="font-proxima text-xs text-[#666] mb-2">content_generation_prompts: v2_coach_eval_judge — the system prompt every dimension's LLM judge receives, with the per-dimension rubric substituted in.</p>
+                  <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg">
+                    <ScrollArea className="max-h-[360px] w-full p-3">
+                      <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                        {evalRubric.judgeTemplate?.content || '(not yet seeded — run migration)'}
+                      </pre>
+                    </ScrollArea>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="font-proxima-bold text-sm text-[#1E1E1E]">Simulated Builder Template</p>
+                    {evalRubric.simulatedBuilderTemplate?.id && (
+                      <div className="ml-auto flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
+                          onClick={() => openHistory('content_generation_prompt', String(evalRubric.simulatedBuilderTemplate.id), 'Simulated Builder Template')}
+                          title="View change history"
+                        >
+                          <Clock className="h-4 w-4" />
+                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+                            onClick={() => openEditor(evalRubric.simulatedBuilderTemplate.id, evalRubric.simulatedBuilderTemplate.content, 'content-generation', 'Simulated Builder Template')}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <p className="font-proxima text-xs text-[#666] mb-2">content_generation_prompts: v2_coach_eval_simulated_builder — the persona-driven prompt the harness uses to drive each coach run headlessly.</p>
+                  <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg">
+                    <ScrollArea className="max-h-[360px] w-full p-3">
+                      <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                        {evalRubric.simulatedBuilderTemplate?.content || '(not yet seeded — run migration)'}
+                      </pre>
+                    </ScrollArea>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ========== Sub-tab 5: Config & Reference ========== */}
+        <TabsContent value="config" className="space-y-6 mt-6">
+          <SubTabCaption>
+            Read-only structural data (graph flow, builder profile fields, skill taxonomy) plus the editable Program Context — shared with V1 chat, so edits affect both engines.
+          </SubTabCaption>
+
+          {/* Graph Flow Overview */}
+          <Card className="bg-white border-[#C8C8C8]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <GitBranch className="h-5 w-5 text-[#4242EA]" />
+                <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                  {graphConfig.name}
+                </CardTitle>
+                <InfoTip text="This is the orchestrator that controls how the AI coach interacts with each builder. Each conversation follows this flow: the coach teaches, then gives a challenge, grades the response, and either completes the task or gives targeted feedback for a retry." />
+              </div>
+              <CardDescription className="font-proxima text-[#666]">
+                {graphConfig.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Flow diagram — rendered from a Mermaid spec in
+                  components/CoachV2FlowDiagram.jsx. Mirrors graphs/coachV2/
+                  controller.js + edges.js on the server. */}
+              <div className="bg-white border border-[#E3E3E3] rounded-lg p-4">
+                <CoachV2FlowDiagram />
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-proxima text-[#666]">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-[#4242EA]" />
+                    Happy path
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-orange-400" />
+                    Remediation loop (max 2 retries)
+                  </span>
+                </div>
+              </div>
+
+              {/* Editable scalar config — backed by coach_v2_config */}
+              {graphConfig.editable && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(() => {
+                    const editable = graphConfig.editable;
+                    const cards = [
+                      { row: editable.maxLearnTurns, suffix: 'turns' },
+                      { row: editable.maxApplyAttempts, suffix: 'attempts' },
+                      { row: editable.evalPassThreshold, suffix: '/100' },
+                      { row: editable.emaExistingWeight, suffix: '' },
+                      { row: editable.emaNewWeight, suffix: '' },
+                    ];
+                    return cards.map(({ row, suffix }) => row && (
+                      <div key={row.key} className="bg-[#F5F5F5] rounded-lg p-3 group">
+                        <div className="flex items-start gap-1 mb-1">
+                          <p className="font-proxima text-xs text-[#666] flex-1">{row.displayName}</p>
+                          <InfoTip text={row.description} />
+                          <button
+                            onClick={() => openHistory('coach_v2_config', row.key, row.displayName)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-[#666] hover:text-[#1E1E1E]"
+                            title={`History for ${row.displayName}`}
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => setConfigEditTarget(row)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-[#4242EA] hover:text-[#3232BA]"
+                              title={`Edit ${row.displayName}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="font-proxima-bold text-lg text-[#1E1E1E]">
+                          {row.value}{suffix && <span className="font-proxima text-sm text-[#999] ml-1">{suffix}</span>}
+                        </p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+
+              {/* Difficulty thresholds — editable object */}
+              {graphConfig.editable?.difficultyThresholds && (
+                <div>
+                  <div className="flex items-center gap-1 mb-2">
+                    <p className="font-proxima text-sm text-[#666]">{graphConfig.editable.difficultyThresholds.displayName}</p>
+                    <InfoTip text={graphConfig.editable.difficultyThresholds.description} />
+                    <div className="ml-auto flex items-center gap-3">
+                      <button
+                        onClick={() => openHistory('coach_v2_config', graphConfig.editable.difficultyThresholds.key, graphConfig.editable.difficultyThresholds.displayName)}
+                        className="text-[#666] hover:text-[#1E1E1E] inline-flex items-center gap-1 text-xs font-proxima"
+                        title="History"
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => setConfigEditTarget(graphConfig.editable.difficultyThresholds)}
+                          className="text-[#4242EA] hover:text-[#3232BA] inline-flex items-center gap-1 text-xs font-proxima"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className="bg-[#F5F5F5] rounded-lg p-2 flex items-center gap-2">
+                      <Badge variant="outline" className="font-proxima text-xs capitalize">advanced</Badge>
+                      <span className="font-mono text-xs text-[#666]">avg skill level ≥ {graphConfig.editable.difficultyThresholds.value?.advanced}</span>
+                    </div>
+                    <div className="bg-[#F5F5F5] rounded-lg p-2 flex items-center gap-2">
+                      <Badge variant="outline" className="font-proxima text-xs capitalize">intermediate</Badge>
+                      <span className="font-mono text-xs text-[#666]">≥ {graphConfig.editable.difficultyThresholds.value?.intermediate} and &lt; {graphConfig.editable.difficultyThresholds.value?.advanced}</span>
+                    </div>
+                    <div className="bg-[#F5F5F5] rounded-lg p-2 flex items-center gap-2">
+                      <Badge variant="outline" className="font-proxima text-xs capitalize">beginner</Badge>
+                      <span className="font-mono text-xs text-[#666]">&lt; {graphConfig.editable.difficultyThresholds.value?.intermediate}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Live-coach pass-threshold note (enforced inside the v2_coach_grade prompt) */}
+              {graphConfig.passThresholdLiveNote && (
+                <p className="font-proxima text-xs text-[#666] italic">
+                  {graphConfig.passThresholdLiveNote}
                 </p>
-                <div className="flex flex-wrap gap-1">
-                  {domains.map((domain) => (
-                    <Badge
-                      key={domain}
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Program Context */}
+          <Card className="bg-white border-[#C8C8C8]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Layers className="h-5 w-5 text-[#4242EA]" />
+                <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                  {programContext.name}
+                </CardTitle>
+                <InfoTip text="This is injected into the coach's system prompt during the Learn and Remediate phases so it understands what program the builder is in, the philosophy (AI-first), and the trajectory. Without this, the coach would give generic tutoring instead of program-relevant guidance. SHARED with V1 chat — edits affect both engines." />
+                {programContext.id && (
+                  <div className="ml-auto flex items-center gap-1">
+                    <Button
                       variant="outline"
-                      className="font-mono text-xs bg-white"
+                      size="sm"
+                      className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
+                      onClick={() => openHistory('program_context', String(programContext.id), 'Program Context')}
+                      title="View change history"
                     >
-                      {domain}
-                    </Badge>
+                      <Clock className="h-4 w-4" />
+                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
+                        onClick={() => openEditor(programContext.id, programContext.content, 'contexts', 'Program Context')}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <CardDescription className="font-proxima text-[#666]">
+                {programContext.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
+                <pre className="font-mono text-sm text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
+                  {programContext.content || '(not yet seeded — run migration)'}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Builder Profile Fields */}
+          <Card className="bg-white border-[#C8C8C8]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-[#4242EA]" />
+                <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                  {profileFields.name}
+                </CardTitle>
+                <InfoTip text="Each builder has a profile that the engine reads at the start of every task and writes to after completion. This is how the coach 'remembers' the builder across sessions — their skill levels, how they learn best, and where they've struggled." />
+              </div>
+              <CardDescription className="font-proxima text-[#666]">
+                {profileFields.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {Object.entries(profileFields.fields).map(([field, description]) => (
+                  <div key={field} className="flex items-start gap-3 bg-[#F5F5F5] rounded-lg p-3">
+                    <code className="font-mono text-sm text-[#4242EA] bg-white px-2 py-0.5 rounded border border-[#E3E3E3] shrink-0">
+                      {field}
+                    </code>
+                    <span className="font-proxima text-sm text-[#666]">{description}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Skill Taxonomy — editable skills (33), read-only categories +
+              foundational competencies + interview-routing map. */}
+          <Card className="bg-white border-[#C8C8C8]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CardTitle className="font-proxima-bold text-[#1E1E1E]">
+                  {skillTaxonomy.name}
+                </CardTitle>
+                <InfoTip text="The 33-skill model of the Pursuit AI Native Builder Program. Each skill has a definition, three proficiency descriptors, and routes to a mock-interview focus area. Edits take effect on the next coach turn." />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
+                  onClick={() => openHistory('skill_taxonomy', '1', 'Skill Taxonomy')}
+                  title="View change history"
+                >
+                  <Clock className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardDescription className="font-proxima text-[#666]">
+                {skillTaxonomy.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Skills list — grouped + filterable by category */}
+              <div>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <p className="font-proxima-bold text-sm text-[#1E1E1E]">
+                    Skills <span className="font-proxima text-[#666]">({Object.keys(skillTaxonomy.skills || {}).length})</span>
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      onClick={() => setSkillCategoryFilter(null)}
+                      className={`text-xs font-proxima px-2 py-1 rounded ${
+                        skillCategoryFilter === null
+                          ? 'bg-[#4242EA] text-white'
+                          : 'bg-[#F5F5F5] text-[#666] hover:bg-[#E3E3E3]'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {Object.entries(skillTaxonomy.categories || {}).map(([id, cat]) => (
+                      <button
+                        key={id}
+                        onClick={() => setSkillCategoryFilter(id)}
+                        className={`text-xs font-proxima px-2 py-1 rounded ${
+                          skillCategoryFilter === id
+                            ? 'bg-[#4242EA] text-white'
+                            : 'bg-[#F5F5F5] text-[#666] hover:bg-[#E3E3E3]'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {Object.values(skillTaxonomy.skills || {})
+                    .filter((s) => !skillCategoryFilter || s.category === skillCategoryFilter)
+                    .sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.name || '').localeCompare(b.name || ''))
+                    .map((skill) => (
+                      <div key={skill.slug} className="border border-[#E3E3E3] rounded-lg p-3 hover:border-[#4242EA] transition-colors">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-proxima-bold text-sm text-[#1E1E1E] truncate">{skill.name}</p>
+                            <code className="font-mono text-xs text-[#4242EA]">{skill.slug}</code>
+                          </div>
+                          {canEdit && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3] shrink-0"
+                              onClick={() => setSkillEditSlug(skill.slug)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                        <p className="font-proxima text-xs text-[#666] line-clamp-2 mb-2">{skill.definition}</p>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="font-proxima text-xs capitalize">
+                            {(skillTaxonomy.categories?.[skill.category]?.name || skill.category || '').replace(/_/g, ' ')}
+                          </Badge>
+                          {skill.interviewFocus && (
+                            <Badge variant="outline" className="font-mono text-xs bg-[#F5F5F5]">
+                              {skill.interviewFocus.type}/{skill.interviewFocus.area}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Foundational competencies — read-only summary */}
+              {skillTaxonomy.foundationalCompetencies && Object.keys(skillTaxonomy.foundationalCompetencies).length > 0 && (
+                <div className="border-t border-[#E3E3E3] pt-4">
+                  <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">
+                    Foundational Competencies <span className="font-proxima text-[#666]">({Object.keys(skillTaxonomy.foundationalCompetencies).length}, read-only)</span>
+                  </p>
+                  <p className="font-proxima text-xs text-[#666] mb-3">
+                    Higher-order competencies evidenced by sustained Adaptation-level performance across contributing skills. Edit via the API for now.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {Object.entries(skillTaxonomy.foundationalCompetencies).map(([id, comp]) => (
+                      <div key={id} className="bg-[#F5F5F5] rounded-lg p-2 text-xs font-proxima">
+                        <span className="font-proxima-bold text-[#1E1E1E]">{comp.name}</span>
+                        <span className="text-[#666] ml-1">— {(comp.developedThrough || []).length} contributing skills</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Focus area → skill map (derived; read-only) */}
+              <div className="border-t border-[#E3E3E3] pt-4">
+                <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">
+                  Mock-Interview Routing <span className="font-proxima text-[#666]">(derived from skills)</span>
+                </p>
+                <p className="font-proxima text-xs text-[#666] mb-3">
+                  Each interview focus area maps to the skill slugs that route there via their <code className="font-mono text-[#4242EA]">interviewFocus.area</code>. Updated automatically when you edit a skill's interview routing.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {Object.entries(skillTaxonomy.focusAreaToSkillDomains || {}).map(([area, domains]) => (
+                    <div key={area} className="bg-[#F5F5F5] rounded-lg p-2">
+                      <p className="font-proxima-bold text-xs text-[#1E1E1E] mb-1 capitalize">
+                        {area.replace(/_/g, ' ')} <span className="font-proxima text-[#999]">({domains.length})</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {domains.slice(0, 6).map((domain) => (
+                          <Badge key={domain} variant="outline" className="font-mono text-xs bg-white">
+                            {domain}
+                          </Badge>
+                        ))}
+                        {domains.length > 6 && (
+                          <Badge variant="outline" className="font-proxima text-xs bg-white text-[#999]">
+                            +{domains.length - 6} more
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit dialog — shared across every editable section. Renders via
+          portal so its DOM position doesn't matter; placed at the V2 page
+          level so it sits above the sub-tabs and persists across tab switches. */}
+      {editTarget && (
+        <PromptFormDialog
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          onSubmit={handleSaveContent}
+          isSubmitting={isSaving}
+          title={`Edit: ${editTarget.title}`}
+          confirmText="Save"
+          initialData={{ content: editTarget.content }}
+          fields={[
+            {
+              name: 'content',
+              label: 'Content',
+              type: 'textarea',
+              required: true,
+              rows: 22,
+              helpText: 'Saved on the next coach turn. {placeholders} in curly braces are runtime substitutions — don\'t change their names.',
+            },
+          ]}
+        />
+      )}
+
+      {/* Graph-config scalar edit dialog (max_learn_turns, EMA weights, etc.) */}
+      {configEditTarget && (
+        <PromptFormDialog
+          open={!!configEditTarget}
+          onClose={() => setConfigEditTarget(null)}
+          onSubmit={handleSaveConfig}
+          isSubmitting={isSaving}
+          title={`Edit: ${configEditTarget.displayName}`}
+          confirmText="Save"
+          initialData={configFields.reduce((acc, f) => ({ ...acc, [f.name]: f.defaultValue }), {})}
+          fields={configFields}
+        />
+      )}
+
+      {/* Skill edit dialog — one skill at a time, PUTs the whole taxonomy. */}
+      {skillEditSlug && data?.skillTaxonomy?.skills?.[skillEditSlug] && (
+        <SkillEditDialog
+          open={!!skillEditSlug}
+          onClose={() => setSkillEditSlug(null)}
+          onSubmit={handleSaveSkill}
+          isSubmitting={isSaving}
+          skill={data.skillTaxonomy.skills[skillEditSlug]}
+          categories={data.skillTaxonomy.categories || {}}
+        />
+      )}
+
+      {/* Change history dialog — shared, opened from any History button. */}
+      {historyTarget && (
+        <PromptChangeHistoryDialog
+          open={!!historyTarget}
+          onClose={() => setHistoryTarget(null)}
+          target={historyTarget}
+          onReverted={() => {
+            if (reloadPrompts) reloadPrompts();
+            fetchData();
+          }}
+          showNotification={showNotification}
+        />
+      )}
     </div>
   );
 };

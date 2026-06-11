@@ -20,7 +20,8 @@ const PromptFormDialog = ({
   title,
   confirmText = 'Save',
   initialData = {},
-  fields = []
+  fields = [],
+  isSubmitting = false,
 }) => {
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
@@ -202,9 +203,10 @@ const PromptFormDialog = ({
             </Button>
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
             >
-              {confirmText}
+              {isSubmitting ? 'Saving…' : confirmText}
             </Button>
           </DialogFooter>
         </form>
