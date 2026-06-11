@@ -6,6 +6,7 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import CoachRuns from '../CoachRuns/CoachRuns';
 import CoachEvals from '../CoachEvals/CoachEvals';
 import CoachProfiles from '../CoachProfiles/CoachProfiles';
+import BuilderSnapshot from '../BuilderSnapshot/BuilderSnapshot';
 
 const TAB_TRIGGER_CLASS =
   'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium font-proxima px-6 py-2 rounded-md transition-all';
@@ -31,6 +32,7 @@ const Coach = () => {
   const canRuns = canAccessPage('coach_observability');
   const canEvals = canAccessPage('coach_evals');
   const canProfiles = canAccessPage('coach_observability');
+  const canSnapshot = canAccessPage('coach_observability');
 
   const initialTabParam = searchParams.get('tab');
   // Honor ?tab= only if (a) it's a known tab and (b) the user has access to it;
@@ -38,10 +40,12 @@ const Coach = () => {
   const resolveInitialTab = () => {
     if (initialTabParam === 'evals' && canEvals) return 'evals';
     if (initialTabParam === 'profiles' && canProfiles) return 'profiles';
+    if (initialTabParam === 'snapshot' && canSnapshot) return 'snapshot';
     if (initialTabParam === 'runs' && canRuns) return 'runs';
     if (canRuns) return 'runs';
     if (canEvals) return 'evals';
-    return 'profiles';
+    if (canProfiles) return 'profiles';
+    return 'snapshot';
   };
   const [activeTab, setActiveTab] = useState(resolveInitialTab);
   const [runThread, setRunThread] = useState(() => {
@@ -59,6 +63,7 @@ const Coach = () => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', tab);
     if (tab !== 'runs') next.delete('thread');
+    if (tab !== 'snapshot') next.delete('userId');
     setSearchParams(next, { replace: true });
   };
 
@@ -89,6 +94,7 @@ const Coach = () => {
             {canRuns && <TabsTrigger value="runs" className={TAB_TRIGGER_CLASS}>Coach Runs</TabsTrigger>}
             {canEvals && <TabsTrigger value="evals" className={TAB_TRIGGER_CLASS}>Coach Evals</TabsTrigger>}
             {canProfiles && <TabsTrigger value="profiles" className={TAB_TRIGGER_CLASS}>Profiles</TabsTrigger>}
+            {canSnapshot && <TabsTrigger value="snapshot" className={TAB_TRIGGER_CLASS}>Builder Snapshot</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -105,6 +111,11 @@ const Coach = () => {
         {canProfiles && (
           <TabsContent value="profiles" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
             <CoachProfiles embedded />
+          </TabsContent>
+        )}
+        {canSnapshot && (
+          <TabsContent value="snapshot" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
+            <BuilderSnapshot embedded />
           </TabsContent>
         )}
       </Tabs>

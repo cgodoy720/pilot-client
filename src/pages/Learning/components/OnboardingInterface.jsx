@@ -339,26 +339,43 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
               </span>
             </div>
           )}
-          {messages.map((message, index) => (
-            <div key={message.id ?? index} className="mb-6">
-              {message.role === 'user' ? (
-                <div className="bg-stardust rounded-lg px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                      <span className="text-pursuit-purple text-sm font-proxima font-semibold">
-                        {userInitial}
-                      </span>
-                    </div>
-                    <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
-                      {message.content}
+          {messages.map((message, index) => {
+            // Coach bubble waiting on its first SSE chunk — show the Pursuit
+            // preloader inline, same pattern as Learning.jsx (line ~1762).
+            // Once any content has arrived, switch to the streaming markdown
+            // renderer so the text reveals naturally.
+            const isCoachThinking =
+              message.role === 'coach' &&
+              message.streaming &&
+              !(message.content && message.content.trim().length > 0);
+            return (
+              <div key={message.id ?? index} className="mb-6">
+                {message.role === 'user' ? (
+                  <div className="bg-stardust rounded-lg px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                        <span className="text-pursuit-purple text-sm font-proxima font-semibold">
+                          {userInitial}
+                        </span>
+                      </div>
+                      <div className="flex-1 text-carbon-black leading-relaxed text-base font-proxima">
+                        {message.content}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <StreamingMarkdownMessage content={message.content} />
-              )}
-            </div>
-          ))}
+                ) : isCoachThinking ? (
+                  <div className="flex items-center gap-3">
+                    <img src="/preloader.gif" alt="Coach is thinking…" className="w-8 h-8" />
+                    <span className="italic text-gray-500 text-sm font-proxima">
+                      Coach is thinking…
+                    </span>
+                  </div>
+                ) : (
+                  <StreamingMarkdownMessage content={message.content} />
+                )}
+              </div>
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
       </div>
