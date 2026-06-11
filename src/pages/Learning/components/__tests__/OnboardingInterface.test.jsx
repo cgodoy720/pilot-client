@@ -107,7 +107,10 @@ function resetLk() {
   };
 }
 
-// Render and flush the mount-time startSession effect.
+// Render, click through the "Meet your coach" pre-call screen, and flush the
+// startSession effect that fires once hasStarted=true. The pre-call gate was
+// added with the SSE-chat rewrite; without the click no test ever reaches the
+// effect that calls startSession.
 async function renderOnboarding(props = {}) {
   let utils;
   await act(async () => {
@@ -121,7 +124,10 @@ async function renderOnboarding(props = {}) {
         {...props}
       />
     );
-    // allow the async startSession() chain to settle
+  });
+  // Click "Start conversation" to flip hasStarted → triggers startSession effect.
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /start conversation/i }));
     await Promise.resolve();
     await Promise.resolve();
   });
