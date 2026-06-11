@@ -26,7 +26,7 @@ import CoachV2NodeTooltip, { NODES } from './CoachV2NodeTooltip';
 // constant, it becomes a direct XSS vector at the SVG-injection point.
 const FLOW_SPEC = `flowchart LR
   init["Init"]:::node --> learn["Learn"]:::node
-  learn --> generateApply["Generate Apply"]:::node
+  learn --> generateApply["Generate Challenge"]:::node
   generateApply --> apply["Apply"]:::node
   apply --> grade["Grade"]:::node
   grade --> complete["Complete"]:::node
@@ -103,40 +103,57 @@ export default function CoachV2FlowDiagram() {
     return () => { cancelled = true; };
   }, []);
 
-  // After React commits the svg into the container, attach hover handlers
-  // to each <g.node>. We match by LABEL TEXT rather than the auto-generated
-  // id (which varies across Mermaid versions). Re-runs whenever the svg
-  // changes (e.g., on remount or hot-reload).
+  // After React commits the svg into the container, attach hover handlers.
+  // We match nodes by LABEL TEXT rather than the auto-generated id (which
+  // varies across Mermaid versions). Re-runs whenever the svg changes (e.g.,
+  // on remount or hot-reload).
+  //
+  // We listen on the CONTAINER with the bubbling mouseover/mouseout events
+  // rather than per-node mouseenter/mouseleave. Mermaid renders node labels
+  // as HTML inside <foreignObject> (htmlLabels: true), and a <g>'s own
+  // mouseleave fires unreliably as the pointer crosses between the SVG shape
+  // and the foreignObject HTML — that left tooltips stuck on screen and
+  // blocked the other tooltips from ever showing. mouseover/mouseout bubble,
+  // so we can resolve the hovered node via closest('g.node') and clear only
+  // when the pointer truly leaves every node.
   useEffect(() => {
     if (!svgMarkup || !containerRef.current) return;
+    const container = containerRef.current;
     const labelToKey = Object.entries(NODES).reduce((acc, [key, meta]) => {
       acc[meta.name.toLowerCase().trim()] = key;
       return acc;
     }, {});
-    const nodeEls = containerRef.current.querySelectorAll('g.node');
-    const cleanups = [];
-    nodeEls.forEach((el) => {
-      const labelText = (el.textContent || '').toLowerCase().trim();
+
+    container.querySelectorAll('g.node').forEach((el) => {
+      el.style.cursor = 'pointer';
+    });
+
+    const handleOver = (e) => {
+      const g = e.target.closest && e.target.closest('g.node');
+      if (!g || !container.contains(g)) return;
+      const labelText = (g.textContent || '').toLowerCase().trim();
       const key = labelToKey[labelText];
       if (!key) return;
-      el.style.cursor = 'pointer';
-      const showTip = () => {
-        const rect = el.getBoundingClientRect();
-        setHoveredNode(key);
-        setTooltipPos({
-          x: rect.left + rect.width / 2,
-          y: rect.top,
-        });
-      };
-      const hideTip = () => setHoveredNode((cur) => (cur === key ? null : cur));
-      el.addEventListener('mouseenter', showTip);
-      el.addEventListener('mouseleave', hideTip);
-      cleanups.push(() => {
-        el.removeEventListener('mouseenter', showTip);
-        el.removeEventListener('mouseleave', hideTip);
-      });
-    });
-    return () => cleanups.forEach((fn) => fn());
+      const rect = g.getBoundingClientRect();
+      setHoveredNode(key);
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top });
+    };
+
+    const handleOut = (e) => {
+      // If the pointer moved onto another node, the mouseover handler will
+      // swap the tooltip — don't clear. Otherwise (gaps, edges, or leaving
+      // the diagram entirely) hide it.
+      const to = e.relatedTarget;
+      if (to && to.closest && to.closest('g.node')) return;
+      setHoveredNode(null);
+    };
+
+    container.addEventListener('mouseover', handleOver);
+    container.addEventListener('mouseout', handleOut);
+    return () => {
+      container.removeEventListener('mouseover', handleOver);
+      container.removeEventListener('mouseout', handleOut);
+    };
   }, [svgMarkup]);
 
   if (error) {
@@ -149,17 +166,31 @@ export default function CoachV2FlowDiagram() {
 
   return (
     <>
+      {/* Force the dashed-edge labels ("fail" / "retry") to render in Carbon
+          Black — Mermaid's base theme leaves them light/white against the
+          white card, making them invisible. */}
+      <style>{`
+        .coach-v2-flow .edgeLabel,
+        .coach-v2-flow .edgeLabel p,
+        .coach-v2-flow .edgeLabel span,
+        .coach-v2-flow .edgeLabel text {
+          color: #1E1E1E;
+          fill: #1E1E1E;
+          background-color: #ffffff;
+        }
+      `}</style>
       <div
         ref={containerRef}
-        className="w-full overflow-x-auto flex justify-center bg-white rounded-lg p-2"
+        className="coach-v2-flow w-full overflow-x-auto flex justify-center bg-white rounded-lg p-2"
         aria-label="V2 Coach LangGraph flow diagram"
         dangerouslySetInnerHTML={{ __html: svgMarkup }}
       />
       {/* Tooltip overlay — fixed-position so it floats above the diagram and
-          isn't clipped by the surrounding card's overflow. */}
+          isn't clipped by the surrounding card's overflow. pointer-events-none
+          so it can never sit between the cursor and a node and trap hover. */}
       {hoveredNode && (
         <div
-          className="fixed z-50 transition-opacity duration-100"
+          className="fixed z-50 transition-opacity duration-100 pointer-events-none"
           style={{
             left: `${tooltipPos.x}px`,
             top: `${tooltipPos.y}px`,

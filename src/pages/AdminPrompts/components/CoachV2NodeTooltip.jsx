@@ -25,8 +25,8 @@ const NODES = {
   },
   generateApply: {
     color: '#4242EA',
-    name: 'Generate Apply',
-    caption: '"Designing your challenge."',
+    name: 'Generate Challenge',
+    caption: '"Designing your custom challenge."',
     detail: 'Crafts a fresh application challenge tied to the competency criteria.',
     accessory: 'scroll',
   },
