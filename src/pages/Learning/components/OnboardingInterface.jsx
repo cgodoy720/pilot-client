@@ -63,6 +63,11 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
   const [error, setError] = useState('');
   const startTimeRef = useRef(Date.now());
   const completedRef = useRef(false);
+  // Synchronous in-flight guard for handleComplete. A bare useState would
+  // let a fast double-click slip through because the state update is async
+  // — both clicks would read isFinishing=false in the same microtask and
+  // both call completeSession.
+  const finishingRef = useRef(false);
   const seqRef = useRef(0);
   const streamingMsgIdRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -232,7 +237,8 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
   // guard suppresses the abandon-on-unmount cleanup since we're completing
   // cleanly. Idempotent — re-clicks are no-ops while finishing.
   const handleComplete = useCallback(async () => {
-    if (completedRef.current || isFinishing) return;
+    if (completedRef.current || finishingRef.current) return;
+    finishingRef.current = true;
     setIsFinishing(true);
     // Tear down any in-flight stream so completeSession isn't racing chat.
     if (abortRef.current) abortRef.current.abort();
@@ -250,9 +256,11 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
     } catch (err) {
       console.error('Failed to complete onboarding session:', err);
       toast.error('Could not finish onboarding — please try again.');
+      // Reset both gates so the user can retry.
+      finishingRef.current = false;
       setIsFinishing(false);
     }
-  }, [token, onComplete, isFinishing]);
+  }, [token, onComplete]);
 
   // ---- Pre-call screen ----
   if (!hasStarted) {
