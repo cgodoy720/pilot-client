@@ -36,6 +36,14 @@ let mermaidInitialized = false;
 export default function CoachV2FlowDiagram() {
   const containerRef = useRef(null);
   const [error, setError] = useState(null);
+  // svgMarkup: the rendered Mermaid SVG string. Stored in state so React
+  // owns its insertion via dangerouslySetInnerHTML — that's a flagged audit
+  // surface a code scanner will see, vs. a plain ref.innerHTML write which
+  // is invisible to most static analyzers. FLOW_SPEC is a hardcoded constant
+  // (no user-controlled input) and mermaid is configured with
+  // securityLevel:'strict', so the actual XSS risk is nil today; this is
+  // about making the injection point auditable for future code.
+  const [svgMarkup, setSvgMarkup] = useState('');
   // hoveredNode: which NODES key the mouse is currently over (null = none)
   // tooltipPos: viewport coords where the tooltip should render (above the node)
   const [hoveredNode, setHoveredNode] = useState(null);
@@ -77,38 +85,7 @@ export default function CoachV2FlowDiagram() {
         const id = `coach-v2-flow-${Math.floor(performance.now())}`;
         const { svg } = await mermaid.render(id, FLOW_SPEC);
         if (cancelled) return;
-        if (!containerRef.current) return;
-
-        containerRef.current.innerHTML = svg;
-
-        // Attach hover handlers to each node. We match by LABEL TEXT rather
-        // than by the auto-generated id (which has varied across Mermaid
-        // versions). Walk every `g.node` and look up its visible text in
-        // labelToKey. Robust across minor Mermaid version bumps.
-        const labelToKey = Object.entries(NODES).reduce((acc, [key, meta]) => {
-          // Normalize the display label so matching survives whitespace +
-          // case differences. NODES[key].name is the canonical UI label.
-          acc[meta.name.toLowerCase().trim()] = key;
-          return acc;
-        }, {});
-        const nodeEls = containerRef.current.querySelectorAll('g.node');
-        nodeEls.forEach((el) => {
-          const labelText = (el.textContent || '').toLowerCase().trim();
-          const key = labelToKey[labelText];
-          if (!key) return;
-          el.style.cursor = 'pointer';
-          const showTip = () => {
-            const rect = el.getBoundingClientRect();
-            setHoveredNode(key);
-            setTooltipPos({
-              x: rect.left + rect.width / 2,
-              y: rect.top,
-            });
-          };
-          const hideTip = () => setHoveredNode((cur) => (cur === key ? null : cur));
-          el.addEventListener('mouseenter', showTip);
-          el.addEventListener('mouseleave', hideTip);
-        });
+        setSvgMarkup(svg);
       } catch (err) {
         console.error('Mermaid render failed:', err);
         if (!cancelled) setError(err.message);
@@ -118,6 +95,42 @@ export default function CoachV2FlowDiagram() {
     render();
     return () => { cancelled = true; };
   }, []);
+
+  // After React commits the svg into the container, attach hover handlers
+  // to each <g.node>. We match by LABEL TEXT rather than the auto-generated
+  // id (which varies across Mermaid versions). Re-runs whenever the svg
+  // changes (e.g., on remount or hot-reload).
+  useEffect(() => {
+    if (!svgMarkup || !containerRef.current) return;
+    const labelToKey = Object.entries(NODES).reduce((acc, [key, meta]) => {
+      acc[meta.name.toLowerCase().trim()] = key;
+      return acc;
+    }, {});
+    const nodeEls = containerRef.current.querySelectorAll('g.node');
+    const cleanups = [];
+    nodeEls.forEach((el) => {
+      const labelText = (el.textContent || '').toLowerCase().trim();
+      const key = labelToKey[labelText];
+      if (!key) return;
+      el.style.cursor = 'pointer';
+      const showTip = () => {
+        const rect = el.getBoundingClientRect();
+        setHoveredNode(key);
+        setTooltipPos({
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+        });
+      };
+      const hideTip = () => setHoveredNode((cur) => (cur === key ? null : cur));
+      el.addEventListener('mouseenter', showTip);
+      el.addEventListener('mouseleave', hideTip);
+      cleanups.push(() => {
+        el.removeEventListener('mouseenter', showTip);
+        el.removeEventListener('mouseleave', hideTip);
+      });
+    });
+    return () => cleanups.forEach((fn) => fn());
+  }, [svgMarkup]);
 
   if (error) {
     return (
@@ -133,6 +146,7 @@ export default function CoachV2FlowDiagram() {
         ref={containerRef}
         className="w-full overflow-x-auto flex justify-center bg-white rounded-lg p-2"
         aria-label="V2 Coach LangGraph flow diagram"
+        dangerouslySetInnerHTML={{ __html: svgMarkup }}
       />
       {/* Tooltip overlay — fixed-position so it floats above the diagram and
           isn't clipped by the surrounding card's overflow. */}

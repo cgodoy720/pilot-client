@@ -5,6 +5,7 @@ import {
   startSession,
   getSession,
   abandonSession,
+  completeSession,
   streamChat,
 } from '../../../services/onboardingApi';
 import { useStreamingText } from '../../../hooks/useStreamingText';
@@ -50,7 +51,7 @@ const StreamingMarkdownMessage = ({ content }) => {
 // with the new opt-in showMicButton prop — the visual is identical to the
 // regular chat input, with a Voice button added on the bottom-left.
 // ---------------------------------------------------------------------------
-function OnboardingInterface({ taskId, userId, isCompleted }) {
+function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComplete }) {
   const token = useAuthStore((s) => s.token);
 
   const [sessionId, setSessionId] = useState(null);
@@ -58,6 +59,7 @@ function OnboardingInterface({ taskId, userId, isCompleted }) {
   const [hasStarted, setHasStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
   const [error, setError] = useState('');
   const startTimeRef = useRef(Date.now());
   const completedRef = useRef(false);
@@ -225,6 +227,33 @@ function OnboardingInterface({ taskId, userId, isCompleted }) {
     sendChat(messageText.trim());
   };
 
+  // Finalize the session (enqueues server-side extraction) then hand control
+  // back to the parent so the task carousel can advance. The completedRef
+  // guard suppresses the abandon-on-unmount cleanup since we're completing
+  // cleanly. Idempotent — re-clicks are no-ops while finishing.
+  const handleComplete = useCallback(async () => {
+    if (completedRef.current || isFinishing) return;
+    setIsFinishing(true);
+    // Tear down any in-flight stream so completeSession isn't racing chat.
+    if (abortRef.current) abortRef.current.abort();
+    try {
+      const sid = sessionIdRef.current;
+      if (sid) {
+        const durationSeconds = Math.max(
+          0,
+          Math.round((Date.now() - startTimeRef.current) / 1000)
+        );
+        await completeSession(token, sid, { durationSeconds });
+      }
+      completedRef.current = true;
+      onComplete?.();
+    } catch (err) {
+      console.error('Failed to complete onboarding session:', err);
+      toast.error('Could not finish onboarding — please try again.');
+      setIsFinishing(false);
+    }
+  }, [token, onComplete, isFinishing]);
+
   // ---- Pre-call screen ----
   if (!hasStarted) {
     return (
@@ -322,9 +351,33 @@ function OnboardingInterface({ taskId, userId, isCompleted }) {
           pointer events for the textarea itself. */}
       <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
         <div className="max-w-2xl mx-auto pointer-events-auto">
+          {/* Discrete Finish action — a small chip above the textarea so the
+              builder always has a clean exit when they feel the conversation
+              is done. Replaces the old "Your Coach" header bar the user asked
+              us to remove; the action stays but the chrome is gone. */}
+          <div className="flex justify-end mb-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleComplete}
+              disabled={isFinishing || isCompleted}
+              title="Finish onboarding"
+              className="text-xs font-proxima text-pursuit-purple border-pursuit-purple/40 hover:bg-pursuit-purple/5"
+            >
+              {isFinishing ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                  Wrapping up…
+                </>
+              ) : (
+                isLastTask ? 'Finish & wrap up' : 'Finish onboarding'
+              )}
+            </Button>
+          </div>
           <AutoExpandTextarea
             onSubmit={handleSubmit}
-            disabled={isSending || isCompleted}
+            disabled={isSending || isCompleted || isFinishing}
             showMicButton
             placeholder="Reply to your coach…"
           />

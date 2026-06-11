@@ -25,7 +25,7 @@ import { Textarea } from '../../../components/ui/textarea';
  * the parent just slots it into `taxonomy.skills[slug]` and PUTs the whole
  * taxonomy.
  */
-export default function SkillEditDialog({ open, onClose, onSubmit, skill, categories }) {
+export default function SkillEditDialog({ open, onClose, onSubmit, skill, categories, isSubmitting = false }) {
   const [name, setName] = useState('');
   const [definition, setDefinition] = useState('');
   const [category, setCategory] = useState('');
@@ -223,9 +223,10 @@ export default function SkillEditDialog({ open, onClose, onSubmit, skill, catego
             </Button>
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="bg-[#4242EA] text-white hover:bg-[#3535D1]"
             >
-              Save
+              {isSubmitting ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

@@ -10,6 +10,7 @@ import PromptFormDialog from './shared/PromptFormDialog';
 import CoachV2FlowDiagram from './CoachV2FlowDiagram';
 import SkillEditDialog from './SkillEditDialog';
 import PromptChangeHistoryDialog from './PromptChangeHistoryDialog';
+import useAuthStore from '../../../stores/authStore';
 
 const PHASE_ICONS = {
   learn: BookOpen,
@@ -94,8 +95,16 @@ const TemplateCard = ({ phase, template, canEdit, onEdit, onHistory }) => {
 };
 
 const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
+  // Read the token via the auth store selector instead of localStorage so
+  // (a) any future token-refresh logic in the store applies here, and (b)
+  // a renamed localStorage key never silently sends `Bearer null`.
+  const token = useAuthStore((s) => s.token);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Disable Save buttons while a write is in flight. Prevents double-submit
+  // races where a second save fires before the first reloadPrompts/fetchData
+  // settle, interleaving state updates.
+  const [isSaving, setIsSaving] = useState(false);
   // editTarget shape: { id, content, endpoint, title }
   //   endpoint: 'content-generation' (for v2_coach_* + onboarding_coach_* rows)
   //          | 'contexts'           (for program_contexts row)
@@ -124,7 +133,6 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/prompts/v2-coach-engine`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -150,9 +158,9 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
   // PUT back. After a successful write, reloadPrompts() invalidates the
   // server-side promptManager cache and fetchData() refreshes our view.
   const handleSaveContent = async ({ content }) => {
-    if (!editTarget) return;
+    if (!editTarget || isSaving) return;
+    setIsSaving(true);
     const { id, endpoint, title } = editTarget;
-    const token = localStorage.getItem('token');
     const base = `${import.meta.env.VITE_API_URL}/api/admin/prompts/${endpoint}/${id}`;
     try {
       const getRes = await fetch(base, { headers: { Authorization: `Bearer ${token}` } });
@@ -176,12 +184,18 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
       }
       setEditTarget(null);
       showNotification(`${title} saved`);
-      // Don't await — these can refresh in the background.
-      if (reloadPrompts) reloadPrompts();
-      fetchData();
+      // Await both refreshes so isSaving stays true until the new state is
+      // mounted — otherwise a second save could race against the in-flight
+      // reload and interleave updates.
+      await Promise.all([
+        reloadPrompts ? reloadPrompts() : Promise.resolve(),
+        fetchData(),
+      ]);
     } catch (error) {
       console.error(`Error saving ${title}:`, error);
       showNotification(`Failed to save ${title}: ${error.message}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -199,9 +213,9 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
   // difficulty_thresholds = {advanced, intermediate}). Form fields are
   // generated dynamically based on valueType.
   const handleSaveConfig = async (formData) => {
-    if (!configEditTarget) return;
+    if (!configEditTarget || isSaving) return;
+    setIsSaving(true);
     const { key, valueType, displayName } = configEditTarget;
-    const token = localStorage.getItem('token');
 
     // Build the value payload from form data based on type.
     let value;
@@ -232,19 +246,23 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
       }
       setConfigEditTarget(null);
       showNotification(`${displayName} saved`);
-      if (reloadPrompts) reloadPrompts();
-      fetchData();
+      await Promise.all([
+        reloadPrompts ? reloadPrompts() : Promise.resolve(),
+        fetchData(),
+      ]);
     } catch (error) {
       console.error(`Error saving ${displayName}:`, error);
       showNotification(`Failed to save ${displayName}: ${error.message}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   // Save handler for individual skill edits. Builds an updated taxonomy
   // (merging the edited skill into skills[slug]) and PUTs the whole thing.
   const handleSaveSkill = async (updatedSkill) => {
-    if (!data?.skillTaxonomy) return;
-    const token = localStorage.getItem('token');
+    if (!data?.skillTaxonomy || isSaving) return;
+    setIsSaving(true);
     const updatedTaxonomy = {
       categories: data.skillTaxonomy.categories,
       skills: {
@@ -275,11 +293,15 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
       }
       setSkillEditSlug(null);
       showNotification(`Skill "${updatedSkill.name}" saved`);
-      if (reloadPrompts) reloadPrompts();
-      fetchData();
+      await Promise.all([
+        reloadPrompts ? reloadPrompts() : Promise.resolve(),
+        fetchData(),
+      ]);
     } catch (error) {
       console.error(`Error saving skill ${updatedSkill.slug}:`, error);
       showNotification(`Failed to save skill: ${error.message}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1112,6 +1134,7 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
           open={!!editTarget}
           onClose={() => setEditTarget(null)}
           onSubmit={handleSaveContent}
+          isSubmitting={isSaving}
           title={`Edit: ${editTarget.title}`}
           confirmText="Save"
           initialData={{ content: editTarget.content }}
@@ -1134,6 +1157,7 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
           open={!!configEditTarget}
           onClose={() => setConfigEditTarget(null)}
           onSubmit={handleSaveConfig}
+          isSubmitting={isSaving}
           title={`Edit: ${configEditTarget.displayName}`}
           confirmText="Save"
           initialData={configFields.reduce((acc, f) => ({ ...acc, [f.name]: f.defaultValue }), {})}
@@ -1147,6 +1171,7 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
           open={!!skillEditSlug}
           onClose={() => setSkillEditSlug(null)}
           onSubmit={handleSaveSkill}
+          isSubmitting={isSaving}
           skill={data.skillTaxonomy.skills[skillEditSlug]}
           categories={data.skillTaxonomy.categories || {}}
         />
