@@ -378,13 +378,26 @@ const BuilderSnapshot = ({ embedded = false }) => {
       .join(' ')
       .trim();
   const cohortName = snapshot?.cohort_name || identity.cohort || null;
-  // Legacy lookbook rows store server-relative paths (/uploads/profiles/…)
-  // served by the API host, not the client host — make them absolute.
+  // lookbook_profiles.photo_url comes in THREE shapes across the user base:
+  //   1. `/uploads/...`  — legacy on-disk path served by the API host (~34 users)
+  //   2. `gs://bucket/p` — Google Cloud Storage URI (~17 users)
+  //   3. `https://...` / `data:image/...` — already absolute (works as-is)
+  // Without these rewrites the browser silently fails to load #1 (wrong host)
+  // and #2 (no native gs:// protocol support) → falls back to the silhouette.
+  // Mirrors the toDisplayablePhotoUrl helper in AttendanceManagement.jsx.
   const rawHeadshotUrl = snapshot?.headshot_url || null;
-  const headshotUrl =
-    rawHeadshotUrl && rawHeadshotUrl.startsWith('/')
-      ? `${apiBase}${rawHeadshotUrl}`
-      : rawHeadshotUrl;
+  const headshotUrl = (() => {
+    const raw = rawHeadshotUrl;
+    if (!raw || typeof raw !== 'string') return null;
+    if (raw.startsWith('gs://')) {
+      const noScheme = raw.slice('gs://'.length);
+      const slash = noScheme.indexOf('/');
+      if (slash === -1) return null;
+      return `https://storage.googleapis.com/${noScheme.slice(0, slash)}/${noScheme.slice(slash + 1)}`;
+    }
+    if (raw.startsWith('/')) return `${apiBase}${raw}`;
+    return raw;
+  })();
 
   return (
     <div
