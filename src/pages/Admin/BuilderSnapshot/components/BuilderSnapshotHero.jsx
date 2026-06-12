@@ -103,11 +103,11 @@ const BuilderSnapshotHero = ({ fullName, cohortName, headshotUrl, summary, kpis 
           <div className="shrink-0 flex justify-center md:justify-start">
             <div
               className="
-                w-36 h-36 md:w-40 md:h-40
+                w-48 h-48 md:w-56 md:h-56
                 rounded-full overflow-hidden
                 bg-white
                 ring-4 ring-white/70
-                shadow-[0_8px_32px_rgba(0,0,0,0.25)]
+                shadow-[0_12px_40px_rgba(0,0,0,0.3)]
               "
             >
               {showImage ? (
