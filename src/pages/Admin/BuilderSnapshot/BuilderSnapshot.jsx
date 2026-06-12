@@ -379,12 +379,14 @@ const BuilderSnapshot = ({ embedded = false }) => {
       .trim();
   const cohortName = snapshot?.cohort_name || identity.cohort || null;
   // lookbook_profiles.photo_url comes in THREE shapes across the user base:
-  //   1. `/uploads/...`  — legacy on-disk path served by the API host (~34 users)
-  //   2. `gs://bucket/p` — Google Cloud Storage URI (~17 users)
-  //   3. `https://...` / `data:image/...` — already absolute (works as-is)
-  // Without these rewrites the browser silently fails to load #1 (wrong host)
-  // and #2 (no native gs:// protocol support) → falls back to the silhouette.
-  // Mirrors the toDisplayablePhotoUrl helper in AttendanceManagement.jsx.
+  //   1. `/uploads/...`  — legacy on-disk path served by the lookbook backend
+  //      (lookbook-api.onrender.com), NOT by test-pilot-server. Verified
+  //      against Pete Molski / Ariel Chen / Ethan Davey — all 200 OK.
+  //   2. `gs://bucket/p` — Google Cloud Storage URI; rewrite to a public
+  //      storage.googleapis.com URL (mirrors AttendanceManagement.jsx).
+  //   3. `https://...` / `data:image/...` — already absolute, pass through.
+  const LOOKBOOK_PHOTO_HOST =
+    import.meta.env.VITE_LOOKBOOK_API_URL || 'https://lookbook-api.onrender.com';
   const rawHeadshotUrl = snapshot?.headshot_url || null;
   const headshotUrl = (() => {
     const raw = rawHeadshotUrl;
@@ -395,7 +397,8 @@ const BuilderSnapshot = ({ embedded = false }) => {
       if (slash === -1) return null;
       return `https://storage.googleapis.com/${noScheme.slice(0, slash)}/${noScheme.slice(slash + 1)}`;
     }
-    if (raw.startsWith('/')) return `${apiBase}${raw}`;
+    if (raw.startsWith('/uploads/')) return `${LOOKBOOK_PHOTO_HOST}${raw}`;
+    if (raw.startsWith('/')) return `${apiBase}${raw}`; // other on-disk paths
     return raw;
   })();
 
