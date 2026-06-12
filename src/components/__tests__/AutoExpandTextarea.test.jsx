@@ -133,4 +133,55 @@ describe('AutoExpandTextarea', () => {
 
     expect(screen.getByTestId('send-button')).toBeDisabled();
   });
+
+  describe('voice dictation', () => {
+    // Minimal SpeechRecognition fake: the component drives start/abort/stop;
+    // tests fire onresult/onend manually to simulate the engine.
+    class FakeSpeechRecognition {
+      static instances = [];
+      constructor() {
+        FakeSpeechRecognition.instances.push(this);
+        this.aborted = false;
+      }
+      start() {}
+      stop() { this.onend?.(); }
+      abort() { this.aborted = true; this.onend?.(); }
+    }
+    const speechEvent = (transcript, isFinal = true) => ({
+      results: [{ 0: { transcript }, isFinal }],
+    });
+
+    beforeEach(() => {
+      FakeSpeechRecognition.instances = [];
+      window.SpeechRecognition = FakeSpeechRecognition;
+    });
+    afterEach(() => {
+      delete window.SpeechRecognition;
+    });
+
+    test('sending mid-dictation aborts the session and resets the base, so the next dictation starts empty', () => {
+      const onSubmit = vi.fn();
+      render(<AutoExpandTextarea onSubmit={onSubmit} showMicButton />);
+      const textarea = screen.getByPlaceholderText('Reply to coach...');
+
+      // Start dictating and let the engine fill the textarea.
+      fireEvent.click(screen.getByTitle('Start voice dictation'));
+      const session1 = FakeSpeechRecognition.instances[0];
+      act(() => session1.onresult(speechEvent('hello coach')));
+      expect(textarea.value).toBe('hello coach');
+
+      // Send WITHOUT stopping the recording first.
+      fireEvent.click(screen.getByTestId('send-button'));
+      expect(onSubmit).toHaveBeenCalledWith('hello coach', expect.any(String));
+      expect(session1.aborted).toBe(true);
+      expect(textarea.value).toBe('');
+
+      // Dictate again — the new session must start from an empty input,
+      // not resurrect the previously sent message.
+      fireEvent.click(screen.getByTitle('Start voice dictation'));
+      const session2 = FakeSpeechRecognition.instances[1];
+      act(() => session2.onresult(speechEvent('second message')));
+      expect(textarea.value).toBe('second message');
+    });
+  });
 });
