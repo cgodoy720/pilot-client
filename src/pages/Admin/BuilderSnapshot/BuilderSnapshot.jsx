@@ -12,9 +12,18 @@ import BuilderSnapshotTimeline from './components/BuilderSnapshotTimeline';
 const BRAND = '#4242EA';
 
 // ---------------------------------------------------------------------------
-// composeSummary — deterministic, no LLM. Reads first sentence of background +
-// goals, plus top 3 skill names by proficiency level. Falls back gracefully
-// when any source is missing so the hero never shows dangling commas.
+// composeSummary — picks the best already-written prose for the hero band.
+// The earlier version stitched first-sentence-of-background + lowercased
+// first-sentence-of-goals + comma-listed top-3 skills, which produced
+// garbled output like "Currently focused on this builder is early in their
+// technical journey..." and "strengths in Build and deploy web applications"
+// (the taxonomy stores skills as verb-first imperatives, not noun phrases).
+//
+// Both background.markdown and goals.markdown are already 2-4 well-formed,
+// builder-framed sentences from the extraction service. The hero uses
+// background prose as-is when present; goals prose has its own card on the
+// page below the hero, and the radar/leaderboard surface skills visually.
+// Truncates to the first ~2 sentences for visual breathing room.
 // ---------------------------------------------------------------------------
 const stripMarkdown = (md) =>
   String(md || '')
@@ -24,92 +33,27 @@ const stripMarkdown = (md) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const firstSentence = (md, maxLen = 140) => {
+// Take the first N sentences (default 2) of a paragraph, joined cleanly.
+// Bails to the full text if it's shorter than N sentences.
+const firstSentences = (md, n = 2) => {
   const text = stripMarkdown(md);
   if (!text) return '';
-  const match = text.match(/[^.!?]*[.!?]/);
-  let s = match ? match[0].trim() : text;
-  if (s.length > maxLen) {
-    s = `${s.slice(0, maxLen - 1).trimEnd()}…`;
-  }
-  return s;
+  const matches = text.match(/[^.!?]+[.!?]+(?:\s|$)/g);
+  if (!matches || matches.length <= n) return text;
+  return matches.slice(0, n).join('').trim();
 };
 
-const lowercaseFirst = (s) =>
-  s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
-
-// Format a skill slug into a human-readable name when taxonomy is missing.
-const slugToName = (slug) =>
-  String(slug || '')
-    .split(/[_-]/)
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
-    .join(' ');
-
-const topSkillNames = (skillLevels, taxonomy, n = 3) => {
-  const entries = Object.entries(skillLevels || {})
-    .map(([slug, val]) => {
-      // Server returns numeric skill_levels keyed by slug. Tolerate the older
-      // shape `{ proficiency_level: number }` for forward-compat.
-      const level =
-        typeof val === 'number'
-          ? val
-          : Number(val?.proficiency_level ?? val?.level ?? 0);
-      return { slug, level: Number.isFinite(level) ? level : 0 };
-    })
-    .filter((r) => r.level > 0)
-    .sort((a, b) => b.level - a.level || a.slug.localeCompare(b.slug))
-    .slice(0, n);
-
-  return entries.map((e) => {
-    const name = taxonomy?.skills?.[e.slug]?.name;
-    return name || slugToName(e.slug);
-  });
-};
-
-const joinWithOxford = (names) => {
-  if (!names || names.length === 0) return '';
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
-};
-
-export const composeSummary = (snapshot, taxonomy) => {
+export const composeSummary = (snapshot /* taxonomy unused — kept for prop-sig stability */) => {
   if (!snapshot) return '';
   const profile = snapshot.profile || {};
-  const bg = firstSentence(profile.background?.markdown);
-  const goals = firstSentence(profile.goals?.markdown);
-  const skills = topSkillNames(profile.skill_levels, taxonomy, 3);
-  const skillsStr = joinWithOxford(skills);
-  // full_name lives at the TOP level of the snapshot (server contract); fall
-  // back to identity.first_name + last_name if the top-level field is absent.
-  const fullName =
-    snapshot.full_name ||
-    [snapshot.identity?.first_name, snapshot.identity?.last_name]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
-
-  if (bg && goals && skillsStr) {
-    return `${bg} Currently focused on ${lowercaseFirst(goals).replace(/[.!?]$/, '')} with strengths in ${skillsStr}.`;
-  }
-  if (bg && skillsStr) {
-    return `${bg} Strengths in ${skillsStr}.`;
-  }
-  if (goals && skillsStr) {
-    return `Focused on ${lowercaseFirst(goals).replace(/[.!?]$/, '')}. Strengths in ${skillsStr}.`;
-  }
-  if (bg && goals) {
-    return `${bg} Currently focused on ${lowercaseFirst(goals).replace(/[.!?]$/, '')}.`;
-  }
+  // Prefer background prose (which already covers history + motivation).
+  // Goals prose stands alone in its own card; the radar shows skills. So
+  // the hero stays narrative + uncluttered.
+  const bg = firstSentences(profile.background?.markdown, 2);
   if (bg) return bg;
-  if (goals) return `Focused on ${lowercaseFirst(goals).replace(/[.!?]$/, '')}.`;
-  if (skillsStr) {
-    return fullName
-      ? `${fullName} shows strengths in ${skillsStr}.`
-      : `Strengths in ${skillsStr}.`;
-  }
-  return 'No summary available yet.';
+  const goals = firstSentences(profile.goals?.markdown, 2);
+  if (goals) return goals;
+  return 'No summary captured yet.';
 };
 
 // ---------------------------------------------------------------------------

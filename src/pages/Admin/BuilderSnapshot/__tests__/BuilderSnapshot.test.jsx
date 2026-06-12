@@ -186,22 +186,23 @@ afterEach(() => {
 });
 
 describe('composeSummary (pure helper)', () => {
-  it('combines background, goals, and top skills into one sentence', () => {
+  it('uses background prose as-is when present (no stitching with goals/skills)', () => {
     const out = composeSummary(FULL_SNAPSHOT, FAKE_TAXONOMY);
-    expect(out).toMatch(/Self-taught dev from Queens/);
-    expect(out).toMatch(/Currently focused on/);
-    expect(out).toMatch(/Write & Structure Prompts/);
+    expect(out).toContain('Self-taught dev from Queens');
+    // The earlier stitched version produced "Currently focused on..."; the
+    // new helper deliberately does NOT inject goals or skill names inline.
+    expect(out).not.toMatch(/Currently focused on/);
+    expect(out).not.toMatch(/strengths in/i);
   });
 
-  it('falls back gracefully when only background is present', () => {
-    const partial = { ...FULL_SNAPSHOT, profile: { background: FULL_SNAPSHOT.profile.background } };
+  it('falls back to goals when background is missing', () => {
+    const partial = { ...FULL_SNAPSHOT, profile: { goals: FULL_SNAPSHOT.profile.goals } };
     const out = composeSummary(partial, FAKE_TAXONOMY);
-    expect(out).toContain('Self-taught dev from Queens');
-    expect(out).not.toMatch(/Strengths in\s*\./);
+    expect(out).toContain('Land a frontend role');
   });
 
   it('returns a no-data placeholder when every field is empty', () => {
-    expect(composeSummary({ profile: {} }, FAKE_TAXONOMY)).toBe('No summary available yet.');
+    expect(composeSummary({ profile: {} }, FAKE_TAXONOMY)).toBe('No summary captured yet.');
   });
 });
 
