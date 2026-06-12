@@ -170,8 +170,23 @@ const UserPickerInline = ({ token, onSelect }) => {
             onClick={() => onSelect(u)}
             className="w-full text-left px-3 py-2 border-b border-[#F0F0F0] hover:bg-[#F7F7F9] last:border-b-0"
           >
-            <div className="text-sm font-semibold text-slate-800 truncate">
-              {u.first_name} {u.last_name}
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-slate-800 truncate">
+                {u.first_name} {u.last_name}
+              </div>
+              {u.onboarding_completed === false && (
+                // The picker endpoint flags a builder as "backfill-only" when
+                // none of background / goals / learning_profile has a
+                // non-backfill provenance entry. Surfaces honestly that the
+                // snapshot data was inferred from application + assessment +
+                // submission history rather than directly confirmed.
+                <span
+                  title="No onboarding chat yet — profile data was inferred from this builder's application, assessments, and past submissions."
+                  className="shrink-0 inline-flex items-center rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 px-2 py-0.5 text-[10px] uppercase tracking-wider font-medium"
+                >
+                  Synthesized from history
+                </span>
+              )}
             </div>
             <div className="text-[11px] text-slate-500 truncate">
               {u.email} · {u.cohort || '—'}
