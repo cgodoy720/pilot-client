@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { TrendingUp, Calendar, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
+import { TrendingUp, Calendar, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from 'lucide-react';
 
 /**
  * BuilderSnapshotTimeline
@@ -50,9 +50,6 @@ const ScoreChip = ({ score, passed }) => {
 const ExpandedDetail = ({ entry }) => {
   const wentWell = (entry.what_went_well || '').trim();
   const toImprove = (entry.what_to_improve || '').trim();
-  const learningPath = entry.task_id
-    ? `/learning?taskId=${encodeURIComponent(entry.task_id)}`
-    : null;
 
   return (
     <div className="mt-3 pl-0 sm:pl-36 space-y-3">
@@ -78,21 +75,6 @@ const ExpandedDetail = ({ entry }) => {
         <p className="text-xs italic text-[#999]">
           No detailed feedback captured for this entry.
         </p>
-      )}
-      {learningPath && (
-        <a
-          href={learningPath}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="
-            inline-flex items-center gap-1.5
-            text-xs font-proxima-bold text-[#4242EA] hover:text-[#3232BA]
-            mt-1
-          "
-        >
-          Open task in Learning
-          <ExternalLink className="w-3 h-3" />
-        </a>
       )}
     </div>
   );
@@ -123,7 +105,7 @@ const BuilderSnapshotTimeline = ({ performance, max = 8 }) => {
   };
 
   const hasAnyDetail = (entry) =>
-    !!(entry.what_went_well?.trim() || entry.what_to_improve?.trim() || entry.task_id);
+    !!(entry.what_went_well?.trim() || entry.what_to_improve?.trim());
 
   return (
     <section className="rounded-2xl ring-1 ring-[#E3E3E3] shadow-md bg-white p-6 md:p-8 font-proxima">
