@@ -222,15 +222,31 @@ const AutoExpandTextarea = forwardRef(({
     };
   }, [onHeightChange]);
 
+  // Clear the input after a send. If a dictation session is still live,
+  // abort() it — not stop() — because the engine rebuilds the textarea from
+  // ALL results accumulated since recognition.start(), so a session left
+  // running (or stop()'s final onresult flush) would resurrect the just-sent
+  // message the next time the user speaks. Resetting the dictation base
+  // guards the same way.
+  const clearAfterSubmit = () => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch { /* not started */ }
+      recognitionRef.current = null;
+      setIsListening(false);
+    }
+    dictationBaseRef.current = '';
+    if (textareaRef.current) textareaRef.current.value = '';
+    setHasContent(false);
+    handleResize(); // Reset height after clearing
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const message = textareaRef.current?.value || '';
       if (message.trim() && onSubmit) {
         onSubmit(message, localModel);
-        textareaRef.current.value = '';
-        setHasContent(false);
-        handleResize(); // Reset height after clearing
+        clearAfterSubmit();
       }
     }
   };
@@ -239,9 +255,7 @@ const AutoExpandTextarea = forwardRef(({
     const message = textareaRef.current?.value || '';
     if (message.trim() && onSubmit) {
       onSubmit(message, localModel);
-      textareaRef.current.value = '';
-      setHasContent(false);
-      handleResize(); // Reset height after clearing
+      clearAfterSubmit();
     }
   };
 
