@@ -11,6 +11,7 @@ import {
 import { useStreamingText } from '../../../hooks/useStreamingText';
 import { Button } from '../../../components/ui/button';
 import AutoExpandTextarea from '../../../components/AutoExpandTextarea';
+import TaskCompletionBar from '../../../components/TaskCompletionBar/TaskCompletionBar';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -51,7 +52,7 @@ const StreamingMarkdownMessage = ({ content }) => {
 // with the new opt-in showMicButton prop — the visual is identical to the
 // regular chat input, with a Voice button added on the bottom-left.
 // ---------------------------------------------------------------------------
-function OnboardingInterface({ taskId, userId, isCompleted, onComplete }) {
+function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComplete, onNextExercise }) {
   const token = useAuthStore((s) => s.token);
   const authUser = useAuthStore((s) => s.user);
 
@@ -460,16 +461,28 @@ function OnboardingInterface({ taskId, userId, isCompleted, onComplete }) {
       {/* Input tray — absolutely positioned over the transcript so messages
           scroll behind it (matches Learning.jsx). pointer-events-none on the
           wrapper lets clicks pass through the gutter; the inner block restores
-          pointer events for the textarea itself. */}
+          pointer events for the textarea itself. Once isCompleted flips
+          (marker-driven completion has fired and the parent has acked it),
+          the textarea is replaced with the same TaskCompletionBar the chat
+          interface uses — staff/builders can read the closing message in
+          peace and click Next when they're ready instead of being yanked
+          to the next surface. */}
       <div className="absolute bottom-6 left-0 right-0 px-6 z-10 pointer-events-none">
         <div className="max-w-2xl mx-auto pointer-events-auto">
-          <AutoExpandTextarea
-            ref={textareaRef}
-            onSubmit={handleSubmit}
-            disabled={isSending || isCompleted || isFinishing}
-            showMicButton
-            placeholder="Reply to your coach…"
-          />
+          {isCompleted ? (
+            <TaskCompletionBar
+              onNextExercise={onNextExercise}
+              isLastTask={isLastTask}
+            />
+          ) : (
+            <AutoExpandTextarea
+              ref={textareaRef}
+              onSubmit={handleSubmit}
+              disabled={isSending || isFinishing}
+              showMicButton
+              placeholder="Reply to your coach…"
+            />
+          )}
         </div>
       </div>
     </div>

@@ -1096,9 +1096,11 @@ function LearningPreview({ dayId, cohort, onBack }) {
   // session itself runs against /api/onboarding-session/* (real LiveKit room +
   // agent dispatch); this handler only records that the preview-side task is
   // done so the carousel advances.
+  // Mirrors Learning.jsx#handleOnboardingComplete — mark + update map only,
+  // no auto-navigation. The OnboardingInterface renders TaskCompletionBar
+  // once isCompleted flips so the user decides when to advance.
   const handleOnboardingComplete = async () => {
     const currentTask = tasks[currentTaskIndex];
-    const isLastTask = currentTaskIndex === tasks.length - 1;
 
     if (!currentTask?.id) {
       toast.error("Unable to proceed - current task not found");
@@ -1133,16 +1135,6 @@ function LearningPreview({ dayId, cohort, onBack }) {
           reason: 'Onboarding completed'
         }
       }));
-
-      if (isLastTask) {
-        setTimeout(() => {
-          setShowDailyOverview(true);
-        }, 2000);
-      } else {
-        setTimeout(async () => {
-          await handleTaskChange(currentTaskIndex + 1);
-        }, 2000);
-      }
     } catch (error) {
       console.error('Error marking onboarding complete in preview:', error);
       toast.error("Failed to mark task complete. Please try again.");
@@ -1312,7 +1304,9 @@ function LearningPreview({ dayId, cohort, onBack }) {
                 taskId={tasks[currentTaskIndex]?.id}
                 userId={user?.id}
                 isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
+                isLastTask={currentTaskIndex === tasks.length - 1}
                 onComplete={handleOnboardingComplete}
+                onNextExercise={handleNextExercise}
               />
             </div>
           ) : (

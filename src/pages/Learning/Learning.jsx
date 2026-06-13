@@ -1541,9 +1541,13 @@ function Learning() {
   };
 
   // Handle onboarding completion (mirrors handleSurveyComplete)
+  // Onboarding completion path: mark the task complete + update the local
+  // completion map. Do NOT auto-navigate — the OnboardingInterface renders
+  // a TaskCompletionBar once isCompleted flips, matching the chat interface
+  // pattern. The user clicks Next when they're ready (vs the previous
+  // behavior that yanked them to the daily overview 2s after the marker).
   const handleOnboardingComplete = useCallback(async () => {
     const currentTask = tasks[currentTaskIndex];
-    const isLastTask = currentTaskIndex === tasks.length - 1;
 
     if (!currentTask?.id) {
       toast.error("Unable to proceed - current task not found");
@@ -1551,7 +1555,6 @@ function Learning() {
     }
 
     try {
-      // Mark current task as complete
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/learning/complete-task/${currentTask.id}`,
         {
@@ -1570,7 +1573,6 @@ function Learning() {
         throw new Error('Failed to mark task as complete');
       }
 
-      // Update local completion status
       setTaskCompletionMap(prev => ({
         ...prev,
         [currentTask.id]: {
@@ -1579,26 +1581,11 @@ function Learning() {
           reason: 'Onboarding completed'
         }
       }));
-
-      // Navigate based on whether this is the last task
-      if (isLastTask) {
-        // If last task, navigate back to overview after delay
-        setTimeout(() => {
-          setShowDailyOverview(true);
-        }, 2000);
-      } else {
-        // If not last task, navigate to next task after delay
-        setTimeout(async () => {
-          const nextTaskIndex = currentTaskIndex + 1;
-          await handleTaskChange(nextTaskIndex);
-        }, 2000);
-      }
-
     } catch (error) {
       console.error('Error marking onboarding task complete:', error);
       toast.error("Failed to mark task complete. Please try again.");
     }
-  }, [tasks, currentTaskIndex, token, handleTaskChange]);
+  }, [tasks, currentTaskIndex, token]);
 
   // Show daily overview first
   if (showDailyOverview) {
@@ -1727,7 +1714,9 @@ function Learning() {
               taskId={tasks[currentTaskIndex]?.id}
               userId={user?.id}
               isCompleted={taskCompletionMap[tasks[currentTaskIndex]?.id]?.isComplete || false}
+              isLastTask={currentTaskIndex === tasks.length - 1}
               onComplete={handleOnboardingComplete}
+              onNextExercise={handleNextExercise}
             />
           </div>
         ) : (
