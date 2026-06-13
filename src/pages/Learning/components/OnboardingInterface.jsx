@@ -185,12 +185,6 @@ function OnboardingInterface({ taskId, userId, isCompleted, onComplete }) {
             m.id === coachBubbleId ? { ...m, content: stripMarker(accumulated) } : m
           ));
         }
-
-        if (sawCompletionMarker) {
-          // Defer one tick so the bubble's final render commits and the
-          // user sees the closing message before the carousel advances.
-          setTimeout(() => { handleCompleteRef.current?.(); }, 400);
-        }
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('Chat stream failed:', err);
@@ -199,6 +193,13 @@ function OnboardingInterface({ taskId, userId, isCompleted, onComplete }) {
               ? { ...m, content: 'Something went wrong on my end — try sending that again.', streaming: false }
               : m
           ));
+        }
+        // Recheck the marker even on error — if the coach emitted it before
+        // the connection dropped, the carousel must still advance. Without
+        // this the user gets stuck after a transient network blip on the
+        // final turn.
+        if (!sawCompletionMarker && accumulated.includes(COMPLETION_MARKER)) {
+          sawCompletionMarker = true;
         }
       } finally {
         setIsSending(false);
@@ -209,6 +210,13 @@ function OnboardingInterface({ taskId, userId, isCompleted, onComplete }) {
         // covering this here too means a thrown error (network drop,
         // abort, etc.) can't leave a permanent loading indicator.
         setMessages((prev) => prev.map((m) => (m.streaming ? { ...m, streaming: false } : m)));
+        // Fire the deferred completion AFTER the bubble is committed and the
+        // streaming flag cleared — running in finally means a stream error
+        // post-marker still completes the session (vs. the previous bug
+        // where the marker fired only on a clean catch-skip path).
+        if (sawCompletionMarker) {
+          setTimeout(() => { handleCompleteRef.current?.(); }, 400);
+        }
       }
     },
     [token]  // Intentionally NOT depending on sessionId — we read it via sessionIdRef.current.

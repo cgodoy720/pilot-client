@@ -153,8 +153,16 @@ const BuilderSnapshot = ({ embedded = false }) => {
   const { canAccessPage } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Strictly all-digits → integer. parseInt('42abc') silently returns 42,
+  // which would fetch user 42 from a malformed URL. Reject anything that
+  // isn't a clean positive integer (also rejects '42.5', '-3', '0').
+  const parseStrictUserId = (raw) => {
+    if (!raw || typeof raw !== 'string' || !/^\d+$/.test(raw)) return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  };
   const userIdParam = searchParams.get('userId');
-  const initialUserId = userIdParam ? parseInt(userIdParam, 10) || null : null;
+  const initialUserId = parseStrictUserId(userIdParam);
   const [selectedUserId, setSelectedUserId] = useState(initialUserId);
 
   const [snapshot, setSnapshot] = useState(null);
@@ -165,8 +173,7 @@ const BuilderSnapshot = ({ embedded = false }) => {
 
   // Keep selectedUserId in sync with the URL (e.g., browser back/forward).
   useEffect(() => {
-    const p = searchParams.get('userId');
-    const next = p ? parseInt(p, 10) || null : null;
+    const next = parseStrictUserId(searchParams.get('userId'));
     if (next !== selectedUserId) setSelectedUserId(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -343,7 +350,12 @@ const BuilderSnapshot = ({ embedded = false }) => {
     }
     if (raw.startsWith('/uploads/')) return `${LOOKBOOK_PHOTO_HOST}${raw}`;
     if (raw.startsWith('/')) return `${apiBase}${raw}`; // other on-disk paths
-    return raw;
+    // Absolute URLs that reach this branch are allowlisted to http(s) only.
+    // Rejects javascript:, data:, file:, blob:, etc. — even if the server
+    // is ever compromised and sends a hostile scheme, the silhouette
+    // fallback fires instead of trusting the value.
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return null;
   })();
 
   return (
