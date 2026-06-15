@@ -1111,38 +1111,21 @@ function Dashboard() {
   // Render pre-curriculum countdown view
   const renderPreCurriculumView = () => {
     let daysUntilStart = 0;
-
+    
     if (cohortInfo?.start_date) {
       // Use the same approach as isDateToday - extract components with getDate/getMonth/getFullYear
       const startDateObj = new Date(cohortInfo.start_date);
       const today = new Date();
-
+      
       // Create local midnight dates using extracted components
       const startLocal = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
       const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
+      
       const diffMs = startLocal.getTime() - todayLocal.getTime();
       daysUntilStart = Math.round(diffMs / (1000 * 60 * 60 * 24));
     }
-
+    
     const cohortName = cohortInfo?.cohort_name || 'your program';
-    // Three states: future cohort, starts today, already-started cohort with
-    // no scheduled curriculum (sentinel test cohorts, gaps between modules,
-    // late additions). The pre-curriculum view used to blindly show
-    // "<negative> days until we begin!" — meaningless for case 3.
-    const hasStarted = daysUntilStart < 0;
-    const startsToday = daysUntilStart === 0;
-    const countdownNumber = hasStarted ? Math.abs(daysUntilStart) : daysUntilStart;
-    const countdownLabel = startsToday
-      ? 'starts today!'
-      : hasStarted
-      ? (countdownNumber === 1 ? 'day since cohort began' : 'days since cohort began')
-      : (daysUntilStart === 1 ? 'day until we begin!' : 'days until we begin!');
-    const countdownMessage = startsToday
-      ? `Your learning journey begins today. Welcome to ${cohortName}.`
-      : hasStarted
-      ? `No scheduled curriculum for today. Check back soon — or reach out to your facilitator if you expected something here.`
-      : 'Get ready! Your learning journey starts soon.';
     
     return (
       <div className="dashboard">
@@ -1157,13 +1140,15 @@ function Dashboard() {
           
           {/* Countdown Section */}
           <div className="dashboard__countdown-section">
-            {!startsToday && (
-              <div className="dashboard__countdown-number">{countdownNumber}</div>
-            )}
-            <div className="dashboard__countdown-label">{countdownLabel}</div>
-            <p className="dashboard__countdown-message">{countdownMessage}</p>
+            <div className="dashboard__countdown-number">{daysUntilStart}</div>
+            <div className="dashboard__countdown-label">
+              {daysUntilStart === 1 ? 'day' : 'days'} until we begin!
+            </div>
+            <p className="dashboard__countdown-message">
+              Get ready! Your learning journey starts soon.
+            </p>
           </div>
-
+          
           <div className="dashboard__divider-2" />
           
           {/* Placeholder for schedule area */}
@@ -1179,11 +1164,13 @@ function Dashboard() {
 
           {/* Countdown Section */}
           <div className="dashboard__countdown-section">
-            {!startsToday && (
-              <div className="dashboard__countdown-number">{countdownNumber}</div>
-            )}
-            <div className="dashboard__countdown-label">{countdownLabel}</div>
-            <p className="dashboard__countdown-message">{countdownMessage}</p>
+            <div className="dashboard__countdown-number">{daysUntilStart}</div>
+            <div className="dashboard__countdown-label">
+              {daysUntilStart === 1 ? 'day' : 'days'} until we begin!
+            </div>
+            <p className="dashboard__countdown-message">
+              Get ready! Your learning journey starts soon.
+            </p>
           </div>
 
           {/* Divider */}
