@@ -317,17 +317,36 @@ function OnboardingInterface({ taskId, userId, isCompleted, isLastTask, onComple
     if (completedRef.current || finishingRef.current) return;
     finishingRef.current = true;
     setIsFinishing(true);
-    // Tear down any in-flight stream so completeSession isn't racing chat.
-    if (abortRef.current) abortRef.current.abort();
+    // DON'T tear down the stream here — if the server gates this completion
+    // (last coach turn was a question, or too-few-turns), the conversation
+    // continues. Only abort once we know completion is final.
     try {
       const sid = sessionIdRef.current;
-      if (sid) {
-        const durationSeconds = Math.max(
-          0,
-          Math.round((Date.now() - startTimeRef.current) / 1000)
-        );
-        await completeSession(token, sid, { durationSeconds });
+      if (!sid) {
+        // Nothing to complete against; fall through to the success path so
+        // the parent still gets onComplete (preserves the previous behavior).
+        completedRef.current = true;
+        onComplete?.();
+        return;
       }
+      const durationSeconds = Math.max(
+        0,
+        Math.round((Date.now() - startTimeRef.current) / 1000)
+      );
+      const result = await completeSession(token, sid, { durationSeconds });
+      // Server-side gate: marker was emitted but the transcript isn't ready
+      // (last coach turn was a question, or < 6 coach turns). Silently
+      // ignore — let the conversation keep going. The LLM's next closing
+      // turn (statement, no '?') will pass the gate.
+      if (result && result.gated === true && result.completed === false) {
+        console.info('[onboarding] completion gated by server:', result.reason);
+        finishingRef.current = false;
+        setIsFinishing(false);
+        return;
+      }
+      // Real completion — now safe to abort any in-flight stream and tell
+      // the parent we're done.
+      if (abortRef.current) abortRef.current.abort();
       completedRef.current = true;
       onComplete?.();
     } catch (err) {
