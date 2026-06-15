@@ -65,10 +65,18 @@ export const useStreamingText = (content = '') => {
     animFrameRef.current = requestAnimationFrame(tick);
   };
 
-  // When content grows beyond what we've displayed, start/resume animation
+  // When content grows beyond what we've displayed, start/resume animation.
+  // When content SHRINKS (e.g., a marker tag gets stripped from the streamed
+  // text mid-turn — see OnboardingInterface's [ONBOARDING_COMPLETE] handling),
+  // snap displayed down to match. Without this branch the tick loop stops
+  // (`behind < 0`) and the old longer string keeps rendering — the user sees
+  // the marker tag even though the component already moved past it.
   useEffect(() => {
     if (content.length > displayedLengthRef.current) {
       startLoop();
+    } else if (content.length < displayedLengthRef.current) {
+      displayedLengthRef.current = content.length;
+      setDisplayedText(content);
     }
   }, [content]);
 
