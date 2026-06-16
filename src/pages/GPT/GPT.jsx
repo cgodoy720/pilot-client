@@ -193,7 +193,7 @@ function GPT() {
   const [modalSummaryData, setModalSummaryData] = useState(null);
   
   // Model selection state
-  const [selectedModel, setSelectedModel] = useState('openai/gpt-5.4');
+  const [selectedModel, setSelectedModel] = useState('openai/gpt-5.5');
   
   // Input tray height for dynamic message container padding
   const [inputTrayHeight, setInputTrayHeight] = useState(180);
@@ -201,8 +201,8 @@ function GPT() {
   // Available LLM models - matches Learning page
   const LLM_MODELS = [
     { value: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6', description: 'Latest Claude model' },
-    { value: 'anthropic/claude-opus-4.6', label: 'Claude Opus 4.6', description: 'Most capable Claude' },
-    { value: 'openai/gpt-5.4', label: 'GPT 5.4', description: 'Latest GPT model' },
+    { value: 'anthropic/claude-opus-4.8', label: 'Claude Opus 4.8', description: 'Most capable Claude' },
+    { value: 'openai/gpt-5.5', label: 'GPT 5.5', description: 'Latest GPT model' },
     { value: 'google/gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', description: 'Advanced reasoning' },
     { value: 'x-ai/grok-4', label: 'Grok 4', description: 'Fast reasoning' },
     { value: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Advanced model' },
