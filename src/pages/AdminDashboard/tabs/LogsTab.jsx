@@ -76,6 +76,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
   const [ticketNoteInputs, setTicketNoteInputs] = useState({});
   const [ticketNoteSaving, setTicketNoteSaving] = useState({});
   const [cohortLogs, setCohortLogs] = useState([]);
+  const [cohortTagFilter, setCohortTagFilter] = useState('all');
   const [showLogModal, setShowLogModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [builderFilter, setBuilderFilter] = useState('');
@@ -147,17 +148,24 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
     return allLogs.filter(l => l.builder_name?.toLowerCase().includes(builderFilter.toLowerCase()));
   }, [allLogs, builderFilter]);
 
-  // Priority-based categorization: action_required → flags → updated curriculum → regular
-  const actionRequiredLogs  = cohortLogs.filter(l => l.action_required);
-  const cohortFlagsLogs     = cohortLogs.filter(l => l.flags && !l.action_required);
+  // Priority-based sections for "All" view (mutually exclusive)
+  const actionRequiredLogs    = cohortLogs.filter(l => l.action_required);
+  const cohortFlagsLogs       = cohortLogs.filter(l => l.flags && !l.action_required);
   const updatedCurriculumLogs = cohortLogs.filter(l =>
     !l.flags && !l.action_required &&
     (l.curriculum_changes_today || l.curriculum_changes_next)
   );
-  const regularCohortLogs   = cohortLogs.filter(l =>
+  const regularCohortLogs     = cohortLogs.filter(l =>
     !l.action_required && !l.flags &&
     !l.curriculum_changes_today && !l.curriculum_changes_next
   );
+
+  // Tag-based lists for filtered view — a log can match multiple tags
+  const tagFilteredLogs = {
+    action_required:    cohortLogs.filter(l => l.action_required),
+    flagged:            cohortLogs.filter(l => l.flags),
+    updated_curriculum: cohortLogs.filter(l => l.curriculum_changes_today || l.curriculum_changes_next),
+  };
 
   const totalLogs = filteredTickets.length + filteredNextSteps.length + filteredAllLogs.length + cohortLogs.length;
 
@@ -616,12 +624,33 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
 
       {/* ── Cohort Logs card ────────────────────────────── */}
       <Card className="bg-white border border-[#E3E3E3]">
-        <CardHeader className="pb-3 border-b border-[#E3E3E3] cursor-pointer select-none"
-          onClick={() => toggleSection('cohortCard')}>
-          <div className="flex items-center gap-2">
-            <ChevronRight size={14} className={`text-slate-400 transition-transform ${collapsed.cohortCard ? '' : 'rotate-90'}`} />
-            <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Cohort Logs</CardTitle>
-            <Badge className="bg-[#EFEFEF] text-slate-600 text-xs">{cohortLogCount}</Badge>
+        <CardHeader className="pb-3 border-b border-[#E3E3E3]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => toggleSection('cohortCard')}>
+              <ChevronRight size={14} className={`text-slate-400 transition-transform ${collapsed.cohortCard ? '' : 'rotate-90'}`} />
+              <CardTitle className="text-sm font-semibold text-[#1E1E1E]">Cohort Logs</CardTitle>
+              <Badge className="bg-[#EFEFEF] text-slate-600 text-xs">{cohortLogCount}</Badge>
+            </div>
+            {!collapsed.cohortCard && cohortLogCount > 0 && (
+              <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                {[
+                  { value: 'all',                label: 'All' },
+                  { value: 'action_required',    label: 'Action Required',    active: 'bg-red-50 border-red-300 text-red-600' },
+                  { value: 'flagged',            label: 'Flagged',            active: 'bg-amber-50 border-amber-300 text-amber-600' },
+                  { value: 'updated_curriculum', label: 'Updated Curriculum', active: 'bg-indigo-50 border-indigo-300 text-indigo-600' },
+                ].map(({ value, label, active }) => (
+                  <button key={value} type="button"
+                    onClick={() => setCohortTagFilter(value)}
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition-colors ${
+                      cohortTagFilter === value
+                        ? (active || 'bg-[#4242EA] text-white border-[#4242EA]')
+                        : 'bg-white border-[#E3E3E3] text-slate-500 hover:border-slate-300'
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </CardHeader>
         {!collapsed.cohortCard && (
@@ -630,7 +659,22 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
             <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-8 bg-[#EFEFEF] rounded animate-pulse" />)}</div>
           ) : cohortLogCount === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">No cohort logs yet — add the first one.</p>
+          ) : cohortTagFilter !== 'all' ? (
+            /* ── Tag-filtered flat list ── */
+            (() => {
+              const filtered = tagFilteredLogs[cohortTagFilter] || [];
+              return filtered.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">No logs with this tag.</p>
+              ) : (
+                <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
+                  {filtered.map(log => (
+                    <CohortLogRow key={log.log_id} log={log} itemKey={`filtered-${cohortTagFilter}-${log.log_id}`} />
+                  ))}
+                </div>
+              );
+            })()
           ) : (
+            /* ── All — priority section view ── */
             <div className="space-y-4">
 
               {/* Action Required */}
