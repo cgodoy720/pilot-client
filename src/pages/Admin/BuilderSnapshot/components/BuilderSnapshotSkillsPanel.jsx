@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../../../../components/ui/dialog';
+import { computeCategoryCompetencyBreakdown } from '../utils/competencyRollup';
 
 // Three distinct, palette-disciplined colors — one per category. Used by both
 // the radar fills and the per-row chips in the leaderboard so the visual
@@ -272,12 +273,20 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
             ))}
           </div>
 
-          {/* ENLARGE DIALOG — full-size radar for the clicked category */}
+          {/* ENLARGE DIALOG — full-size radar for the clicked category, with the
+              foundational competencies those skills feed shown beside it. The
+              breakdown score is CATEGORY-SCOPED (mean of this category's skills
+              only), so it can differ from the Foundational Competencies panel. */}
           <Dialog open={!!expandedKey} onOpenChange={(open) => !open && setExpandedKey(null)}>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="max-w-6xl">
               {(() => {
                 const cat = categoryEntries.find((c) => c.key === expandedKey);
                 if (!cat) return null;
+                const breakdown = computeCategoryCompetencyBreakdown(
+                  skillLevels,
+                  skillTaxonomy,
+                  cat.key,
+                );
                 return (
                   <>
                     <DialogHeader>
@@ -293,8 +302,15 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
                         {cat.scoredCount} of {cat.rows.length} skills scored · Avg {cat.avg} / 100
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="w-full" style={{ height: 560 }}>
-                      <CategoryRadar category={cat} size="large" />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                      <div className="w-full" style={{ height: 520 }}>
+                        <CategoryRadar category={cat} size="large" />
+                      </div>
+                      <CategoryCompetencyBreakdown
+                        categoryName={cat.name}
+                        color={cat.color}
+                        items={breakdown}
+                      />
                     </div>
                   </>
                 );
@@ -373,6 +389,67 @@ const Leaderboard = ({ icon, title, items, empty, colorFor, variant = 'strength'
               </li>
             );
           })}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+/**
+ * CategoryCompetencyBreakdown — shown beside the enlarged category radar.
+ * Lists the foundational competencies this category's skills develop, each
+ * with a CATEGORY-SCOPED score (mean of only this category's contributing
+ * skills) and the contributing skill names. Scores can differ from the main
+ * Foundational Competencies panel — that's intentional.
+ */
+const CategoryCompetencyBreakdown = ({ categoryName, color, items }) => {
+  const tint = color?.stroke || '#4242EA';
+  return (
+    <div className="min-w-0">
+      <h4 className="text-sm font-proxima-bold text-[#1E1E1E]">
+        Foundational competencies these {categoryName} skills develop
+      </h4>
+      <p className="text-xs text-[#999] mt-1">
+        Scored from this category&apos;s skills only — may differ from the
+        Foundational Competencies panel.
+      </p>
+      {items.length === 0 ? (
+        <p className="mt-4 text-sm text-[#999] italic">
+          These skills aren&apos;t mapped to any competency yet.
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-3 max-h-[460px] overflow-y-auto pr-1">
+          {items.map((item) => (
+            <li key={item.key}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-medium text-[#1E1E1E] truncate">
+                  {item.name}
+                </span>
+                <span className="text-xs font-proxima-bold text-[#1E1E1E] tabular-nums shrink-0">
+                  {item.score === null ? '—' : item.score}
+                </span>
+              </div>
+              <div
+                className="mt-1 h-1.5 w-full rounded-full bg-[#F0F0F0] overflow-hidden"
+                role="progressbar"
+                aria-valuenow={item.score ?? 0}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.max(2, item.score ?? 0)}%`,
+                    backgroundColor: tint,
+                    opacity: item.score === null ? 0.3 : 1,
+                  }}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-[#999] leading-snug">
+                {item.contributing.map((c) => c.name).join(' · ')}
+              </p>
+            </li>
+          ))}
         </ul>
       )}
     </div>

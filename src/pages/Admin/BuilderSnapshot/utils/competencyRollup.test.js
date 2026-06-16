@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCompetencyRollup } from './competencyRollup';
+import { computeCompetencyRollup, computeCategoryCompetencyBreakdown } from './competencyRollup';
 
 const FAKE_TAXONOMY = {
   categories: { ai: { name: 'AI Fluency' }, swe: { name: 'Software Engineering' } },
@@ -118,5 +118,52 @@ describe('computeCompetencyRollup', () => {
       expect(row.score).toBe(null);
       expect(row.coverage.scored).toBe(0);
     }
+  });
+});
+
+describe('computeCategoryCompetencyBreakdown', () => {
+  // write-structure-prompts (ai)=80, evaluate-ai-critically (ai)=60,
+  // write-clean-code (swe)=40, debug-systematically (swe)=0 (unscored)
+  const LEVELS = {
+    'write-structure-prompts': 80,
+    'evaluate-ai-critically': 60,
+    'write-clean-code': 40,
+    'debug-systematically': 0,
+  };
+
+  it('scores each competency from THIS category only (not the full rollup)', () => {
+    const ai = computeCategoryCompetencyBreakdown(LEVELS, FAKE_TAXONOMY, 'ai');
+    // technical-craft is developedThrough write-structure-prompts (ai) + write-clean-code (swe).
+    // Category-scoped to 'ai' must use ONLY write-structure-prompts (80), NOT the
+    // full-rollup mean of 80 & 40 = 60.
+    expect(byKey(ai, 'technical-craft').score).toBe(80);
+    expect(byKey(ai, 'technical-craft').contributing.map((c) => c.slug)).toEqual([
+      'write-structure-prompts',
+    ]);
+  });
+
+  it('omits competencies this category does not develop', () => {
+    const swe = computeCategoryCompetencyBreakdown(LEVELS, FAKE_TAXONOMY, 'swe');
+    // communication is developed only through write-structure-prompts (an ai skill),
+    // so it is not part of the swe breakdown at all.
+    expect(byKey(swe, 'communication')).toBeUndefined();
+  });
+
+  it('returns null score when the category contributes only unscored skills', () => {
+    const swe = computeCategoryCompetencyBreakdown(LEVELS, FAKE_TAXONOMY, 'swe');
+    // critical-thinking's only swe skill is debug-systematically (level 0).
+    expect(byKey(swe, 'critical-thinking').score).toBe(null);
+  });
+
+  it('sorts by score desc with null scores last', () => {
+    const swe = computeCategoryCompetencyBreakdown(LEVELS, FAKE_TAXONOMY, 'swe');
+    // technical-craft (40) before critical-thinking (null).
+    expect(swe.map((r) => r.key)).toEqual(['technical-craft', 'critical-thinking']);
+  });
+
+  it('returns [] for an unknown category or missing taxonomy', () => {
+    expect(computeCategoryCompetencyBreakdown(LEVELS, FAKE_TAXONOMY, 'nope')).toEqual([]);
+    expect(computeCategoryCompetencyBreakdown(LEVELS, null, 'ai')).toEqual([]);
+    expect(computeCategoryCompetencyBreakdown(LEVELS, FAKE_TAXONOMY, '')).toEqual([]);
   });
 });

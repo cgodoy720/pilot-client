@@ -86,3 +86,69 @@ export function computeCompetencyRollup(skillLevels, skillTaxonomy) {
 
   return result;
 }
+
+/**
+ * computeCategoryCompetencyBreakdown
+ *
+ * For a SINGLE skill category, show how that category's skills feed each
+ * foundational competency. The score here is CATEGORY-SCOPED — the mean of
+ * only this category's scored (level > 0) skills that develop the competency,
+ * NOT the full-taxonomy rollup in computeCompetencyRollup. So a competency's
+ * number here can differ from the main Foundational Competencies panel (by
+ * design — it answers "how does this category's work feed each competency").
+ *
+ * @param {Object|null|undefined} skillLevels  - { [slug]: number }
+ * @param {Object|null|undefined} skillTaxonomy - { foundationalCompetencies, skills, ... }
+ * @param {string} categoryKey - e.g. 'technical'
+ * @returns {Array} competencies this category touches, each
+ *   { key, name, score|null, contributing:[{slug,name,level}] }, sorted
+ *   score-desc with nulls last. Competencies the category doesn't touch are omitted.
+ */
+export function computeCategoryCompetencyBreakdown(skillLevels, skillTaxonomy, categoryKey) {
+  if (!skillTaxonomy || !skillTaxonomy.foundationalCompetencies || !categoryKey) {
+    return [];
+  }
+
+  const taxSkills = skillTaxonomy.skills || {};
+  const levels = skillLevels || {};
+
+  // Slugs that belong to this category.
+  const categorySlugs = new Set(
+    Object.keys(taxSkills).filter((slug) => taxSkills[slug]?.category === categoryKey),
+  );
+  if (categorySlugs.size === 0) return [];
+
+  const out = [];
+  for (const [key, comp] of Object.entries(skillTaxonomy.foundationalCompetencies)) {
+    const devSlugs = Array.isArray(comp?.developedThrough) ? comp.developedThrough : [];
+    const contributing = [];
+    for (const slug of devSlugs) {
+      if (!categorySlugs.has(slug)) continue; // only this category's skills
+      const skill = taxSkills[slug];
+      if (!skill) continue;
+      contributing.push({
+        slug,
+        name: skill.name || slugToName(slug),
+        level: clampLevel(levels[slug]),
+      });
+    }
+    if (contributing.length === 0) continue; // competency not developed by this category
+
+    const scored = contributing.filter((c) => c.level > 0);
+    const score =
+      scored.length === 0
+        ? null
+        : Math.round(scored.reduce((sum, c) => sum + c.level, 0) / scored.length);
+
+    out.push({ key, name: comp?.name || slugToName(key), score, contributing });
+  }
+
+  out.sort((a, b) => {
+    if (a.score === null && b.score === null) return 0;
+    if (a.score === null) return 1;
+    if (b.score === null) return -1;
+    return b.score - a.score;
+  });
+
+  return out;
+}
