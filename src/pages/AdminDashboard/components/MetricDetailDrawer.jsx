@@ -209,15 +209,40 @@ const MetricDetailDrawer = ({ metric, cohortRow, nps, mode, cohortName, selected
       });
       const data = await res.json();
       if (data.success && detailData?.builders) {
+        const returnedDate = data.enrollment?.withdrawal_date || null;
         setDetailData(prev => ({
           ...prev,
           builders: prev.builders.map(b =>
-            b.user_id === builder.user_id ? { ...b, enrollment_status: newStatus } : b
+            b.user_id === builder.user_id ? { ...b, enrollment_status: newStatus, withdrawal_date: returnedDate } : b
           ),
         }));
       }
     } catch (e) {
       console.error('Enrollment update failed:', e);
+    }
+    setSavingEnrollment(null);
+  };
+
+  const handleWithdrawalDateSave = async (builder, newDate) => {
+    setSavingEnrollment(builder.user_id);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/dashboard/builder-enrollment/${builder.enrollment_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: builder.enrollment_status, withdrawalDate: newDate }),
+      });
+      const data = await res.json();
+      if (data.success && detailData?.builders) {
+        const returnedDate = data.enrollment?.withdrawal_date || newDate;
+        setDetailData(prev => ({
+          ...prev,
+          builders: prev.builders.map(b =>
+            b.user_id === builder.user_id ? { ...b, withdrawal_date: returnedDate } : b
+          ),
+        }));
+      }
+    } catch (e) {
+      console.error('Withdrawal date update failed:', e);
     }
     setSavingEnrollment(null);
   };
@@ -474,16 +499,29 @@ const MetricDetailDrawer = ({ metric, cohortRow, nps, mode, cohortName, selected
                       {savingEnrollment === b.user_id ? (
                         <span className="text-[10px] text-slate-400">...</span>
                       ) : (
-                        <select
-                          value={b.enrollment_status || 'in_progress'}
-                          onChange={(e) => handleEnrollmentSave(b, e.target.value)}
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none appearance-none ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
-                        >
-                          <option value="in_progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                          <option value="withdrawn">Withdrawn</option>
-                          <option value="deferred">Deferred</option>
-                        </select>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={b.enrollment_status || 'in_progress'}
+                            onChange={(e) => handleEnrollmentSave(b, e.target.value)}
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none appearance-none ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
+                          >
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="withdrawn">Withdrawn</option>
+                            <option value="deferred">Deferred</option>
+                          </select>
+                          {b.enrollment_status === 'withdrawn' && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-red-400">On:</span>
+                              <input
+                                type="date"
+                                value={b.withdrawal_date ? b.withdrawal_date.split('T')[0] : ''}
+                                onChange={(e) => handleWithdrawalDateSave(b, e.target.value)}
+                                className="text-[9px] text-red-500 bg-white border border-red-200 rounded px-1 py-0.5 focus:outline-none focus:border-red-400 w-28 cursor-pointer"
+                              />
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
