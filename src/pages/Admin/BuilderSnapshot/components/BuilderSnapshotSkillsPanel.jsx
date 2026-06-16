@@ -418,7 +418,12 @@ const CategoryCompetencyBreakdown = ({ categoryName, color, items }) => {
           These skills aren&apos;t mapped to any competency yet.
         </p>
       ) : (
-        <ul className="mt-4 space-y-3 max-h-[460px] overflow-y-auto pr-1">
+        // pr-5 + stable gutter keeps the scrollbar clear of the right-aligned
+        // score numbers (the thin pr-1 let the overlay scrollbar sit on them).
+        <ul
+          className="mt-4 space-y-3 max-h-[460px] overflow-y-auto pr-5"
+          style={{ scrollbarGutter: 'stable' }}
+        >
           {items.map((item) => (
             <li key={item.key}>
               <div className="flex items-baseline justify-between gap-3">
