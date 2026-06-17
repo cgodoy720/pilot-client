@@ -5,6 +5,7 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import { searchUsers } from '../../../services/builderProfileInspectorApi';
 import BuilderSnapshotHero from './components/BuilderSnapshotHero';
 import BuilderSnapshotSkillsPanel from './components/BuilderSnapshotSkillsPanel';
+import BuilderSnapshotCompetencies from './components/BuilderSnapshotCompetencies';
 import BuilderSnapshotStoryGrid from './components/BuilderSnapshotStoryGrid';
 import BuilderSnapshotAchievements from './components/BuilderSnapshotAchievements';
 import BuilderSnapshotTimeline from './components/BuilderSnapshotTimeline';
@@ -442,6 +443,11 @@ const BuilderSnapshot = ({ embedded = false }) => {
 
             <BuilderSnapshotSkillsPanel
               skillTaxonomy={taxonomy || { categories: {}, skills: {} }}
+              skillLevels={snapshot.profile?.skill_levels || {}}
+            />
+
+            <BuilderSnapshotCompetencies
+              skillTaxonomy={taxonomy}
               skillLevels={snapshot.profile?.skill_levels || {}}
             />
 

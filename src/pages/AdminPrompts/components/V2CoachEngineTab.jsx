@@ -3,21 +3,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Badge } from '../../../components/ui/badge';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
-import { RefreshCw, Brain, BookOpen, Target, ClipboardCheck, MessageSquare, GitBranch, Users, Layers, HelpCircle, Network, Gauge, Pencil, Clock } from 'lucide-react';
+import { Brain, BookOpen, Target, ClipboardCheck, MessageSquare, ScrollText, Trophy, Save, GitBranch, Users, Layers, HelpCircle, Gauge, Pencil, Clock } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import LoadingState from './shared/LoadingState';
 import PromptFormDialog from './shared/PromptFormDialog';
 import CoachV2FlowDiagram from './CoachV2FlowDiagram';
+import { NODES as COACH_NODE_META } from './CoachV2NodeTooltip';
 import SkillEditDialog from './SkillEditDialog';
 import PromptChangeHistoryDialog from './PromptChangeHistoryDialog';
 import useAuthStore from '../../../stores/authStore';
 
 const PHASE_ICONS = {
   learn: BookOpen,
+  generateApply: ScrollText,
   apply: Target,
   grade: ClipboardCheck,
   remediate: MessageSquare,
+  complete: Trophy,
+  reflect: Save,
 };
+
+// The order the coach runs its prompts during one task, so the Coaching Loop
+// sub-tabs read in the sequence a builder actually experiences them.
+const LOOP_PROMPT_ORDER = ['learn', 'generateApply', 'apply', 'grade', 'remediate', 'complete', 'reflect'];
 
 /**
  * Inline tooltip: HelpCircle icon that shows a tooltip on hover.
@@ -36,8 +44,8 @@ const SubTabCaption = ({ children }) => (
   <p className="font-proxima text-sm text-[#666] -mt-2">{children}</p>
 );
 
-const TemplateCard = ({ phase, template, canEdit, onEdit, onHistory }) => {
-  const Icon = PHASE_ICONS[phase] || BookOpen;
+const TemplateCard = ({ phase, template, canEdit, onEdit, onHistory, icon }) => {
+  const Icon = icon || PHASE_ICONS[phase] || BookOpen;
 
   return (
     <Card className="bg-white border-[#C8C8C8]">
@@ -362,32 +370,40 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
     evalRubric,
   } = data;
 
+  // The Coaching Loop sub-tab shows the 4 phase templates plus the 3 editable
+  // node prompts (Generate Challenge / Complete / Reflect) that used to live on
+  // their own tab — merged here in the order the coach runs them so every
+  // editable coaching prompt is viewable and editable in one place.
+  const loopPrompts = LOOP_PROMPT_ORDER
+    .map((key) => {
+      if (templates?.[key]) return { key, template: templates[key] };
+      const node = (coachv2InlineNodes || []).find((n) => n.node === key && n.editableNode && n.id);
+      if (node) {
+        return {
+          key,
+          template: {
+            name: COACH_NODE_META[key]?.name || node.label,
+            description: node.description,
+            content: node.content,
+            id: node.id,
+          },
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  // The Onboarding tab is an edit surface, so only show the editable prompt
+  // sections — never the read-only "computed at runtime" debug sections, even
+  // if an older backend still includes them in the payload.
+  const onboardingSections = (onboardingAgent?.sections || []).filter((s) => s.editable !== false);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start gap-4 flex-wrap">
-        <div>
-          <h2 className="font-proxima-bold text-2xl text-[#1E1E1E] mb-2">
-            V2 Coach Engine
-          </h2>
-          <p className="font-proxima text-[#666]">
-            The complete context that makes up the v2 coaching engine's "mind" — phase templates, onboarding chat, eval harness, and orchestrator configuration. Use the sub-tabs below to navigate.
-          </p>
-        </div>
-        <Button
-          onClick={fetchData}
-          variant="outline"
-          className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
-
       {/* Sub-tabs — Config & Reference leads as the orientation surface
           (graph flow diagram, program context, profile fields, skill
           taxonomy); then the editable surfaces in execution order:
-          coaching loop → onboarding → inline nodes → eval harness. */}
+          coaching loop → onboarding → eval harness. */}
       <Tabs defaultValue="config" className="w-full">
         <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
           <TabsTrigger
@@ -412,13 +428,6 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
             Onboarding
           </TabsTrigger>
           <TabsTrigger
-            value="nodes"
-            className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
-          >
-            <Network className="h-4 w-4 mr-2" />
-            Inline Nodes
-          </TabsTrigger>
-          <TabsTrigger
             value="eval"
             className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
           >
@@ -430,20 +439,20 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
         {/* ========== Sub-tab 1: Coaching Loop ========== */}
         <TabsContent value="loop" className="space-y-6 mt-6">
           <SubTabCaption>
-            The 4 phase templates the coach runs builders through during a task. All editable — saves take effect on the next coach turn.
+            Every prompt the coach uses while running a builder through a task, in the order they happen. All editable — saves take effect on the next coach turn.
           </SubTabCaption>
 
-          {/* Phase Templates */}
+          {/* Coaching prompts */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Brain className="h-5 w-5 text-[#4242EA]" />
-              <h3 className="font-proxima-bold text-xl text-[#1E1E1E]">Phase Templates</h3>
-              <InfoTip text="These are the system prompts sent to the AI for each phase of the conversation. They define how the coach behaves — what it says, what it hides, when it transitions. Variables in {curly_braces} are filled in at runtime with the builder's profile, task content, etc." />
+              <h3 className="font-proxima-bold text-xl text-[#1E1E1E]">Coaching Prompts</h3>
+              <InfoTip text="These are the system prompts sent to the AI at each step of the conversation. They define how the coach behaves — what it says, what it hides, when it transitions. Variables in {curly_braces} are filled in at runtime with the builder's profile, task content, etc." />
             </div>
 
-            <Tabs defaultValue="learn" className="w-full">
-              <TabsList className="bg-white border border-[#C8C8C8] p-1">
-                {Object.entries(templates).map(([key, template]) => (
+            <Tabs defaultValue={loopPrompts[0]?.key} className="w-full">
+              <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+                {loopPrompts.map(({ key, template }) => (
                   <TabsTrigger
                     key={key}
                     value={key}
@@ -454,7 +463,7 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
                 ))}
               </TabsList>
               <div className="mt-4">
-                {Object.entries(templates).map(([key, template]) => (
+                {loopPrompts.map(({ key, template }) => (
                   <TabsContent key={key} value={key} className="m-0">
                     <TemplateCard
                       phase={key}
@@ -473,188 +482,54 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
         {/* ========== Sub-tab 2: Onboarding ========== */}
         <TabsContent value="onboarding" className="space-y-6 mt-6">
           <SubTabCaption>
-            Day-0 onboarding chat that runs before the coaching loop and seeds the builder profile. 5 editable sections; the 4 build-artifact / opening-line variants are computed at runtime.
+            The Day-0 "meet-and-greet" chat that runs once before the coaching loop and seeds the builder's profile. The 5 sections below are the pieces of its system prompt — all editable; saves take effect on the next onboarding chat.
           </SubTabCaption>
 
-          {onboardingAgent && (
-            <Card className="bg-white border-[#C8C8C8]">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-[#4242EA]" />
-                  <CardTitle className="font-proxima-bold text-[#1E1E1E]">
-                    {onboardingAgent.name}
-                  </CardTitle>
-                  <InfoTip text="The Day-0 onboarding chat that runs before the v2 coach takes over. SSE-streamed text with optional browser dictation. It seeds the builder's profile (background, goals, learning style) and is the same coach persona that will accompany them through the program." />
-                </div>
-                <CardDescription className="font-proxima text-[#666]">
-                  {onboardingAgent.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {onboardingAgent.sections.map((section) => (
-                    <div key={section.key} className="border border-[#E3E3E3] rounded-lg overflow-hidden">
-                      <div className="flex items-center gap-2 bg-[#F5F5F5] border-b border-[#E3E3E3] px-3 py-2">
-                        <p className="font-proxima-bold text-sm text-[#1E1E1E]">{section.label}</p>
-                        {section.isTemplate && (
-                          <Badge variant="outline" className="text-xs border-[#4242EA] text-[#4242EA] bg-white">
-                            Template — runtime data injected
-                          </Badge>
-                        )}
-                        {section.editable === false && (
-                          <Badge variant="outline" className="text-xs border-[#999] text-[#666] bg-white">
-                            Computed at runtime
-                          </Badge>
-                        )}
-                        {section.editable !== false && section.id && (
-                          <div className="ml-auto flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
-                              onClick={() => openHistory('content_generation_prompt', String(section.id), section.label)}
-                              title="View change history"
-                            >
-                              <Clock className="h-4 w-4" />
-                            </Button>
-                            {canEdit && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
-                                onClick={() => openEditor(section.id, section.content, 'content-generation', section.label)}
-                              >
-                                <Pencil className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {section.description && (
-                        <p className="font-proxima text-xs text-[#666] px-3 pt-2">{section.description}</p>
-                      )}
-                      <div className="p-3">
-                        <ScrollArea className="max-h-[260px] w-full">
-                          <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed bg-white">
-                            {section.content || '(empty)'}
-                          </pre>
-                        </ScrollArea>
-                      </div>
-                    </div>
+          {onboardingAgent && onboardingSections.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare className="h-5 w-5 text-[#4242EA]" />
+                <h3 className="font-proxima-bold text-xl text-[#1E1E1E]">{onboardingAgent.name}</h3>
+                <InfoTip text="The Day-0 onboarding chat that runs before the v2 coach takes over. SSE-streamed text with optional browser dictation. It seeds the builder's profile (background, goals, learning style) and is the same coach persona that will accompany them through the program. Each section below is one part of its system prompt." />
+              </div>
+
+              <Tabs defaultValue={onboardingSections[0]?.key} className="w-full">
+                <TabsList className="bg-white border border-[#C8C8C8] p-1 h-auto flex-wrap justify-start">
+                  {onboardingSections.map((section) => (
+                    <TabsTrigger
+                      key={section.key}
+                      value={section.key}
+                      className="font-proxima data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+                    >
+                      {section.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                <div className="mt-4">
+                  {onboardingSections.map((section) => (
+                    <TabsContent key={section.key} value={section.key} className="m-0">
+                      <TemplateCard
+                        phase={section.key}
+                        icon={MessageSquare}
+                        template={{
+                          name: section.label,
+                          description: section.description,
+                          content: section.content,
+                          id: section.id,
+                        }}
+                        canEdit={canEdit}
+                        onEdit={() => openEditor(section.id, section.content, 'content-generation', section.label)}
+                        onHistory={() => openHistory('content_generation_prompt', String(section.id), section.label)}
+                      />
+                    </TabsContent>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </Tabs>
+            </div>
           )}
         </TabsContent>
 
-        {/* ========== Sub-tab 3: Inline Nodes ========== */}
-        <TabsContent value="nodes" className="space-y-6 mt-6">
-          <SubTabCaption>
-            The 7 LangGraph nodes orchestrating the coaching loop. 3 carry inline prompts (Generate Apply / Complete / Reflect) and are editable; the other 4 reference the Coaching Loop phase templates.
-          </SubTabCaption>
-
-          {Array.isArray(coachv2InlineNodes) && coachv2InlineNodes.length > 0 && (
-            <Card className="bg-white border-[#C8C8C8]">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Network className="h-5 w-5 text-[#4242EA]" />
-                  <CardTitle className="font-proxima-bold text-[#1E1E1E]">
-                    CoachV2 Inline Node Prompts
-                  </CardTitle>
-                  <InfoTip text="The v2 coach LangGraph has 8 nodes. Four use the phase templates from the Coaching Loop tab. The other three carry their own DB-backed prompts editable here; init reuses the Learn template." />
-                </div>
-                <CardDescription className="font-proxima text-[#666]">
-                  Every node the coachV2 LangGraph runs — system prompt source, in-band markers, and per-node caps.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {coachv2InlineNodes.map((node) => (
-                    <div key={node.node} className="border border-[#E3E3E3] rounded-lg overflow-hidden">
-                      <div className="flex items-center flex-wrap gap-2 bg-[#F5F5F5] border-b border-[#E3E3E3] px-3 py-2">
-                        <Badge variant="outline" className="font-mono text-xs bg-white">
-                          {node.node}
-                        </Badge>
-                        <p className="font-proxima-bold text-sm text-[#1E1E1E]">{node.label}</p>
-                        <code className="font-mono text-xs text-[#666] ml-auto">
-                          {node.systemPromptSource}
-                        </code>
-                        {node.editableNode && node.id && (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
-                              onClick={() => openHistory('content_generation_prompt', String(node.id), node.label)}
-                              title="View change history"
-                            >
-                              <Clock className="h-4 w-4" />
-                            </Button>
-                            {canEdit && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3]"
-                                onClick={() => openEditor(node.id, node.content, 'content-generation', `${node.label} template`)}
-                              >
-                                <Pencil className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="px-3 py-3 space-y-3">
-                        {node.description && (
-                          <p className="font-proxima text-sm text-[#666]">{node.description}</p>
-                        )}
-                        <div className="flex flex-wrap gap-3">
-                          {node.markers && node.markers.length > 0 && (
-                            <div>
-                              <p className="font-proxima text-xs text-[#666] mb-1">Markers</p>
-                              <div className="flex flex-wrap gap-1">
-                                {node.markers.map((m) => (
-                                  <Badge key={m} variant="outline" className="font-mono text-xs bg-amber-50 border-amber-300 text-amber-800">
-                                    {m}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {node.caps && Object.keys(node.caps).length > 0 && (
-                            <div>
-                              <p className="font-proxima text-xs text-[#666] mb-1">Caps / Config</p>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.entries(node.caps).map(([k, v]) => (
-                                  <Badge key={k} variant="outline" className="font-mono text-xs bg-white">
-                                    {k}={Array.isArray(v) ? v.join('|') : String(v)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        {node.content && (
-                          <div className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg">
-                            <ScrollArea className="max-h-[360px] w-full p-3">
-                              <pre className="font-mono text-xs text-[#1E1E1E] whitespace-pre-wrap leading-relaxed">
-                                {node.content}
-                              </pre>
-                            </ScrollArea>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* ========== Sub-tab 4: Eval Harness ========== */}
+        {/* ========== Sub-tab 3: Eval Harness ========== */}
         <TabsContent value="eval" className="space-y-6 mt-6">
           <SubTabCaption>
             Headless quality-evaluation rubric and templates. The 6 judge dimensions are read-only code constants; the Judge and Simulated Builder templates are editable.

@@ -427,52 +427,13 @@ function PathfinderProjects() {
       return;
     }
 
-    // Define stage order for validation
-    const stageOrder = ['ideation', 'planning', 'development', 'testing', 'launch'];
-    const currentStageIndex = stageOrder.indexOf(draggedProject.stage);
-    const newStageIndex = stageOrder.indexOf(newStage);
-
-    // Prevent skipping stages forward (allow moving backwards)
-    if (newStageIndex > currentStageIndex + 1) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Cannot Skip Stages',
-        text: `You must move through stages in order. Please move to ${getStageLabel(stageOrder[currentStageIndex + 1])} first before advancing to ${getStageLabel(newStage)}.`,
-        confirmButtonColor: '#4242ea'
-      });
-      setDraggedProject(null);
-      setIsDragging(false);
-      return;
-    }
-
-    // Check if trying to move to development without PRD approval
-    if (newStage === 'development') {
-      // Require that a PRD exists and is approved
-      if (!draggedProject.prd_link) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'PRD Required',
-          text: 'You must add a PRD link before moving to development. Click on the project to add a PRD.',
-          confirmButtonColor: '#4242ea'
-        });
-        setDraggedProject(null);
-        setIsDragging(false);
-        return;
-      }
-      
-      if (!draggedProject.prd_approved) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'PRD Approval Required',
-          text: 'This project has a PRD that must be approved before moving to development. Please submit it for approval first.',
-          confirmButtonColor: '#4242ea'
-        });
-        setDraggedProject(null);
-        setIsDragging(false);
-        return;
-      }
-    }
-
+    // The server is the source of truth for stage-transition rules (PRD approval
+    // to enter Development, completed checklist to enter Launch). We deliberately
+    // do NOT pre-check those here: the locally cached project list can be stale
+    // — e.g. staff approve a PRD after this page has loaded — and a stale
+    // `prd_approved: false` previously blocked legitimate moves with a spurious
+    // "PRD Approval Required" warning. Let the server decide against fresh data
+    // and surface its response below.
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/pathfinder/projects/${draggedProject.project_id}`,
@@ -507,14 +468,7 @@ function PathfinderProjects() {
         fetchProjects();
       } else {
         const errorData = await response.json();
-        if (errorData.stageProgression) {
-          Swal.fire({
-            icon: 'warning',
-            title: 'Cannot Skip Stages',
-            text: errorData.error,
-            confirmButtonColor: '#4242ea'
-          });
-        } else if (errorData.requiresApproval) {
+        if (errorData.requiresApproval) {
           Swal.fire({
             icon: 'warning',
             title: 'PRD Approval Required',
@@ -522,7 +476,7 @@ function PathfinderProjects() {
             confirmButtonColor: '#4242ea'
           });
         } else if (errorData.requiresChecklist) {
-          const itemsList = errorData.incompleteItems.join(', ');
+          const itemsList = (errorData.incompleteItems || []).join(', ');
           Swal.fire({
             icon: 'warning',
             title: 'Launch Checklist Incomplete',
