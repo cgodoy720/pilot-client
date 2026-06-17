@@ -198,8 +198,8 @@ const OverviewTab = ({
   const tooltips = {
     totalPool: 'Everyone in the selected cohort view. For the current cycle, this includes applications assigned to the current cohort plus applicant accounts that have not started an application yet.',
     infoSessionAttendees: 'Applicants in this cohort view who have attended an info session at any time. The cohort breakdown separates attendance in this recruitment cycle from attendance in prior cycles.',
-    workshopParticipants: 'Applicants in this cohort view who have attended an admissions workshop at any time. For current-cycle views, this can include carried-forward applicants who attended a workshop in a prior cycle.',
-    offersExtended: 'Applicants in this cohort view whose admission decision is accepted. This includes offers from this cycle and accepted applicants carried from prior cycles.',
+    workshopParticipants: 'Applicants in this cohort view who have attended an admissions workshop at any time.',
+    offersExtended: 'Applicants in this cohort view whose admission decision is accepted.',
     accountsCreated: 'Applicant accounts in this cohort view that do not yet have an application row. In the current active cycle, no-application accounts are included as current-cycle prospects.',
     inProgress: 'Applications in this cohort view with application.status = in_progress.',
     submitted: 'Applications in this cohort view with application.status = submitted.',
@@ -208,10 +208,9 @@ const OverviewTab = ({
     infoAttended: 'Applicants in this cohort view with attended, attended late, or very late info session attendance at any time.',
     infoThisCycle: 'Applicants in this cohort view who attended an info session during this cohort recruitment window.',
     workshopRegistered: 'Applicants in this cohort view whose pipeline stage is a workshop stage: invited, registered, attended, or no-show.',
-    workshopAttended: 'Applicants in this cohort view with attended, attended late, or very late workshop attendance at any time. This can include carried-forward applicants from prior cycles.',
+    workshopAttended: 'Applicants in this cohort view with attended, attended late, or very late workshop attendance at any time.',
     offersThisCycle: 'Accepted applicants whose offer belongs to this cohort recruitment window.',
     offersPriorCycles: 'Accepted applicants in this cohort view whose offer came from a prior cycle.',
-    selectedThisCycle: 'Applicants who entered or selected the selected cohort during this recruitment cycle. In the current active cycle, no-application accounts count here.',
     activityRecency: 'Latest meaningful applicant activity: signup, info session registration/attendance, application start/submission, response updates, or workshop registration/attendance. System/admin updates are excluded.'
   };
 
@@ -227,18 +226,6 @@ const OverviewTab = ({
               <div className="text-2xl font-bold text-[#1a1a1a] font-proxima-bold">
                 {appliedStatusBreakdown.accounts_created}
               </div>
-              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.accounts_created_net_new ?? 0}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.accounts_created_rolled ?? 0}</span>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="p-4 bg-yellow-50 rounded-lg">
               <div className="text-sm text-gray-600 font-proxima">
@@ -247,18 +234,6 @@ const OverviewTab = ({
               <div className="text-2xl font-bold text-yellow-700 font-proxima-bold">
                 {appliedStatusBreakdown.in_progress}
               </div>
-              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.in_progress_net_new ?? 0}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.in_progress_rolled ?? 0}</span>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="p-4 bg-blue-50 rounded-lg">
               <div className="text-sm text-gray-600 font-proxima">
@@ -267,18 +242,6 @@ const OverviewTab = ({
               <div className="text-2xl font-bold text-blue-700 font-proxima-bold">
                 {appliedStatusBreakdown.submitted}
               </div>
-              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.submitted_net_new ?? 0}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.submitted_rolled ?? 0}</span>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="p-4 bg-red-50 rounded-lg">
               <div className="text-sm text-gray-600 font-proxima">
@@ -287,18 +250,6 @@ const OverviewTab = ({
               <div className="text-2xl font-bold text-red-700 font-proxima-bold">
                 {appliedStatusBreakdown.ineligible}
               </div>
-              {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Selected: {appliedStatusBreakdown.ineligible_net_new ?? 0}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <span className="text-gray-600 font-proxima">Carried: {appliedStatusBreakdown.ineligible_rolled ?? 0}</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           {displayStats.lastActivityBuckets && (
@@ -408,14 +359,6 @@ const OverviewTab = ({
               {displayStats.totalApplicants ?? 0}
             </div>
           </div>
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <div className="text-sm text-gray-600 font-proxima">
-              <TooltipLabel tooltip={tooltips.selectedThisCycle}>Selected This Cycle</TooltipLabel>
-            </div>
-            <div className="text-2xl font-bold text-blue-700 font-proxima-bold">
-              {displayStats.sourceBreakdown?.selected_this_cycle ?? 0}
-            </div>
-          </div>
         </div>
       );
     }
@@ -460,7 +403,7 @@ const OverviewTab = ({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {/* Total Pool with source bucket breakdown */}
+        {/* Total Pool */}
         <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600 font-proxima">
@@ -471,19 +414,6 @@ const OverviewTab = ({
             <div className="text-3xl font-bold text-[#1a1a1a] font-proxima-bold">
               {appliedStatusBreakdown?.total ?? displayStats.totalApplicants ?? 0}
             </div>
-            {/* Source bucket breakdown */}
-            {(overviewQuickView && overviewQuickView !== 'all_time' && overviewQuickView !== 'deferred') && (
-              <div className="mt-2 space-y-1">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="text-gray-600 font-proxima">Selected This Cycle: {displayStats.sourceBreakdown?.selected_this_cycle ?? displayStats.netNewApplicants ?? 0}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                  <span className="text-gray-600 font-proxima">Carried Forward: {displayStats.sourceBreakdown?.carried_forward ?? displayStats.rolloverApplicants ?? 0}</span>
-                </div>
-              </div>
-            )}
             {renderChange('applicants')}
           </CardContent>
         </Card>
