@@ -124,7 +124,8 @@ export const getStatusBadgeClasses = (status, context) => {
     // Enrollment statuses
     'enrolled': 'bg-emerald-100 text-emerald-800',
     'deferred': 'bg-purple-100 text-purple-700',
-    'rolled_over': 'bg-indigo-100 text-indigo-700',
+    // source_bucket badges (Applications tab filter): an application's cohort_id is permanent
+    // unless staff move it, so carried_forward now means staff-moved / applicant-switched.
     'selected_this_cycle': 'bg-blue-100 text-blue-700',
     'carried_forward': 'bg-indigo-100 text-indigo-700',
 
