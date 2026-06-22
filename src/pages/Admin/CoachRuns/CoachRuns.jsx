@@ -5,7 +5,7 @@ import { listCoachRuns, getCoachRun } from '../../../services/coachRunsApi';
 
 const BRAND = '#4242EA';
 
-// Order + display labels for the v2 coach graph nodes.
+// Order + display labels for the v2 coach graph nodes (Developer view).
 const NODE_META = {
   init:          { label: 'Init',           color: 'bg-slate-100 text-slate-700 border-slate-300' },
   learn:         { label: 'Learn',          color: 'bg-blue-100 text-blue-700 border-blue-300' },
@@ -16,9 +16,51 @@ const NODE_META = {
   complete:      { label: 'Complete',       color: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
 };
 
+// Plain-language meaning of each node for the Story view — what a non-technical
+// colleague would call this part of the coaching session.
+const PHASE_META = {
+  init:          { label: 'Getting started', icon: '👋', bar: '#94a3b8', tint: 'bg-slate-100 text-slate-700 border-slate-200' },
+  learn:         { label: 'Teaching',        icon: '📘', bar: '#3b82f6', tint: 'bg-blue-100 text-blue-700 border-blue-200' },
+  generateApply: { label: 'Challenge set',   icon: '🎯', bar: '#8b5cf6', tint: 'bg-violet-100 text-violet-700 border-violet-200' },
+  apply:         { label: 'Working on it',   icon: '🛠️', bar: '#f59e0b', tint: 'bg-amber-100 text-amber-700 border-amber-200' },
+  grade:         { label: 'Grading',         icon: '✅', bar: '#f43f5e', tint: 'bg-rose-100 text-rose-700 border-rose-200' },
+  remediate:     { label: 'Extra coaching',  icon: '🔁', bar: '#f97316', tint: 'bg-orange-100 text-orange-700 border-orange-200' },
+  complete:      { label: 'Wrap-up',         icon: '🎉', bar: '#10b981', tint: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+};
+const phaseMeta = (node) => PHASE_META[node] || { label: node, icon: '•', bar: '#94a3b8', tint: 'bg-slate-100 text-slate-700 border-slate-200' };
+
+// Friendly descriptions of the teaching methods the coach can pick (mirrors the
+// 7 styles in the server's VALID_TEACHING_METHODS).
+const TEACHING_METHOD_LABEL = {
+  socratic:      'Socratic — learns by answering guiding questions',
+  direct:        'Direct instruction — clear step-by-step explanation',
+  example_based: 'Example-based — learns from worked examples',
+  demonstration: 'Demonstration — “I do, we do, you do”',
+  inquiry_based: 'Guided inquiry — open questions with hints',
+  problem_based: 'Problem-first — starts with a real problem',
+  experiential:  'Experiential — hands-on, try then reflect',
+};
+
 const fmtTime = (ts) => (ts ? new Date(ts).toLocaleString() : '—');
 const fmtMs = (ms) => (ms == null ? '—' : `${ms.toLocaleString()} ms`);
 const fmtNum = (n) => (n == null ? '—' : Number(n).toLocaleString());
+
+// Human-readable duration: "840 ms" → "0.8s", "192300 ms" → "3m 12s".
+const fmtDuration = (ms) => {
+  if (ms == null) return '—';
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const totalSec = ms / 1000;
+  if (totalSec < 60) return `${Math.round(totalSec * 10) / 10}s`;
+  const m = Math.floor(totalSec / 60);
+  const s = Math.round(totalSec % 60);
+  return `${m}m ${s}s`;
+};
+
+// USD cost — tiny amounts to 4dp, larger to cents.
+const fmtCost = (usd) => {
+  if (usd == null || usd === 0) return '$0';
+  return usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(2)}`;
+};
 
 /** Collapsible labeled text panel (system prompt, raw output, etc.) */
 const Panel = ({ title, children, mono = true, defaultOpen = false }) => {
@@ -49,6 +91,9 @@ const Chip = ({ children, tone = 'slate' }) => {
     slate: 'bg-slate-100 text-slate-600 border-slate-300',
     green: 'bg-emerald-100 text-emerald-700 border-emerald-300',
     red: 'bg-rose-100 text-rose-700 border-rose-300',
+    blue: 'bg-blue-100 text-blue-700 border-blue-300',
+    violet: 'bg-violet-100 text-violet-700 border-violet-300',
+    amber: 'bg-amber-100 text-amber-700 border-amber-300',
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${tones[tone]}`}>
@@ -87,6 +132,10 @@ const CriteriaTable = ({ criteriaScores }) => {
     </div>
   );
 };
+
+// ===========================================================================
+// DEVELOPER VIEW — one card per agent step (the original technical timeline).
+// ===========================================================================
 
 /** One agent step in the timeline. */
 const StepCard = ({ step }) => {
@@ -157,10 +206,413 @@ const StepCard = ({ step }) => {
   );
 };
 
+// ===========================================================================
+// STORY VIEW — plain-language, share-friendly summary of a run.
+// ===========================================================================
+
+/** A labeled stat in the summary card. */
+const StatPill = ({ label, value }) => (
+  <div className="flex flex-col">
+    <span className="text-[11px] uppercase tracking-wide text-slate-400">{label}</span>
+    <span className="text-sm font-semibold text-slate-800">{value}</span>
+  </div>
+);
+
+/** Section divider in the transcript marking a new phase of the session. */
+const PhaseDivider = ({ node, anchorId }) => {
+  const meta = phaseMeta(node);
+  return (
+    <div id={anchorId} className="flex items-center gap-2 my-4 scroll-mt-4">
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${meta.tint}`}>
+        <span>{meta.icon}</span> {meta.label}
+      </span>
+      <span className="flex-1 h-px bg-[#E8E8EE]" />
+    </div>
+  );
+};
+
+/** One chat bubble — builder (right) or coach (left). */
+const TranscriptBubble = ({ who, text }) => {
+  const isCoach = who === 'coach';
+  return (
+    <div className={`flex gap-2 mb-3 ${isCoach ? '' : 'flex-row-reverse'}`}>
+      <div
+        className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm"
+        style={{ backgroundColor: isCoach ? '#EDEDFE' : '#F1F5F9' }}
+      >
+        {isCoach ? '🤖' : '🧑'}
+      </div>
+      <div
+        className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+          isCoach ? 'bg-white border border-[#E3E3E3] text-slate-800' : 'text-slate-800'
+        }`}
+        style={isCoach ? undefined : { backgroundColor: '#F1F5F9' }}
+      >
+        <div className={`text-[10px] font-semibold uppercase tracking-wide mb-0.5 ${isCoach ? 'text-[#4242EA]' : 'text-slate-400'}`}>
+          {isCoach ? 'Coach' : 'Builder'}
+        </div>
+        {text}
+      </div>
+    </div>
+  );
+};
+
+/** Grade outcome callout shown inline after the coach's grading message. */
+const GradeResult = ({ sr }) => {
+  const crit = Array.isArray(sr.criteriaScores) ? sr.criteriaScores : [];
+  const met = crit.filter((c) => c.met).length;
+  const [open, setOpen] = useState(false);
+  if (typeof sr.overallScore !== 'number' && crit.length === 0) return null;
+  return (
+    <div className="ml-9 mb-3 -mt-1">
+      <div className="inline-flex flex-wrap items-center gap-2 bg-[#FAFAFC] border border-[#E8E8EE] rounded-lg px-3 py-2">
+        {typeof sr.overallScore === 'number' && (
+          <Chip tone={sr.passed ? 'green' : 'red'}>
+            {sr.passed ? '✓ Passed' : '✗ Not passed'} · {sr.overallScore}/100
+          </Chip>
+        )}
+        {crit.length > 0 && (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="text-xs text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
+          >
+            Met {met} of {crit.length} criteria {open ? '▾' : '▸'}
+          </button>
+        )}
+      </div>
+      {open && crit.length > 0 && (
+        <div className="mt-2 max-w-2xl">
+          <CriteriaTable criteriaScores={crit} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** "How the coach personalized this run" — built from the init step decision. */
+const PersonalizationCard = ({ strat }) => {
+  if (!strat || (!strat.teachingMethod && !strat.difficultyLevel)) return null;
+  const methodLabel = TEACHING_METHOD_LABEL[strat.teachingMethod] || strat.teachingMethod;
+  return (
+    <div className="bg-white border border-[#E3E3E3] rounded-xl p-4 mb-4">
+      <h3 className="text-sm font-bold text-[#1E1E1E] mb-3">How the coach personalized this run</h3>
+      <ul className="space-y-2 text-sm text-slate-700">
+        {strat.teachingMethod && (
+          <li className="flex gap-2"><span>📘</span><span><span className="font-semibold">Teaching style:</span> {methodLabel}</span></li>
+        )}
+        {strat.difficultyLevel && (
+          <li className="flex gap-2">
+            <span>🎚️</span>
+            <span>
+              <span className="font-semibold">Difficulty:</span>{' '}
+              <span className="capitalize">{strat.difficultyLevel}</span>
+              {strat.avgLevel != null && <span className="text-slate-500"> (avg skill {Math.round(strat.avgLevel)}/100)</span>}
+            </span>
+          </li>
+        )}
+        {strat.difficultyModifier === '+20%' && (
+          <li className="flex gap-2">
+            <span>🎯</span>
+            <span>
+              <span className="font-semibold">Made 20% harder</span> to target a mock-interview weak area
+              {Array.isArray(strat.interviewWeaknessContext) && strat.interviewWeaknessContext.length > 0 && (
+                <span className="text-slate-500"> ({strat.interviewWeaknessContext.join(', ')})</span>
+              )}
+            </span>
+          </li>
+        )}
+      </ul>
+      <p className="text-[11px] text-slate-400 mt-3">These are the coach’s deterministic choices, made before any teaching began.</p>
+    </div>
+  );
+};
+
+/** Proportional-duration timeline bar; click a segment to jump to it. */
+const DurationTimeline = ({ phaseDurations, totalMs, totalUsd, onJump }) => {
+  if (!phaseDurations.length) return null;
+  return (
+    <div className="bg-white border border-[#E3E3E3] rounded-xl p-4 mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-bold text-[#1E1E1E]">Session timeline</h3>
+        <span className="text-[11px] text-slate-400">
+          {fmtDuration(totalMs)} of coach processing{totalUsd > 0 ? ` · ${fmtCost(totalUsd)}` : ''}
+        </span>
+      </div>
+      <div className="flex w-full h-7 rounded-md overflow-hidden border border-[#E8E8EE]">
+        {phaseDurations.map((p, i) => {
+          const pct = Math.max((p.ms / (totalMs || 1)) * 100, 4);
+          const meta = phaseMeta(p.node);
+          return (
+            <button
+              key={`${p.node}-${i}`}
+              onClick={() => onJump(p.node)}
+              title={`${meta.label} · ${fmtDuration(p.ms)}${p.usd > 0 ? ` · ${fmtCost(p.usd)}` : ''}`}
+              className="h-full hover:opacity-80 transition-opacity"
+              style={{ width: `${pct}%`, backgroundColor: meta.bar }}
+            />
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+        {phaseDurations.map((p, i) => {
+          const meta = phaseMeta(p.node);
+          return (
+            <span key={`${p.node}-legend-${i}`} className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: meta.bar }} />
+              {meta.icon} {meta.label}{' '}
+              <span className="text-slate-400">· {fmtDuration(p.ms)}{p.usd > 0 ? ` · ${fmtCost(p.usd)}` : ''}</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/** A single skill level (0–100) as a labeled bar. */
+const SkillBar = ({ label, value }) => (
+  <div className="flex items-center gap-2">
+    <span className="w-44 shrink-0 text-xs text-slate-600 truncate capitalize" title={label}>{label}</span>
+    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, value))}%`, backgroundColor: BRAND }} />
+    </div>
+    <span className="w-8 text-right text-xs font-semibold text-slate-700">{Math.round(value)}</span>
+  </div>
+);
+
+const CtxLabel = ({ children }) => (
+  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{children}</div>
+);
+
+/**
+ * "What the coach saw" — the exact structured builder profile the LLM received,
+ * captured on the init step (builder_context). Skills, learning profile,
+ * interview weak areas, task history, plus a raw-JSON fallback so nothing is
+ * hidden.
+ */
+const BuilderContextPanel = ({ context }) => {
+  const [open, setOpen] = useState(true);
+  const [rawOpen, setRawOpen] = useState(false);
+  if (!context) return null;
+
+  const comp = context.competencies || {};
+  const skills = Object.entries(comp.skillLevels || {}).sort((a, b) => b[1] - a[1]);
+  const method = comp.modalityPreferences?.preferred;
+  const weaknesses = comp.interviewThemes?.recurring_weaknesses || [];
+  const lp = context.learningProfile || {};
+  const lpFields = lp.fields || {};
+  const counts = context.performance?.taskCounts || {};
+  const bg = context.background?.markdown;
+  const goals = context.goals?.markdown;
+
+  return (
+    <div className="bg-white border border-[#E3E3E3] rounded-xl p-4 mb-4">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between text-left">
+        <div>
+          <h3 className="text-sm font-bold text-[#1E1E1E]">What the coach saw</h3>
+          <p className="text-[11px] text-slate-400">The exact builder profile fed to the LLM</p>
+        </div>
+        <span className="text-slate-400 text-xs">{open ? '▾' : '▸'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {context.identity?.level && <Chip>Level {context.identity.level}</Chip>}
+            {context.identity?.cohort && <Chip>{context.identity.cohort}</Chip>}
+            {method && <Chip tone="violet">prefers {String(method).replace(/_/g, ' ')}</Chip>}
+            {counts.total != null && <Chip>{counts.completed ?? 0}/{counts.total} tasks done</Chip>}
+          </div>
+
+          {skills.length > 0 && (
+            <div>
+              <CtxLabel>Skill levels (/100)</CtxLabel>
+              <div className="space-y-1.5">
+                {skills.map(([slug, v]) => <SkillBar key={slug} label={slug.replace(/-/g, ' ')} value={v} />)}
+              </div>
+            </div>
+          )}
+
+          {(lp.markdown || Object.keys(lpFields).length > 0) && (
+            <div>
+              <CtxLabel>Learning profile</CtxLabel>
+              {lp.markdown
+                ? <p className="text-sm text-slate-700 whitespace-pre-wrap">{lp.markdown}</p>
+                : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(lpFields).map(([k, v]) => (
+                      <Chip key={k}>{k.replace(/_/g, ' ')}: {String(v)}</Chip>
+                    ))}
+                  </div>
+                )}
+            </div>
+          )}
+
+          {weaknesses.length > 0 && (
+            <div>
+              <CtxLabel>Mock-interview weak areas</CtxLabel>
+              <div className="flex flex-wrap gap-1.5">{weaknesses.map((w) => <Chip key={w} tone="red">{w}</Chip>)}</div>
+            </div>
+          )}
+
+          {bg && (
+            <div>
+              <CtxLabel>Background</CtxLabel>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap line-clamp-6">{bg}</p>
+            </div>
+          )}
+          {goals && (
+            <div>
+              <CtxLabel>Goals</CtxLabel>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap line-clamp-6">{goals}</p>
+            </div>
+          )}
+
+          <div>
+            <button
+              onClick={() => setRawOpen((o) => !o)}
+              className="text-xs text-slate-500 hover:text-slate-800 underline-offset-2 hover:underline"
+            >
+              Full context (raw JSON) {rawOpen ? '▾' : '▸'}
+            </button>
+            {rawOpen && (
+              <pre className="mt-2 px-3 py-2 text-[11px] text-slate-700 bg-[#F7F7F9] border border-[#E8E8EE] rounded-md whitespace-pre-wrap break-words max-h-96 overflow-auto font-mono">
+                {JSON.stringify(context, null, 2)}
+              </pre>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const StoryView = ({ run, onCopySummary, copied }) => {
+  const steps = run.steps || [];
+  const id = run.identity || {};
+
+  // --- derive the story from the raw steps -------------------------------
+  const initStep = steps.find((s) => s.node === 'init');
+  const strat = initStep?.structured_result || {};
+
+  const gradeSteps = steps.filter((s) => s.node === 'grade');
+  const lastGrade = gradeSteps[gradeSteps.length - 1];
+  const gradeSr = lastGrade?.structured_result || {};
+  const completed = steps.some((s) => s.node === 'complete');
+
+  const score = typeof gradeSr.overallScore === 'number'
+    ? gradeSr.overallScore
+    : (run.outcomes?.[0]?.overall_score ?? null);
+  const passed = typeof gradeSr.passed === 'boolean'
+    ? gradeSr.passed
+    : (run.outcomes?.[0]?.passed ?? null);
+
+  // Outcome banner
+  let status = { text: 'In progress', tone: 'bg-slate-100 text-slate-600 border-slate-200', icon: '⏳' };
+  if (completed && passed) status = { text: 'Passed', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: '✅' };
+  else if (gradeSteps.length > 0 && passed === false) status = { text: 'Did not pass yet', tone: 'bg-rose-100 text-rose-700 border-rose-200', icon: '❌' };
+  else if (completed) status = { text: 'Completed', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: '✅' };
+
+  // Build the chat transcript + phase anchors (first occurrence of each phase
+  // gets a scroll anchor so the timeline can jump to it).
+  const seenPhases = new Set();
+  const items = [];
+  let lastNode = null;
+  for (const s of steps) {
+    if (s.node !== lastNode) {
+      const first = !seenPhases.has(s.node);
+      if (first) seenPhases.add(s.node);
+      items.push({ kind: 'divider', node: s.node, anchorId: first ? `phase-${s.node}` : undefined });
+      lastNode = s.node;
+    }
+    if (s.user_message) items.push({ kind: 'bubble', who: 'builder', text: s.user_message });
+    if (s.visible_output) items.push({ kind: 'bubble', who: 'coach', text: s.visible_output });
+    if (s.node === 'grade') items.push({ kind: 'grade', sr: s.structured_result || {} });
+  }
+  const msgCount = items.filter((it) => it.kind === 'bubble').length;
+
+  // Phase durations + cost (first-occurrence order, summed across repeated nodes)
+  const order = [];
+  const idx = {};
+  for (const s of steps) {
+    const ms = s.latency_ms || 0;
+    const usd = s.estimated_cost_usd || 0;
+    if (idx[s.node] == null) { idx[s.node] = order.length; order.push({ node: s.node, ms, usd }); }
+    else { order[idx[s.node]].ms += ms; order[idx[s.node]].usd += usd; }
+  }
+  const totalMs = order.reduce((a, b) => a + b.ms, 0);
+  const totalUsd = order.reduce((a, b) => a + (b.usd || 0), 0);
+
+  // The structured profile the LLM saw is captured on the init step.
+  const builderContext = initStep?.builder_context || null;
+
+  const jump = (node) => {
+    const el = document.getElementById(`phase-${node}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  return (
+    <div className="max-w-3xl">
+      {/* Summary card */}
+      <div className="bg-white border border-[#E3E3E3] rounded-xl p-5 mb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-[#1E1E1E] truncate">
+              {id.first_name} {id.last_name}
+            </h2>
+            <p className="text-sm text-slate-500 truncate">{id.task_title}</p>
+          </div>
+          <span className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold border ${status.tone}`}>
+            <span>{status.icon}</span> {status.text}{score != null ? ` · ${score}/100` : ''}
+          </span>
+        </div>
+
+        {id.v2_learning_goal && (
+          <p className="text-sm text-slate-600 mt-2"><span className="font-semibold">Goal:</span> {id.v2_learning_goal}</p>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-[#F0F0F0]">
+          <StatPill label="Messages" value={msgCount} />
+          <StatPill label="Attempts" value={gradeSteps.length || '—'} />
+          <StatPill label="Coach time" value={fmtDuration(totalMs)} />
+          <StatPill label="Est. cost" value={totalUsd > 0 ? fmtCost(totalUsd) : '—'} />
+        </div>
+      </div>
+
+      <PersonalizationCard strat={strat} />
+      <BuilderContextPanel context={builderContext} />
+      <DurationTimeline phaseDurations={order} totalMs={totalMs} totalUsd={totalUsd} onJump={jump} />
+
+      {/* Conversation */}
+      <div className="bg-white border border-[#E3E3E3] rounded-xl p-5">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold text-[#1E1E1E]">Conversation</h3>
+          <button
+            onClick={onCopySummary}
+            className="text-xs px-2.5 py-1 rounded-md border border-[#E3E3E3] hover:bg-[#F7F7F9] text-slate-600"
+          >
+            {copied ? '✓ Copied' : '📋 Copy summary'}
+          </button>
+        </div>
+        {items.length === 0 && <p className="text-sm text-slate-400">No conversation recorded.</p>}
+        {items.map((it, i) => {
+          if (it.kind === 'divider') return <PhaseDivider key={i} node={it.node} anchorId={it.anchorId} />;
+          if (it.kind === 'grade') return <GradeResult key={i} sr={it.sr} />;
+          return <TranscriptBubble key={i} who={it.who} text={it.text} />;
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ===========================================================================
+
 const RunDetail = ({ token, threadId }) => {
   const [run, setRun] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [view, setView] = useState('story'); // 'story' | 'developer'
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -177,6 +629,37 @@ const RunDetail = ({ token, threadId }) => {
 
   useEffect(() => { load(); }, [load]);
 
+  const copySummary = useCallback(() => {
+    if (!run) return;
+    const id = run.identity || {};
+    const steps = run.steps || [];
+    const strat = steps.find((s) => s.node === 'init')?.structured_result || {};
+    const gradeSteps = steps.filter((s) => s.node === 'grade');
+    const gradeSr = gradeSteps[gradeSteps.length - 1]?.structured_result || {};
+    const score = typeof gradeSr.overallScore === 'number' ? gradeSr.overallScore : (run.outcomes?.[0]?.overall_score ?? null);
+    const passed = typeof gradeSr.passed === 'boolean' ? gradeSr.passed : (run.outcomes?.[0]?.passed ?? null);
+    const completed = steps.some((s) => s.node === 'complete');
+    const outcome = completed && passed
+      ? 'Passed'
+      : (gradeSteps.length && passed === false ? 'Did not pass yet' : (completed ? 'Completed' : 'In progress'));
+    const lines = [
+      `Coach run — ${`${id.first_name || ''} ${id.last_name || ''}`.trim()}`,
+      `Task: ${id.task_title || '—'}`,
+      id.v2_learning_goal ? `Goal: ${id.v2_learning_goal}` : null,
+      `Outcome: ${outcome}${score != null ? ` (${score}/100)` : ''}`,
+      strat.teachingMethod ? `Teaching style: ${TEACHING_METHOD_LABEL[strat.teachingMethod] || strat.teachingMethod}` : null,
+      strat.difficultyLevel
+        ? `Difficulty: ${strat.difficultyLevel}${strat.avgLevel != null ? ` (avg skill ${Math.round(strat.avgLevel)})` : ''}${strat.difficultyModifier === '+20%' ? ' · +20% for interview weak area' : ''}`
+        : null,
+      `Attempts: ${gradeSteps.length || '—'}`,
+    ].filter(Boolean);
+    try {
+      navigator.clipboard.writeText(lines.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard unavailable — ignore */ }
+  }, [run]);
+
   if (loading) return <div className="p-8 text-slate-400 text-sm">Loading run…</div>;
   if (error) return <div className="p-8 text-rose-600 text-sm">{error}</div>;
   if (!run) return null;
@@ -186,40 +669,59 @@ const RunDetail = ({ token, threadId }) => {
 
   return (
     <div className="p-6">
-      {/* run header */}
-      <div className="flex items-start justify-between mb-4">
-        <div>
+      {/* run header + view toggle */}
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold text-[#1E1E1E]">
             {id.first_name} {id.last_name} <span className="text-slate-400 font-normal">· {id.task_title}</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {id.email} · {id.cohort} · thread #{run.thread_id} · {run.steps.length} steps
           </p>
-          {id.v2_learning_goal && (
-            <p className="text-xs text-slate-600 mt-1 max-w-2xl"><span className="font-semibold">Goal:</span> {id.v2_learning_goal}</p>
-          )}
         </div>
-        <button
-          onClick={load}
-          className="text-xs px-3 py-1.5 rounded-md border border-[#E3E3E3] hover:bg-[#F7F7F9] text-slate-600"
-        >
-          ↻ Refresh
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* segmented toggle */}
+          <div className="inline-flex bg-slate-100 border border-[#E3E3E3] rounded-lg p-0.5">
+            {[['story', 'Readable'], ['developer', 'Developer']].map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${
+                  view === v ? 'bg-white text-[#4242EA] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={load}
+            className="text-xs px-3 py-1.5 rounded-md border border-[#E3E3E3] hover:bg-[#F7F7F9] text-slate-600"
+          >
+            ↻ Refresh
+          </button>
+        </div>
       </div>
 
-      {/* run-level usage strip */}
-      <div className="flex flex-wrap gap-4 mb-6 text-xs bg-[#F7F7F9] border border-[#E3E3E3] rounded-lg px-4 py-3">
-        <div><span className="text-slate-400">LLM calls</span> <span className="font-semibold text-slate-700">{fmtNum(totals.call_count)}</span></div>
-        <div><span className="text-slate-400">Prompt tok</span> <span className="font-semibold text-slate-700">{fmtNum(totals.prompt_tokens)}</span></div>
-        <div><span className="text-slate-400">Completion tok</span> <span className="font-semibold text-slate-700">{fmtNum(totals.completion_tokens)}</span></div>
-        <div><span className="text-slate-400">Total tok</span> <span className="font-semibold text-slate-700">{fmtNum(totals.total_tokens)}</span></div>
-        <div><span className="text-slate-400">Est. cost</span> <span className="font-semibold text-slate-700">${Number(totals.estimated_cost_usd || 0).toFixed(4)}</span></div>
-      </div>
+      {view === 'story' ? (
+        <StoryView run={run} onCopySummary={copySummary} copied={copied} />
+      ) : (
+        <>
+          {/* run-level usage strip */}
+          <div className="flex flex-wrap gap-4 mb-6 text-xs bg-[#F7F7F9] border border-[#E3E3E3] rounded-lg px-4 py-3">
+            <div><span className="text-slate-400">LLM calls</span> <span className="font-semibold text-slate-700">{fmtNum(totals.call_count)}</span></div>
+            <div><span className="text-slate-400">Prompt tok</span> <span className="font-semibold text-slate-700">{fmtNum(totals.prompt_tokens)}</span></div>
+            <div><span className="text-slate-400">Completion tok</span> <span className="font-semibold text-slate-700">{fmtNum(totals.completion_tokens)}</span></div>
+            <div><span className="text-slate-400">Total tok</span> <span className="font-semibold text-slate-700">{fmtNum(totals.total_tokens)}</span></div>
+            <div><span className="text-slate-400">Est. cost</span> <span className="font-semibold text-slate-700">${Number(totals.estimated_cost_usd || 0).toFixed(4)}</span></div>
+          </div>
 
-      {/* agent timeline */}
-      <div>
-        {run.steps.map((step) => <StepCard key={step.id} step={step} />)}
-      </div>
+          {/* agent timeline */}
+          <div>
+            {run.steps.map((step) => <StepCard key={step.id} step={step} />)}
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -268,7 +770,9 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
   }
 
   // Hide synthetic eval-harness personas from the real run list (they still
-  // open via the ?thread= deep-link from Coach Evals).
+  // open via the ?thread= deep-link from Coach Evals). Golden Dataset runs ARE
+  // shown so staff can inspect archetype runs alongside real ones — the Cohort
+  // column ("Golden Dataset") distinguishes them and search can isolate them.
   const realRuns = runs.filter((r) => r.cohort !== 'Eval Harness');
   const q = search.trim().toLowerCase();
   const filtered = q

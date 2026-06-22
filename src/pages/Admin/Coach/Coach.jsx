@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import useNavStore from '../../../stores/navStore';
@@ -7,9 +7,11 @@ import CoachRuns from '../CoachRuns/CoachRuns';
 import CoachEvals from '../CoachEvals/CoachEvals';
 import CoachProfiles from '../CoachProfiles/CoachProfiles';
 import BuilderSnapshot from '../BuilderSnapshot/BuilderSnapshot';
+import GoldenDataset from '../GoldenDataset/GoldenDataset';
+import TeachingLab from '../TeachingLab/TeachingLab';
 
 const TAB_TRIGGER_CLASS =
-  'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium font-proxima px-6 py-2 rounded-md transition-all';
+  'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium font-proxima px-4 py-1.5 text-sm rounded-md transition-all';
 
 /**
  * Coach — combined admin surface for the v2 coach agent, with tabs for
@@ -33,6 +35,8 @@ const Coach = () => {
   const canEvals = canAccessPage('coach_evals');
   const canProfiles = canAccessPage('coach_observability');
   const canSnapshot = canAccessPage('coach_observability');
+  const canGolden = canAccessPage('coach_observability');
+  const canLab = canAccessPage('coach_observability');
 
   const initialTabParam = searchParams.get('tab');
   // Honor ?tab= only if (a) it's a known tab and (b) the user has access to it;
@@ -41,6 +45,8 @@ const Coach = () => {
     if (initialTabParam === 'evals' && canEvals) return 'evals';
     if (initialTabParam === 'profiles' && canProfiles) return 'profiles';
     if (initialTabParam === 'snapshot' && canSnapshot) return 'snapshot';
+    if (initialTabParam === 'golden' && canGolden) return 'golden';
+    if (initialTabParam === 'lab' && canLab) return 'lab';
     if (initialTabParam === 'runs' && canRuns) return 'runs';
     if (canRuns) return 'runs';
     if (canEvals) return 'evals';
@@ -79,22 +85,18 @@ const Coach = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#EFEFEF] font-proxima">
-      {!isSecondaryNavPage && (
-        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 pt-5">
-          <h1 className="text-2xl font-bold text-[#1E1E1E]">Coach</h1>
-          <p className="text-slate-500 text-sm mt-0.5 mb-4">
-            Observability and automated quality evaluation for the v2 coach agent
-          </p>
-        </div>
-      )}
-
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
-        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-8 pt-3 pb-3">
-          <TabsList className="bg-transparent p-0 gap-1 rounded-none inline-flex h-auto">
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-6 py-2.5 flex items-center gap-4">
+          {!isSecondaryNavPage && (
+            <h1 className="text-base font-bold text-[#1E1E1E] shrink-0">Coach</h1>
+          )}
+          <TabsList className="bg-slate-50 border border-[#E3E3E3] p-1 rounded-lg inline-flex gap-0.5 h-auto">
             {canRuns && <TabsTrigger value="runs" className={TAB_TRIGGER_CLASS}>Coach Runs</TabsTrigger>}
             {canEvals && <TabsTrigger value="evals" className={TAB_TRIGGER_CLASS}>Coach Evals</TabsTrigger>}
             {canProfiles && <TabsTrigger value="profiles" className={TAB_TRIGGER_CLASS}>Profiles</TabsTrigger>}
             {canSnapshot && <TabsTrigger value="snapshot" className={TAB_TRIGGER_CLASS}>Builder Snapshot</TabsTrigger>}
+            {canGolden && <TabsTrigger value="golden" className={TAB_TRIGGER_CLASS}>Golden Dataset</TabsTrigger>}
+            {canLab && <TabsTrigger value="lab" className={TAB_TRIGGER_CLASS}>Teaching Lab</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -116,6 +118,16 @@ const Coach = () => {
         {canSnapshot && (
           <TabsContent value="snapshot" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
             <BuilderSnapshot embedded />
+          </TabsContent>
+        )}
+        {canGolden && (
+          <TabsContent value="golden" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
+            <GoldenDataset embedded onViewTimeline={openRunTimeline} />
+          </TabsContent>
+        )}
+        {canLab && (
+          <TabsContent value="lab" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
+            <TeachingLab />
           </TabsContent>
         )}
       </Tabs>

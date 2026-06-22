@@ -7,6 +7,7 @@ import {
 import StructuredSubmission from './StructuredSubmission';
 import FlexibleSubmission from './FlexibleSubmission';
 import ImageSubmission from './ImageSubmission';
+import FileSubmission from './FileSubmission';
 
 function DeliverablePanel({
   task,
@@ -71,6 +72,11 @@ function DeliverablePanel({
     // For image deliverable type, use ImageSubmission
     if (task.deliverable_type === 'image') {
       return <ImageSubmission {...commonProps} />;
+    }
+
+    // For file deliverable type, use FileSubmission
+    if (task.deliverable_type === 'file') {
+      return <FileSubmission {...commonProps} />;
     }
 
     // For all other standard deliverable types (text, link, document), use FlexibleSubmission
