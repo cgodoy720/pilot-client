@@ -1,6 +1,8 @@
 /* eslint-disable react/prop-types */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import useAuthStore from '../../../stores/authStore';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../../../components/ui/sheet';
 import { listLabPresets, classifyTeachingMethod, coachTurn } from '../../../services/onboardingLabApi';
 
 const BRAND = '#4242EA';
@@ -48,6 +50,71 @@ const METHOD_TONE = {
 };
 const methodLabel = (m) => METHOD_LABELS[m] || m || '—';
 const methodTone = (m) => METHOD_TONE[m] || 'slate';
+
+// Selectable styles for the compare view (the 6-way enum; 'demonstration' was
+// merged into 'example_based'). 'balanced' is a fallback, not a teaching choice.
+const STYLE_OPTIONS = ['socratic', 'direct', 'example_based', 'inquiry_based', 'problem_based', 'experiential'];
+
+// Plain-English explanation of how each style teaches (mirrors the server's
+// TEACHING_STYLE_GUIDANCE intent) — shown as a hover tooltip so the difference
+// in approach is readable before picking styles to compare.
+const STYLE_DESCRIPTIONS = {
+  socratic: 'Leads with probing questions and lets you reason to the answer yourself — deliberately withholds the conclusion.',
+  direct: 'Explains the concept plainly up front and states the answer, then checks your understanding. No drawing-it-out.',
+  example_based: 'Shows a concrete worked example first, then has you try a closely parallel one (“show, then do”). Theory comes after.',
+  inquiry_based: 'Hands you an open question to investigate and offers hints rather than answers — you discover it through exploration.',
+  problem_based: 'Drops you into a real, messy problem from the start and teaches each concept only when you need it to make progress.',
+  experiential: 'Has you attempt it first, then debriefs what happened, names the underlying lesson, and has you try again (try → reflect → retry).',
+};
+
+// Tailwind renderers for coach markdown (the @tailwindcss/typography `prose`
+// plugin isn't installed in this project, so `prose` classes are no-ops — we
+// style each element explicitly instead).
+const MD_COMPONENTS = {
+  p: ({ ...p }) => <p className="my-1.5 leading-relaxed first:mt-0 last:mb-0" {...p} />,
+  strong: ({ ...p }) => <strong className="font-semibold text-slate-900" {...p} />,
+  em: ({ ...p }) => <em className="italic" {...p} />,
+  ul: ({ ...p }) => <ul className="list-disc pl-5 my-1.5 space-y-0.5" {...p} />,
+  ol: ({ ...p }) => <ol className="list-decimal pl-5 my-1.5 space-y-0.5" {...p} />,
+  li: ({ ...p }) => <li className="leading-relaxed" {...p} />,
+  h1: ({ ...p }) => <h1 className="font-bold text-[15px] text-slate-900 mt-2 mb-1 first:mt-0" {...p} />,
+  h2: ({ ...p }) => <h2 className="font-bold text-[14px] text-slate-900 mt-2 mb-1 first:mt-0" {...p} />,
+  h3: ({ ...p }) => <h3 className="font-semibold text-[13px] text-slate-900 mt-2 mb-1 first:mt-0" {...p} />,
+  blockquote: ({ ...p }) => <blockquote className="border-l-2 border-slate-300 pl-3 italic text-slate-600 my-1.5" {...p} />,
+  a: ({ ...p }) => <a className="text-[#4242EA] underline" target="_blank" rel="noreferrer" {...p} />,
+  hr: () => <hr className="my-2 border-slate-200" />,
+  pre: ({ ...p }) => <pre className="bg-slate-100 rounded-md p-2.5 my-2 overflow-x-auto text-[12px] font-mono" {...p} />,
+  code: ({ className, children, ...p }) =>
+    /language-/.test(className || '') ? (
+      <code className="font-mono text-[12px]" {...p}>{children}</code>
+    ) : (
+      <code className="bg-slate-100 rounded px-1 py-0.5 text-[12px] font-mono" {...p}>{children}</code>
+    ),
+};
+
+// One chat turn. Coach (assistant) text renders as markdown; builder is plain.
+const ChatBubble = ({ role, content }) => (
+  <div className={`flex ${role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <div
+      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
+        role === 'user'
+          ? 'bg-slate-200 text-slate-800 rounded-br-sm whitespace-pre-wrap'
+          : 'bg-[#4242EA]/[0.06] border border-[#4242EA]/20 text-slate-800 rounded-bl-sm'
+      }`}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-wide mb-1 text-slate-400">
+        {role === 'user' ? 'Builder' : 'Coach'}
+      </div>
+      {role === 'assistant' ? (
+        <div className="text-sm text-slate-800">
+          <ReactMarkdown components={MD_COMPONENTS}>{content || ''}</ReactMarkdown>
+        </div>
+      ) : (
+        content
+      )}
+    </div>
+  </div>
+);
 
 // A 0..1 confidence bar with the floor marker drawn at `floor`.
 const ConfidenceBar = ({ confidence, floor = 0.7 }) => {
@@ -155,10 +222,11 @@ const ResultView = ({ result, answer, floor }) => {
 };
 
 /**
- * Live demo: actually run the coach's learn phase in the classified method so
- * staff see what it OUTPUTS, not just the predicted directive. Stateless multi-
- * turn — type a builder reply to keep the conversation going. Remounts (fresh
- * convo) per classification via a `key` on the parent.
+ * Live demo (rendered inside the right-slide Sheet): actually run the coach's
+ * learn phase in the classified method so staff see what it OUTPUTS, not just
+ * the predicted directive. Auto-starts on mount (the Sheet opening IS the "see
+ * coach in action" action); stateless multi-turn — type a builder reply to keep
+ * going. Coach text renders as markdown. Remounts fresh per open via `key`.
  */
 const CoachInAction = ({ token, method }) => {
   const [convo, setConvo] = useState([]);
@@ -166,8 +234,11 @@ const CoachInAction = ({ token, method }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [reply, setReply] = useState('');
+  const scrollRef = useRef(null);
+  const inputRef = useRef(null);
+  const startedRef = useRef(false);
 
-  const start = async () => {
+  const start = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -182,7 +253,27 @@ const CoachInAction = ({ token, method }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, method]);
+
+  // Auto-run the first coach turn when the sheet opens (once).
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    start();
+  }, [start]);
+
+  // Keep the latest turn in view.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [convo, loading]);
+
+  // Auto-focus the reply field whenever it's the builder's turn (coach done
+  // responding and at least one coach turn has landed).
+  useEffect(() => {
+    if (!loading && convo.length > 0 && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [loading, convo.length]);
 
   const send = async () => {
     const text = reply.trim();
@@ -202,55 +293,27 @@ const CoachInAction = ({ token, method }) => {
     }
   };
 
-  if (convo.length === 0) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-slate-500">
-          Run the coach&apos;s teaching phase as <Chip tone={methodTone(method)}>{methodLabel(method)}</Chip> on a
-          sample task to see what it actually says.
-        </p>
-        <button
-          onClick={start}
-          disabled={loading}
-          className="px-4 py-1.5 rounded-md text-sm font-medium text-white disabled:opacity-50"
-          style={{ backgroundColor: BRAND }}
-        >
-          {loading ? 'Running the coach…' : 'See the coach teach this'}
-        </button>
-        {error && <p className="text-sm text-rose-600">{error}</p>}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {task && (
-        <div className="text-xs text-slate-500">
-          Teaching: <span className="font-semibold text-slate-700">{task.title}</span>
-          {task.learning_goal ? <span className="text-slate-400"> — {task.learning_goal}</span> : null}
-        </div>
-      )}
-      <div className="space-y-2.5">
-        {convo.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap ${
-                m.role === 'user'
-                  ? 'bg-slate-200 text-slate-800 rounded-br-sm'
-                  : 'bg-[#4242EA]/8 border border-[#4242EA]/20 text-slate-800 rounded-bl-sm'
-              }`}
-            >
-              <div className="text-[10px] font-semibold uppercase tracking-wide mb-0.5 text-slate-400">
-                {m.role === 'user' ? 'Builder' : 'Coach'}
-              </div>
-              {m.content}
-            </div>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* scrollable conversation */}
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">
+        {task && (
+          <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
+            <span className="font-semibold text-slate-700">Sample task:</span> {task.title}
+            {task.learning_goal ? <div className="text-slate-400 mt-0.5">{task.learning_goal}</div> : null}
           </div>
+        )}
+        {convo.map((m, i) => (
+          <ChatBubble key={i} role={m.role} content={m.content} />
         ))}
         {loading && <div className="text-xs text-slate-400 pl-1">Coach is responding…</div>}
+        {error && <p className="text-sm text-rose-600 pl-1">{error}</p>}
       </div>
-      <div className="flex items-center gap-2 pt-1">
+
+      {/* pinned reply bar */}
+      <div className="shrink-0 border-t border-[#E3E3E3] px-5 py-3 flex items-center gap-2 bg-white">
         <input
+          ref={inputRef}
           value={reply}
           onChange={(e) => setReply(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
@@ -267,7 +330,203 @@ const CoachInAction = ({ token, method }) => {
           Send
         </button>
       </div>
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+    </div>
+  );
+};
+
+// A style chip with a hover tooltip explaining how that style teaches. Used for
+// the (non-interactive) column headers + "Comparing" bar in the compare view.
+const StyleChip = ({ style }) => (
+  <span className="relative group inline-block">
+    <Chip tone={methodTone(style)}>{methodLabel(style)}</Chip>
+    {STYLE_DESCRIPTIONS[style] && (
+      <div className="pointer-events-none absolute left-0 top-full mt-2 w-64 rounded-md bg-slate-900 text-white text-xs leading-relaxed px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-lg">
+        {STYLE_DESCRIPTIONS[style]}
+      </div>
+    )}
+  </span>
+);
+
+/**
+ * Compare view: run the SAME conversation across 2–4 teaching styles as
+ * side-by-side columns. One shared "builder" input drives every column; each
+ * column keeps its own (diverging) conversation. Stateless — each turn re-posts
+ * that column's full history to /coach-turn.
+ */
+const CompareView = ({ token }) => {
+  const [selected, setSelected] = useState(['socratic', 'example_based']);
+  const [started, setStarted] = useState(false);
+  const [cols, setCols] = useState({}); // style -> { convo: [], loading, error }
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef(null);
+
+  const toggle = (s) => {
+    if (started) return;
+    setSelected((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : prev.length < 4 ? [...prev, s] : prev
+    );
+  };
+
+  const start = async () => {
+    if (selected.length < 2 || busy) return;
+    setBusy(true);
+    setStarted(true);
+    setCols(Object.fromEntries(selected.map((s) => [s, { convo: [], loading: true }])));
+    await Promise.all(
+      selected.map(async (s) => {
+        try {
+          const data = await coachTurn(token, { teachingMethod: s, messages: [] });
+          setCols((prev) => ({
+            ...prev,
+            [s]: {
+              convo: [
+                { role: 'user', content: data.seededOpener || "Hi! I'm ready to get started — can you teach me this?" },
+                { role: 'assistant', content: data.reply },
+              ],
+              loading: false,
+            },
+          }));
+        } catch (e) {
+          setCols((prev) => ({ ...prev, [s]: { convo: [], loading: false, error: e.message } }));
+        }
+      })
+    );
+    setBusy(false);
+  };
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || busy) return;
+    setInput('');
+    setBusy(true);
+    // Build each column's next history (incl. the shared builder message) up front.
+    const nextConvos = Object.fromEntries(
+      selected.map((s) => [s, [...(cols[s]?.convo || []), { role: 'user', content: text }]])
+    );
+    setCols((prev) => {
+      const next = { ...prev };
+      selected.forEach((s) => { next[s] = { ...next[s], convo: nextConvos[s], loading: true }; });
+      return next;
+    });
+    await Promise.all(
+      selected.map(async (s) => {
+        try {
+          const data = await coachTurn(token, { teachingMethod: s, messages: nextConvos[s] });
+          setCols((prev) => ({
+            ...prev,
+            [s]: { ...prev[s], convo: [...nextConvos[s], { role: 'assistant', content: data.reply }], loading: false },
+          }));
+        } catch (e) {
+          setCols((prev) => ({ ...prev, [s]: { ...prev[s], loading: false, error: e.message } }));
+        }
+      })
+    );
+    setBusy(false);
+  };
+
+  const reset = () => {
+    setStarted(false);
+    setCols({});
+    setInput('');
+  };
+
+  // Focus the shared input when it's the builder's turn (all columns done).
+  useEffect(() => {
+    if (started && !busy && inputRef.current) inputRef.current.focus();
+  }, [busy, started]);
+
+  if (!started) {
+    return (
+      <div className="px-6 py-6 max-w-2xl">
+        <h2 className="text-sm font-bold text-[#1E1E1E] mb-1">Compare teaching styles</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Pick 2–4 styles. They&apos;ll teach the same sample task side by side, driven by one shared
+          builder input, so you can watch how each one diverges.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-5">
+          {STYLE_OPTIONS.map((s) => {
+            const on = selected.includes(s);
+            return (
+              <div key={s} className="relative group">
+                <button
+                  onClick={() => toggle(s)}
+                  className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                    on ? `${TONES[methodTone(s)]} font-medium` : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {methodLabel(s)}
+                </button>
+                {/* hover tooltip: how this style teaches */}
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 rounded-md bg-slate-900 text-white text-xs leading-relaxed px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-lg">
+                  {STYLE_DESCRIPTIONS[s]}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button
+          onClick={start}
+          disabled={selected.length < 2}
+          className="px-4 py-1.5 rounded-md text-sm font-medium text-white disabled:opacity-50"
+          style={{ backgroundColor: BRAND }}
+        >
+          Compare {selected.length} {selected.length === 1 ? 'style' : 'styles'}
+        </button>
+        {selected.length < 2 && <span className="ml-3 text-xs text-slate-400">Pick at least 2.</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      <div className="shrink-0 px-5 py-2.5 border-b border-[#E3E3E3] flex items-center gap-3 bg-white">
+        <span className="text-sm font-semibold text-slate-700">Comparing</span>
+        {selected.map((s) => <StyleChip key={s} style={s} />)}
+        <button onClick={reset} className="ml-auto text-xs text-slate-500 hover:text-slate-800 underline">
+          Change styles
+        </button>
+      </div>
+
+      {/* columns */}
+      <div className="flex-1 min-h-0 flex overflow-x-auto divide-x divide-[#E3E3E3]">
+        {selected.map((s) => {
+          const col = cols[s] || { convo: [], loading: false };
+          return (
+            <div key={s} className="flex flex-col min-w-[320px] flex-1 min-h-0">
+              <div className="shrink-0 px-4 py-2 border-b border-[#E3E3E3] bg-slate-50">
+                <StyleChip style={s} />
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
+                {col.convo.map((m, i) => <ChatBubble key={i} role={m.role} content={m.content} />)}
+                {col.loading && <div className="text-xs text-slate-400 pl-1">Coach is responding…</div>}
+                {col.error && <p className="text-sm text-rose-600 pl-1">{col.error}</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* shared builder input */}
+      <div className="shrink-0 border-t border-[#E3E3E3] px-5 py-3 flex items-center gap-2 bg-white">
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+          placeholder="Reply as the builder — sent to every column…"
+          disabled={busy}
+          className="flex-1 rounded-md border border-[#D8D8E0] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242EA]/30 focus:border-[#4242EA] disabled:opacity-50"
+        />
+        <button
+          onClick={send}
+          disabled={busy || !input.trim()}
+          className="px-3 py-1.5 rounded-md text-sm font-medium text-white disabled:opacity-50"
+          style={{ backgroundColor: BRAND }}
+        >
+          Send to all
+        </button>
+      </div>
     </div>
   );
 };
@@ -282,6 +541,8 @@ const TeachingLab = () => {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [lastAnswer, setLastAnswer] = useState('');
+  const [coachOpen, setCoachOpen] = useState(false);
+  const [mode, setMode] = useState('classify'); // 'classify' | 'compare'
 
   useEffect(() => {
     let alive = true;
@@ -305,6 +566,7 @@ const TeachingLab = () => {
       if (!a) return;
       setLoading(true);
       setError(null);
+      setCoachOpen(false); // close any open demo from a prior classification
       setLastAnswer(a);
       try {
         const data = await classifyTeachingMethod(token, { answer: a });
@@ -320,6 +582,7 @@ const TeachingLab = () => {
   );
 
   const loadPreset = (p) => {
+    setMode('classify');
     setAnswer(p.answer);
     run(p.answer);
   };
@@ -361,15 +624,36 @@ const TeachingLab = () => {
       </aside>
 
       {/* Right pane — tester + result */}
-      <main className="flex-1 min-h-0 overflow-y-auto">
-        <div className="bg-white border-b border-[#E3E3E3] px-6 py-4">
-          <h1 className="text-base font-bold text-[#1E1E1E]">Teaching Lab</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Mock-test how onboarding classifies a builder&apos;s learning-style answer — predicted style,
-            confidence vs the {floor} floor, and the teaching method the coach would actually use. Read-only.
-          </p>
+      <main className="flex-1 min-h-0 flex flex-col">
+        <div className="shrink-0 bg-white border-b border-[#E3E3E3] px-6 py-3 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-base font-bold text-[#1E1E1E]">Personalized Learning</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {mode === 'compare'
+                ? 'Run the same task across multiple teaching styles side by side to see how the coach diverges.'
+                : `Mock-test how onboarding classifies a builder's learning-style answer — predicted style, confidence vs the ${floor} floor, and the teaching method the coach would actually use. Read-only.`}
+            </p>
+          </div>
+          <div className="shrink-0 inline-flex bg-slate-100 border border-[#E3E3E3] rounded-lg p-0.5">
+            {['classify', 'compare'].map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  mode === m ? 'bg-[#4242EA] text-white font-medium' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {m === 'classify' ? 'Classify' : 'Compare styles'}
+              </button>
+            ))}
+          </div>
         </div>
 
+        <div className="flex-1 min-h-0">
+          {mode === 'compare' ? (
+            <CompareView token={token} />
+          ) : (
+            <div className="h-full overflow-y-auto">
         <SunkenSection
           title="Mock anchor-#9 answer"
           hint={question ? `Coach asks: “${question}”` : undefined}
@@ -397,12 +681,20 @@ const TeachingLab = () => {
         {result && <ResultView result={result} answer={lastAnswer} floor={floor} />}
 
         {result && (
-          <SunkenSection title="See the coach in action" hint="The real coach learn phase run in this method — not a prediction">
-            <CoachInAction
-              key={`${lastAnswer}::${result.effectiveMethod}`}
-              token={token}
-              method={result.effectiveMethod}
-            />
+          <SunkenSection title="See the coach in action" hint="Run the real coach learn phase in this method — not a prediction">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCoachOpen(true)}
+                className="px-4 py-1.5 rounded-md text-sm font-medium text-white"
+                style={{ backgroundColor: BRAND }}
+              >
+                See Coach in Action
+              </button>
+              <span className="text-sm text-slate-500">
+                Opens a live conversation where the coach teaches as{' '}
+                <Chip tone={methodTone(result.effectiveMethod)}>{methodLabel(result.effectiveMethod)}</Chip>
+              </span>
+            </div>
           </SunkenSection>
         )}
 
@@ -411,7 +703,35 @@ const TeachingLab = () => {
             Type an answer or pick an example to see how the coach classifies it.
           </div>
         )}
+            </div>
+          )}
+        </div>
       </main>
+
+      {/* Right-slide sheet: the real coach learn phase, live */}
+      <Sheet open={coachOpen} onOpenChange={setCoachOpen}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-2xl p-0 flex flex-col gap-0 font-proxima"
+        >
+          <SheetHeader className="shrink-0 px-5 py-4 border-b border-[#E3E3E3] text-left space-y-1">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              Coach in action
+              {result && <Chip tone={methodTone(result.effectiveMethod)}>{methodLabel(result.effectiveMethod)}</Chip>}
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              The real coach learn phase, run live in this teaching method. Reply as the builder to continue.
+            </SheetDescription>
+          </SheetHeader>
+          {coachOpen && result && (
+            <CoachInAction
+              key={`${lastAnswer}::${result.effectiveMethod}`}
+              token={token}
+              method={result.effectiveMethod}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
