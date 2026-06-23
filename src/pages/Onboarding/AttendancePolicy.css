@@ -118,12 +118,6 @@
   justify-content: center;
 }
 
-.attendance-policy__calendar-session--evening {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 2px solid #93c5fd;
-}
-
 .attendance-policy__calendar-session--weekend {
   background: #fef3c7;
   color: #92400e;
