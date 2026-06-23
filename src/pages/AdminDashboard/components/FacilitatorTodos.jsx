@@ -58,7 +58,7 @@ const FacilitatorTodos = ({ selectedDate, selectedCohortId, cohortName, cohorts,
 
   // Instructional curriculum days only (excludes weekends/holidays)
   const [curriculumDates, setCurriculumDates] = useState(new Set());
-  const NON_INSTRUCTIONAL_TYPES = ['Holiday'];
+  const NON_INSTRUCTIONAL_TYPES = ['holiday'];
   // Backend-persisted verified dates: { "2026-04-07": { verifiedBy, verifiedAt }, ... }
   const [verifiedDates, setVerifiedDates] = useState({});
   const [tick, setTick] = useState(0);

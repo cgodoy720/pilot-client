@@ -20,6 +20,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '../../../../components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../../../../components/ui/dialog';
 import { formatPhoneNumber, getStatusBadgeClasses, formatStatus, getColumnLabel } from '../shared/utils';
 import { Input } from '../../../../components/ui/input';
 
@@ -156,6 +163,7 @@ const columnLabels = {
   education: 'Education',
   referral: 'Referral Source',
   pledge: 'Pledge Signed',
+  gja: 'GJA Signed',
   income: 'Pre-Program Income'
 
 };
@@ -204,6 +212,7 @@ const ApplicationRow = React.memo(({
   onViewApplication,
   onOpenNotes,
   onDeliberationChange,
+  onViewGja,
   cohortNameMap
 }) => {
   return (
@@ -398,6 +407,24 @@ const ApplicationRow = React.memo(({
           )}
         </TableCell>
       )}
+      {visibleColumns.gja && (
+        <TableCell>
+          {app.gja_signed ? (
+            <button
+              type="button"
+              onClick={() => onViewGja(app)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-proxima bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer"
+              title={`${app.gja_signed_at ? `Signed on ${new Date(app.gja_signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Good Jobs Agreement signed'}${app.gja_source ? ` (via ${app.gja_source === 'docusign' ? 'DocuSign' : 'manual upload'})` : ''} — click to view`}
+            >
+              ✓ Signed
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-proxima bg-gray-100 text-gray-500">
+              — Not signed
+            </span>
+          )}
+        </TableCell>
+      )}
 
       {visibleColumns.income && (
         <TableCell className="font-proxima text-gray-600 max-w-[160px] truncate" title={app.personal_income}>
@@ -559,6 +586,88 @@ const ApplicationsTab = ({
   const [tableSearchTerm, setTableSearchTerm] = React.useState('');
   const [targetCohortId, setTargetCohortId] = React.useState('');
   const [movingCohort, setMovingCohort] = React.useState(false);
+
+  // ── Good Jobs Agreement viewer ──────────────────────────────────────────────
+  const [gjaModalOpen, setGjaModalOpen] = React.useState(false);
+  const [gjaLoading, setGjaLoading] = React.useState(false);
+  const [gjaError, setGjaError] = React.useState('');
+  const [gjaTitle, setGjaTitle] = React.useState('');
+  const [gjaFileType, setGjaFileType] = React.useState(null); // 'pdf' | 'image' | 'unsupported'
+  const [gjaContent, setGjaContent] = React.useState('');     // url rendered in iframe/img
+  const [gjaOpenUrl, setGjaOpenUrl] = React.useState('');     // url for "Open in new tab"
+  const gjaObjectUrlRef = React.useRef(null);
+
+  const revokeGjaObjectUrl = React.useCallback(() => {
+    if (gjaObjectUrlRef.current) {
+      URL.revokeObjectURL(gjaObjectUrlRef.current);
+      gjaObjectUrlRef.current = null;
+    }
+  }, []);
+
+  const openGjaModal = React.useCallback(async (app) => {
+    setGjaModalOpen(true);
+    setGjaLoading(true);
+    setGjaError('');
+    setGjaContent('');
+    setGjaOpenUrl('');
+    setGjaFileType(null);
+    setGjaTitle(`${app.first_name} ${app.last_name} — Good Jobs Agreement`);
+    revokeGjaObjectUrl();
+
+    try {
+      const metaRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/admissions/applicants/${app.applicant_id}/gja`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!metaRes.ok) throw new Error('Failed to load agreement');
+      const meta = await metaRes.json();
+      if (!meta.signed) {
+        setGjaError('No signed Good Jobs Agreement on file.');
+        return;
+      }
+
+      const fileName = meta.fileName || 'agreement.pdf';
+      const isImage = /\.(jpe?g|png|gif|bmp|webp)$/i.test(fileName);
+      const isPdf = /\.pdf$/i.test(fileName);
+
+      let viewUrl;
+      if (meta.viewAuth === 'bearer') {
+        // Same-origin API stream (DocuSign PDF) needs the auth header, which an
+        // iframe src can't send — fetch it as a blob and render the object URL.
+        const base = meta.viewUrl.startsWith('http')
+          ? meta.viewUrl
+          : `${import.meta.env.VITE_API_URL}${meta.viewUrl}`;
+        const docRes = await fetch(base, { headers: { Authorization: `Bearer ${token}` } });
+        if (!docRes.ok) throw new Error('Failed to load signed document');
+        const blob = await docRes.blob();
+        viewUrl = URL.createObjectURL(blob);
+        gjaObjectUrlRef.current = viewUrl;
+      } else {
+        // Pre-signed GCS URL (manual upload) — usable directly.
+        viewUrl = meta.viewUrl.startsWith('http')
+          ? meta.viewUrl
+          : `${import.meta.env.VITE_API_URL}${meta.viewUrl}`;
+      }
+
+      setGjaOpenUrl(viewUrl);
+      if (isImage) {
+        setGjaFileType('image');
+        setGjaContent(viewUrl);
+      } else if (isPdf) {
+        setGjaFileType('pdf');
+        setGjaContent(viewUrl);
+      } else {
+        setGjaFileType('unsupported');
+        setGjaError('Preview not available for this file type. Use "Open in new tab" to download.');
+      }
+    } catch (err) {
+      setGjaError(err.message || 'Failed to load agreement');
+    } finally {
+      setGjaLoading(false);
+    }
+  }, [token, revokeGjaObjectUrl]);
+
+  React.useEffect(() => () => revokeGjaObjectUrl(), [revokeGjaObjectUrl]);
   const [csvExportColumns, setCsvExportColumns] = React.useState({
     name: true,
     email: true,
@@ -1471,6 +1580,9 @@ const ApplicationsTab = ({
                   {visibleColumns.pledge && (
                     <TableHead className="font-proxima-bold">Pledge</TableHead>
                   )}
+                  {visibleColumns.gja && (
+                    <TableHead className="font-proxima-bold">GJA</TableHead>
+                  )}
                   {visibleColumns.income && (
                     <TableHead className="font-proxima-bold">Pre-Program Income</TableHead>
                   )}
@@ -1492,6 +1604,7 @@ const ApplicationsTab = ({
                     onViewApplication={handleViewApplication}
                     onOpenNotes={openNotesModal}
                     onDeliberationChange={handleDeliberationChange}
+                    onViewGja={openGjaModal}
                     cohortNameMap={cohortNameMap}
                   />
                 ))}
@@ -1573,6 +1686,54 @@ const ApplicationsTab = ({
           )}
         </div>
       )}
+
+      {/* Good Jobs Agreement viewer */}
+      <Dialog
+        open={gjaModalOpen}
+        onOpenChange={(open) => {
+          setGjaModalOpen(open);
+          if (!open) revokeGjaObjectUrl();
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="font-proxima">{gjaTitle || 'Good Jobs Agreement'}</DialogTitle>
+            <DialogDescription className="font-proxima">Signed Good Jobs Agreement</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {gjaLoading ? (
+              <div className="flex items-center justify-center p-8 font-proxima text-gray-600">
+                Loading document…
+              </div>
+            ) : gjaError ? (
+              <div className="border border-red-200 bg-red-50 text-red-800 rounded-md p-3 font-proxima text-sm">
+                {gjaError}
+              </div>
+            ) : gjaFileType === 'image' && gjaContent ? (
+              <div className="flex justify-center">
+                <img src={gjaContent} alt={gjaTitle} className="max-w-full max-h-[60vh] object-contain" />
+              </div>
+            ) : gjaFileType === 'pdf' && gjaContent ? (
+              <div className="flex justify-center">
+                <iframe src={gjaContent} className="w-full h-[60vh]" title={gjaTitle} />
+              </div>
+            ) : null}
+          </div>
+          {gjaOpenUrl && (
+            <div className="flex justify-center pt-4">
+              <Button
+                asChild
+                variant="outline"
+                className="border-[#4242EA] text-[#4242EA] hover:bg-[#4242EA] hover:text-white font-proxima"
+              >
+                <a href={gjaOpenUrl} target="_blank" rel="noopener noreferrer">
+                  Open in new tab
+                </a>
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

@@ -204,6 +204,7 @@ const AdmissionsDashboard = () => {
     education: false,
     referral: false,
     pledge: false,
+    gja: true,
     income: false
   };
 
