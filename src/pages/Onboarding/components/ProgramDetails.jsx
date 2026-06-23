@@ -37,8 +37,7 @@ function ProgramDetails({ task, onComplete }) {
 
         <h3 className="text-xl font-semibold text-[#1E1E1E] mb-3">Weekly Schedule:</h3>
         <ul className="space-y-2 text-[#666] mb-4">
-          <li><strong>Monday – Wednesday:</strong> 6:30 PM – 10:00 PM (In-person, Long Island City)</li>
-          <li><strong>Saturday – Sunday:</strong> 10:00 AM – 4:00 PM (In-person, Long Island City)</li>
+          <li><strong>Monday – Thursday:</strong> 10:00 AM – 4:00 PM (In-person, Long Island City)</li>
           <li>Plus time for learning and building projects on your own</li>
         </ul>
 

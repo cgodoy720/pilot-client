@@ -5,6 +5,7 @@ import { getThreads, getThreadMessages, createThread, sendMessageToGPT, streamMe
 import SummaryModal from '../../components/SummaryModal/SummaryModal';
 import ReactMarkdown from 'react-markdown';
 import LoadingCurtain from '../../components/LoadingCurtain/LoadingCurtain';
+import ToolCall from '../../components/ToolCall/ToolCall';
 
 // New Components
 import GPTTopBar from './components/GPTTopBar';
@@ -226,7 +227,8 @@ function GPT() {
   // Streaming message state
   const [streamingContent, setStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  
+  const [toolCalls, setToolCalls] = useState({}); // { toolId: { name, input, result, isLoading } }
+
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -747,24 +749,64 @@ function GPT() {
           if (chunk.type === 'text') {
             setStreamingContent(prev => prev + chunk.content);
             // Update the streaming message content
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.message_id === streamingMessageId 
+            setMessages(prevMessages =>
+              prevMessages.map(msg =>
+                msg.message_id === streamingMessageId
                   ? { ...msg, content: (msg.content || '') + chunk.content }
                   : msg
               )
             );
+          } else if (chunk.type === 'tool_call') {
+            // Tool call initiated — key by the stable tool_use_id so the result
+            // can be matched back reliably (even for concurrent/duplicate tools).
+            const toolId = chunk.tool_use_id || `${chunk.tool_name}-${Date.now()}`;
+            setToolCalls(prev => ({
+              ...prev,
+              [toolId]: {
+                name: chunk.tool_name,
+                input: chunk.tool_input,
+                result: null,
+                isLoading: true
+              }
+            }));
+            // Add tool call message
+            setMessages(prevMessages => [
+              ...prevMessages,
+              {
+                message_id: toolId,
+                content: null,
+                message_role: 'tool_call',
+                tool_name: chunk.tool_name,
+                tool_input: chunk.tool_input,
+                created_at: new Date().toISOString()
+              }
+            ]);
+          } else if (chunk.type === 'tool_result') {
+            // Tool result received — match by tool_use_id and STORE the result
+            // (functional updater avoids the stale toolCalls closure).
+            const toolId = chunk.tool_use_id;
+            if (toolId) {
+              setToolCalls(prev => ({
+                ...prev,
+                [toolId]: {
+                  ...(prev[toolId] || { name: chunk.tool_name, input: null }),
+                  result: chunk.result,
+                  isLoading: false
+                }
+              }));
+            }
           } else if (chunk.type === 'done' && chunk.message) {
             // Enable input immediately
             setIsStreaming(false);
             setIsSending(false);
             setIsAiThinking(false);
             setStreamingContent('');
+            setToolCalls({});
 
             const finalMessage = chunk.message;
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.message_id === streamingMessageId 
+            setMessages(prevMessages =>
+              prevMessages.map(msg =>
+                msg.message_id === streamingMessageId
                   ? { ...msg, content: finalMessage.content, isStreaming: false }
                   : msg
               )
@@ -779,6 +821,7 @@ function GPT() {
             // Restore user's message to input for easy retry
             setNewMessage(chunk.userContent || messageToSend);
             setStreamingContent('');
+            setToolCalls({});
           }
         },
         abortController.signal
@@ -863,24 +906,64 @@ function GPT() {
           if (chunk.type === 'text') {
             setStreamingContent(prev => prev + chunk.content);
             // Update the streaming message content
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.message_id === streamingMessageId 
+            setMessages(prevMessages =>
+              prevMessages.map(msg =>
+                msg.message_id === streamingMessageId
                   ? { ...msg, content: (msg.content || '') + chunk.content }
                   : msg
               )
             );
+          } else if (chunk.type === 'tool_call') {
+            // Tool call initiated — key by the stable tool_use_id so the result
+            // can be matched back reliably (even for concurrent/duplicate tools).
+            const toolId = chunk.tool_use_id || `${chunk.tool_name}-${Date.now()}`;
+            setToolCalls(prev => ({
+              ...prev,
+              [toolId]: {
+                name: chunk.tool_name,
+                input: chunk.tool_input,
+                result: null,
+                isLoading: true
+              }
+            }));
+            // Add tool call message
+            setMessages(prevMessages => [
+              ...prevMessages,
+              {
+                message_id: toolId,
+                content: null,
+                message_role: 'tool_call',
+                tool_name: chunk.tool_name,
+                tool_input: chunk.tool_input,
+                created_at: new Date().toISOString()
+              }
+            ]);
+          } else if (chunk.type === 'tool_result') {
+            // Tool result received — match by tool_use_id and STORE the result
+            // (functional updater avoids the stale toolCalls closure).
+            const toolId = chunk.tool_use_id;
+            if (toolId) {
+              setToolCalls(prev => ({
+                ...prev,
+                [toolId]: {
+                  ...(prev[toolId] || { name: chunk.tool_name, input: null }),
+                  result: chunk.result,
+                  isLoading: false
+                }
+              }));
+            }
           } else if (chunk.type === 'done' && chunk.message) {
             // Enable input immediately
             setIsStreaming(false);
             setIsSending(false);
             setIsAiThinking(false);
             setStreamingContent('');
+            setToolCalls({});
 
             const finalMessage = chunk.message;
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.message_id === streamingMessageId 
+            setMessages(prevMessages =>
+              prevMessages.map(msg =>
+                msg.message_id === streamingMessageId
                   ? { ...msg, content: finalMessage.content, isStreaming: false }
                   : msg
               )
@@ -895,6 +978,7 @@ function GPT() {
             // Restore user's message to input for easy retry
             setNewMessage(chunk.userContent || messageToSend);
             setStreamingContent('');
+            setToolCalls({});
           }
         },
         abortController.signal
@@ -1316,7 +1400,7 @@ function GPT() {
                     {messages.map((message, index) => {
                       const role = getMessageRole(message);
                       const isStreamingMessage = message.isStreaming === true;
-                      
+
                       // Handle content source messages with MessageBubble component
                       if (role === 'content_source' || role === 'system_content_summary') {
                         return (
@@ -1329,7 +1413,23 @@ function GPT() {
                       />
                         );
                       }
-                      
+
+                      // Handle tool call messages
+                      if (role === 'tool_call') {
+                        const toolId = getMessageId(message);
+                        const toolData = toolCalls[toolId];
+                        return (
+                          <div key={toolId} className="mb-6">
+                            <ToolCall
+                              toolName={message.tool_name}
+                              toolInput={message.tool_input}
+                              result={toolData?.result}
+                              isLoading={toolData?.isLoading}
+                            />
+                          </div>
+                        );
+                      }
+
                       return (
                         <div key={getMessageId(message) || index} className="mb-6">
                           {role === 'user' ? (

@@ -225,6 +225,36 @@ function normalizeChatHistory(chatHistory) {
     }));
 }
 
+// Reconcile server-stored chat history with whatever is in the local cache.
+// The server is the source of truth; we merge back any local-only tail messages
+// (the mid-stream-disconnect case where the server intentionally dropped a turn
+// the browser still holds). Exported + pure so the reconciliation invariants are
+// unit-testable without rendering the whole chat component.
+//
+// Dedup key is role + FULL display-stripped content (not a prefix): two local
+// drafts that share a long prefix must not collapse into one, and the server's
+// stored copy of a turn must collapse with the local copy of the same turn even
+// though they carry different id namespaces (`srv-<id>` vs local nextId()).
+// stripForDisplay is applied to BOTH sides so the server copy (control signals
+// only partially stripped at store time) and the local copy (fully stripped)
+// normalize to the same text.
+export function reconcileChatHistory(serverChatHistory, localMessages) {
+  const normalizedServerHistory = normalizeChatHistory(serverChatHistory);
+  if (normalizedServerHistory.length === 0) {
+    return { reconciled: null, serverEmpty: true };
+  }
+  const serverBase = attachStableClientKeys(normalizedServerHistory);
+  const dedupKey = (m) => `${m.role}::${stripForDisplay(m.content || '').trim()}`;
+  const seen = new Set(serverBase.map(dedupKey));
+  const localTail = (Array.isArray(localMessages) ? localMessages : []).filter((m) => {
+    if (!m || m.streaming) return false;
+    if (m.role !== 'user' && m.role !== 'assistant') return false;
+    if (!m.content?.trim()) return false;
+    return !seen.has(dedupKey(m));
+  });
+  return { reconciled: attachStableClientKeys([...serverBase, ...localTail]), serverEmpty: false };
+}
+
 // ── Per-message component (stable key = stable hook state for smooth streaming)
 
 function applySearchHighlights(text, query) {
@@ -753,26 +783,36 @@ function CompassChat({ status, cycleEnded, onEnrollmentComplete }) {
     el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // Hydrate persisted server-side history once (fallbacks to localStorage-first behavior).
+  // Hydrate chat history once per mount, treating the SERVER as the source of
+  // truth. Previously localStorage won whenever it was non-empty, which capped
+  // every returning builder at the local 50-message window and hid the server's
+  // 500-message history — the root cause of "Compass forgot my conversation"
+  // reports. Now: if the server has history we hydrate from it and merge back
+  // any local-only tail messages (covers the mid-stream-disconnect case where
+  // the server intentionally dropped a turn the browser still holds).
+  // localStorage is demoted to a write-through cache.
   useEffect(() => {
     if (serverHistoryHydratedRef.current) return;
     if (!status) return;
+    // Wait for a clean status before reconciling — a fetch error must not be
+    // read as "server has no history" and clobber local state.
+    if (status.fetchError) return;
 
-    // If local history already exists, keep it and mark hydration complete.
-    if (messagesRef.current.length > 0) {
+    const { reconciled, serverEmpty } = reconcileChatHistory(status.chatHistory, messagesRef.current);
+
+    // No server history: keep whatever loaded from localStorage (covers an
+    // in-progress chat on a brand-new device whose turns never persisted, and
+    // pre-migration environments) and finish hydration.
+    if (serverEmpty) {
       serverHistoryHydratedRef.current = true;
+      if (messagesRef.current.length > 0) initDoneRef.current = true;
       return;
     }
 
-    const normalizedServerHistory = normalizeChatHistory(status.chatHistory);
-
-    if (normalizedServerHistory.length === 0) return;
-
-    const hydrated = attachStableClientKeys(normalizedServerHistory);
-    messagesRef.current = hydrated;
+    messagesRef.current = reconciled;
     initDoneRef.current = true;
-    setMessages(hydrated);
-    safeWriteCompassHistory(storageKey, hydrated);
+    setMessages(reconciled);
+    safeWriteCompassHistory(storageKey, reconciled);
     serverHistoryHydratedRef.current = true;
   }, [status, storageKey]);
 

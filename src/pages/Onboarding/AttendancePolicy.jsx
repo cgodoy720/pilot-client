@@ -57,8 +57,7 @@ const AttendancePolicy = () => {
             <p>You must attend at least 80% of all classes.</p>
             <p><strong>Required Sessions:</strong></p>
             <ul>
-              <li><strong>Monday-Wednesday:</strong> 6:30 PM - 10:00 PM (Building projects)</li>
-              <li><strong>Saturday-Sunday:</strong> 10:00 AM - 4:00 PM (Professional skills)</li>
+              <li><strong>Monday-Thursday:</strong> 10:00 AM - 4:00 PM (In-person, Long Island City)</li>
             </ul>
             <p><strong>How We Track Attendance:</strong></p>
             <ul>
@@ -129,17 +128,17 @@ const AttendancePolicy = () => {
                 <div className="attendance-policy__calendar-day">Sat</div>
                 <div className="attendance-policy__calendar-day">Sun</div>
                 
-                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--evening">6:30 PM - 10:00 PM</div>
-                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--evening">6:30 PM - 10:00 PM</div>
-                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--evening">6:30 PM - 10:00 PM</div>
-                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--off">No Class</div>
-                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--off">No Class</div>
                 <div className="attendance-policy__calendar-session attendance-policy__calendar-session--weekend">10:00 AM - 4:00 PM</div>
                 <div className="attendance-policy__calendar-session attendance-policy__calendar-session--weekend">10:00 AM - 4:00 PM</div>
+                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--weekend">10:00 AM - 4:00 PM</div>
+                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--weekend">10:00 AM - 4:00 PM</div>
+                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--off">No Class</div>
+                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--off">No Class</div>
+                <div className="attendance-policy__calendar-session attendance-policy__calendar-session--off">No Class</div>
               </div>
             </div>
             <p className="attendance-policy__calendar-note">
-              <strong>Note:</strong> This is your weekly schedule. Monday-Wednesday evenings and Saturday-Sunday days are required attendance.
+              <strong>Note:</strong> This is your weekly schedule. Monday-Thursday days are required attendance.
             </p>
           </section>
         </div>

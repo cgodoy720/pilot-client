@@ -73,8 +73,7 @@ const OnboardingGuide = () => {
             <p className="onboarding-guide__note"><strong>Note:</strong> There will be a gap between the end of L1 and the start of L2. The L2 start date is still being finalized.</p>
             <p><strong>Weekly Schedule:</strong></p>
             <ul>
-              <li><strong>Monday – Wednesday:</strong> 6:30 PM – 10:00 PM (In-person, Long Island City)</li>
-              <li><strong>Saturday – Sunday:</strong> 10:00 AM – 4:00 PM (In-person, Long Island City)</li>
+              <li><strong>Monday – Thursday:</strong> 10:00 AM – 4:00 PM (In-person, Long Island City)</li>
               <li>Plus time for learning and building projects on your own</li>
             </ul>
             <p><strong>What You'll Do Each Month:</strong></p>

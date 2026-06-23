@@ -26,25 +26,15 @@ function AttendancePolicy({ task, onComplete }) {
             <Calendar className="h-5 w-5" />
             Required Sessions:
           </h3>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4">
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <h4 className="font-semibold text-purple-900 mb-2">Weekday Sessions</h4>
+              <h4 className="font-semibold text-purple-900 mb-2">In-Person Sessions</h4>
               <div className="text-purple-800">
                 <div className="flex items-center gap-2 mb-1">
                   <Clock className="h-4 w-4" />
-                  <span><strong>Monday-Wednesday:</strong> 6:30 PM - 10:00 PM</span>
+                  <span><strong>Monday-Thursday:</strong> 10:00 AM - 4:00 PM</span>
                 </div>
-                <div className="text-sm text-purple-600">Building projects</div>
-              </div>
-            </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-semibold text-green-900 mb-2">Weekend Sessions</h4>
-              <div className="text-green-800">
-                <div className="flex items-center gap-2 mb-1">
-                  <Clock className="h-4 w-4" />
-                  <span><strong>Saturday-Sunday:</strong> 10:00 AM - 4:00 PM</span>
-                </div>
-                <div className="text-sm text-green-600">Professional skills</div>
+                <div className="text-sm text-purple-600">In-person, Long Island City</div>
               </div>
             </div>
           </div>
@@ -155,16 +145,20 @@ function AttendancePolicy({ task, onComplete }) {
               </div>
             ))}
             <div className="bg-purple-100 border border-purple-300 rounded-lg p-3 text-center text-sm">
-              <div className="font-semibold text-purple-900">6:30 PM</div>
-              <div className="font-semibold text-purple-900">10:00 PM</div>
+              <div className="font-semibold text-purple-900">10:00 AM</div>
+              <div className="font-semibold text-purple-900">4:00 PM</div>
             </div>
             <div className="bg-purple-100 border border-purple-300 rounded-lg p-3 text-center text-sm">
-              <div className="font-semibold text-purple-900">6:30 PM</div>
-              <div className="font-semibold text-purple-900">10:00 PM</div>
+              <div className="font-semibold text-purple-900">10:00 AM</div>
+              <div className="font-semibold text-purple-900">4:00 PM</div>
             </div>
             <div className="bg-purple-100 border border-purple-300 rounded-lg p-3 text-center text-sm">
-              <div className="font-semibold text-purple-900">6:30 PM</div>
-              <div className="font-semibold text-purple-900">10:00 PM</div>
+              <div className="font-semibold text-purple-900">10:00 AM</div>
+              <div className="font-semibold text-purple-900">4:00 PM</div>
+            </div>
+            <div className="bg-purple-100 border border-purple-300 rounded-lg p-3 text-center text-sm">
+              <div className="font-semibold text-purple-900">10:00 AM</div>
+              <div className="font-semibold text-purple-900">4:00 PM</div>
             </div>
             <div className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-center text-sm">
               <div className="text-gray-600">No Class</div>
@@ -172,17 +166,12 @@ function AttendancePolicy({ task, onComplete }) {
             <div className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-center text-sm">
               <div className="text-gray-600">No Class</div>
             </div>
-            <div className="bg-green-100 border border-green-300 rounded-lg p-3 text-center text-sm">
-              <div className="font-semibold text-green-900">10:00 AM</div>
-              <div className="font-semibold text-green-900">4:00 PM</div>
-            </div>
-            <div className="bg-green-100 border border-green-300 rounded-lg p-3 text-center text-sm">
-              <div className="font-semibold text-green-900">10:00 AM</div>
-              <div className="font-semibold text-green-900">4:00 PM</div>
+            <div className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-center text-sm">
+              <div className="text-gray-600">No Class</div>
             </div>
           </div>
           <p className="text-sm text-[#666] text-center">
-            <strong>Note:</strong> This is your weekly schedule. Monday-Wednesday evenings and Saturday-Sunday days are required attendance.
+            <strong>Note:</strong> This is your weekly schedule. Monday-Thursday days are required attendance.
           </p>
         </div>
       </section>

@@ -93,10 +93,10 @@ const Coach = () => {
           <TabsList className="bg-slate-50 border border-[#E3E3E3] p-1 rounded-lg inline-flex gap-0.5 h-auto">
             {canRuns && <TabsTrigger value="runs" className={TAB_TRIGGER_CLASS}>Coach Runs</TabsTrigger>}
             {canEvals && <TabsTrigger value="evals" className={TAB_TRIGGER_CLASS}>Coach Evals</TabsTrigger>}
-            {canProfiles && <TabsTrigger value="profiles" className={TAB_TRIGGER_CLASS}>Profiles</TabsTrigger>}
+            {/* Profiles tab hidden for now (component kept, see TabsContent below) */}
             {canSnapshot && <TabsTrigger value="snapshot" className={TAB_TRIGGER_CLASS}>Builder Snapshot</TabsTrigger>}
             {canGolden && <TabsTrigger value="golden" className={TAB_TRIGGER_CLASS}>Golden Dataset</TabsTrigger>}
-            {canLab && <TabsTrigger value="lab" className={TAB_TRIGGER_CLASS}>Teaching Lab</TabsTrigger>}
+            {canLab && <TabsTrigger value="lab" className={TAB_TRIGGER_CLASS}>Personalized Learning</TabsTrigger>}
           </TabsList>
         </div>
 
