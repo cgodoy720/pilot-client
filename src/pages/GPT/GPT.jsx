@@ -757,8 +757,9 @@ function GPT() {
               )
             );
           } else if (chunk.type === 'tool_call') {
-            // Tool call initiated
-            const toolId = `${chunk.tool_name}-${Date.now()}`;
+            // Tool call initiated — key by the stable tool_use_id so the result
+            // can be matched back reliably (even for concurrent/duplicate tools).
+            const toolId = chunk.tool_use_id || `${chunk.tool_name}-${Date.now()}`;
             setToolCalls(prev => ({
               ...prev,
               [toolId]: {
@@ -781,15 +782,15 @@ function GPT() {
               }
             ]);
           } else if (chunk.type === 'tool_result') {
-            // Tool result received
-            const toolId = Object.keys(toolCalls).find(
-              id => toolCalls[id].name === chunk.tool_name && toolCalls[id].isLoading
-            );
+            // Tool result received — match by tool_use_id and STORE the result
+            // (functional updater avoids the stale toolCalls closure).
+            const toolId = chunk.tool_use_id;
             if (toolId) {
               setToolCalls(prev => ({
                 ...prev,
                 [toolId]: {
-                  ...prev[toolId],
+                  ...(prev[toolId] || { name: chunk.tool_name, input: null }),
+                  result: chunk.result,
                   isLoading: false
                 }
               }));
@@ -913,8 +914,9 @@ function GPT() {
               )
             );
           } else if (chunk.type === 'tool_call') {
-            // Tool call initiated
-            const toolId = `${chunk.tool_name}-${Date.now()}`;
+            // Tool call initiated — key by the stable tool_use_id so the result
+            // can be matched back reliably (even for concurrent/duplicate tools).
+            const toolId = chunk.tool_use_id || `${chunk.tool_name}-${Date.now()}`;
             setToolCalls(prev => ({
               ...prev,
               [toolId]: {
@@ -937,15 +939,15 @@ function GPT() {
               }
             ]);
           } else if (chunk.type === 'tool_result') {
-            // Tool result received
-            const toolId = Object.keys(toolCalls).find(
-              id => toolCalls[id].name === chunk.tool_name && toolCalls[id].isLoading
-            );
+            // Tool result received — match by tool_use_id and STORE the result
+            // (functional updater avoids the stale toolCalls closure).
+            const toolId = chunk.tool_use_id;
             if (toolId) {
               setToolCalls(prev => ({
                 ...prev,
                 [toolId]: {
-                  ...prev[toolId],
+                  ...(prev[toolId] || { name: chunk.tool_name, input: null }),
+                  result: chunk.result,
                   isLoading: false
                 }
               }));
