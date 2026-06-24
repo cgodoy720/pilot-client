@@ -47,6 +47,25 @@ const fmtDate = (d) => {
   try { return new Date(d).toLocaleString(); } catch { return '—'; }
 };
 
+// snake_case field key → "Title Case" label.
+const humanize = (k) => String(k).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+// A profile envelope's `fields` may be an object map ({key: value}) or an array
+// of { field, value } — normalize both to [label, value] pairs for rendering.
+const fieldEntries = (fields) => {
+  if (!fields) return [];
+  if (Array.isArray(fields)) return fields.map((f) => [f?.field ?? '?', f?.value]);
+  if (typeof fields === 'object') return Object.entries(fields);
+  return [];
+};
+
+const renderVal = (v) => {
+  if (v == null || v === '') return '—';
+  if (Array.isArray(v)) return v.join(', ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
 function LearnerProfiles() {
   const token = useAuthStore((s) => s.token);
   const [data, setData] = useState(null);
@@ -56,10 +75,12 @@ function LearnerProfiles() {
   // onboarding transcript / modality provenance (so re-opening is instant).
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});
+  const [expandTab, setExpandTab] = useState('profile'); // 'profile' | 'transcript'
 
   const toggleRow = useCallback(async (userId) => {
     if (expanded === userId) { setExpanded(null); return; }
     setExpanded(userId);
+    setExpandTab('profile');
     if (details[userId]) return; // cached
     setDetails((d) => ({ ...d, [userId]: { loading: true } }));
     try {
@@ -71,7 +92,13 @@ function LearnerProfiles() {
         : [];
       const prov = snap?.profile?.learning_modality_preferences?.provenance;
       const modality = Array.isArray(prov) && prov.length ? prov[prov.length - 1] : null;
-      setDetails((d) => ({ ...d, [userId]: { loading: false, transcript, modality } }));
+      const p = snap?.profile || {};
+      const sections = {
+        background: p.background?.fields ?? null,
+        goals: p.goals?.fields ?? null,
+        learning_profile: p.learning_profile?.fields ?? null,
+      };
+      setDetails((d) => ({ ...d, [userId]: { loading: false, transcript, modality, sections } }));
     } catch (err) {
       setDetails((d) => ({ ...d, [userId]: { loading: false, error: err?.message || 'Failed to load' } }));
     }
@@ -177,7 +204,6 @@ function LearnerProfiles() {
                   <th className="px-4 py-2.5 font-semibold">Teaching method</th>
                   <th className="px-4 py-2.5 font-semibold">Confidence</th>
                   <th className="px-4 py-2.5 font-semibold">Onboarded</th>
-                  <th className="px-4 py-2.5 font-semibold">Profile</th>
                   <th className="px-4 py-2.5 font-semibold">Updated</th>
                 </tr>
               </thead>
@@ -192,7 +218,7 @@ function LearnerProfiles() {
                   const expandable = !!r.has_transcript; // expandable when there's a conversation to show
                   const isOpen = expanded === r.user_id;
                   const det = details[r.user_id];
-                  const colSpan = selected === 'all' ? 7 : 6;
+                  const colSpan = selected === 'all' ? 6 : 5;
                   return (
                     <Fragment key={r.user_id}>
                       <tr
@@ -222,20 +248,6 @@ function LearnerProfiles() {
                             <span className="ml-1.5 text-[11px] text-[#B45309]" title="extraction marked partial — not all anchors covered">partial</span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5">
-                          <span className="flex gap-1">
-                            {[['B', r.has_background], ['G', r.has_goals], ['L', r.has_learning_profile]].map(([k, on]) => (
-                              <span
-                                key={k}
-                                title={{ B: 'background', G: 'goals', L: 'learning_profile' }[k]}
-                                className="inline-flex items-center justify-center w-5 h-5 rounded text-[11px] font-bold"
-                                style={on ? { background: '#DCFCE7', color: '#15803D' } : { background: '#F1F5F9', color: '#CBD5E1' }}
-                              >
-                                {k}
-                              </span>
-                            ))}
-                          </span>
-                        </td>
                         <td className="px-4 py-2.5 text-xs text-[#999]">{fmtDate(r.updated_at)}</td>
                       </tr>
 
@@ -249,37 +261,86 @@ function LearnerProfiles() {
                             )}
                             {det?.error && <div className="text-xs text-[#B91C1C] py-3">{det.error}</div>}
                             {det && !det.loading && !det.error && (
-                              <div className="rounded-md border border-[#E3E3E3] bg-white p-3">
-                                <div className="text-xs text-[#666] mb-3">
+                              <div className="rounded-md border border-[#E3E3E3] bg-white p-4 space-y-4">
+                                {/* Classification verdict */}
+                                <div className="text-xs text-[#666]">
                                   Classified as{' '}
                                   <Chip label={prettyMethod(r.teaching_method)} tone={METHOD_TONE[methodKey] || METHOD_TONE['balanced / none']} />
                                   {det.modality?.confidence != null && <> · {Math.round(parseFloat(det.modality.confidence) * 100)}% confidence</>}
                                   {det.modality?.source && <> · {det.modality.source}</>}
-                                  <span className="block mt-1 text-[#999]">
-                                    The exact classifier quote isn&apos;t stored — below is the full onboarding conversation, so you can see what the builder said.
-                                  </span>
                                 </div>
-                                <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-                                  {det.transcript.length === 0 && (
-                                    <div className="text-xs text-[#999]">No transcript stored for this session.</div>
-                                  )}
-                                  {det.transcript.map((t, i) => {
-                                    const isBuilder = t.role === 'builder';
+
+                                {/* Tabs: readable profile vs. raw transcript */}
+                                <div className="flex gap-1 border-b border-[#E3E3E3]">
+                                  {[['profile', 'Profile'], ['transcript', 'Transcript']].map(([key, label]) => (
+                                    <button
+                                      key={key}
+                                      onClick={() => setExpandTab(key)}
+                                      className={`px-3 py-1.5 text-xs font-proxima font-semibold -mb-px border-b-2 ${expandTab === key ? 'border-[#4242EA] text-[#4242EA]' : 'border-transparent text-[#666] hover:text-[#1E1E1E]'}`}
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                {/* Extracted profile — readable layout of the background / goals /
+                                    learning_profile envelopes onboarding wrote to builder_profiles. */}
+                                {expandTab === 'profile' && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                  {[
+                                    ['Background', det.sections?.background],
+                                    ['Goals', det.sections?.goals],
+                                    ['Learning style', det.sections?.learning_profile],
+                                  ].map(([title, fields]) => {
+                                    const entries = fieldEntries(fields);
                                     return (
-                                      <div key={i} className={isBuilder ? 'text-right' : 'text-left'}>
-                                        <div
-                                          className="inline-block max-w-[85%] rounded-lg px-3 py-2 text-sm text-left"
-                                          style={isBuilder ? { background: '#EEF2FF', color: '#1E1E1E' } : { background: '#F1F5F9', color: '#334155' }}
-                                        >
-                                          <div className="text-[10px] uppercase tracking-wide opacity-60 mb-0.5">
-                                            {isBuilder ? 'Builder' : 'Coach'}
-                                          </div>
-                                          {t.content}
-                                        </div>
+                                      <div key={title}>
+                                        <div className="text-[11px] font-bold uppercase tracking-wide text-[#4242EA] mb-2">{title}</div>
+                                        {entries.length === 0 ? (
+                                          <div className="text-xs text-[#999] italic">Not captured</div>
+                                        ) : (
+                                          <dl className="space-y-2">
+                                            {entries.map(([k, v]) => (
+                                              <div key={k}>
+                                                <dt className="text-[11px] font-semibold text-[#888]">{humanize(k)}</dt>
+                                                <dd className="text-sm text-[#1E1E1E] leading-snug">{renderVal(v)}</dd>
+                                              </div>
+                                            ))}
+                                          </dl>
+                                        )}
                                       </div>
                                     );
                                   })}
                                 </div>
+                                )}
+
+                                {/* Onboarding conversation (raw transcript) */}
+                                {expandTab === 'transcript' && (
+                                <div>
+                                  <div className="text-[11px] font-bold uppercase tracking-wide text-[#666] mb-2">Onboarding conversation</div>
+                                  <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+                                    {det.transcript.length === 0 && (
+                                      <div className="text-xs text-[#999]">No transcript stored for this session.</div>
+                                    )}
+                                    {det.transcript.map((t, i) => {
+                                      const isBuilder = t.role === 'builder';
+                                      return (
+                                        <div key={i} className={isBuilder ? 'text-right' : 'text-left'}>
+                                          <div
+                                            className="inline-block max-w-[85%] rounded-lg px-3 py-2 text-sm text-left"
+                                            style={isBuilder ? { background: '#EEF2FF', color: '#1E1E1E' } : { background: '#F1F5F9', color: '#334155' }}
+                                          >
+                                            <div className="text-[10px] uppercase tracking-wide opacity-60 mb-0.5">
+                                              {isBuilder ? 'Builder' : 'Coach'}
+                                            </div>
+                                            {t.content}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                )}
                               </div>
                             )}
                           </td>
