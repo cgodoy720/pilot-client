@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '../../../components/ui/badge';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
+
+const INITIATIVE_STATUSES = ['selected', 'in_process', 'placed', 'dropped'];
 
 const cohortShorthand = (cohortName) => {
   if (!cohortName) return null;
@@ -257,9 +261,139 @@ const LogPanel = ({ logs, compassGoals }) => {
   );
 };
 
+// ── Initiative tag control ──────────────────────────────────────────────────
+// Flags a builder into a special initiative (Goldman / Mizuho / JPMC / …) in the
+// DB at selection time — the persisted source the "Special initiatives" highlight reads.
+
+const InitiativeTagControl = ({ participant, cohortId, token, onChange }) => {
+  const userId = participant?.user_id;
+  const initiatives = participant?.initiatives || [];
+
+  const [options, setOptions] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [status, setStatus] = useState('selected');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Fetch the picklist once when the add form is first opened.
+  useEffect(() => {
+    if (!adding || options.length || !token) return;
+    fetch(`${API_BASE}/api/external-cohorts/initiatives/options`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(j => setOptions(Array.isArray(j.options) ? j.options : []))
+      .catch(() => setOptions([]));
+  }, [adding, options.length, token]);
+
+  const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  const save = async () => {
+    const initiative_name = name.trim();
+    if (!initiative_name || !cohortId || !userId || busy) return;
+    setBusy(true);
+    try {
+      await fetch(`${API_BASE}/api/external-cohorts/${cohortId}/builders/${userId}/initiative`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ initiative_name, status, notes: notes.trim() || null }),
+      });
+      setAdding(false); setName(''); setStatus('selected'); setNotes('');
+      onChange?.();
+    } catch { /* ignore */ }
+    setBusy(false);
+  };
+
+  const remove = async (initiative_name) => {
+    if (!cohortId || !userId || busy) return;
+    setBusy(true);
+    try {
+      // Idempotent: a synthesized Goldman-bridge entry has no DB row, so this no-ops
+      // and the bridge re-adds it on refresh (acceptable — staff tag the real selection).
+      await fetch(
+        `${API_BASE}/api/external-cohorts/${cohortId}/builders/${userId}/initiative?initiative_name=${encodeURIComponent(initiative_name)}`,
+        { method: 'DELETE', headers: authHeaders },
+      );
+      onChange?.();
+    } catch { /* ignore */ }
+    setBusy(false);
+  };
+
+  return (
+    <div className="px-6 py-3 border-b border-[#E3E3E3] bg-white">
+      <div className="flex items-center flex-wrap gap-2">
+        <span className="text-xs font-bold text-[#1A1A1A] uppercase tracking-wide mr-1">Initiatives</span>
+        {initiatives.length === 0 && !adding && (
+          <span className="text-xs text-[#9CA3AF]">None flagged</span>
+        )}
+        {initiatives.map((it, i) => (
+          <Badge key={`${it.initiative_name}-${i}`} variant="secondary" className="gap-1 bg-[#EEF0FF] text-[#4242EA] border border-[#D8DBFF]">
+            {it.initiative_name}
+            {it.status && it.status !== 'selected' ? <span className="opacity-70">· {it.status.replace(/_/g, ' ')}</span> : null}
+            <button
+              type="button"
+              onClick={() => remove(it.initiative_name)}
+              disabled={busy}
+              className="ml-0.5 text-[#4242EA]/60 hover:text-[#4242EA] disabled:opacity-40"
+              aria-label={`Remove ${it.initiative_name}`}
+            >×</button>
+          </Badge>
+        ))}
+        {!adding && (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="text-xs font-medium text-[#4242EA] hover:underline"
+          >+ Add</button>
+        )}
+      </div>
+
+      {adding && (
+        <div className="flex items-center flex-wrap gap-2 mt-2">
+          <input
+            list="initiative-options"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Initiative (e.g. Mizuho)"
+            className="text-sm border border-[#C8C8C8] rounded px-2 py-1 w-48"
+          />
+          <datalist id="initiative-options">
+            {options.map(o => <option key={o} value={o} />)}
+          </datalist>
+          <select
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            className="text-sm border border-[#C8C8C8] rounded px-2 py-1 capitalize"
+          >
+            {INITIATIVE_STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+          </select>
+          <input
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Notes (optional)"
+            className="text-sm border border-[#C8C8C8] rounded px-2 py-1 flex-1 min-w-[8rem]"
+          />
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy || !name.trim()}
+            className="text-xs font-semibold text-white bg-[#4242EA] rounded px-3 py-1 disabled:opacity-40"
+          >{busy ? 'Saving…' : 'Save'}</button>
+          <button
+            type="button"
+            onClick={() => { setAdding(false); setName(''); setNotes(''); }}
+            className="text-xs text-[#6B7280] hover:underline"
+          >Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
-const BuilderExpandedRow = ({ summary, loading, participant }) => {
+const BuilderExpandedRow = ({ summary, loading, participant, cohortId, token, onChange }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -298,6 +432,16 @@ const BuilderExpandedRow = ({ summary, loading, participant }) => {
           </div>
         )}
       </div>
+
+      {/* Initiative tagging — flag at selection time (Goldman / Mizuho / JPMC / …) */}
+      {cohortId && participant?.user_id && (
+        <InitiativeTagControl
+          participant={participant}
+          cohortId={cohortId}
+          token={token}
+          onChange={onChange}
+        />
+      )}
 
       {/* Detail panels */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 py-5">

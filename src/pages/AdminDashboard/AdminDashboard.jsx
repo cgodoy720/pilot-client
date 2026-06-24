@@ -20,9 +20,9 @@ const DEFAULT_COHORT_NAME = 'March 2026 L1';
 const TABS = [
   { id: 'today',       label: 'Today' },
   { id: 'overview',    label: 'Overview' },
+  { id: 'logs',        label: 'Logs' },
   { id: 'assessments', label: 'Assessments' },
   { id: 'l2',          label: 'L2' },
-  { id: 'logs',        label: 'Logs' },
 ];
 
 const TAB_BASE = 'px-5 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap';
@@ -88,7 +88,7 @@ const AdminDashboard = () => {
     [cohorts, selectedCohortId]
   );
 
-  const isL3Plus = selectedCohort?.name?.includes('L3+');
+  const isL3Plus = selectedCohortId === 'ALL_L3PLUS' || selectedCohort?.name?.includes('L3+');
   const isClassDay = [1, 2, 3, 4].includes(new Date().getDay()); // Mon/Tue/Wed/Thu
 
   // L2 tab: show for L1 cohorts in week 7+ OR completed cohorts (is_active=false)
@@ -106,11 +106,12 @@ const AdminDashboard = () => {
 
       if (!isL3Plus) return base;
 
-      // Insert Schedule or Plan Progress tab after Today for L3+ cohorts
+      // L3+ gets a Schedule (class day) or Plan Progress tab, placed after Logs
+      // and before Assessments → Today · Overview · Logs · Schedule · Assessments.
       const l3Tab = { id: isClassDay ? 'schedule' : 'plan_progress', label: isClassDay ? 'Schedule' : 'Plan Progress' };
-      const todayIdx = base.findIndex(t => t.id === 'today');
+      const assessIdx = base.findIndex(t => t.id === 'assessments');
       const result = [...base];
-      result.splice(todayIdx + 1, 0, l3Tab);
+      result.splice(assessIdx >= 0 ? assessIdx : result.length, 0, l3Tab);
       return result;
     },
     [selectedCohort, isL3Plus, isClassDay]
@@ -169,6 +170,9 @@ const AdminDashboard = () => {
                 onChange={e => { setSelectedCohortId(e.target.value); localStorage.setItem(COHORT_STORAGE_KEY, e.target.value); }}
                 className="px-3 py-1.5 text-sm border border-[#E3E3E3] rounded-md bg-white text-[#1E1E1E] focus:border-[#4242EA] focus:outline-none"
               >
+                {cohorts.some(c => c.name?.includes('L3+')) && (
+                  <option value="ALL_L3PLUS">All L3+ (aggregate)</option>
+                )}
                 {cohorts.map(c => <option key={c.cohort_id} value={c.cohort_id}>{c.name}</option>)}
               </select>
             </div>
