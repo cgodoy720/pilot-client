@@ -9,6 +9,7 @@ import CoachProfiles from '../CoachProfiles/CoachProfiles';
 import BuilderSnapshot from '../BuilderSnapshot/BuilderSnapshot';
 import GoldenDataset from '../GoldenDataset/GoldenDataset';
 import TeachingLab from '../TeachingLab/TeachingLab';
+import LearnerProfiles from '../LearnerProfiles/LearnerProfiles';
 
 const TAB_TRIGGER_CLASS =
   'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium font-proxima px-4 py-1.5 text-sm rounded-md transition-all';
@@ -37,6 +38,7 @@ const Coach = () => {
   const canSnapshot = canAccessPage('coach_observability');
   const canGolden = canAccessPage('coach_observability');
   const canLab = canAccessPage('coach_observability');
+  const canLearners = canAccessPage('coach_observability');
 
   const initialTabParam = searchParams.get('tab');
   // Honor ?tab= only if (a) it's a known tab and (b) the user has access to it;
@@ -47,6 +49,7 @@ const Coach = () => {
     if (initialTabParam === 'snapshot' && canSnapshot) return 'snapshot';
     if (initialTabParam === 'golden' && canGolden) return 'golden';
     if (initialTabParam === 'lab' && canLab) return 'lab';
+    if (initialTabParam === 'learners' && canLearners) return 'learners';
     if (initialTabParam === 'runs' && canRuns) return 'runs';
     if (canRuns) return 'runs';
     if (canEvals) return 'evals';
@@ -97,6 +100,7 @@ const Coach = () => {
             {canSnapshot && <TabsTrigger value="snapshot" className={TAB_TRIGGER_CLASS}>Builder Snapshot</TabsTrigger>}
             {canGolden && <TabsTrigger value="golden" className={TAB_TRIGGER_CLASS}>Golden Dataset</TabsTrigger>}
             {canLab && <TabsTrigger value="lab" className={TAB_TRIGGER_CLASS}>Personalized Learning</TabsTrigger>}
+            {canLearners && <TabsTrigger value="learners" className={TAB_TRIGGER_CLASS}>Learner Profiles</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -128,6 +132,11 @@ const Coach = () => {
         {canLab && (
           <TabsContent value="lab" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
             <TeachingLab />
+          </TabsContent>
+        )}
+        {canLearners && (
+          <TabsContent value="learners" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
+            <LearnerProfiles />
           </TabsContent>
         )}
       </Tabs>
