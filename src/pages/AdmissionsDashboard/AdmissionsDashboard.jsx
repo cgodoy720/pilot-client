@@ -136,6 +136,8 @@ const AdmissionsDashboard = () => {
           name_search: '',
           cohort_id: parsed.applicationFilters?.cohort_id || '',
           deliberation: toArray(parsed.applicationFilters?.deliberation),
+          pledge_completed: toArray(parsed.applicationFilters?.pledge_completed),
+          gja_signed: toArray(parsed.applicationFilters?.gja_signed),
           limit: PAGE_SIZE,
           offset: 0
         };
@@ -159,6 +161,8 @@ const AdmissionsDashboard = () => {
       name_search: '',
       cohort_id: '',
       deliberation: [],
+      pledge_completed: [],
+      gja_signed: [],
       limit: PAGE_SIZE,
       offset: 0
     };
@@ -723,7 +727,9 @@ const AdmissionsDashboard = () => {
           last_activity_bucket: applicationFilters.last_activity_bucket,
           structured_task_grade: applicationFilters.structured_task_grade,
           cohort_id: applicationFilters.cohort_id,
-          deliberation: applicationFilters.deliberation
+          deliberation: applicationFilters.deliberation,
+          pledge_completed: applicationFilters.pledge_completed,
+          gja_signed: applicationFilters.gja_signed
         },
         columnSort,
         currentPage,

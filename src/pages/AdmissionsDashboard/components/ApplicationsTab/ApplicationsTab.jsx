@@ -135,6 +135,16 @@ const filterOptions = {
     { value: 'yellow', label: 'Yellow' },
     { value: 'red', label: 'Red' },
   ],
+  pledge_completed: [
+    { value: '', label: 'All' },
+    { value: 'true', label: 'Signed' },
+    { value: 'false', label: 'Not Signed' },
+  ],
+  gja_signed: [
+    { value: '', label: 'All' },
+    { value: 'true', label: 'Signed' },
+    { value: 'false', label: 'Not Signed' },
+  ],
 };
 
 // Column labels for the table
@@ -686,6 +696,7 @@ const ApplicationsTab = ({
     education: false,
     referral: false,
     pledge: false,
+    gja: false,
     income: false
   });
 
@@ -715,6 +726,7 @@ const ApplicationsTab = ({
       education: visibleColumns.education ?? false,
       referral: visibleColumns.referral ?? false,
       pledge: visibleColumns.pledge ?? false,
+      gja: visibleColumns.gja ?? true,
       income: visibleColumns.income ?? false
     });
   }, [visibleColumns]);
@@ -872,6 +884,7 @@ const ApplicationsTab = ({
     education: { label: 'Education', getValue: (app) => app.demographics?.education_level || app.education_level || '' },
     referral: { label: 'Referral Source', getValue: (app) => app.demographics?.reason_for_applying || app.demographics?.referral_source || app.referral_source || '' },
     pledge: { label: 'Pledge Signed', getValue: (app) => app.pledge_completed ? 'Yes' : 'No' },
+    gja: { label: 'GJA Signed', getValue: (app) => app.gja_signed ? 'Yes' : 'No' },
     income: { label: 'Pre-Program Income', getValue: (app) => app.personal_income || '' }
   };
 
@@ -972,6 +985,8 @@ const ApplicationsTab = ({
       last_activity_bucket: [],
       structured_task_grade: [],
       deliberation: [],
+      pledge_completed: [],
+      gja_signed: [],
       offset: 0
     }));
     onPageChange(1);
@@ -1578,10 +1593,14 @@ const ApplicationsTab = ({
                     <TableHead className="font-proxima-bold">Referral</TableHead>
                   )}
                   {visibleColumns.pledge && (
-                    <TableHead className="font-proxima-bold">Pledge</TableHead>
+                    <TableHead className="font-proxima-bold">
+                      {renderSortableFilterableHeader('pledge', 'pledge_completed', 'Pledge', null)}
+                    </TableHead>
                   )}
                   {visibleColumns.gja && (
-                    <TableHead className="font-proxima-bold">GJA</TableHead>
+                    <TableHead className="font-proxima-bold">
+                      {renderSortableFilterableHeader('gja', 'gja_signed', 'GJA', null)}
+                    </TableHead>
                   )}
                   {visibleColumns.income && (
                     <TableHead className="font-proxima-bold">Pre-Program Income</TableHead>
