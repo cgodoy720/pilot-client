@@ -21,6 +21,7 @@ import {
 import { Checkbox } from '../ui/checkbox';
 import { Plus, Trash2, History, Save, X, Clock, GraduationCap, MessageCircle, ArrowRight, Coffee, FileQuestion, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import TaskModeSelector from './TaskModeSelector';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -912,42 +913,13 @@ const TaskEditDialog = ({
                   Task Settings
                 </h3>
                 <div className="space-y-4">
-                  {/* Conversation Mode Checkbox */}
-                  <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        id="conversation_mode"
-                        checked={formData.task_mode === 'conversation'}
-                        onCheckedChange={(checked) => setFormData(prev => ({ 
-                          ...prev, 
-                          task_mode: checked ? 'conversation' : 'basic' 
-                        }))}
-                        disabled={!canEdit}
-                      />
-                      <div>
-                        <label
-                          htmlFor="conversation_mode"
-                          className="text-sm font-proxima-bold text-[#1E1E1E] cursor-pointer flex items-center gap-2"
-                        >
-                          <MessageCircle className="h-4 w-4 text-[#4242EA]" />
-                          Conversation Mode
-                        </label>
-                        <p className="text-xs text-[#666] font-proxima mt-1">
-                          Enable AI chat interaction for this task
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleFieldHistory('task_mode')}
-                      className="h-8 text-[#666] hover:text-[#4242EA]"
-                    >
-                      <History className="h-4 w-4 mr-1" />
-                      History
-                    </Button>
-                  </div>
+                  {/* Task Mode (mutually exclusive: basic / conversation / personalized) */}
+                  <TaskModeSelector
+                    value={formData.task_mode}
+                    onChange={(mode) => setFormData(prev => ({ ...prev, task_mode: mode }))}
+                    disabled={!canEdit}
+                    onHistory={() => handleFieldHistory('task_mode')}
+                  />
 
                   {/* Graded Task Checkbox */}
                   <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">

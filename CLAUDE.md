@@ -175,6 +175,10 @@ Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
 - **Prioritization**: urgent/high/medium/low with required justification
 - **Backlog view**: `PlatformIntakeBacklog.jsx` — admin/staff can see all submissions
 
+## Curriculum task authoring (ContentPreview)
+
+The Create/Edit task dialogs (`components/curriculum/TaskCreateDialog.jsx`, `TaskEditDialog.jsx`) on the ContentPreview page (`/content/*`) pick a task's `task_mode` through a shared **`components/curriculum/TaskModeSelector.jsx`** — a `RadioGroup`-backed set of selectable cards (Basic / Conversation / Personalized) that is **mutually exclusive by construction** (a task is exactly one mode). Each card carries a definition subtitle; `conversation` = legacy fixed AI chat (intro/scripted questions/conclusion), `personalized` = the V2 coach loop (adapts per builder, grades against competency criteria). This replaced the old single "Conversation Mode" checkbox (which could only toggle `conversation`↔`basic` and had no personalized option). The Create dialog still reveals the AI Persona / AI Helper Mode selects when `conversation` is chosen. **Note:** the edit endpoint (`PUT /tasks/:id/edit` → `updateTaskWithHistory`) only whitelists `task_mode`, not the `v2_*` fields, so a personalized task's `v2_learning_goal` / `v2_competency_criteria` are still set at bulk-upload time, not in this modal — the Personalized card's subtitle says so. (Also fixed a latent bad import in `components/ui/radio-group.jsx`: `cn` was imported from the unresolvable bare path `"src/lib/utils"` → corrected to `"../../lib/utils"`; the component had no prior consumer so it never surfaced.)
+
 ## Coach / Learning deliverable panel
 
 The V2 Coach APPLY-phase deliverable panel (`src/pages/Learning/components/DeliverablePanel/`) supports file and URL deliverables in addition to image/video/structured/link/document.
