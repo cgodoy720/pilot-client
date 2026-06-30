@@ -1287,11 +1287,11 @@ function PathfinderProjects() {
                                   </a>
                                   
                                   {/* PRD Approval Status */}
-                                  {project.prd_approved && project.approver_first_name ? (
+                                  {project.prd_approved ? (
                                     <div className="flex items-center gap-1 text-green-600">
                                       <span>✓</span>
                                       <span className="text-xs">
-                                        Approved by {project.approver_first_name} {project.approver_last_name.charAt(0)}.
+                                        Approved{project.approver_first_name && ` by ${project.approver_first_name} ${project.approver_last_name.charAt(0)}.`}
                                       </span>
                                     </div>
                                   ) : project.prd_submitted ? (
