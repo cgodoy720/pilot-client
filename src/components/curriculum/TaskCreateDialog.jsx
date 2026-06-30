@@ -19,9 +19,10 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { Plus, Trash2, X, Clock, GraduationCap, MessageCircle, AlertCircle, Coffee, FileQuestion, ClipboardCheck } from 'lucide-react';
+import { Plus, Trash2, X, Clock, GraduationCap, MessageCircle, AlertCircle, Coffee, FileQuestion, ClipboardCheck, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import TaskModeSelector from './TaskModeSelector';
+import PersonalizedTaskFields from './PersonalizedTaskFields';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -42,6 +43,9 @@ const TaskCreateDialog = ({
     }
     if (formData.task_type === 'break') {
       return 'break';
+    }
+    if (formData.task_type === 'onboarding') {
+      return 'onboarding';
     }
     return 'chat'; // Default conversation/chat interface
   };
@@ -76,7 +80,14 @@ const TaskCreateDialog = ({
     
     // Analysis fields
     should_analyze: false,
-    analyze_deliverable: false
+    analyze_deliverable: false,
+
+    // v2 personalized-task fields (used when task_mode === 'personalized')
+    v2_learning_goal: '',
+    v2_lesson_content: '',
+    v2_competency_criteria: [],
+    v2_skill_tags: [],
+    v2_task_intent: ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -271,7 +282,12 @@ const TaskCreateDialog = ({
         feedback_slot: null,
         assessment_id: null,
         should_analyze: false,
-        analyze_deliverable: false
+        analyze_deliverable: false,
+        v2_learning_goal: '',
+        v2_lesson_content: '',
+        v2_competency_criteria: [],
+        v2_skill_tags: [],
+        v2_task_intent: ''
       });
     } catch (error) {
       console.error('Error creating task:', error);
@@ -394,7 +410,7 @@ const TaskCreateDialog = ({
           {/* Interface Type Selector */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <Label className="font-proxima-bold text-sm mb-2 block">Interface Type</Label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               <Button
                 type="button"
                 variant={interfaceType === 'chat' ? 'default' : 'outline'}
@@ -455,8 +471,32 @@ const TaskCreateDialog = ({
                 <Coffee className="h-4 w-4 mr-1" />
                 Break
               </Button>
+              <Button
+                type="button"
+                variant={interfaceType === 'onboarding' ? 'default' : 'outline'}
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    task_type: 'onboarding',
+                    feedback_slot: null,
+                    task_mode: 'basic'
+                  }));
+                }}
+                className={`${interfaceType === 'onboarding' ? 'bg-[#4242EA]' : ''} font-proxima`}
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Onboarding
+              </Button>
             </div>
           </div>
+
+          {/* Task Mode — only meaningful for chat-type tasks */}
+          {interfaceType === 'chat' && (
+            <TaskModeSelector
+              value={formData.task_mode}
+              onChange={(mode) => setFormData(prev => ({ ...prev, task_mode: mode }))}
+            />
+          )}
 
           {/* ASSESSMENT INTERFACE - Assessment Configuration (shown first) */}
           {interfaceType === 'assessment' && (
@@ -897,11 +937,14 @@ const TaskCreateDialog = ({
                   AI & Analysis Settings
                 </h3>
                 <div className="space-y-4">
-                  {/* Task Mode (mutually exclusive: basic / conversation / personalized) */}
-                  <TaskModeSelector
-                    value={formData.task_mode}
-                    onChange={(mode) => setFormData(prev => ({ ...prev, task_mode: mode }))}
-                  />
+                  {/* Personalized settings — shown only when in Personalized mode */}
+                  {formData.task_mode === 'personalized' && (
+                    <PersonalizedTaskFields
+                      value={formData}
+                      onChange={(field, val) => setFormData(prev => ({ ...prev, [field]: val }))}
+                      token={token}
+                    />
+                  )}
 
                   {/* AI Configuration (shown when conversation mode is enabled) */}
                   {formData.task_mode === 'conversation' && (
