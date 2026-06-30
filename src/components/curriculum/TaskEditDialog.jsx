@@ -19,9 +19,10 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { Plus, Trash2, History, Save, X, Clock, GraduationCap, MessageCircle, ArrowRight, Coffee, FileQuestion, ClipboardCheck } from 'lucide-react';
+import { Plus, Trash2, History, Save, X, Clock, GraduationCap, MessageCircle, ArrowRight, Coffee, FileQuestion, ClipboardCheck, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import TaskModeSelector from './TaskModeSelector';
+import PersonalizedTaskFields from './PersonalizedTaskFields';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -45,6 +46,9 @@ const TaskEditDialog = ({
     }
     if (taskData.task_type === 'break') {
       return 'break';
+    }
+    if (taskData.task_type === 'onboarding') {
+      return 'onboarding';
     }
     return 'chat'; // Default conversation/chat interface
   };
@@ -73,7 +77,12 @@ const TaskEditDialog = ({
     feedback_slot: null,
     assessment_id: null,
     persona: null,
-    ai_helper_mode: null
+    ai_helper_mode: null,
+    v2_learning_goal: '',
+    v2_lesson_content: '',
+    v2_competency_criteria: [],
+    v2_skill_tags: [],
+    v2_task_intent: ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -177,7 +186,12 @@ const TaskEditDialog = ({
         feedback_slot: task.feedback_slot || null,
         assessment_id: task.assessment_id || null,
         persona: task.persona || null,
-        ai_helper_mode: task.ai_helper_mode || null
+        ai_helper_mode: task.ai_helper_mode || null,
+        v2_learning_goal: task.v2_learning_goal || '',
+        v2_lesson_content: task.v2_lesson_content || '',
+        v2_competency_criteria: Array.isArray(task.v2_competency_criteria) ? task.v2_competency_criteria : [],
+        v2_skill_tags: Array.isArray(task.v2_skill_tags) ? task.v2_skill_tags : [],
+        v2_task_intent: task.v2_task_intent || ''
       });
     }
   }, [task]);
@@ -271,7 +285,7 @@ const TaskEditDialog = ({
           {canEdit && (
             <div className="space-y-3">
               <Label className="font-proxima-bold">Task Interface Type</Label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, task_type: 'individual', feedback_slot: null }))}
@@ -328,8 +342,32 @@ const TaskEditDialog = ({
                     Break
                   </span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, task_type: 'onboarding', feedback_slot: null, task_mode: 'basic' }))}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                    interfaceType === 'onboarding'
+                      ? 'border-teal-500 bg-teal-50'
+                      : 'border-gray-200 hover:border-teal-300'
+                  }`}
+                >
+                  <UserPlus className={`h-5 w-5 ${interfaceType === 'onboarding' ? 'text-teal-600' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-proxima-bold ${interfaceType === 'onboarding' ? 'text-teal-900' : 'text-gray-600'}`}>
+                    Onboarding
+                  </span>
+                </button>
               </div>
             </div>
+          )}
+
+          {/* Task Mode — only meaningful for chat-type tasks */}
+          {interfaceType === 'chat' && (
+            <TaskModeSelector
+              value={formData.task_mode}
+              onChange={(mode) => setFormData(prev => ({ ...prev, task_mode: mode }))}
+              disabled={!canEdit}
+              onHistory={() => handleFieldHistory('task_mode')}
+            />
           )}
 
           {/* ASSESSMENT INTERFACE - Assessment Configuration (shown first) */}
@@ -913,13 +951,15 @@ const TaskEditDialog = ({
                   Task Settings
                 </h3>
                 <div className="space-y-4">
-                  {/* Task Mode (mutually exclusive: basic / conversation / personalized) */}
-                  <TaskModeSelector
-                    value={formData.task_mode}
-                    onChange={(mode) => setFormData(prev => ({ ...prev, task_mode: mode }))}
-                    disabled={!canEdit}
-                    onHistory={() => handleFieldHistory('task_mode')}
-                  />
+                  {/* Personalized settings — shown only when this chat task is in Personalized mode */}
+                  {formData.task_mode === 'personalized' && (
+                    <PersonalizedTaskFields
+                      value={formData}
+                      onChange={(field, val) => setFormData(prev => ({ ...prev, [field]: val }))}
+                      disabled={!canEdit}
+                      token={token}
+                    />
+                  )}
 
                   {/* Graded Task Checkbox */}
                   <div className="flex items-center justify-between bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4">
