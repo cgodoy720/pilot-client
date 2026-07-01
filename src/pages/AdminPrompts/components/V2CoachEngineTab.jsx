@@ -9,7 +9,6 @@ import LoadingState from './shared/LoadingState';
 import PromptFormDialog from './shared/PromptFormDialog';
 import CoachV2FlowDiagram from './CoachV2FlowDiagram';
 import { NODES as COACH_NODE_META } from './CoachV2NodeTooltip';
-import SkillEditDialog from './SkillEditDialog';
 import PromptChangeHistoryDialog from './PromptChangeHistoryDialog';
 import useAuthStore from '../../../stores/authStore';
 
@@ -121,11 +120,6 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
   // Drives the editable graph-config scalars (max_learn_turns, ema_*,
   // difficulty_thresholds, etc.) under the Config & Reference tab.
   const [configEditTarget, setConfigEditTarget] = useState(null);
-  // skillEditSlug: which skill slug is currently being edited (null = none).
-  // The dialog reads the skill object from data.skillTaxonomy.skills[slug].
-  const [skillEditSlug, setSkillEditSlug] = useState(null);
-  // Local filter for the skill list. null = show all categories.
-  const [skillCategoryFilter, setSkillCategoryFilter] = useState(null);
   // historyTarget: { entityType, entityId, entityName } — drives the
   // shared PromptChangeHistoryDialog (null = closed). Set by every "History"
   // button across the page; revert refreshes data via fetchData().
@@ -275,51 +269,6 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
 
   // Save handler for individual skill edits. Builds an updated taxonomy
   // (merging the edited skill into skills[slug]) and PUTs the whole thing.
-  const handleSaveSkill = async (updatedSkill) => {
-    if (!data?.skillTaxonomy || isSaving) return;
-    setIsSaving(true);
-    const updatedTaxonomy = {
-      categories: data.skillTaxonomy.categories,
-      skills: {
-        ...data.skillTaxonomy.skills,
-        [updatedSkill.slug]: updatedSkill,
-      },
-      foundationalCompetencies: data.skillTaxonomy.foundationalCompetencies,
-      // The two focus-area maps get regenerated server-side eventually; for
-      // this iteration we send the existing maps unchanged. The interview
-      // routing for the edited skill changes when interviewFocus.area
-      // changes — that's not reflected in the derived maps until the next
-      // taxonomy reseed. Documented limitation; flag for the user.
-      focusAreaToSkillDomains: data.skillTaxonomy.focusAreaToSkillDomains,
-      skillDomainToFocusArea: data.skillTaxonomy.skillDomainToFocusArea,
-    };
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admin/prompts/skill-taxonomy`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(updatedTaxonomy),
-        }
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `PUT failed: ${res.status}`);
-      }
-      setSkillEditSlug(null);
-      showNotification(`Skill "${updatedSkill.name}" saved`);
-      await Promise.all([
-        reloadPrompts ? reloadPrompts() : Promise.resolve(),
-        fetchData(),
-      ]);
-    } catch (error) {
-      console.error(`Error saving skill ${updatedSkill.slug}:`, error);
-      showNotification(`Failed to save skill: ${error.message}`, 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   // Compute the field list for the config-edit dialog from the target's shape.
   const configFields = (() => {
     if (!configEditTarget) return [];
@@ -362,7 +311,6 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
   const {
     templates,
     programContext,
-    skillTaxonomy,
     graphConfig,
     profileFields,
     onboardingAgent,
@@ -859,151 +807,17 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
             </CardContent>
           </Card>
 
-          {/* Skill Taxonomy — editable skills (33), read-only categories +
-              foundational competencies + interview-routing map. */}
+          {/* Skill Taxonomy moved to its own top-level "Skill Taxonomy" tab
+              (2026-06-28) — flat 45-skill model + per-skill Dreyfus level
+              definitions are managed there. */}
           <Card className="bg-white border-[#C8C8C8]">
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle className="font-proxima-bold text-[#1E1E1E]">
-                  {skillTaxonomy.name}
-                </CardTitle>
-                <InfoTip text="The 33-skill model of the Pursuit AI Native Builder Program. Each skill has a definition, three proficiency descriptors, and routes to a mock-interview focus area. Edits take effect on the next coach turn." />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="ml-auto border-[#C8C8C8] text-[#666] hover:bg-[#E3E3E3]"
-                  onClick={() => openHistory('skill_taxonomy', '1', 'Skill Taxonomy')}
-                  title="View change history"
-                >
-                  <Clock className="h-4 w-4" />
-                </Button>
-              </div>
+              <CardTitle className="font-proxima-bold text-[#1E1E1E]">Skill Taxonomy</CardTitle>
               <CardDescription className="font-proxima text-[#666]">
-                {skillTaxonomy.description}
+                Skill management moved to its own top-level <span className="font-proxima-bold">Skill Taxonomy</span> tab,
+                where you can edit each skill and its Dreyfus level definitions (0–5).
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Skills list — grouped + filterable by category */}
-              <div>
-                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                  <p className="font-proxima-bold text-sm text-[#1E1E1E]">
-                    Skills <span className="font-proxima text-[#666]">({Object.keys(skillTaxonomy.skills || {}).length})</span>
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={() => setSkillCategoryFilter(null)}
-                      className={`text-xs font-proxima px-2 py-1 rounded ${
-                        skillCategoryFilter === null
-                          ? 'bg-[#4242EA] text-white'
-                          : 'bg-[#F5F5F5] text-[#666] hover:bg-[#E3E3E3]'
-                      }`}
-                    >
-                      All
-                    </button>
-                    {Object.entries(skillTaxonomy.categories || {}).map(([id, cat]) => (
-                      <button
-                        key={id}
-                        onClick={() => setSkillCategoryFilter(id)}
-                        className={`text-xs font-proxima px-2 py-1 rounded ${
-                          skillCategoryFilter === id
-                            ? 'bg-[#4242EA] text-white'
-                            : 'bg-[#F5F5F5] text-[#666] hover:bg-[#E3E3E3]'
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {Object.values(skillTaxonomy.skills || {})
-                    .filter((s) => !skillCategoryFilter || s.category === skillCategoryFilter)
-                    .sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.name || '').localeCompare(b.name || ''))
-                    .map((skill) => (
-                      <div key={skill.slug} className="border border-[#E3E3E3] rounded-lg p-3 hover:border-[#4242EA] transition-colors">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-proxima-bold text-sm text-[#1E1E1E] truncate">{skill.name}</p>
-                            <code className="font-mono text-xs text-[#4242EA]">{skill.slug}</code>
-                          </div>
-                          {canEdit && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-[#C8C8C8] text-[#1E1E1E] hover:bg-[#E3E3E3] shrink-0"
-                              onClick={() => setSkillEditSlug(skill.slug)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                        <p className="font-proxima text-xs text-[#666] line-clamp-2 mb-2">{skill.definition}</p>
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="outline" className="font-proxima text-xs capitalize">
-                            {(skillTaxonomy.categories?.[skill.category]?.name || skill.category || '').replace(/_/g, ' ')}
-                          </Badge>
-                          {skill.interviewFocus && (
-                            <Badge variant="outline" className="font-mono text-xs bg-[#F5F5F5]">
-                              {skill.interviewFocus.type}/{skill.interviewFocus.area}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* Foundational competencies — read-only summary */}
-              {skillTaxonomy.foundationalCompetencies && Object.keys(skillTaxonomy.foundationalCompetencies).length > 0 && (
-                <div className="border-t border-[#E3E3E3] pt-4">
-                  <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">
-                    Foundational Competencies <span className="font-proxima text-[#666]">({Object.keys(skillTaxonomy.foundationalCompetencies).length}, read-only)</span>
-                  </p>
-                  <p className="font-proxima text-xs text-[#666] mb-3">
-                    Higher-order competencies evidenced by sustained Adaptation-level performance across contributing skills. Edit via the API for now.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {Object.entries(skillTaxonomy.foundationalCompetencies).map(([id, comp]) => (
-                      <div key={id} className="bg-[#F5F5F5] rounded-lg p-2 text-xs font-proxima">
-                        <span className="font-proxima-bold text-[#1E1E1E]">{comp.name}</span>
-                        <span className="text-[#666] ml-1">— {(comp.developedThrough || []).length} contributing skills</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Focus area → skill map (derived; read-only) */}
-              <div className="border-t border-[#E3E3E3] pt-4">
-                <p className="font-proxima-bold text-sm text-[#1E1E1E] mb-2">
-                  Mock-Interview Routing <span className="font-proxima text-[#666]">(derived from skills)</span>
-                </p>
-                <p className="font-proxima text-xs text-[#666] mb-3">
-                  Each interview focus area maps to the skill slugs that route there via their <code className="font-mono text-[#4242EA]">interviewFocus.area</code>. Updated automatically when you edit a skill's interview routing.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {Object.entries(skillTaxonomy.focusAreaToSkillDomains || {}).map(([area, domains]) => (
-                    <div key={area} className="bg-[#F5F5F5] rounded-lg p-2">
-                      <p className="font-proxima-bold text-xs text-[#1E1E1E] mb-1 capitalize">
-                        {area.replace(/_/g, ' ')} <span className="font-proxima text-[#999]">({domains.length})</span>
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {domains.slice(0, 6).map((domain) => (
-                          <Badge key={domain} variant="outline" className="font-mono text-xs bg-white">
-                            {domain}
-                          </Badge>
-                        ))}
-                        {domains.length > 6 && (
-                          <Badge variant="outline" className="font-proxima text-xs bg-white text-[#999]">
-                            +{domains.length - 6} more
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
@@ -1044,18 +858,6 @@ const V2CoachEngineTab = ({ showNotification, reloadPrompts, canEdit }) => {
           confirmText="Save"
           initialData={configFields.reduce((acc, f) => ({ ...acc, [f.name]: f.defaultValue }), {})}
           fields={configFields}
-        />
-      )}
-
-      {/* Skill edit dialog — one skill at a time, PUTs the whole taxonomy. */}
-      {skillEditSlug && data?.skillTaxonomy?.skills?.[skillEditSlug] && (
-        <SkillEditDialog
-          open={!!skillEditSlug}
-          onClose={() => setSkillEditSlug(null)}
-          onSubmit={handleSaveSkill}
-          isSubmitting={isSaving}
-          skill={data.skillTaxonomy.skills[skillEditSlug]}
-          categories={data.skillTaxonomy.categories || {}}
         />
       )}
 

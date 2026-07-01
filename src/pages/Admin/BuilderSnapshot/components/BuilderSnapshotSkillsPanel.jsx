@@ -1,338 +1,274 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-} from 'recharts';
-import { TrendingUp, TrendingDown, Maximize2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '../../../../components/ui/dialog';
-import { computeCategoryCompetencyBreakdown } from '../utils/competencyRollup';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 
-// Three distinct, palette-disciplined colors — one per category. Used by both
-// the radar fills and the per-row chips in the leaderboard so the visual
-// language is consistent across both views.
+// Dreyfus 0-5 labels (N/A is the administrative "not assessed" state).
+const DREYFUS_LABELS = ['Below Novice', 'Novice', 'Advanced Beginner', 'Competent', 'Proficient', 'Expert'];
+// Sequential grey → indigo ramp so proficiency progression reads at a glance.
+const LEVEL_RAMP = ['#b9bcc9', '#a3a6e0', '#8186ee', '#5b5fe8', '#3f3fd0', '#2a2a9e'];
+const EMPTY_PIP = '#ECECF3';
+
+// One accent per category (header dots + leaderboard tints).
 const CATEGORY_COLORS = {
-  technical: { stroke: '#4242EA', fill: '#4242EA', label: 'Technical' },
-  product_strategy: { stroke: '#FB923C', fill: '#FB923C', label: 'Product Strategy' },
-  communication_collaboration: { stroke: '#FF33FF', fill: '#FF33FF', label: 'Communication' },
+  technical: '#4242EA',
+  product_strategy: '#FB923C',
+  communication_collaboration: '#FF33FF',
+  foundational: '#2a2a9e',
 };
-const FALLBACK_COLOR = { stroke: '#1E1E1E', fill: '#1E1E1E', label: 'Other' };
+const FALLBACK_COLOR = '#1E1E1E';
+const colorFor = (cat) => CATEGORY_COLORS[cat] || FALLBACK_COLOR;
 
-// Wrap an axis label onto up to two short lines so ~11 ticks fit around a
-// one-third-width radar without colliding.
-const wrapLabel = (name, maxChars = 16) => {
-  const words = String(name || '').split(/\s+/).filter(Boolean);
-  const lines = [];
-  for (const word of words) {
-    const last = lines[lines.length - 1];
-    if (last !== undefined && (last + ' ' + word).length <= maxChars) {
-      lines[lines.length - 1] = last + ' ' + word;
-    } else {
-      lines.push(word);
-    }
-  }
-  if (lines.length > 2) {
-    const rest = lines.slice(1).join(' ');
-    return [lines[0], rest.slice(0, maxChars - 1).trim() + '…'];
-  }
-  return lines;
+// Map a legacy 0-100 skill_level to a Dreyfus level (only used as a fallback for
+// builders with no skill_proficiency yet — same thresholds as the backfill).
+const legacyToLevel = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n < 45) return 1;
+  if (n < 60) return 2;
+  if (n < 75) return 3;
+  if (n < 85) return 4;
+  return 5;
 };
 
-const CustomTick = ({ payload, x, y, textAnchor, maxChars = 16, fontSize = 10 }) => {
-  const lines = wrapLabel(payload?.value, maxChars);
-  const lineHeight = fontSize + 1;
+/**
+ * SegmentMeter — six discrete pips on the grey→indigo ramp, filled up to the
+ * Dreyfus level. N/A renders all-empty + muted. Low-confidence / seeded levels
+ * render dimmed.
+ */
+const SegmentMeter = ({ level, dim }) => {
+  const fill = Number.isInteger(level) ? level : 0; // pips 0..(level-1) filled
   return (
-    <text
-      x={x}
-      y={y}
-      textAnchor={textAnchor}
-      fill="#1E1E1E"
-      fontSize={fontSize}
-      fontFamily="inherit"
-    >
-      {lines.map((line, i) => (
-        <tspan key={i} x={x} dy={i === 0 ? (lines.length > 1 ? -4 : 0) : lineHeight}>
-          {line}
-        </tspan>
+    <span className="inline-flex gap-0.5" aria-hidden="true" style={{ opacity: dim ? 0.45 : 1 }}>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <span
+          key={i}
+          className="h-2.5 w-4 rounded-[2px]"
+          style={{ backgroundColor: i < fill ? LEVEL_RAMP[i] : EMPTY_PIP }}
+        />
       ))}
-    </text>
+    </span>
   );
 };
 
 /**
- * CategoryRadar — one category's skills on a full-circle radar. Rendered
- * small inside the grid cards and large inside the enlarge dialog.
+ * SkillRow — one skill's name + bar meter + level label, with a confidence-aware
+ * dim/marker and a tooltip carrying confidence + observation count.
  */
-const CategoryRadar = ({ category, size = 'small' }) => {
-  const large = size === 'large';
+const SkillRow = ({ skill }) => {
+  const { name, level, label, dim, seeded, confidence, observations } = skill;
+  const tip =
+    level === null
+      ? 'Not assessed yet'
+      : `${level} · ${label}` +
+        (confidence != null ? ` · conf ${confidence.toFixed(2)}` : '') +
+        ` · ${observations} obs` +
+        (seeded ? ' (seeded prior — not yet confirmed by a graded task)' : '');
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <RadarChart
-        data={category.rows}
-        cx="50%"
-        cy="50%"
-        outerRadius={large ? '72%' : '64%'}
-        margin={
-          large
-            ? { top: 28, right: 48, bottom: 28, left: 48 }
-            : { top: 20, right: 28, bottom: 20, left: 28 }
-        }
+    <li className="flex items-center gap-3 py-1.5" title={tip}>
+      <span className={`flex-1 min-w-0 truncate text-sm ${level === null ? 'text-[#999]' : 'text-[#1E1E1E]'}`}>
+        {name}
+      </span>
+      <SegmentMeter level={level} dim={dim} />
+      <span
+        className={`w-32 shrink-0 text-right text-xs tabular-nums ${level === null ? 'text-[#BBB] italic' : 'font-proxima-bold text-[#1E1E1E]'}`}
       >
-        <PolarGrid stroke="#E3E3E3" strokeDasharray="3 4" />
-        <PolarAngleAxis
-          dataKey="skill"
-          tick={<CustomTick maxChars={large ? 24 : 16} fontSize={large ? 12 : 10} />}
-        />
-        <PolarRadiusAxis
-          angle={90}
-          domain={[0, 100]}
-          tickCount={large ? 5 : 3}
-          tick={{ fontSize: large ? 10 : 9, fill: '#999' }}
-          stroke="#E3E3E3"
-        />
-        <Radar
-          name={category.name}
-          dataKey={category.key}
-          stroke={category.color.stroke}
-          fill={category.color.fill}
-          fillOpacity={0.35}
-          strokeWidth={2}
-          dot={{ r: large ? 3 : 2, strokeWidth: 0, fill: category.color.stroke }}
-        />
-      </RadarChart>
-    </ResponsiveContainer>
+        {level === null ? 'N/A' : `${level} ${label}`}
+        {seeded && level !== null ? <span className="ml-1 text-[10px] font-normal text-[#999]">·seed</span> : null}
+      </span>
+    </li>
   );
 };
 
 /**
  * BuilderSnapshotSkillsPanel
  *
- * Small-multiples skills view: one radar per category (so each category's
- * ~11 skills spread around a full circle with readable labels) over a
- * two-column leaderboard of top strengths + growth areas. The leaderboard is
- * sorted globally (not per category) so staff see the absolute top 5 and
- * bottom 5 at a glance.
+ * Bar-meter skills view: skills grouped into collapsible category sections, each
+ * skill rendered as a 6-step Dreyfus meter (0-5, or muted N/A). An assessed/all
+ * toggle hides unassessed skills by default. Two leaderboards (Top Strengths,
+ * Growth Areas) rank the assessed skills globally.
  *
  * Props:
- *   - skillTaxonomy: { categories, skills } as returned by /v2-coach-engine
- *   - skillLevels:   { [slug]: 0..100 } from builder_profiles
+ *   - skillTaxonomy:    { categories, skills } from /v2-coach-engine
+ *   - skillProficiency: { [slug]: { level 0-5, confidence, observations } } (operative)
+ *   - skillLevels:      { [slug]: 0..100 } legacy fallback when proficiency is absent
  */
-const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
-  const [expandedKey, setExpandedKey] = useState(null);
+const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillProficiency, skillLevels }) => {
+  const [showAll, setShowAll] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => new Set());
 
-  const { categoryEntries, topStrengths, growthAreas, stats } = useMemo(() => {
-    const taxonomySkills = skillTaxonomy?.skills || {};
-    const taxonomyCategories = skillTaxonomy?.categories || {};
-    const levels = skillLevels || {};
+  const { groups, topStrengths, growthAreas, stats } = useMemo(() => {
+    const taxSkills = skillTaxonomy?.skills || {};
+    const taxCategories = skillTaxonomy?.categories || {};
+    const prof = skillProficiency || {};
+    const legacy = skillLevels || {};
 
-    const allCategoryKeys = Object.keys(taxonomyCategories);
+    const derive = (slug) => {
+      const p = prof[slug];
+      if (p && Number.isInteger(p.level)) {
+        const observations = Number.isInteger(p.observations) ? p.observations : 0;
+        const confidence = typeof p.confidence === 'number' ? p.confidence : null;
+        const seeded = observations === 0 || (confidence != null && confidence < 0.5);
+        return { level: p.level, confidence, observations, seeded, dim: seeded };
+      }
+      // Fallback: map legacy 0-100 (marked as a seeded/approximate prior).
+      const mapped = legacyToLevel(legacy[slug]);
+      if (mapped != null) return { level: mapped, confidence: null, observations: 0, seeded: true, dim: true };
+      return { level: null, confidence: null, observations: 0, seeded: false, dim: true };
+    };
 
-    // Group skills by category, preserving taxonomy declaration order.
-    const skillsByCategory = new Map();
-    for (const key of allCategoryKeys) skillsByCategory.set(key, []);
-    for (const slug of Object.keys(taxonomySkills)) {
-      const skill = taxonomySkills[slug];
-      if (!skill) continue;
-      const catKey = skill.category;
-      if (!skillsByCategory.has(catKey)) skillsByCategory.set(catKey, []);
-      skillsByCategory.get(catKey).push(skill);
+    const catKeys = Object.keys(taxCategories);
+    const byCat = new Map(catKeys.map((k) => [k, []]));
+    for (const slug of Object.keys(taxSkills)) {
+      const sk = taxSkills[slug];
+      if (!sk) continue;
+      if (!byCat.has(sk.category)) byCat.set(sk.category, []);
+      const d = derive(slug);
+      byCat.get(sk.category).push({
+        slug,
+        name: sk.name || slug,
+        category: sk.category,
+        ...d,
+        label: d.level === null ? 'N/A' : DREYFUS_LABELS[d.level],
+      });
     }
 
-    const orderedCategoryKeys = Array.from(skillsByCategory.keys()).filter(
-      (k) => (skillsByCategory.get(k) || []).length > 0,
-    );
-
-    // One radar per category — each category's rows only carry its own skills,
-    // so every shape fills its full circle instead of collapsing to zero
-    // outside its wedge.
-    const allScored = []; // flat list for top/bottom rankings
-    const entries = orderedCategoryKeys.map((catKey) => {
-      const skills = skillsByCategory.get(catKey) || [];
-      const rows = skills.map((skill) => {
-        const raw = Number(levels[skill.slug] ?? 0);
-        const value = Math.max(0, Math.min(100, Number.isFinite(raw) ? raw : 0));
-        allScored.push({ slug: skill.slug, name: skill.name, category: catKey, value });
-        return { skill: skill.name, slug: skill.slug, [catKey]: value };
+    const allRows = [];
+    const grp = Array.from(byCat.entries())
+      .filter(([, rows]) => rows.length > 0)
+      .map(([key, rows]) => {
+        rows.sort((a, b) => (b.level ?? -1) - (a.level ?? -1) || a.name.localeCompare(b.name));
+        rows.forEach((r) => allRows.push(r));
+        const assessed = rows.filter((r) => r.level !== null);
+        const avg = assessed.length
+          ? Math.round((assessed.reduce((s, r) => s + r.level, 0) / assessed.length) * 10) / 10
+          : null;
+        return {
+          key,
+          name: taxCategories[key]?.name || key,
+          color: colorFor(key),
+          rows,
+          assessedCount: assessed.length,
+          total: rows.length,
+          avg,
+        };
       });
-      const catScored = rows.map((r) => r[catKey]).filter((v) => v > 0);
-      const catAvg =
-        catScored.length > 0
-          ? Math.round(catScored.reduce((sum, v) => sum + v, 0) / catScored.length)
-          : 0;
-      return {
-        key: catKey,
-        color: CATEGORY_COLORS[catKey] || FALLBACK_COLOR,
-        name: taxonomyCategories[catKey]?.name || CATEGORY_COLORS[catKey]?.label || catKey,
-        rows,
-        avg: catAvg,
-        scoredCount: catScored.length,
-      };
-    });
 
-    // Rankings — exclude unscored (value=0) skills from "strengths" but keep
-    // them in "growth areas" since 0 IS a real gap.
-    const scored = allScored.filter((s) => s.value > 0);
-    const strengths = [...scored].sort((a, b) => b.value - a.value).slice(0, 5);
-    const growth = [...allScored].sort((a, b) => a.value - b.value).slice(0, 5);
-
-    const avg =
-      scored.length > 0
-        ? Math.round(scored.reduce((sum, s) => sum + s.value, 0) / scored.length)
-        : 0;
+    const assessed = allRows.filter((r) => r.level !== null);
+    const strengths = [...assessed]
+      .sort((a, b) => b.level - a.level || (b.confidence ?? 0) - (a.confidence ?? 0))
+      .slice(0, 5);
+    const growth = [...assessed].sort((a, b) => a.level - b.level).slice(0, 5);
+    const overallAvg = assessed.length
+      ? Math.round((assessed.reduce((s, r) => s + r.level, 0) / assessed.length) * 10) / 10
+      : null;
 
     return {
-      categoryEntries: entries,
+      groups: grp,
       topStrengths: strengths,
       growthAreas: growth,
-      stats: {
-        totalSkills: allScored.length,
-        scoredSkills: scored.length,
-        avg,
-      },
+      stats: { total: allRows.length, assessed: assessed.length, avg: overallAvg },
     };
-  }, [skillTaxonomy, skillLevels]);
+  }, [skillTaxonomy, skillProficiency, skillLevels]);
 
-  const colorFor = (catKey) => CATEGORY_COLORS[catKey] || FALLBACK_COLOR;
+  const toggle = (key) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
 
   return (
     <section className="rounded-2xl ring-1 ring-[#E3E3E3] shadow-md bg-white p-6 md:p-8 font-proxima">
-      <header className="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+      <header className="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-proxima-bold text-[#1E1E1E]">Skill Profile</h2>
           <p className="text-sm text-[#666] mt-1">
-            Proficiency across the 33-skill taxonomy. Higher is stronger;
-            each category gets its own radar.
+            Proficiency on the Dreyfus scale (0 Below Novice → 5 Expert) across the skill taxonomy.
           </p>
         </div>
-        {stats.totalSkills > 0 && (
-          <div className="flex items-center gap-3 text-xs text-[#666]">
-            <span>
-              <span className="text-[#1E1E1E] font-proxima-bold">{stats.scoredSkills}</span>
-              {' / '}
-              <span>{stats.totalSkills}</span>{' scored'}
-            </span>
-            <span aria-hidden="true" className="text-[#C8C8C8]">·</span>
-            <span>
-              Avg{' '}
-              <span className="text-[#1E1E1E] font-proxima-bold">{stats.avg}</span>
-              {' / 100'}
-            </span>
+        <div className="flex items-center gap-3">
+          {stats.total > 0 && (
+            <div className="flex items-center gap-3 text-xs text-[#666]">
+              <span>
+                <span className="text-[#1E1E1E] font-proxima-bold">{stats.assessed}</span>
+                {' / '}<span>{stats.total}</span>{' assessed'}
+              </span>
+              {stats.avg != null && (
+                <>
+                  <span aria-hidden="true" className="text-[#C8C8C8]">·</span>
+                  <span>Avg <span className="text-[#1E1E1E] font-proxima-bold">{stats.avg}</span>{' / 5'}</span>
+                </>
+              )}
+            </div>
+          )}
+          {/* assessed / all toggle */}
+          <div className="inline-flex rounded-lg border border-[#E3E3E3] p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowAll(false)}
+              className={`px-2.5 py-1 rounded-md font-proxima ${!showAll ? 'bg-[#4242EA] text-white' : 'text-[#666] hover:bg-[#F5F5F5]'}`}
+            >
+              Assessed
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className={`px-2.5 py-1 rounded-md font-proxima ${showAll ? 'bg-[#4242EA] text-white' : 'text-[#666] hover:bg-[#F5F5F5]'}`}
+            >
+              All
+            </button>
           </div>
-        )}
+        </div>
       </header>
 
-      {stats.totalSkills === 0 ? (
-        <div className="py-16 text-center text-[#999] italic">
-          No skills available to plot yet.
-        </div>
+      {stats.total === 0 ? (
+        <div className="py-16 text-center text-[#999] italic">No skills available yet.</div>
       ) : (
         <>
-          {/* SMALL MULTIPLES — one radar per category; click a card to enlarge */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {categoryEntries.map((cat) => (
-              <button
-                key={cat.key}
-                type="button"
-                onClick={() => setExpandedKey(cat.key)}
-                aria-label={`Enlarge ${cat.name} radar`}
-                className="group/card rounded-xl border border-[#F0F0F0] bg-[#FAFAFA] p-4 text-left cursor-pointer transition-shadow hover:shadow-md hover:border-[#E3E3E3] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4242EA]"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="inline-flex items-center gap-2 text-sm font-proxima-bold text-[#1E1E1E]">
-                    <span
-                      aria-hidden="true"
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: cat.color.stroke }}
-                    />
-                    {cat.name}
-                  </h3>
-                  <span className="inline-flex items-center gap-2 text-xs text-[#666] whitespace-nowrap">
-                    <span>
-                      Avg{' '}
-                      <span className="text-[#1E1E1E] font-proxima-bold">{cat.avg}</span>
-                    </span>
-                    <Maximize2
-                      aria-hidden="true"
-                      className="w-3.5 h-3.5 text-[#C8C8C8] transition-colors group-hover/card:text-[#4242EA]"
-                    />
-                  </span>
+          {/* Collapsible category groups of bar meters */}
+          <div className="space-y-3">
+            {groups.map((g) => {
+              const rows = showAll ? g.rows : g.rows.filter((r) => r.level !== null);
+              if (rows.length === 0) return null; // hide empty categories in "assessed" view
+              const isOpen = !collapsed.has(g.key);
+              return (
+                <div key={g.key} className="rounded-xl border border-[#F0F0F0] bg-[#FAFAFA] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggle(g.key)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-[#F5F5F5] transition-colors"
+                  >
+                    {isOpen ? <ChevronDown className="w-4 h-4 text-[#999]" /> : <ChevronRight className="w-4 h-4 text-[#999]" />}
+                    <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                    <span className="text-sm font-proxima-bold text-[#1E1E1E]">{g.name}</span>
+                    <span className="text-xs text-[#999]">({g.assessedCount}/{g.total})</span>
+                    {g.avg != null && (
+                      <span className="ml-auto text-xs text-[#666]">Avg <span className="font-proxima-bold text-[#1E1E1E]">{g.avg}</span></span>
+                    )}
+                  </button>
+                  {isOpen && (
+                    <ul className="px-4 pb-3 divide-y divide-[#F0F0F0]">
+                      {rows.map((r) => <SkillRow key={r.slug} skill={r} />)}
+                    </ul>
+                  )}
                 </div>
-                <div className="w-full" style={{ height: 300 }}>
-                  <CategoryRadar category={cat} size="small" />
-                </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
 
-          {/* ENLARGE DIALOG — full-size radar for the clicked category, with the
-              foundational competencies those skills feed shown beside it. The
-              breakdown score is CATEGORY-SCOPED (mean of this category's skills
-              only), so it can differ from the Foundational Competencies panel. */}
-          <Dialog open={!!expandedKey} onOpenChange={(open) => !open && setExpandedKey(null)}>
-            <DialogContent className="max-w-6xl">
-              {(() => {
-                const cat = categoryEntries.find((c) => c.key === expandedKey);
-                if (!cat) return null;
-                const breakdown = computeCategoryCompetencyBreakdown(
-                  skillLevels,
-                  skillTaxonomy,
-                  cat.key,
-                );
-                return (
-                  <>
-                    <DialogHeader>
-                      <DialogTitle className="inline-flex items-center gap-2">
-                        <span
-                          aria-hidden="true"
-                          className="inline-block h-3 w-3 rounded-full"
-                          style={{ backgroundColor: cat.color.stroke }}
-                        />
-                        {cat.name}
-                      </DialogTitle>
-                      <DialogDescription>
-                        {cat.scoredCount} of {cat.rows.length} skills scored · Avg {cat.avg} / 100
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                      <div className="w-full" style={{ height: 520 }}>
-                        <CategoryRadar category={cat} size="large" />
-                      </div>
-                      <CategoryCompetencyBreakdown
-                        categoryName={cat.name}
-                        color={cat.color}
-                        items={breakdown}
-                      />
-                    </div>
-                  </>
-                );
-              })()}
-            </DialogContent>
-          </Dialog>
-
-          {/* LEADERBOARD — below the radars */}
+          {/* Leaderboards */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <Leaderboard
               icon={<TrendingUp className="w-4 h-4 text-[#4242EA]" />}
               title="Top Strengths"
-              empty="No scored skills yet."
+              empty="No assessed skills yet."
               items={topStrengths}
-              colorFor={colorFor}
             />
             <Leaderboard
               icon={<TrendingDown className="w-4 h-4 text-[#FB923C]" />}
               title="Growth Areas"
-              empty="—"
+              empty="No assessed skills yet."
               items={growthAreas}
-              colorFor={colorFor}
               variant="growth"
             />
           </div>
@@ -342,123 +278,29 @@ const BuilderSnapshotSkillsPanel = ({ skillTaxonomy, skillLevels }) => {
   );
 };
 
-/**
- * Leaderboard — small ranked list with category-tinted progress bars.
- */
-const Leaderboard = ({ icon, title, items, empty, colorFor, variant = 'strength' }) => {
-  return (
-    <div>
-      <h3 className="flex items-center gap-2 text-xs uppercase tracking-wider text-[#666] font-proxima-bold">
-        {icon}
-        {title}
-      </h3>
-      {items.length === 0 ? (
-        <p className="mt-3 text-sm text-[#999] italic">{empty}</p>
-      ) : (
-        <ul className="mt-3 space-y-2.5">
-          {items.map((item) => {
-            const color = colorFor(item.category);
-            const value = item.value;
-            return (
-              <li key={item.slug} className="group">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-sm font-medium text-[#1E1E1E] truncate">
-                    {item.name}
-                  </span>
-                  <span className="text-xs font-proxima-bold text-[#1E1E1E] tabular-nums">
-                    {value}
-                  </span>
-                </div>
-                <div
-                  className="mt-1 h-1.5 w-full rounded-full bg-[#F0F0F0] overflow-hidden"
-                  role="progressbar"
-                  aria-valuenow={value}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.max(2, value)}%`,
-                      backgroundColor:
-                        variant === 'growth' && value < 50 ? '#FB923C' : color.stroke,
-                      opacity: variant === 'growth' ? 0.75 : 1,
-                    }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-};
-
-/**
- * CategoryCompetencyBreakdown — shown beside the enlarged category radar.
- * Lists the foundational competencies this category's skills develop, each
- * with a CATEGORY-SCOPED score (mean of only this category's contributing
- * skills) and the contributing skill names. Scores can differ from the main
- * Foundational Competencies panel — that's intentional.
- */
-const CategoryCompetencyBreakdown = ({ categoryName, color, items }) => {
-  const tint = color?.stroke || '#4242EA';
-  return (
-    <div className="min-w-0">
-      <h4 className="text-sm font-proxima-bold text-[#1E1E1E]">
-        Foundational competencies these {categoryName} skills develop
-      </h4>
-      <p className="text-xs text-[#999] mt-1">
-        Scored from this category&apos;s skills only — may differ from the
-        Foundational Competencies panel.
-      </p>
-      {items.length === 0 ? (
-        <p className="mt-4 text-sm text-[#999] italic">
-          These skills aren&apos;t mapped to any competency yet.
-        </p>
-      ) : (
-        // pr-5 + stable gutter keeps the scrollbar clear of the right-aligned
-        // score numbers (the thin pr-1 let the overlay scrollbar sit on them).
-        <ul
-          className="mt-4 space-y-3 max-h-[460px] overflow-y-auto pr-5"
-          style={{ scrollbarGutter: 'stable' }}
-        >
-          {items.map((item) => (
-            <li key={item.key}>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-medium text-[#1E1E1E] truncate">
-                  {item.name}
-                </span>
-                <span className="text-xs font-proxima-bold text-[#1E1E1E] tabular-nums shrink-0">
-                  {item.score === null ? '—' : item.score}
-                </span>
-              </div>
-              <div
-                className="mt-1 h-1.5 w-full rounded-full bg-[#F0F0F0] overflow-hidden"
-                role="progressbar"
-                aria-valuenow={item.score ?? 0}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.max(2, item.score ?? 0)}%`,
-                    backgroundColor: tint,
-                    opacity: item.score === null ? 0.3 : 1,
-                  }}
-                />
-              </div>
-              <p className="mt-1 text-[11px] text-[#999] leading-snug">
-                {item.contributing.map((c) => c.name).join(' · ')}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
+/** Leaderboard — ranked list with a 6-step meter per skill. */
+const Leaderboard = ({ icon, title, items, empty, variant = 'strength' }) => (
+  <div>
+    <h3 className="flex items-center gap-2 text-xs uppercase tracking-wider text-[#666] font-proxima-bold">
+      {icon}
+      {title}
+    </h3>
+    {items.length === 0 ? (
+      <p className="mt-3 text-sm text-[#999] italic">{empty}</p>
+    ) : (
+      <ul className="mt-3 space-y-2.5">
+        {items.map((item) => (
+          <li key={item.slug} className="flex items-center gap-3" title={`${item.level} · ${item.label}`}>
+            <span className="flex-1 min-w-0 truncate text-sm text-[#1E1E1E]">{item.name}</span>
+            <SegmentMeter level={item.level} dim={item.dim} />
+            <span className="w-28 shrink-0 text-right text-xs font-proxima-bold tabular-nums text-[#1E1E1E]">
+              {item.level} {item.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
 
 export default BuilderSnapshotSkillsPanel;

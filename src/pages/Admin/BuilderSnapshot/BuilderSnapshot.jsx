@@ -5,7 +5,6 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import { searchUsers } from '../../../services/builderProfileInspectorApi';
 import BuilderSnapshotHero from './components/BuilderSnapshotHero';
 import BuilderSnapshotSkillsPanel from './components/BuilderSnapshotSkillsPanel';
-import BuilderSnapshotCompetencies from './components/BuilderSnapshotCompetencies';
 import BuilderSnapshotStoryGrid from './components/BuilderSnapshotStoryGrid';
 import BuilderSnapshotAchievements from './components/BuilderSnapshotAchievements';
 import BuilderSnapshotTimeline from './components/BuilderSnapshotTimeline';
@@ -283,13 +282,23 @@ const BuilderSnapshot = ({ embedded = false }) => {
   const heroKpis = useMemo(() => {
     if (!snapshot) return [];
     const profile = snapshot.profile || {};
-    const levels = profile.skill_levels || {};
-    const scored = Object.values(levels)
-      .map((v) => Number(v))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    const avg = scored.length > 0
-      ? Math.round(scored.reduce((s, n) => s + n, 0) / scored.length)
-      : null;
+    // Dreyfus average (0-5) over assessed skills; fall back to mapping the
+    // legacy 0-100 skill_levels when a builder has no skill_proficiency yet.
+    const prof = profile.skill_proficiency || {};
+    const dreyfusLevels = Object.values(prof)
+      .map((p) => (p && Number.isInteger(p.level) ? p.level : null))
+      .filter((n) => n !== null);
+    let avg = null;
+    if (dreyfusLevels.length > 0) {
+      avg = Math.round((dreyfusLevels.reduce((s, n) => s + n, 0) / dreyfusLevels.length) * 10) / 10;
+    } else {
+      const scored = Object.values(profile.skill_levels || {})
+        .map((v) => Number(v))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      if (scored.length > 0) {
+        avg = Math.round((scored.reduce((s, n) => s + n, 0) / scored.length / 100) * 5 * 10) / 10;
+      }
+    }
     const competencyCount = profile.competencies?.by_skill
       ? Object.values(profile.competencies.by_skill).reduce(
           (sum, c) => sum + (Array.isArray(c?.evidence) ? c.evidence.length : 0),
@@ -301,7 +310,7 @@ const BuilderSnapshot = ({ embedded = false }) => {
       : 0;
 
     return [
-      { label: 'Avg Proficiency', value: avg != null ? `${avg}` : '—', hint: avg != null ? 'across scored skills' : 'no scores yet' },
+      { label: 'Avg Proficiency', value: avg != null ? `${avg} / 5` : '—', hint: avg != null ? 'Dreyfus, across assessed skills' : 'no scores yet' },
       { label: 'Competency Signals', value: `${competencyCount}`, hint: `from ${Object.keys(profile.competencies?.by_skill || {}).length} skills` },
       { label: 'Performance Entries', value: `${performanceCount}`, hint: performanceCount > 0 ? 'most recent log' : 'none yet' },
     ];
@@ -443,11 +452,7 @@ const BuilderSnapshot = ({ embedded = false }) => {
 
             <BuilderSnapshotSkillsPanel
               skillTaxonomy={taxonomy || { categories: {}, skills: {} }}
-              skillLevels={snapshot.profile?.skill_levels || {}}
-            />
-
-            <BuilderSnapshotCompetencies
-              skillTaxonomy={taxonomy}
+              skillProficiency={snapshot.profile?.skill_proficiency || {}}
               skillLevels={snapshot.profile?.skill_levels || {}}
             />
 

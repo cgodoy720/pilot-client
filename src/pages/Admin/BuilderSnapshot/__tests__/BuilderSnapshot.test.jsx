@@ -105,6 +105,13 @@ const FULL_SNAPSHOT = {
       'evaluate-ai-critically': 67,
       'reason-about-models': 54,
     },
+    skill_proficiency: {
+      'write-structure-prompts': { level: 4, confidence: 0.8, observations: 5 },
+      'evaluate-ai-critically': { level: 3, confidence: 0.6, observations: 3 },
+      'reason-about-models': { level: 1, confidence: 0.3, observations: 0 },
+      'write-clean-code': { level: 2, confidence: 0.7, observations: 2 },
+      // communicate-effectively intentionally omitted → N/A
+    },
     prior_knowledge_by_skill: {},
     apply_accuracy_by_skill: {},
     onboarding_assessment: null,
@@ -246,32 +253,44 @@ describe('BuilderSnapshot', () => {
     expect(container.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
   });
 
-  it('renders one radar per skill category', async () => {
+  it('renders skills grouped into category sections as Dreyfus bar meters', async () => {
     currentSearch = 'userId=42';
-    // FAKE_TAXONOMY has 3 categories — default route mock serves it.
     renderUI();
+    // Wait for the taxonomy fetch to resolve and groups to render.
     await waitFor(() => {
-      expect(screen.getAllByTestId('recharts-radar')).toHaveLength(3);
+      expect(screen.getByText('AI Fluency')).toBeInTheDocument();
     });
-    // Each category's chart renders its own <Radar /> series keyed by category.
-    expect(screen.getByTestId('recharts-series-ai')).toBeInTheDocument();
-    expect(screen.getByTestId('recharts-series-swe')).toBeInTheDocument();
-    expect(screen.getByTestId('recharts-series-pro')).toBeInTheDocument();
+    expect(screen.getByText('Software Engineering')).toBeInTheDocument();
+    // Skill names appear in their group (and may also appear in a leaderboard).
+    expect(screen.getAllByText('Write & Structure Prompts').length).toBeGreaterThan(0);
+    // Dreyfus level label renders (level 4 → Proficient).
+    expect(screen.getAllByText(/Proficient/).length).toBeGreaterThan(0);
+    // Professionalism only has an N/A skill → hidden in the assessed view.
+    expect(screen.queryByText('Professionalism')).toBeNull();
   });
 
-  it('clicking a category card opens an enlarged radar dialog', async () => {
+  it('the All toggle reveals unassessed (N/A) skills', async () => {
     currentSearch = 'userId=42';
     renderUI();
     await waitFor(() => {
-      expect(screen.getAllByTestId('recharts-radar')).toHaveLength(3);
+      expect(screen.getByText('AI Fluency')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: /enlarge ai fluency radar/i }));
-    // The dialog renders a 4th radar (the large one) plus the category title.
+    expect(screen.queryByText('Communicate Effectively')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(screen.getByText('Communicate Effectively')).toBeInTheDocument();
+    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
+  });
+
+  it('collapses a category section when its header is clicked', async () => {
+    currentSearch = 'userId=42';
+    renderUI();
     await waitFor(() => {
-      expect(screen.getAllByTestId('recharts-radar')).toHaveLength(4);
+      expect(screen.getByText('AI Fluency')).toBeInTheDocument();
     });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getAllByTestId('recharts-series-ai')).toHaveLength(2);
+    const header = screen.getByRole('button', { name: /AI Fluency/i });
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(header);
+    expect(header).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('renders the themed sections with markdown content', async () => {

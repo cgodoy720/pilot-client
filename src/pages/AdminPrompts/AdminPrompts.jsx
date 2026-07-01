@@ -8,6 +8,7 @@ import ModesTab from './components/ModesTab';
 import ContentGenerationPromptsTab from './components/ContentGenerationPromptsTab';
 import StatusTab from './components/StatusTab';
 import V2CoachEngineTab from './components/V2CoachEngineTab';
+import SkillTaxonomyTab from './components/SkillTaxonomyTab';
 import { usePermissions } from '../../hooks/usePermissions';
 import './AdminPrompts.css';
 
@@ -66,6 +67,12 @@ const AdminPrompts = () => {
               className="font-proxima-bold px-6 data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
             >
               V2 Coach Engine
+            </TabsTrigger>
+            <TabsTrigger
+              value="skills"
+              className="font-proxima-bold px-6 data-[state=active]:bg-[#4242EA] data-[state=active]:text-white"
+            >
+              Skill Taxonomy
             </TabsTrigger>
           </TabsList>
 
@@ -163,9 +170,18 @@ const AdminPrompts = () => {
             </Tabs>
           </TabsContent>
 
-          {/* V2 Coach Engine — single view, no sub-tabs needed */}
+          {/* V2 Coach Engine — sub-tabs live inside V2CoachEngineTab */}
           <TabsContent value="v2" className="m-0">
             <V2CoachEngineTab
+              showNotification={showNotification}
+              reloadPrompts={reloadPrompts}
+              canEdit={canEditPrompts}
+            />
+          </TabsContent>
+
+          {/* Skill Taxonomy — flat 45-skill model + Dreyfus level definitions */}
+          <TabsContent value="skills" className="m-0">
+            <SkillTaxonomyTab
               showNotification={showNotification}
               reloadPrompts={reloadPrompts}
               canEdit={canEditPrompts}
