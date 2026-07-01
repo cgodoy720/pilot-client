@@ -279,7 +279,13 @@ function ContentPreview() {
       feedback_slot: formData.feedback_slot,
       assessment_id: formData.assessment_id,
       persona: formData.persona,
-      ai_helper_mode: formData.ai_helper_mode
+      ai_helper_mode: formData.ai_helper_mode,
+      // v2 personalized-task fields (persisted via the edit endpoint whitelist)
+      v2_learning_goal: formData.v2_learning_goal,
+      v2_lesson_content: formData.v2_lesson_content,
+      v2_competency_criteria: formData.v2_competency_criteria,
+      v2_skill_tags: formData.v2_skill_tags,
+      v2_task_intent: formData.v2_task_intent
     };
     
     console.log('Saving task:', taskId, 'with updates:', taskUpdates);
@@ -1007,7 +1013,14 @@ function ContentPreview() {
           // Analysis fields
           should_analyze: taskData.should_analyze || false,
           analyze_deliverable: taskData.analyze_deliverable || false,
-          analysis_rubric: taskData.analysis_rubric || null
+          analysis_rubric: taskData.analysis_rubric || null,
+
+          // v2 personalized-task fields (createTask persists these)
+          v2_learning_goal: taskData.v2_learning_goal || null,
+          v2_lesson_content: taskData.v2_lesson_content || null,
+          v2_competency_criteria: taskData.v2_competency_criteria || null,
+          v2_skill_tags: taskData.v2_skill_tags || [],
+          v2_task_intent: taskData.v2_task_intent || null
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );

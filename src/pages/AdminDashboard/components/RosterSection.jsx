@@ -172,13 +172,28 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
       const data = await res.json();
       if (data.success) {
         setBuilders(prev => prev.map(b =>
-          b.user_id === builder.user_id ? { ...b, enrollment_status: newStatus } : b
+          b.user_id === builder.user_id ? { ...b, enrollment_status: newStatus, withdrawal_date: data.data?.withdrawal_date || b.withdrawal_date } : b
         ));
       }
     } catch (e) {
       console.error('Enrollment update failed:', e);
     } finally {
       setSavingEnrollmentId(null);
+    }
+  };
+
+  const handleWithdrawalDateSave = async (builder, newDate) => {
+    try {
+      await fetch(`${API_URL}/api/admin/dashboard/builder-enrollment/${builder.enrollment_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'withdrawn', withdrawalDate: newDate }),
+      });
+      setBuilders(prev => prev.map(b =>
+        b.user_id === builder.user_id ? { ...b, withdrawal_date: newDate } : b
+      ));
+    } catch (e) {
+      console.error('Withdrawal date update failed:', e);
     }
   };
 
@@ -269,7 +284,7 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
                       <SortHeader label="Feedback" sortKey="total_peer_feedback_count" sort={builderSort} onSort={toggleSort} className="px-2 text-center" />
                       <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">Grade Dist.</th>
                       <SortHeader label="Videos" sortKey="video_tasks_completed" sort={builderSort} onSort={toggleSort} className="px-2 text-center" />
-                      <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide">Enrollment</th>
+                      <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide text-left">Enrollment</th>
                       <th className="pb-2 px-2 font-medium text-slate-400 text-xs uppercase tracking-wide text-center">Manage</th>
                     </tr>
                   </thead>
@@ -310,21 +325,35 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
                             </button>
                           ) : <span className="text-xs text-slate-300">—</span>}
                         </td>
-                        <td className="py-2 px-2 text-center">
-                          {savingEnrollmentId === b.user_id ? (
-                            <span className="text-[10px] text-slate-400">Saving...</span>
-                          ) : (
-                            <select
-                              value={b.enrollment_status || 'in_progress'}
-                              onChange={(e) => handleQuickEnrollmentSave(b, e.target.value)}
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none appearance-none ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
-                            >
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                              <option value="withdrawn">Withdrawn</option>
-                              <option value="deferred">Deferred</option>
-                            </select>
-                          )}
+                        <td className="py-2 px-2">
+                          <div className="flex items-center gap-1.5">
+                            {savingEnrollmentId === b.user_id ? (
+                              <span className="text-[10px] text-slate-400">Saving...</span>
+                            ) : (
+                              <select
+                                value={b.enrollment_status || 'in_progress'}
+                                onChange={(e) => handleQuickEnrollmentSave(b, e.target.value)}
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer focus:outline-none appearance-none ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
+                              >
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="withdrawn">Withdrawn</option>
+                                <option value="deferred">Deferred</option>
+                              </select>
+                            )}
+                            {b.enrollment_status === 'withdrawn' && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-red-400">On:</span>
+                                <input
+                                  type="date"
+                                  value={b.withdrawal_date ? (typeof b.withdrawal_date === 'string' ? b.withdrawal_date.split('T')[0] : new Date(b.withdrawal_date).toISOString().split('T')[0]) : ''}
+                                  onChange={(e) => handleWithdrawalDateSave(b, e.target.value)}
+                                  className="text-[9px] text-red-500 bg-white border border-red-200 rounded px-1 py-0.5 focus:outline-none focus:border-red-400 w-28 cursor-pointer"
+                                  title="Withdrawal date"
+                                />
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2 px-2">
                           <div className="flex items-center gap-1 justify-center">
@@ -408,7 +437,7 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
                     <tr className="text-left text-slate-400 text-xs uppercase tracking-wide border-b border-[#E3E3E3]">
                       <th className="pb-2 pr-4 font-medium">Builder</th>
                       <th className="pb-2 px-2 font-medium">Attendance</th>
-                      <th className="pb-2 pl-2 font-medium">Enrollment Status</th>
+                      <th className="pb-2 pl-2 font-medium text-left">Enrollment Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#EFEFEF]">
@@ -425,30 +454,44 @@ const RosterSection = ({ selectedCohortId, cohorts }) => {
                           }`}>{b.attendance_percentage}%</span>
                         </td>
                         <td className="py-2.5 pl-2">
-                          {savingEnrollmentId === b.user_id ? (
-                            <span className="text-[10px] text-slate-400">Saving...</span>
-                          ) : editingEnrollmentId === b.user_id ? (
-                            <select
-                              autoFocus
-                              defaultValue={b.enrollment_status || 'in_progress'}
-                              onChange={(e) => handleQuickEnrollmentSave(b, e.target.value)}
-                              onBlur={() => setEditingEnrollmentId(null)}
-                              className="text-[10px] border border-[#4242EA] rounded px-1.5 py-0.5 bg-white text-[#1E1E1E] cursor-pointer focus:outline-none"
-                            >
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                              <option value="withdrawn">Withdrawn</option>
-                              <option value="deferred">Deferred</option>
-                            </select>
-                          ) : (
-                            <button
-                              onClick={() => setEditingEnrollmentId(b.user_id)}
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
-                              title="Click to edit"
-                            >
-                              {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {savingEnrollmentId === b.user_id ? (
+                              <span className="text-[10px] text-slate-400">Saving...</span>
+                            ) : editingEnrollmentId === b.user_id ? (
+                              <select
+                                autoFocus
+                                defaultValue={b.enrollment_status || 'in_progress'}
+                                onChange={(e) => handleQuickEnrollmentSave(b, e.target.value)}
+                                onBlur={() => setEditingEnrollmentId(null)}
+                                className="text-[10px] border border-[#4242EA] rounded px-1.5 py-0.5 bg-white text-[#1E1E1E] cursor-pointer focus:outline-none"
+                              >
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="withdrawn">Withdrawn</option>
+                                <option value="deferred">Deferred</option>
+                              </select>
+                            ) : (
+                              <button
+                                onClick={() => setEditingEnrollmentId(b.user_id)}
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
+                                title="Click to edit"
+                              >
+                                {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
+                              </button>
+                            )}
+                            {b.enrollment_status === 'withdrawn' && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-red-400">On:</span>
+                                <input
+                                  type="date"
+                                  value={b.withdrawal_date ? (typeof b.withdrawal_date === 'string' ? b.withdrawal_date.split('T')[0] : new Date(b.withdrawal_date).toISOString().split('T')[0]) : ''}
+                                  onChange={(e) => handleWithdrawalDateSave(b, e.target.value)}
+                                  className="text-[9px] text-red-500 bg-white border border-red-200 rounded px-1 py-0.5 focus:outline-none focus:border-red-400 w-28 cursor-pointer"
+                                  title="Withdrawal date"
+                                />
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -386,7 +386,10 @@ const AttendanceManagement = ({ cohortName = '', initialBuilder = null, compact 
       openEditDialog(existing);
       return;
     }
-    openCreateDialog(selectedBuilder, dateString, 'present');
+    // Check if there's a computed record (absent/excused with no attendance_id) and use its status as default
+    const computed = attendanceRecords.find((r) => formatDate(r.attendance_date) === dateString);
+    const defaultStatus = computed?.status || 'present';
+    openCreateDialog(selectedBuilder, dateString, defaultStatus);
   }, [attendanceRecords, openCreateDialog, openEditDialog, selectedBuilder]);
 
   const handlePrevMonth = useCallback(() => {

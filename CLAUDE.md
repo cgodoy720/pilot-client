@@ -175,6 +175,17 @@ Base URL: `VITE_API_URL` env (default `http://localhost:7001`)
 - **Prioritization**: urgent/high/medium/low with required justification
 - **Backlog view**: `PlatformIntakeBacklog.jsx` — admin/staff can see all submissions
 
+## Curriculum task authoring (ContentPreview)
+
+The Create/Edit task dialogs (`components/curriculum/TaskCreateDialog.jsx`, `TaskEditDialog.jsx`) on the ContentPreview page (`/content/*`) share the same layout: an **Interface Type** selector at top (Chat / Survey / Assessment / Break / **Onboarding**), and — only for Chat — a **Task Mode** selector directly under it.
+
+- **Onboarding interface** (`task_type:'onboarding'`, `feedback_slot:null`, `task_mode:'basic'`): recognized purely by `task_type='onboarding'` (the routing key `Learning.jsx` reads to render the Day-0 chat experience). The modal shows only Title + Description + Time for it (matches the live "Meet Your Coach" task) — no mode selector, no AI/v2 sections.
+- **Task Mode** (`components/curriculum/TaskModeSelector.jsx`): a `RadioGroup`-backed set of selectable cards (Basic / Conversation / Personalized), mutually exclusive by construction, each with a definition subtitle. Replaced the old single "Conversation Mode" checkbox. Placed near the top (right after Interface Type), so the form structure follows the chosen mode.
+- **Conversation** → reveals the AI Persona / AI Helper Mode selects (Create dialog).
+- **Personalized** → reveals **`components/curriculum/PersonalizedTaskFields.jsx`**, the editor for the v2 fields: `v2_learning_goal`, `v2_competency_criteria` (repeatable {criterion, description} rows), `v2_lesson_content` (markdown), `v2_task_intent`, and **`v2_skill_tags`** via a searchable taxonomy multi-select (Popover + checkbox list) sourced from `GET /api/curriculum/skill-tags` (helper: `utils/skillTagsApi.js`, module-cached). `v2_is_personalized` is intentionally NOT surfaced — it's vestigial; the engine routes purely off `task_mode='personalized'`.
+
+`ContentPreview.handleCreateTask` / `handleSaveTask` forward the `v2_*` fields; server-side `createTask` already inserted them and `updateTaskWithHistory`'s `allowedFields` was extended to persist them (edit pre-fill comes from `getDayFullDetails`/`...ByDayNumber`, which now SELECT the `v2_*` cols). (Also fixed a latent bad import in `components/ui/radio-group.jsx`: `cn` from the unresolvable bare path `"src/lib/utils"` → `"../../lib/utils"`; it had no prior consumer so it never surfaced.)
+
 ## Coach / Learning deliverable panel
 
 The V2 Coach APPLY-phase deliverable panel (`src/pages/Learning/components/DeliverablePanel/`) supports file and URL deliverables in addition to image/video/structured/link/document.

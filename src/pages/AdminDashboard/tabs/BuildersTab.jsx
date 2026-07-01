@@ -187,13 +187,31 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
       const data = await res.json();
       if (data.success) {
         setBuilders(prev => prev.map(b =>
-          b.user_id === builder.user_id ? { ...b, enrollment_status: newStatus } : b
+          b.user_id === builder.user_id ? { ...b, enrollment_status: newStatus, withdrawal_date: data.data?.withdrawal_date || b.withdrawal_date } : b
         ));
       }
     } catch (e) {
       console.error('Enrollment update failed:', e);
     } finally {
       setSavingEnrollmentId(null);
+    }
+  };
+
+  const handleWithdrawalDateSave = async (builder, newDate) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/builder-enrollment/${builder.enrollment_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'withdrawn', withdrawalDate: newDate }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBuilders(prev => prev.map(b =>
+          b.user_id === builder.user_id ? { ...b, withdrawal_date: newDate } : b
+        ));
+      }
+    } catch (e) {
+      console.error('Withdrawal date update failed:', e);
     }
   };
 
@@ -319,13 +337,27 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
                               <option value="deferred">Deferred</option>
                             </select>
                           ) : (
-                            <button
-                              onClick={() => setEditingEnrollmentId(b.user_id)}
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
-                              title="Click to edit"
-                            >
-                              {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => setEditingEnrollmentId(b.user_id)}
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
+                                title="Click to edit"
+                              >
+                                {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
+                              </button>
+                              {b.enrollment_status === 'withdrawn' && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] text-red-400">On:</span>
+                                  <input
+                                    type="date"
+                                    value={b.withdrawal_date ? (typeof b.withdrawal_date === 'string' ? b.withdrawal_date.split('T')[0] : new Date(b.withdrawal_date).toISOString().split('T')[0]) : ''}
+                                    onChange={(e) => handleWithdrawalDateSave(b, e.target.value)}
+                                    className="text-[9px] text-red-500 bg-white border border-red-200 rounded px-1 py-0.5 focus:outline-none focus:border-red-400 w-28 cursor-pointer"
+                                    title="Withdrawal date"
+                                  />
+                                </div>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="py-2 px-2">
@@ -443,13 +475,27 @@ const BuildersTab = ({ selectedCohortId, cohorts }) => {
                               <option value="deferred">Deferred</option>
                             </select>
                           ) : (
-                            <button
-                              onClick={() => setEditingEnrollmentId(b.user_id)}
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
-                              title="Click to edit"
-                            >
-                              {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => setEditingEnrollmentId(b.user_id)}
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${ENROLLMENT_BADGE[b.enrollment_status || 'in_progress']}`}
+                                title="Click to edit"
+                              >
+                                {ENROLLMENT_LABELS[b.enrollment_status || 'in_progress']}
+                              </button>
+                              {b.enrollment_status === 'withdrawn' && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] text-red-400">On:</span>
+                                  <input
+                                    type="date"
+                                    value={b.withdrawal_date ? (typeof b.withdrawal_date === 'string' ? b.withdrawal_date.split('T')[0] : new Date(b.withdrawal_date).toISOString().split('T')[0]) : ''}
+                                    onChange={(e) => handleWithdrawalDateSave(b, e.target.value)}
+                                    className="text-[9px] text-red-500 bg-white border border-red-200 rounded px-1 py-0.5 focus:outline-none focus:border-red-400 w-28 cursor-pointer"
+                                    title="Withdrawal date"
+                                  />
+                                </div>
+                              )}
+                            </div>
                           )}
                         </td>
                       </tr>
