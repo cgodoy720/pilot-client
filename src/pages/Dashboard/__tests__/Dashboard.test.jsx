@@ -543,6 +543,64 @@ describe('Dashboard Component', () => {
         const disabledButtons = allButtons.filter(btn => btn.disabled);
         expect(disabledButtons.length).toBeGreaterThan(0);
       });
+
+      // L3+ rolling joiner: the server omits pre-enrollment weeks, so the payload's
+      // first week can be > 1. Navigation must bottom out at the first VISIBLE week,
+      // not week 1 (regression: prev chevron used `currentWeek > 1`).
+      it('should disable prev on the first visible week when weeks start after week 1 (L3+ rolling joiner)', async () => {
+        const mockData = {
+          day: { daily_goal: 'Test', week: 16, level: 'L3+', weekly_goal: 'Week 16' },
+          timeBlocks: [],
+          taskProgress: [],
+          missedAssignmentsCount: 0,
+          weeks: [{ weekNumber: 16, weeklyGoal: 'Week 16', days: [] }],
+        };
+
+        global.fetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockData
+        });
+
+        renderDashboard();
+
+        await waitFor(() => {
+          expect(screen.queryByTestId('loading-curtain')).not.toBeInTheDocument();
+        });
+
+        const prevButtons = screen.getAllByRole('button')
+          .filter(btn => btn.querySelector('svg.lucide-chevron-left'));
+        expect(prevButtons.length).toBeGreaterThan(0);
+        prevButtons.forEach(btn => expect(btn).toBeDisabled());
+      });
+
+      it('should enable prev when an earlier visible week exists in the payload', async () => {
+        const mockData = {
+          day: { daily_goal: 'Test', week: 16, level: 'L3+', weekly_goal: 'Week 16' },
+          timeBlocks: [],
+          taskProgress: [],
+          missedAssignmentsCount: 0,
+          weeks: [
+            { weekNumber: 15, weeklyGoal: 'Week 15', days: [] },
+            { weekNumber: 16, weeklyGoal: 'Week 16', days: [] },
+          ],
+        };
+
+        global.fetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockData
+        });
+
+        renderDashboard();
+
+        await waitFor(() => {
+          expect(screen.queryByTestId('loading-curtain')).not.toBeInTheDocument();
+        });
+
+        const prevButtons = screen.getAllByRole('button')
+          .filter(btn => btn.querySelector('svg.lucide-chevron-left'));
+        expect(prevButtons.length).toBeGreaterThan(0);
+        expect(prevButtons.some(btn => !btn.disabled)).toBe(true);
+      });
     });
   });
 
