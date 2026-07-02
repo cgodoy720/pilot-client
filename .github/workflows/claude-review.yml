@@ -25,6 +25,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: true
           prompt: |
-            Review this pull request. Focus only on: security issues, bugs, and breaking changes.
-            Be concise. Post a single summary comment with your findings. Skip minor style issues.
-          claude_args: "--model claude-sonnet-4-6 --max-turns 80 --allowedTools Bash,Read,Glob,Grep,WebSearch"
+            Do not use the Skill tool or any /review slash command — perform this review directly.
+            Run `git diff origin/main...HEAD` yourself to get the PR's changes, read the affected
+            files, and review for security issues, bugs, and breaking changes. Be concise. Post a
+            single summary comment with your findings. Skip minor style issues.
+          claude_args: "--model claude-sonnet-4-6 --max-turns 80 --allowedTools Bash,Read,Glob,Grep,WebSearch --disallowedTools Skill"
