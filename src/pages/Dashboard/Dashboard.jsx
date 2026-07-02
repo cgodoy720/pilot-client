@@ -236,11 +236,16 @@ function Dashboard() {
       } else if (data.day) {
         setCurrentLevel(data.day.level || 1);
 
-        // Use pending week if user explicitly selected one, otherwise use current day's week
+        // Use pending week if user explicitly selected one, otherwise use current day's week.
+        // Clamp to a week that's actually in the payload — an L3+ rolling joiner's
+        // pre-enrollment weeks are omitted by the server (mirrors the explicit-cohort
+        // fallback above).
         if (pendingWeek !== null) {
-          setCurrentWeek(pendingWeek);
+          const selectedWeekData = (data.weeks || []).find(w => w.weekNumber === pendingWeek)
+            || (data.weeks || [])[data.weeks.length - 1];
+          const resolvedWeek = selectedWeekData?.weekNumber ?? data.day.week;
+          setCurrentWeek(resolvedWeek);
           // Find the weekly goal for the selected week
-          const selectedWeekData = (data.weeks || []).find(w => w.weekNumber === pendingWeek);
           setWeeklyGoal(selectedWeekData?.weeklyGoal || data.day.weekly_goal || '');
           setPendingWeek(null); // Clear pending week after using it
         } else {
@@ -271,6 +276,17 @@ function Dashboard() {
     const week = allWeeksData.find(w => w.weekNumber === currentWeek);
     return week?.days || [];
   }, [currentWeek, allWeeksData]);
+
+  // Weeks actually present in the payload. For an L3+ rolling joiner the server omits
+  // pre-enrollment weeks, so all navigation (chevrons + dropdowns) must step through
+  // this list — never raw week arithmetic from 1.
+  const availableWeeks = useMemo(
+    () => allWeeksData.map(w => w.weekNumber).sort((a, b) => a - b),
+    [allWeeksData]
+  );
+  const currentWeekIndex = availableWeeks.indexOf(currentWeek);
+  const hasPrevWeek = currentWeekIndex > 0;
+  const hasNextWeek = currentWeekIndex !== -1 && currentWeekIndex < availableWeeks.length - 1;
   
   // NEW: Fetch completion status for all tasks in current week
   useEffect(() => {
@@ -317,17 +333,16 @@ function Dashboard() {
   // Memoized navigation handlers
   const navigateToWeek = useCallback(async (direction) => {
     if (!currentWeek) return;
-    
-    const newWeek = direction === 'prev' ? currentWeek - 1 : currentWeek + 1;
-    
-    // Don't go below week 1
-    if (newWeek < 1) return;
-    
-    // Don't go past the current week (the week from currentDay)
-    if (direction === 'next' && currentDay?.week && newWeek > currentDay.week) {
-      return;
-    }
-    
+
+    // Step through the weeks the server actually returned — for an L3+ rolling joiner
+    // the payload starts at their enrollment week, so index math (not week ± 1) keeps
+    // navigation inside the visible range and skips any gaps.
+    const index = availableWeeks.indexOf(currentWeek);
+    if (index === -1) return;
+    const newIndex = direction === 'prev' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= availableWeeks.length) return;
+    const newWeek = availableWeeks[newIndex];
+
     // Phase 1: Slide out old cards
     const slideOutDirection = direction === 'prev' ? 'out-right' : 'out-left';
     setSlideDirection(slideOutDirection);
@@ -356,7 +371,7 @@ function Dashboard() {
     setTimeout(() => {
       setSlideDirection(null);
     }, 1000);
-  }, [currentWeek, currentDay?.week, allWeeksData]);
+  }, [currentWeek, availableWeeks, allWeeksData]);
 
   // Handle continue session button click
   const handleContinueSession = useCallback(() => {
@@ -695,16 +710,16 @@ function Dashboard() {
             <div className="dashboard__date-picker">
               <button
                 className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                  currentWeek > 1
+                  hasPrevWeek
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer'
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
                 style={{ borderRadius: '.5rem' }}
                 onClick={() => navigateToWeek('prev')}
-                disabled={currentWeek <= 1 || slideDirection !== null}
+                disabled={!hasPrevWeek || slideDirection !== null}
               >
-                <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
-                {currentWeek > 1 && (
+                <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${hasPrevWeek ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
+                {hasPrevWeek && (
                   <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
               </button>
@@ -753,8 +768,13 @@ function Dashboard() {
                         <SelectLabel className="text-sm font-bold text-carbon-black text-left px-3 py-1.5">
                           {enrollment.cohort_name}
                         </SelectLabel>
-                        {/* Show actual weeks for this cohort */}
-                        {Array.from({ length: enrollment.max_week || 12 }, (_, i) => i + 1).map((week) => (
+                        {/* Weeks visible to THIS builder for this cohort — min_week is
+                            server-computed and > 1 for an L3+ rolling joiner, so their
+                            pre-enrollment weeks never appear in the picker */}
+                        {Array.from(
+                          { length: Math.max(0, (enrollment.max_week || 12) - (enrollment.min_week || 1) + 1) },
+                          (_, i) => (enrollment.min_week || 1) + i
+                        ).map((week) => (
                           <SelectItem
                             key={`${enrollment.cohort_name}|${week}`}
                             value={`${enrollment.cohort_name}|${week}`}
@@ -766,8 +786,8 @@ function Dashboard() {
                       </SelectGroup>
                     ))
                   ) : (
-                    // Single cohort - show weeks only
-                    Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
+                    // Single cohort - only the weeks present in the payload
+                    availableWeeks.map((week) => (
                       <SelectItem key={week} value={`${currentDay?.cohort}|${week}`}>
                         Week {String(week).padStart(2, '0')}
                       </SelectItem>
@@ -778,16 +798,16 @@ function Dashboard() {
 
               <button
                 className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                  currentDay?.week && currentWeek < currentDay.week
+                  hasNextWeek
                     ? 'bg-[#EFEFEF] border border-pursuit-purple text-pursuit-purple cursor-pointer'
                     : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
                 }`}
                 style={{ borderRadius: '.5rem' }}
                 onClick={() => navigateToWeek('next')}
-                disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
+                disabled={!hasNextWeek || slideDirection !== null}
               >
-                <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
-                {currentDay?.week && currentWeek < currentDay.week && (
+                <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${hasNextWeek ? 'group-hover:!text-white' : ''}`} strokeWidth={0.8} />
+                {hasNextWeek && (
                   <div className="absolute inset-0 bg-pursuit-purple -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
                 )}
               </button>
@@ -1278,16 +1298,16 @@ function Dashboard() {
           <div className="dashboard__mobile-date-picker">
             <button
               className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                currentWeek > 1 
-                  ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                hasPrevWeek
+                  ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer'
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
               style={{ borderRadius: '.5rem' }}
               onClick={() => navigateToWeek('prev')}
-              disabled={currentWeek <= 1 || slideDirection !== null}
+              disabled={!hasPrevWeek || slideDirection !== null}
             >
-              <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentWeek > 1 ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={0.8} />
-              {currentWeek > 1 && (
+              <ChevronLeft className={`w-10 h-10 relative z-10 transition-colors duration-300 ${hasPrevWeek ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={0.8} />
+              {hasPrevWeek && (
                 <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               )}
             </button>
@@ -1319,7 +1339,8 @@ function Dashboard() {
                 <SelectValue>Week {String(currentWeek).padStart(2, '0')}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {Array.from({ length: currentDay?.week || 1 }, (_, i) => i + 1).map((week) => (
+                {/* Only the weeks present in the payload — pre-enrollment L3+ weeks are omitted */}
+                {availableWeeks.map((week) => (
                   <SelectItem key={week} value={String(week)}>
                     Week {String(week).padStart(2, '0')}
                   </SelectItem>
@@ -1329,16 +1350,16 @@ function Dashboard() {
             
             <button
               className={`group relative overflow-hidden inline-flex items-center justify-center w-10 h-10 transition-all duration-300 ${
-                currentDay?.week && currentWeek < currentDay.week
-                  ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer' 
+                hasNextWeek
+                  ? 'bg-pursuit-purple border border-pursuit-purple text-white cursor-pointer'
                   : 'bg-background border border-divider text-divider cursor-not-allowed opacity-100'
               }`}
               style={{ borderRadius: '.5rem' }}
               onClick={() => navigateToWeek('next')}
-              disabled={!currentDay?.week || currentWeek >= currentDay.week || slideDirection !== null}
+              disabled={!hasNextWeek || slideDirection !== null}
             >
-              <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${currentDay?.week && currentWeek < currentDay.week ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={0.8} />
-              {currentDay?.week && currentWeek < currentDay.week && (
+              <ChevronRight className={`w-10 h-10 relative z-10 transition-colors duration-300 ${hasNextWeek ? 'group-hover:!text-pursuit-purple' : ''}`} strokeWidth={0.8} />
+              {hasNextWeek && (
                 <div className="absolute inset-0 bg-[#EFEFEF] -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
               )}
             </button>
