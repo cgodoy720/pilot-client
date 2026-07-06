@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import useAuthStore from '../../../stores/authStore';
 import { getLearnerRoster, getBuilderProfileSnapshot } from '../../../services/builderProfilesApi';
-import { Loader2, AlertCircle, RefreshCw, ChevronRight, ChevronDown } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, ChevronRight, ChevronDown, Download } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // LearnerProfiles — INTERNAL, temporary Coach-page tab.
@@ -59,6 +59,27 @@ const fieldEntries = (fields) => {
   return [];
 };
 
+// RFC 4180 quoting + formula-injection guard (same treatment as FormSubmissions).
+const escapeCsv = (value) => {
+  if (value === null || value === undefined) return '';
+  let str = String(value);
+  if (/^[=+\-@]/.test(str)) str = `'${str}`;
+  if (/[",\n\r]/.test(str)) str = `"${str.replace(/"/g, '""')}"`;
+  return str;
+};
+
+const downloadCsv = (csv, filename) => {
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 const renderVal = (v) => {
   if (v == null || v === '') return '—';
   if (Array.isArray(v)) return v.join(', ');
@@ -76,6 +97,7 @@ function LearnerProfiles() {
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});
   const [expandTab, setExpandTab] = useState('profile'); // 'profile' | 'transcript'
+  const [onboardFilter, setOnboardFilter] = useState('all'); // 'all' | 'yes' | 'no'
 
   const toggleRow = useCallback(async (userId) => {
     if (expanded === userId) { setExpanded(null); return; }
@@ -125,6 +147,27 @@ function LearnerProfiles() {
   const selected = data?.selectedCohort || 'all';
   const summary = data?.summary;
   const rows = data?.rows || [];
+  const filteredRows =
+    onboardFilter === 'all' ? rows : rows.filter((r) => !!r.onboarded === (onboardFilter === 'yes'));
+
+  // Exports what's on screen — the onboarded filter + cohort scope carry through.
+  const exportCsv = () => {
+    const headers = ['First name', 'Last name', 'Email', 'Cohort', 'Teaching method', 'Confidence', 'Onboarded', 'Updated'];
+    const lines = filteredRows.map((r) => [
+      r.first_name,
+      r.last_name,
+      r.email,
+      r.cohort,
+      prettyMethod(r.teaching_method),
+      r.confidence != null ? `${Math.round(parseFloat(r.confidence) * 100)}%` : '',
+      r.onboarded ? 'Yes' : 'No',
+      r.updated_at ? new Date(r.updated_at).toISOString() : '',
+    ]);
+    const csv = [headers, ...lines].map((row) => row.map(escapeCsv).join(',')).join('\n');
+    const filterSlug = onboardFilter === 'all' ? 'all' : onboardFilter === 'yes' ? 'onboarded' : 'not-onboarded';
+    const cohortSlug = (selected === 'all' ? 'all-builders' : selected).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    downloadCsv(csv, `learner-profiles-${cohortSlug}-${filterSlug}.csv`);
+  };
 
   return (
     <div className="h-full overflow-y-auto bg-[#EFEFEF] font-proxima px-6 py-5">
@@ -135,6 +178,17 @@ function LearnerProfiles() {
           Internal · temporary
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center border border-[#E3E3E3] rounded-md bg-white overflow-hidden">
+            {[['all', 'All'], ['yes', 'Onboarded'], ['no', 'Not onboarded']].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setOnboardFilter(key)}
+                className={`px-2.5 py-1.5 text-sm font-proxima ${onboardFilter === key ? 'bg-[#4242EA] text-white font-semibold' : 'text-[#666] hover:bg-slate-50'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <select
             value={selected}
             onChange={onCohortChange}
@@ -152,6 +206,13 @@ function LearnerProfiles() {
             className="flex items-center gap-1.5 text-sm font-proxima border border-[#E3E3E3] rounded-md px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#1E1E1E]"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
+          <button
+            onClick={exportCsv}
+            disabled={filteredRows.length === 0}
+            className="flex items-center gap-1.5 text-sm font-proxima border border-[#E3E3E3] rounded-md px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#1E1E1E] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
         </div>
       </div>
@@ -208,10 +269,14 @@ function LearnerProfiles() {
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-[#666]">No builders in this cohort.</td></tr>
+                {filteredRows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-[#666]">
+                      {rows.length === 0 ? 'No builders in this cohort.' : 'No builders match this filter.'}
+                    </td>
+                  </tr>
                 )}
-                {rows.map((r) => {
+                {filteredRows.map((r) => {
                   const methodKey = r.teaching_method || 'balanced / none';
                   const conf = r.confidence != null ? Math.round(parseFloat(r.confidence) * 100) : null;
                   const name = [r.first_name, r.last_name].filter(Boolean).join(' ') || r.email;
