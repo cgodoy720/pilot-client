@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useAuthStore from '../../../stores/authStore';
 import MetricDetailDrawer from './MetricDetailDrawer';
+import { combineNps, latestWeekRows, totalResponses } from '../utils/npsUtils';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 const LEGACY_API = 'https://ai-pilot-admin-dashboard-866060457933.us-central1.run.app/api';
@@ -38,19 +39,18 @@ const MetricsBar = ({ selectedCohortId, cohorts, programSlug = 'ai-native-builde
       // Build NPS map
       const map = {};
       if (Array.isArray(nps)) {
+        const rowsByCohort = {};
         nps.forEach(d => {
-          if (!map[d.cohort]) map[d.cohort] = { scores: [], latest: null, latestWeek: -1, latestResponses: 0, responseCounts: [] };
-          map[d.cohort].scores.push(d.nps);
-          map[d.cohort].responseCounts.push(d.total_responses || 0);
-          if (d.program_week > map[d.cohort].latestWeek) {
-            map[d.cohort].latest = Math.round(d.nps);
-            map[d.cohort].latestWeek = d.program_week;
-            map[d.cohort].latestResponses = d.total_responses || 0;
-          }
+          (rowsByCohort[d.cohort] = rowsByCohort[d.cohort] || []).push(d);
         });
-        Object.values(map).forEach(v => {
-          v.allTime = v.scores.length ? Math.round(v.scores.reduce((a, b) => a + b, 0) / v.scores.length) : null;
-          v.totalResponses = v.responseCounts.reduce((a, b) => a + b, 0);
+        Object.entries(rowsByCohort).forEach(([cohort, rows]) => {
+          const latestRows = latestWeekRows(rows);
+          map[cohort] = {
+            latest: combineNps(latestRows),
+            latestResponses: totalResponses(latestRows),
+            allTime: combineNps(rows),
+            totalResponses: totalResponses(rows),
+          };
         });
       }
       setNpsMap(map);

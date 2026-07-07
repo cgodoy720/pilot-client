@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
 import useAuthStore from '../../../stores/authStore';
+import { combineNps, latestWeekRows, weekStartIso } from '../utils/npsUtils';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 const PAGE_SIZE = 10;
@@ -89,38 +90,47 @@ const SurveyTab = ({ selectedCohortId, cohorts = [] }) => {
   const { chartData, cohortNames, cohortSummary } = useMemo(() => {
     const weekMap = {};
     const cohortSet = new Set();
-    const summaryMap = {};
+    const rowsByCohort = {};
 
     filteredNpsData.forEach((d) => {
+      const ws = weekStartIso(d);
       // Program mode → "Week 1", "Week 2", etc. Calendar mode → "Dec 13", "Jan 24", etc.
       const weekLabel = npsMode === 'program'
         ? `Week ${d.program_week}`
-        : d.week_start?.value
-          ? new Date(d.week_start.value + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : ws
+          ? new Date(ws + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           : `Week ${d.program_week}`;
-      // In program mode, key by program_week number so cohorts with the same week # share a row
-      const weekKey = npsMode === 'program' ? `w${d.program_week}` : weekLabel;
-      if (!weekMap[weekKey]) weekMap[weekKey] = { week: weekLabel, _sortKey: d.program_week };
-      weekMap[weekKey][d.cohort] = Math.round(d.nps);
+      // Program mode keys by week number so cohorts with the same week # share a row;
+      // calendar mode keys by week_start date — labels like "Dec 13" collide across years
+      const weekKey = npsMode === 'program' ? `w${d.program_week}` : (ws || weekLabel);
+      if (!weekMap[weekKey]) {
+        weekMap[weekKey] = {
+          week: weekLabel,
+          _sortKey: npsMode === 'program' ? d.program_week : (ws || ''),
+          _rows: {},
+        };
+      }
+      // The same week can arrive as multiple rows (a program week spanning two calendar
+      // weeks, or vice versa) — collect and combine instead of overwriting
+      (weekMap[weekKey]._rows[d.cohort] = weekMap[weekKey]._rows[d.cohort] || []).push(d);
       cohortSet.add(d.cohort);
-
-      if (!summaryMap[d.cohort]) summaryMap[d.cohort] = { cohort: d.cohort, allNps: [], latestNps: null };
-      summaryMap[d.cohort].allNps.push(d.nps);
-      summaryMap[d.cohort].latestNps = d.nps;
+      (rowsByCohort[d.cohort] = rowsByCohort[d.cohort] || []).push(d);
     });
 
     const names = [...cohortSet];
-    const summary = Object.values(summaryMap).map(s => ({
-      cohort: s.cohort,
-      npsThisWeek: s.latestNps !== null ? Math.round(s.latestNps) : null,
-      npsAllTime: s.allNps.length > 0 ? Math.round(s.allNps.reduce((a, b) => a + b, 0) / s.allNps.length) : null,
+    const summary = Object.entries(rowsByCohort).map(([cohort, rows]) => ({
+      cohort,
+      npsThisWeek: combineNps(latestWeekRows(rows)),
+      npsAllTime: combineNps(rows),
     }));
 
-    // Sort chart data: program mode by week number, calendar mode by date
-    const sortedChart = Object.values(weekMap).sort((a, b) => {
-      if (npsMode === 'program') return (a._sortKey || 0) - (b._sortKey || 0);
-      return (a.week || '').localeCompare(b.week || '');
-    });
+    const sortedChart = Object.values(weekMap)
+      .sort((a, b) => (a._sortKey < b._sortKey ? -1 : a._sortKey > b._sortKey ? 1 : 0))
+      .map(({ week, _rows }) => {
+        const row = { week };
+        Object.entries(_rows).forEach(([cohort, rows]) => { row[cohort] = combineNps(rows); });
+        return row;
+      });
 
     return {
       chartData: sortedChart,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import useAuthStore from '../../../stores/authStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../../components/ui/sheet';
+import { combineNps, latestWeekRows, totalResponses, weekStartIso } from '../utils/npsUtils';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:7001';
 
@@ -100,28 +101,20 @@ const CohortComparisonTab = ({ programSlug = 'ai-native-builder' }) => {
 
       const map = {};
       if (Array.isArray(nps)) {
+        const rowsByCohort = {};
         nps.forEach(d => {
-          if (!map[d.cohort]) map[d.cohort] = {
-            scores: [], latest: null, latestWeek: -1,
-            responseCounts: [], latestResponses: 0,
-            latestWeekStart: null, latestWeekEnd: null,
-          };
-          map[d.cohort].scores.push(d.nps);
-          map[d.cohort].responseCounts.push(d.total_responses || 0);
-          if (d.program_week > map[d.cohort].latestWeek) {
-            map[d.cohort].latest = Math.round(d.nps);
-            map[d.cohort].latestWeek = d.program_week;
-            map[d.cohort].latestResponses = d.total_responses || 0;
-            map[d.cohort].latestWeekStart = d.week_start?.value || null;
-            map[d.cohort].latestWeekEnd = d.week_end?.value || null;
-          }
+          (rowsByCohort[d.cohort] = rowsByCohort[d.cohort] || []).push(d);
         });
-        Object.values(map).forEach(v => {
-          v.allTime = v.scores.length ? Math.round(v.scores.reduce((a, b) => a + b, 0) / v.scores.length) : null;
-          v.totalResponses = v.responseCounts.reduce((a, b) => a + b, 0);
-          delete v.scores;
-          delete v.latestWeek;
-          delete v.responseCounts;
+        Object.entries(rowsByCohort).forEach(([cohort, rows]) => {
+          const latestRows = latestWeekRows(rows);
+          map[cohort] = {
+            latest: combineNps(latestRows),
+            latestResponses: totalResponses(latestRows),
+            latestWeekStart: latestRows.length ? weekStartIso(latestRows[0]) : null,
+            latestWeekEnd: latestRows.length ? (latestRows[0].week_end?.value ? String(latestRows[0].week_end.value).slice(0, 10) : null) : null,
+            allTime: combineNps(rows),
+            totalResponses: totalResponses(rows),
+          };
         });
       }
       setNpsMap(map);
