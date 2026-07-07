@@ -308,8 +308,8 @@ export default function PlatformIntake() {
   return (
     <Layout>
       <TooltipProvider openDelay={300} closeDelay={150}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 pb-20">
-          <div className="mb-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-10">
+          <div className="mb-5">
             <h1 className="text-2xl font-semibold text-gray-800 mb-1">Platform Intake</h1>
             <p className="text-gray-500 text-sm">
               Report a bug or request a new feature. All fields are required. Requests are reviewed on a regular basis.
@@ -317,11 +317,11 @@ export default function PlatformIntake() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm lg:grid lg:grid-cols-[5fr_7fr]">
               {/* Type */}
-              <div className="px-6 py-6 sm:px-8">
+              <div className="px-6 py-5 sm:px-8 border-b border-gray-100 lg:col-start-1 lg:row-start-1">
                 <SectionHeading step="1" title="What kind of request is this?" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
                   {TYPE_OPTIONS.map(({ value, label, icon: Icon, blurb }) => {
                     const selected = form.type === value;
                     return (
@@ -331,7 +331,7 @@ export default function PlatformIntake() {
                         aria-label={label}
                         aria-pressed={selected}
                         onClick={() => handleTypeChange(value)}
-                        className={`relative text-left rounded-lg border p-4 transition-colors ${
+                        className={`relative text-left rounded-lg border p-3 transition-colors ${
                           selected
                             ? 'border-[#4242EA] ring-2 ring-[#4242EA]/20 bg-[#4242EA]/[0.03]'
                             : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -339,7 +339,7 @@ export default function PlatformIntake() {
                       >
                         <div className="flex items-start gap-3">
                           <span
-                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
                               selected ? 'bg-[#4242EA] text-white' : 'bg-gray-100 text-gray-500'
                             }`}
                           >
@@ -371,7 +371,7 @@ export default function PlatformIntake() {
               </div>
 
               {/* Reporter */}
-              <div className="px-6 py-6 sm:px-8">
+              <div className="px-6 py-5 sm:px-8 border-b border-gray-100 lg:col-start-1 lg:row-start-2">
                 <SectionHeading step="2" title="Who's reporting" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -407,13 +407,13 @@ export default function PlatformIntake() {
               </div>
 
               {/* Details */}
-              <div className="px-6 py-6 sm:px-8">
+              <div className="px-6 py-5 sm:px-8 border-b border-gray-100 lg:border-b-0 lg:border-l lg:col-start-2 lg:row-start-1 lg:row-span-3">
                 <SectionHeading
-                  step="3"
+                  step="4"
                   title={form.type === 'bug' ? 'What happened' : 'What do you need'}
                   hint="The more descriptive you are, the better our team can address it."
                 />
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <div>
                     <FieldLabel htmlFor="title" required tooltip={t.title}>
                       Title
@@ -523,9 +523,9 @@ export default function PlatformIntake() {
               </div>
 
               {/* Prioritization */}
-              <div className="px-6 py-6 sm:px-8">
-                <SectionHeading step="4" title="How urgent is it?" />
-                <div className="space-y-5">
+              <div className="px-6 py-5 sm:px-8 border-b border-gray-100 lg:border-b-0 lg:col-start-1 lg:row-start-3">
+                <SectionHeading step="3" title="How urgent is it?" />
+                <div className="space-y-4">
                   <div>
                     <FieldLabel
                       htmlFor="recommended_prioritization"
@@ -578,7 +578,7 @@ export default function PlatformIntake() {
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 sm:px-8 bg-gray-50 rounded-b-xl">
+              <div className="px-6 py-4 sm:px-8 bg-gray-50 rounded-b-xl border-t border-gray-100 lg:col-span-2 lg:row-start-4">
                 {error && (
                   <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 mb-3">
                     {error}
