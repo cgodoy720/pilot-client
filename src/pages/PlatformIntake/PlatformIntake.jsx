@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info } from 'lucide-react';
+import { Info, Bug, Lightbulb, CheckCircle2, UploadCloud } from 'lucide-react';
 import Layout from '../../components/Layout/Layout';
 import {
   Tooltip,
@@ -152,9 +152,24 @@ const TOOLTIPS = {
   },
 };
 
+const TYPE_OPTIONS = [
+  {
+    value: 'bug',
+    label: 'Bug',
+    icon: Bug,
+    blurb: 'Something on the platform is broken, not working as expected, or producing an error.',
+  },
+  {
+    value: 'feature',
+    label: 'Feature',
+    icon: Lightbulb,
+    blurb: "Request something new — a capability, improvement, or addition that doesn't exist yet.",
+  },
+];
+
 function FieldLabel({ htmlFor, children, required, tooltip, wide }) {
   return (
-    <div className="mb-1 flex items-center gap-1.5">
+    <div className="mb-1.5 flex items-center gap-1.5">
       <label htmlFor={htmlFor} className="text-sm font-medium text-gray-700">
         {children} {required && <span className="text-red-500">*</span>}
       </label>
@@ -172,6 +187,20 @@ function FieldLabel({ htmlFor, children, required, tooltip, wide }) {
           <TooltipContent className={wide ? 'max-w-sm' : 'max-w-xs'}>{tooltip}</TooltipContent>
         </Tooltip>
       )}
+    </div>
+  );
+}
+
+function SectionHeading({ step, title, hint }) {
+  return (
+    <div className="mb-4">
+      <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4242EA]/10 text-[#4242EA] text-xs font-bold">
+          {step}
+        </span>
+        {title}
+      </h2>
+      {hint && <p className="text-xs text-gray-400 mt-1 ml-7">{hint}</p>}
     </div>
   );
 }
@@ -240,30 +269,34 @@ export default function PlatformIntake() {
   };
 
   const inputClass =
-    'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-transparent';
+    'w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#4242EA] focus:border-transparent';
 
   if (submitted) {
     return (
       <Layout>
-        <div className="max-w-xl mx-auto mt-20 text-center p-8">
-          <div className="text-4xl mb-4">✓</div>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Request submitted!</h2>
-          <p className="text-gray-500 mb-6">
-            Your {form.type === 'bug' ? 'bug report' : 'feature request'} has been shared with the team.
-          </p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={handleAnother}
-              className="px-5 py-2 bg-[#4242EA] text-white rounded-md text-sm font-medium hover:bg-blue-700"
-            >
-              Submit another
-            </button>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="px-5 py-2 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50"
-            >
-              Back to Dashboard
-            </button>
+        <div className="max-w-lg mx-auto mt-24 px-4">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-10 text-center">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle2 className="h-8 w-8 text-green-600" aria-hidden="true" />
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">Request submitted!</h2>
+            <p className="text-gray-500 mb-8">
+              Your {form.type === 'bug' ? 'bug report' : 'feature request'} has been shared with the team.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleAnother}
+                className="px-5 py-2 bg-[#4242EA] text-white rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Submit another
+              </button>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="px-5 py-2 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50"
+              >
+                Back to Dashboard
+              </button>
+            </div>
           </div>
         </div>
       </Layout>
@@ -275,224 +308,298 @@ export default function PlatformIntake() {
   return (
     <Layout>
       <TooltipProvider openDelay={300} closeDelay={150}>
-        <div className="max-w-2xl mx-auto px-4 py-8">
-          <h1 className="text-2xl font-semibold text-gray-800 mb-1">Platform Intake</h1>
-          <p className="text-gray-500 text-sm mb-6">
-            Report a bug or request a new feature. All fields are required. Requests are reviewed on a regular basis.
-          </p>
-
-          {/* Type Toggle */}
-          <div className="flex gap-3 mb-6">
-            <div className="flex-1">
-              <button
-                type="button"
-                onClick={() => handleTypeChange('bug')}
-                className={`w-full px-5 py-2 rounded-md text-sm font-medium border transition-colors ${
-                  form.type === 'bug'
-                    ? 'bg-[#4242EA] text-white border-[#4242EA]'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Bug
-              </button>
-              <p className="text-xs text-gray-500 mt-1.5 px-1">
-                Select this if something on the platform is broken, not working as expected, or producing an error.
-              </p>
-            </div>
-            <div className="flex-1">
-              <button
-                type="button"
-                onClick={() => handleTypeChange('feature')}
-                className={`w-full px-5 py-2 rounded-md text-sm font-medium border transition-colors ${
-                  form.type === 'feature'
-                    ? 'bg-[#4242EA] text-white border-[#4242EA]'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Feature
-              </button>
-              <p className="text-xs text-gray-500 mt-1.5 px-1">
-                Select this if you want to request something new — a capability, improvement, or addition that doesn't exist yet.
-              </p>
-            </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 pb-20">
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold text-gray-800 mb-1">Platform Intake</h1>
+            <p className="text-gray-500 text-sm">
+              Report a bug or request a new feature. All fields are required. Requests are reviewed on a regular basis.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Reporter */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <FieldLabel htmlFor="reporter" required>
-                  Reporter name
-                </FieldLabel>
-                <input
-                  id="reporter"
-                  name="reporter"
-                  value={form.reporter}
-                  onChange={handleChange}
-                  required
-                  className={inputClass}
-                  placeholder="Your full name"
-                />
+          <form onSubmit={handleSubmit}>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100">
+              {/* Type */}
+              <div className="px-6 py-6 sm:px-8">
+                <SectionHeading step="1" title="What kind of request is this?" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {TYPE_OPTIONS.map(({ value, label, icon: Icon, blurb }) => {
+                    const selected = form.type === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-label={label}
+                        aria-pressed={selected}
+                        onClick={() => handleTypeChange(value)}
+                        className={`relative text-left rounded-lg border p-4 transition-colors ${
+                          selected
+                            ? 'border-[#4242EA] ring-2 ring-[#4242EA]/20 bg-[#4242EA]/[0.03]'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span
+                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                              selected ? 'bg-[#4242EA] text-white' : 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            <Icon size={18} aria-hidden="true" />
+                          </span>
+                          <span>
+                            <span
+                              className={`block text-sm font-semibold ${
+                                selected ? 'text-[#4242EA]' : 'text-gray-800'
+                              }`}
+                            >
+                              {label}
+                            </span>
+                            <span className="block text-xs text-gray-500 mt-0.5 leading-relaxed">
+                              {blurb}
+                            </span>
+                          </span>
+                        </div>
+                        {selected && (
+                          <CheckCircle2
+                            className="absolute top-3 right-3 h-4 w-4 text-[#4242EA]"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div>
-                <FieldLabel htmlFor="reporter_email" required>
-                  Reporter email
-                </FieldLabel>
-                <input
-                  id="reporter_email"
-                  name="reporter_email"
-                  type="email"
-                  value={form.reporter_email}
-                  readOnly
-                  required
-                  className={`${inputClass} bg-gray-50 cursor-not-allowed`}
-                  placeholder="you@example.com"
+
+              {/* Reporter */}
+              <div className="px-6 py-6 sm:px-8">
+                <SectionHeading step="2" title="Who's reporting" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <FieldLabel htmlFor="reporter" required>
+                      Reporter name
+                    </FieldLabel>
+                    <input
+                      id="reporter"
+                      name="reporter"
+                      value={form.reporter}
+                      onChange={handleChange}
+                      required
+                      className={inputClass}
+                      placeholder="Your full name"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="reporter_email" required>
+                      Reporter email
+                    </FieldLabel>
+                    <input
+                      id="reporter_email"
+                      name="reporter_email"
+                      type="email"
+                      value={form.reporter_email}
+                      readOnly
+                      required
+                      className={`${inputClass} bg-gray-50 cursor-not-allowed`}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="px-6 py-6 sm:px-8">
+                <SectionHeading
+                  step="3"
+                  title={form.type === 'bug' ? 'What happened' : 'What do you need'}
+                  hint="The more descriptive you are, the better our team can address it."
                 />
+                <div className="space-y-5">
+                  <div>
+                    <FieldLabel htmlFor="title" required tooltip={t.title}>
+                      Title
+                    </FieldLabel>
+                    <input
+                      id="title"
+                      name="title"
+                      value={form.title}
+                      onChange={handleChange}
+                      required
+                      className={inputClass}
+                      placeholder={
+                        form.type === 'bug'
+                          ? 'One-line summary of the bug'
+                          : 'One-line summary of the feature'
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel htmlFor="description" required tooltip={t.description} wide>
+                      Description
+                    </FieldLabel>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={form.description}
+                      onChange={handleChange}
+                      required
+                      rows={5}
+                      className={inputClass}
+                      placeholder={
+                        form.type === 'bug'
+                          ? 'What is the expected output?\nWhat is the actual output?\nWhen does it occur?'
+                          : 'What does the feature do? How should it work?'
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      htmlFor="platform_component"
+                      required
+                      tooltip={t.platform_component}
+                    >
+                      Platform component
+                    </FieldLabel>
+                    <select
+                      id="platform_component"
+                      name="platform_component"
+                      value={form.platform_component}
+                      onChange={handleChange}
+                      required
+                      className={inputClass}
+                    >
+                      <option value="">Select a component...</option>
+                      {PLATFORM_COMPONENTS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {form.type === 'bug' && (
+                    <div>
+                      <FieldLabel htmlFor="upload" required tooltip={TOOLTIPS.bug.upload}>
+                        Upload screenshot or video
+                      </FieldLabel>
+                      <label
+                        htmlFor="upload"
+                        className={`flex items-center gap-3 rounded-lg border border-dashed px-4 py-3 cursor-pointer transition-colors ${
+                          uploadFile
+                            ? 'border-[#4242EA]/60 bg-[#4242EA]/[0.03]'
+                            : 'border-gray-300 hover:border-gray-400 bg-gray-50/50'
+                        }`}
+                      >
+                        <UploadCloud
+                          size={20}
+                          className={uploadFile ? 'text-[#4242EA]' : 'text-gray-400'}
+                          aria-hidden="true"
+                        />
+                        <span className="text-sm">
+                          {uploadFile ? (
+                            <span className="font-medium text-gray-800">{uploadFile.name}</span>
+                          ) : (
+                            <>
+                              <span className="font-medium text-[#4242EA]">Choose a file</span>
+                              <span className="text-gray-500"> showing the bug occurring</span>
+                            </>
+                          )}
+                          <span className="block text-xs text-gray-400 mt-0.5">
+                            JPEG, PNG, or MOV — max 50MB
+                          </span>
+                        </span>
+                      </label>
+                      <input
+                        id="upload"
+                        type="file"
+                        accept="image/jpeg,image/png,video/quicktime"
+                        onChange={handleFileChange}
+                        className="sr-only"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Prioritization */}
+              <div className="px-6 py-6 sm:px-8">
+                <SectionHeading step="4" title="How urgent is it?" />
+                <div className="space-y-5">
+                  <div>
+                    <FieldLabel
+                      htmlFor="recommended_prioritization"
+                      required
+                      tooltip={t.prioritization}
+                      wide
+                    >
+                      Recommended prioritization
+                    </FieldLabel>
+                    <select
+                      id="recommended_prioritization"
+                      name="recommended_prioritization"
+                      value={form.recommended_prioritization}
+                      onChange={handleChange}
+                      required
+                      className={inputClass}
+                    >
+                      <option value="">Select prioritization...</option>
+                      {(form.type === 'bug'
+                        ? BUG_PRIORITIZATION_OPTIONS
+                        : FEATURE_PRIORITIZATION_OPTIONS
+                      ).map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      htmlFor="prioritization_justification"
+                      required
+                      tooltip={t.justification}
+                    >
+                      Prioritization justification
+                    </FieldLabel>
+                    <textarea
+                      id="prioritization_justification"
+                      name="prioritization_justification"
+                      value={form.prioritization_justification}
+                      onChange={handleChange}
+                      required
+                      rows={3}
+                      className={inputClass}
+                      placeholder="Why did you select the prioritization above?"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 sm:px-8 bg-gray-50 rounded-b-xl">
+                {error && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 mb-3">
+                    {error}
+                  </p>
+                )}
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-xs text-gray-400">
+                    All fields are required <span className="text-red-500">*</span>
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-2.5 bg-[#4242EA] text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting
+                      ? 'Submitting...'
+                      : `Submit ${form.type === 'bug' ? 'bug report' : 'feature request'}`}
+                  </button>
+                </div>
               </div>
             </div>
-
-            {/* Title */}
-            <div>
-              <FieldLabel htmlFor="title" required tooltip={t.title}>
-                Title
-              </FieldLabel>
-              <input
-                id="title"
-                name="title"
-                value={form.title}
-                onChange={handleChange}
-                required
-                className={inputClass}
-                placeholder={
-                  form.type === 'bug'
-                    ? 'One-line summary of the bug'
-                    : 'One-line summary of the feature'
-                }
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <FieldLabel htmlFor="description" required tooltip={t.description} wide>
-                Description
-              </FieldLabel>
-              <p className="text-xs text-gray-400 mb-1">The more descriptive you are in this section, the better our team can address the issue.</p>
-              <textarea
-                id="description"
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                required
-                rows={5}
-                className={inputClass}
-                placeholder={
-                  form.type === 'bug'
-                    ? 'What is the expected output?\nWhat is the actual output?\nWhen does it occur?'
-                    : 'What does the feature do? How should it work?'
-                }
-              />
-            </div>
-
-            {/* Platform Component */}
-            <div>
-              <FieldLabel htmlFor="platform_component" required tooltip={t.platform_component}>
-                Platform component
-              </FieldLabel>
-              <select
-                id="platform_component"
-                name="platform_component"
-                value={form.platform_component}
-                onChange={handleChange}
-                required
-                className={inputClass}
-              >
-                <option value="">Select a component...</option>
-                {PLATFORM_COMPONENTS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Upload (bugs only) */}
-            {form.type === 'bug' && (
-              <div>
-                <FieldLabel htmlFor="upload" required tooltip={TOOLTIPS.bug.upload}>
-                  Upload screenshot or video
-                </FieldLabel>
-                <input
-                  id="upload"
-                  type="file"
-                  accept="image/jpeg,image/png,video/quicktime"
-                  onChange={handleFileChange}
-                  className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-[#4242EA] file:text-white hover:file:bg-blue-700"
-                />
-                <p className="text-xs text-gray-400 mt-1">JPEG, PNG, or MOV — max 50MB</p>
-              </div>
-            )}
-
-            {/* Prioritization */}
-            <div>
-              <FieldLabel
-                htmlFor="recommended_prioritization"
-                required
-                tooltip={t.prioritization}
-                wide
-              >
-                Recommended prioritization
-              </FieldLabel>
-              <select
-                id="recommended_prioritization"
-                name="recommended_prioritization"
-                value={form.recommended_prioritization}
-                onChange={handleChange}
-                required
-                className={inputClass}
-              >
-                <option value="">Select prioritization...</option>
-                {(form.type === 'bug' ? BUG_PRIORITIZATION_OPTIONS : FEATURE_PRIORITIZATION_OPTIONS).map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Justification */}
-            <div>
-              <FieldLabel
-                htmlFor="prioritization_justification"
-                required
-                tooltip={t.justification}
-              >
-                Prioritization justification
-              </FieldLabel>
-              <textarea
-                id="prioritization_justification"
-                name="prioritization_justification"
-                value={form.prioritization_justification}
-                onChange={handleChange}
-                required
-                rows={3}
-                className={inputClass}
-                placeholder="Why did you select the prioritization above?"
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-2.5 bg-[#4242EA] text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Submitting...' : `Submit ${form.type === 'bug' ? 'bug report' : 'feature request'}`}
-            </button>
           </form>
         </div>
       </TooltipProvider>
