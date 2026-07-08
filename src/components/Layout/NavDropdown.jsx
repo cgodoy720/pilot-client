@@ -92,7 +92,16 @@ const NavDropdown = ({
 
       {/* Dropdown Items */}
       {isOpen && (
-        <div className="flex flex-col relative">
+        <div
+          className={cn(
+            'flex flex-col relative',
+            // When collapsed with the vertical page-title overlay showing, the
+            // children area must be tall enough for the rotated label even if
+            // the dropdown has only one item (1 × 44px row), or the label
+            // overflows into the trigger icon above.
+            !isMobile && !isNavbarHovered && activeItemLabel && 'min-h-[176px]'
+          )}
+        >
           {/* Vertical page title overlay — spans full children area when collapsed */}
           {!isMobile && !isNavbarHovered && activeItemLabel && (
             <div className="absolute inset-0 w-[50px] flex items-center justify-center z-10 pointer-events-none">

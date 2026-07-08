@@ -47,7 +47,7 @@ const Layout = ({ children, isLoading = false }) => {
   const canViewWeeklyReports = canAccessPage('weekly_reports');
   const canViewPlatformAnalytics = canAccessPage('platform_analytics');
   const canViewDemoCohort = canAccessPage('demo_cohort');
-  const canViewCoach = canAccessPage('coach_observability') || canAccessPage('coach_evals');
+  const canViewCoach = canAccessPage('coach');
   const canViewPlatformIntake = canAccessPage('platform_intake');
   const canViewHeadshotUpload = canAccessPage('headshot_upload');
 
@@ -55,11 +55,7 @@ const Layout = ({ children, isLoading = false }) => {
   const isPathfinderPage = location.pathname.startsWith('/pathfinder');
   
   // Role flags for dropdown visibility
-  const isAdminRole = userRole === 'admin';
   const isStaffOrAdminRole = userRole === 'staff' || userRole === 'admin';
-  const hasAnyAdminPagePermission = canViewAdminPrompts || canViewOrganizationManagement
-    || canViewPermissionManagement || canViewWeeklyReports || canViewPlatformAnalytics
-    || canViewDemoCohort;
   // Program dropdown -- staff/admin roles
   const programDropdownItems = isStaffOrAdminRole ? [
     canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Hub' },
@@ -82,8 +78,9 @@ const Layout = ({ children, isLoading = false }) => {
     canViewHeadshotUpload && { to: '/admin/headshots', label: 'Headshot Upload' },
   ].filter(Boolean) : [];
 
-  // Admin dropdown -- admin role, or staff with any admin page permission
-  const adminDropdownItems = (isAdminRole || (isStaffOrAdminRole && hasAnyAdminPagePermission)) ? [
+  // Admin dropdown -- staff/admin roles; per-item canView* flags gate the
+  // contents, and canShowAdminDropdown (length > 0) hides it when empty.
+  const adminDropdownItems = isStaffOrAdminRole ? [
     canViewAdminPrompts && { to: '/admin-prompts', label: 'AI Prompts' },
     canViewExternalCohorts && { to: '/external-cohorts', label: 'External Cohorts' },
     canViewOrganizationManagement && { to: '/admin/organization-management', label: 'Organizations' },

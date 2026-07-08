@@ -79,6 +79,7 @@ const PERMISSION_LABELS = {
   'page:content': 'Content',
   'page:content_preview': 'Content Management',
   'page:external_cohorts': 'External Cohorts',
+  'page:coach': 'Coach',
   'page:form_builder': 'Form Builder',
   'page:pathfinder_admin': 'Pathfinder Admin',
   'page:payment_admin': 'Payment Admin',

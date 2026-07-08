@@ -4,7 +4,7 @@
  * Backs the "Learner Profiles" tab — a temporary internal roster view to
  * sanity-check whether onboarding is aligning a teaching-method preference to
  * each builder. Read-only. Backed by /api/admin/builder-profiles/roster
- * (builderProfileInspectorController.js, gated by page:coach_observability).
+ * (builderProfileInspectorController.js, gated by page:coach).
  */
 
 import { fetchWithAuth } from '../utils/api';

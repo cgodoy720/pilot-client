@@ -6,7 +6,7 @@
  * profile-write pipeline with the LLM call mocked at the aiClient layer.
  *
  * Backed by /api/admin/builder-profiles/* (test-pilot-server).
- * Gated by page:coach_observability (admin via wildcard).
+ * Gated by page:coach (admin via wildcard).
  */
 
 import { fetchWithAuth } from '../utils/api';
