@@ -142,6 +142,41 @@ describe('PlatformIntake', () => {
     });
   });
 
+  it('limits platform components to builder-visible surfaces for non-staff roles', () => {
+    useAuthStore.setState({
+      user: { first_name: 'Test', last_name: 'User', email: 'test@pursuit.org', role: 'builder' },
+      token: 'test-token',
+      isAuthenticated: true,
+    });
+    renderComponent();
+
+    const componentSelect = screen.getAllByRole('combobox')[0];
+    const options = [...componentSelect.querySelectorAll('option')].map((o) => o.value).filter(Boolean);
+    expect(options).toEqual([
+      'Dashboard',
+      'Learning / Curriculum',
+      'AI Chat',
+      'Calendar',
+      'Pathfinder',
+      'Performance',
+    ]);
+  });
+
+  it('shows all platform components for staff and admin roles', () => {
+    useAuthStore.setState({
+      user: { first_name: 'Test', last_name: 'User', email: 'test@pursuit.org', role: 'staff' },
+      token: 'test-token',
+      isAuthenticated: true,
+    });
+    renderComponent();
+
+    const componentSelect = screen.getAllByRole('combobox')[0];
+    const options = [...componentSelect.querySelectorAll('option')].map((o) => o.value).filter(Boolean);
+    expect(options).toHaveLength(19);
+    expect(options).toContain('Admin Dashboard');
+    expect(options).toContain('Other');
+  });
+
   it('shows error message on submission failure', async () => {
     submitIntake.mockRejectedValue(new Error('Server error'));
     renderComponent();

@@ -33,6 +33,16 @@ const PLATFORM_COMPONENTS = [
   'Other',
 ];
 
+// Builders only report on the surfaces they can actually see
+const BUILDER_PLATFORM_COMPONENTS = [
+  'Dashboard',
+  'Learning / Curriculum',
+  'AI Chat',
+  'Calendar',
+  'Pathfinder',
+  'Performance',
+];
+
 const BUG_PRIORITIZATION_OPTIONS = [
   { value: 'urgent', label: 'Urgent (fix in 24 hours)' },
   { value: 'high', label: 'High (fix in 1 week)' },
@@ -304,6 +314,8 @@ export default function PlatformIntake() {
   }
 
   const t = TOOLTIPS[form.type];
+  const isStaffOrAdmin = user?.role === 'admin' || user?.role === 'staff';
+  const componentOptions = isStaffOrAdmin ? PLATFORM_COMPONENTS : BUILDER_PLATFORM_COMPONENTS;
 
   return (
     <Layout>
@@ -470,7 +482,7 @@ export default function PlatformIntake() {
                       className={inputClass}
                     >
                       <option value="">Select a component...</option>
-                      {PLATFORM_COMPONENTS.map((c) => (
+                      {componentOptions.map((c) => (
                         <option key={c} value={c}>
                           {c}
                         </option>
