@@ -224,7 +224,7 @@ const BuilderSnapshot = ({ embedded = false }) => {
   // (NOT /skill-taxonomy — that route is PUT-only). Response shape:
   //   { skillTaxonomy: { name, description, categories, skills, ... }, ... }
   useEffect(() => {
-    if (!token || !canAccessPage('coach_observability')) return;
+    if (!token || !canAccessPage('coach')) return;
     let aborted = false;
     (async () => {
       try {
@@ -316,7 +316,7 @@ const BuilderSnapshot = ({ embedded = false }) => {
     ];
   }, [snapshot]);
 
-  if (!canAccessPage('coach_observability')) {
+  if (!canAccessPage('coach')) {
     return (
       <div className="min-h-screen bg-[#EFEFEF] p-8 flex items-center justify-center">
         <div className="bg-red-50 text-red-600 px-6 py-8 rounded-lg border border-red-200 text-center max-w-md">

@@ -90,7 +90,6 @@ import RouteResolver from './components/RouteResolver/RouteResolver';
 import { Toaster } from './components/ui/sonner';
 import {
   PermissionRoute,
-  MultiPermissionRoute,
   WorkshopAdminRoute,
   EnterpriseAdminRoute
 } from './components/RouteGuards';
@@ -405,12 +404,12 @@ function App() {
           </Layout>
         } />
 
-        {/* Coach — v2 coach agent: observability (Runs) + eval harness (Evals) tabs */}
+        {/* Coach — v2 coach agent: Runs, Evals, Snapshot, Golden Dataset, etc. (admin-only page:coach) */}
         <Route path="/admin/coach" element={
           <Layout>
-            <MultiPermissionRoute permissions={[PAGE_PERMISSIONS.COACH_OBSERVABILITY, PAGE_PERMISSIONS.COACH_EVALS]}>
+            <PermissionRoute permission={PAGE_PERMISSIONS.COACH}>
               <Coach />
-            </MultiPermissionRoute>
+            </PermissionRoute>
           </Layout>
         } />
         {/* Back-compat: old standalone routes redirect into the combined page, forwarding ?thread= */}

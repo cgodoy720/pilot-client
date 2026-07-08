@@ -27,18 +27,16 @@ const Coach = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canAccessPage } = usePermissions();
 
-  // The parent /admin/coach route admits anyone with either coach_observability
-  // OR coach_evals (MultiPermissionRoute). Each tab requires its own page
-  // permission — runs+profiles need coach_observability, evals needs coach_evals.
-  // Hide tabs the current user can't access so an evals-only user never sees
-  // a "Profiles" tab that walls them off when clicked.
-  const canRuns = canAccessPage('coach_observability');
-  const canEvals = canAccessPage('coach_evals');
-  const canProfiles = canAccessPage('coach_observability');
-  const canSnapshot = canAccessPage('coach_observability');
-  const canGolden = canAccessPage('coach_observability');
-  const canLab = canAccessPage('coach_observability');
-  const canLearners = canAccessPage('coach_observability');
+  // The whole /admin/coach page is gated by a single admin-only page:coach
+  // permission (staff receive it only via an explicit grant). All tabs share it.
+  const canCoach = canAccessPage('coach');
+  const canRuns = canCoach;
+  const canEvals = canCoach;
+  const canProfiles = canCoach;
+  const canSnapshot = canCoach;
+  const canGolden = canCoach;
+  const canLab = canCoach;
+  const canLearners = canCoach;
 
   const initialTabParam = searchParams.get('tab');
   // Honor ?tab= only if (a) it's a known tab and (b) the user has access to it;

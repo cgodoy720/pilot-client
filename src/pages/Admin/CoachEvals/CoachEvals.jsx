@@ -241,7 +241,7 @@ const CoachEvals = ({ embedded = false, onViewTimeline = null }) => {
     return () => clearInterval(pollRef.current);
   }, [batches, loadBatches]);
 
-  if (!canAccessPage('coach_evals')) {
+  if (!canAccessPage('coach')) {
     return (
       <div className="min-h-screen bg-[#EFEFEF] p-8 flex items-center justify-center">
         <div className="bg-red-50 text-red-600 px-6 py-8 rounded-lg border border-red-200 text-center max-w-md">
