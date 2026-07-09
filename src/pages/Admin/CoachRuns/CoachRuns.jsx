@@ -133,6 +133,78 @@ const CriteriaTable = ({ criteriaScores }) => {
   );
 };
 
+// ---------------------------------------------------------------------------
+// Dreyfus grade display. The engine grades each skill on the Dreyfus scale
+// (0-5) and passes a run when the builder held-or-improved vs their own
+// established level on a majority of assessed skills — there is NO 0-100 pass
+// bar. The derived overallScore is legacy-only and shown only for old runs
+// that carry no per-skill assessments.
+// ---------------------------------------------------------------------------
+
+const DREYFUS_LABELS = ['Below Novice', 'Novice', 'Advanced Beginner', 'Competent', 'Proficient', 'Expert'];
+
+const levelLabel = (level) =>
+  Number.isInteger(level) ? `L${level} ${DREYFUS_LABELS[level] || ''}`.trim() : 'N/A';
+
+/** "improved from L2" / "held L3" / "below prior L4" / "new skill" (needs a.prior from the engine). */
+const vsPriorLabel = (a) => {
+  if (!Number.isInteger(a.level)) return null;
+  if (!Number.isInteger(a.prior)) return 'new skill';
+  if (a.level > a.prior) return `↑ improved from L${a.prior}`;
+  if (a.level === a.prior) return `held L${a.prior}`;
+  return `↓ below prior L${a.prior}`;
+};
+
+/** Why the run passed/failed, from the window-relative rule. Null when the run
+ *  pre-dates the engine exposing metCount/held. */
+const gradeReason = (sr) => {
+  if (Number.isInteger(sr.metCount) && Number.isInteger(sr.assessedCount)) {
+    return `held or improved on ${sr.metCount} of ${sr.assessedCount} skill${sr.assessedCount === 1 ? '' : 's'}`;
+  }
+  const withHeld = (sr.skillAssessments || []).filter((a) => typeof a.held === 'boolean');
+  if (withHeld.length) {
+    return `held or improved on ${withHeld.filter((a) => a.held).length} of ${withHeld.length} skill${withHeld.length === 1 ? '' : 's'}`;
+  }
+  return null;
+};
+
+const GRADE_ERROR_TEXT = '⚠️ Grading error — a system issue prevented evaluation. Not a reflection of the builder\'s work.';
+
+/** Per-skill Dreyfus assessments incl. the grader's rationale + evidence. */
+const SkillAssessmentTable = ({ assessments }) => {
+  if (!Array.isArray(assessments) || assessments.length === 0) return null;
+  return (
+    <div className="border border-[#E3E3E3] rounded-md overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-[#F7F7F9] text-slate-600">
+          <tr>
+            <th className="text-left px-3 py-2 font-semibold">Skill</th>
+            <th className="text-left px-3 py-2 font-semibold w-36">Level</th>
+            <th className="text-left px-3 py-2 font-semibold w-32">vs prior</th>
+            <th className="text-left px-3 py-2 font-semibold">Grader&apos;s rationale</th>
+            <th className="text-left px-3 py-2 font-semibold">Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {assessments.map((a, i) => (
+            <tr key={i} className="border-t border-[#EEE] align-top">
+              <td className="px-3 py-2 text-slate-800 capitalize">{(a.skill_slug || '—').replace(/-/g, ' ')}</td>
+              <td className="px-3 py-2">
+                <Chip tone={Number.isInteger(a.level) ? (a.level >= 3 ? 'green' : a.level >= 1 ? 'blue' : 'red') : 'slate'}>
+                  {levelLabel(a.level)}
+                </Chip>
+              </td>
+              <td className="px-3 py-2 text-slate-600">{vsPriorLabel(a) || '—'}</td>
+              <td className="px-3 py-2 text-slate-600">{a.rationale || '—'}</td>
+              <td className="px-3 py-2 text-slate-500 italic">{a.evidence || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 // ===========================================================================
 // DEVELOPER VIEW — one card per agent step (the original technical timeline).
 // ===========================================================================
@@ -170,18 +242,32 @@ const StepCard = ({ step }) => {
           {step.attempt_number != null && <span>attempt {step.attempt_number}</span>}
           {sr.readyForApply === true && <Chip tone="green">READY_FOR_APPLY</Chip>}
           {sr.applySubmitted === true && <Chip tone="green">APPLY_SUBMITTED</Chip>}
-          {typeof sr.overallScore === 'number' && (
+          {sr.gradeError ? (
+            <Chip tone="amber">⚠ grading error</Chip>
+          ) : Array.isArray(sr.skillAssessments) && sr.skillAssessments.length > 0 ? (
+            <>
+              <Chip tone={sr.passed ? 'green' : 'red'}>{sr.passed ? 'passed' : 'did not pass'}</Chip>
+              {sr.skillAssessments.map((a, i) => (
+                <Chip key={i} tone="blue">{(a.skill_slug || '').replace(/-/g, ' ')} · {levelLabel(a.level)}</Chip>
+              ))}
+            </>
+          ) : typeof sr.overallScore === 'number' ? (
             <Chip tone={sr.passed ? 'green' : 'red'}>score {sr.overallScore} · {sr.passed ? 'passed' : 'failed'}</Chip>
-          )}
+          ) : null}
           {sr.applyMode && <span>mode: {sr.applyMode}</span>}
           {step.thinking_label && <span className="italic">“{step.thinking_label}”</span>}
           <span className="ml-auto">{fmtTime(step.created_at)}</span>
         </div>
 
-        {/* grade criteria table inline */}
-        {isGrade && sr.criteriaScores && (
+        {/* grade assessment inline — Dreyfus table when available, legacy criteria otherwise */}
+        {isGrade && (
           <div className="mb-3">
-            <CriteriaTable criteriaScores={sr.criteriaScores} />
+            {sr.gradeError && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-2">{GRADE_ERROR_TEXT}</p>
+            )}
+            {Array.isArray(sr.skillAssessments) && sr.skillAssessments.length > 0
+              ? <SkillAssessmentTable assessments={sr.skillAssessments} />
+              : sr.criteriaScores ? <CriteriaTable criteriaScores={sr.criteriaScores} /> : null}
             {sr.feedback && <p className="mt-2 text-xs text-slate-600 italic">{sr.feedback}</p>}
           </div>
         )}
@@ -257,11 +343,70 @@ const TranscriptBubble = ({ who, text }) => {
   );
 };
 
-/** Grade outcome callout shown inline after the coach's grading message. */
+/**
+ * Grading summary shown inline after the grading phase — the outcome, WHY it
+ * passed/failed (window-relative rule), and the grader's per-skill thought
+ * process (level + vs-prior + rationale + evidence) plus the builder-facing
+ * feedback. Legacy runs without per-skill assessments fall back to the old
+ * score/criteria rendering.
+ */
 const GradeResult = ({ sr }) => {
+  const assessments = Array.isArray(sr.skillAssessments) ? sr.skillAssessments : [];
   const crit = Array.isArray(sr.criteriaScores) ? sr.criteriaScores : [];
   const met = crit.filter((c) => c.met).length;
   const [open, setOpen] = useState(false);
+
+  if (sr.gradeError) {
+    return (
+      <div className="ml-9 mb-3 -mt-1 max-w-2xl">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+          {GRADE_ERROR_TEXT}
+          {sr.feedback && <p className="mt-1 italic">{sr.feedback}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // Dreyfus path — the grading summary card.
+  if (assessments.length > 0) {
+    const reason = gradeReason(sr);
+    return (
+      <div className="ml-9 mb-3 -mt-1 max-w-2xl">
+        <div className="bg-[#FAFAFC] border border-[#E8E8EE] rounded-lg p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip tone={sr.passed ? 'green' : 'red'}>{sr.passed ? '✓ Passed' : '✗ Did not pass'}</Chip>
+            {reason && <span className="text-xs text-slate-600">{reason}</span>}
+          </div>
+          <div className="mt-2.5 space-y-2.5">
+            {assessments.map((a, i) => (
+              <div key={i} className="border-l-2 pl-2.5" style={{ borderColor: BRAND }}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-800 capitalize">{(a.skill_slug || '').replace(/-/g, ' ')}</span>
+                  <Chip tone={Number.isInteger(a.level) ? (a.level >= 3 ? 'green' : a.level >= 1 ? 'blue' : 'red') : 'slate'}>
+                    {levelLabel(a.level)}
+                  </Chip>
+                  {vsPriorLabel(a) && <span className="text-[11px] text-slate-500">{vsPriorLabel(a)}</span>}
+                </div>
+                {a.rationale && (
+                  <p className="text-xs text-slate-600 mt-1"><span className="font-semibold">Why:</span> {a.rationale}</p>
+                )}
+                {a.evidence && (
+                  <p className="text-xs text-slate-500 italic mt-0.5"><span className="font-semibold not-italic">Evidence:</span> “{a.evidence}”</p>
+                )}
+              </div>
+            ))}
+          </div>
+          {sr.feedback && (
+            <p className="text-xs text-slate-600 mt-2.5 pt-2 border-t border-[#EEE]">
+              <span className="font-semibold">Feedback to builder:</span> {sr.feedback}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy path (pre-Dreyfus runs) — score + criteria table.
   if (typeof sr.overallScore !== 'number' && crit.length === 0) return null;
   return (
     <div className="ml-9 mb-3 -mt-1">
@@ -506,12 +651,18 @@ const StoryView = ({ run, onCopySummary, copied }) => {
   const passed = typeof gradeSr.passed === 'boolean'
     ? gradeSr.passed
     : (run.outcomes?.[0]?.passed ?? null);
+  const gradeError = !!gradeSr.gradeError;
+  const assessments = Array.isArray(gradeSr.skillAssessments) ? gradeSr.skillAssessments : [];
+  const reason = gradeReason(gradeSr);
 
-  // Outcome banner
+  // Outcome banner. Dreyfus runs show the outcome + why; the 0-100 number is
+  // shown only for legacy runs with no per-skill assessments.
   let status = { text: 'In progress', tone: 'bg-slate-100 text-slate-600 border-slate-200', icon: '⏳' };
-  if (completed && passed) status = { text: 'Passed', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: '✅' };
+  if (gradeError) status = { text: 'Grading error', tone: 'bg-amber-100 text-amber-700 border-amber-200', icon: '⚠️' };
+  else if (completed && passed) status = { text: 'Passed', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: '✅' };
   else if (gradeSteps.length > 0 && passed === false) status = { text: 'Did not pass yet', tone: 'bg-rose-100 text-rose-700 border-rose-200', icon: '❌' };
   else if (completed) status = { text: 'Completed', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: '✅' };
+  const legacyScoreSuffix = assessments.length === 0 && !gradeError && score != null ? ` · ${score}/100` : '';
 
   // Build the chat transcript + phase anchors (first occurrence of each phase
   // gets a scroll anchor so the timeline can jump to it).
@@ -563,9 +714,20 @@ const StoryView = ({ run, onCopySummary, copied }) => {
             <p className="text-sm text-slate-500 truncate">{id.task_title}</p>
           </div>
           <span className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold border ${status.tone}`}>
-            <span>{status.icon}</span> {status.text}{score != null ? ` · ${score}/100` : ''}
+            <span>{status.icon}</span> {status.text}{legacyScoreSuffix}
           </span>
         </div>
+
+        {(reason || assessments.length > 0) && (
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {reason && <span className="text-xs text-slate-500">{status.text === 'Passed' || passed ? 'Passed:' : 'Outcome:'} {reason}</span>}
+            {assessments.map((a, i) => (
+              <Chip key={i} tone={Number.isInteger(a.level) ? (a.level >= 3 ? 'green' : a.level >= 1 ? 'blue' : 'red') : 'slate'}>
+                {(a.skill_slug || '').replace(/-/g, ' ')} · {levelLabel(a.level)}
+              </Chip>
+            ))}
+          </div>
+        )}
 
         {id.v2_learning_goal && (
           <p className="text-sm text-slate-600 mt-2"><span className="font-semibold">Goal:</span> {id.v2_learning_goal}</p>
@@ -638,15 +800,27 @@ const RunDetail = ({ token, threadId }) => {
     const gradeSr = gradeSteps[gradeSteps.length - 1]?.structured_result || {};
     const score = typeof gradeSr.overallScore === 'number' ? gradeSr.overallScore : (run.outcomes?.[0]?.overall_score ?? null);
     const passed = typeof gradeSr.passed === 'boolean' ? gradeSr.passed : (run.outcomes?.[0]?.passed ?? null);
+    const gradeError = !!gradeSr.gradeError;
+    const assessments = Array.isArray(gradeSr.skillAssessments) ? gradeSr.skillAssessments : [];
+    const reason = gradeReason(gradeSr);
     const completed = steps.some((s) => s.node === 'complete');
-    const outcome = completed && passed
-      ? 'Passed'
-      : (gradeSteps.length && passed === false ? 'Did not pass yet' : (completed ? 'Completed' : 'In progress'));
+    const outcome = gradeError
+      ? 'Grading error (system issue)'
+      : completed && passed
+        ? 'Passed'
+        : (gradeSteps.length && passed === false ? 'Did not pass yet' : (completed ? 'Completed' : 'In progress'));
+    // Dreyfus runs report per-skill levels + the grader's rationale; the 0-100
+    // number is only meaningful for legacy runs without assessments.
+    const outcomeSuffix = assessments.length === 0 && !gradeError && score != null ? ` (${score}/100)` : reason ? ` — ${reason}` : '';
     const lines = [
       `Coach run — ${`${id.first_name || ''} ${id.last_name || ''}`.trim()}`,
       `Task: ${id.task_title || '—'}`,
       id.v2_learning_goal ? `Goal: ${id.v2_learning_goal}` : null,
-      `Outcome: ${outcome}${score != null ? ` (${score}/100)` : ''}`,
+      `Outcome: ${outcome}${outcomeSuffix}`,
+      ...assessments.map((a) => {
+        const vs = vsPriorLabel(a);
+        return `  • ${(a.skill_slug || '').replace(/-/g, ' ')}: ${levelLabel(a.level)}${vs ? ` (${vs.replace(/[↑↓] /, '')})` : ''}${a.rationale ? ` — ${a.rationale}` : ''}`;
+      }),
       strat.teachingMethod ? `Teaching style: ${TEACHING_METHOD_LABEL[strat.teachingMethod] || strat.teachingMethod}` : null,
       strat.difficultyLevel
         ? `Difficulty: ${strat.difficultyLevel}${strat.avgLevel != null ? ` (avg skill ${Math.round(strat.avgLevel)})` : ''}${strat.difficultyModifier === '+20%' ? ' · +20% for interview weak area' : ''}`
@@ -828,8 +1002,8 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
                     <span className="text-sm font-semibold text-slate-800 truncate">
                       {r.first_name} {r.last_name}
                     </span>
-                    {r.overall_score != null && (
-                      <Chip tone={r.passed ? 'green' : 'red'}>{r.overall_score}</Chip>
+                    {r.passed != null && (
+                      <Chip tone={r.passed ? 'green' : 'red'}>{r.passed ? '✓ passed' : '✗ not passed'}</Chip>
                     )}
                   </div>
                   <div className="text-xs text-slate-500 truncate">{r.task_title}</div>
