@@ -168,6 +168,14 @@ const gradeReason = (sr) => {
   return null;
 };
 
+/** Highest assessed Dreyfus level in a grade — the run's headline achievement
+ *  badge ("Proficient" next to Passed). Null when no per-skill assessments. */
+const topLevel = (assessments) => {
+  const levels = (Array.isArray(assessments) ? assessments : [])
+    .map((a) => a.level).filter(Number.isInteger);
+  return levels.length ? Math.max(...levels) : null;
+};
+
 const GRADE_ERROR_TEXT = '⚠️ Grading error — a system issue prevented evaluation. Not a reflection of the builder\'s work.';
 
 /** Per-skill Dreyfus assessments incl. the grader's rationale + evidence. */
@@ -542,6 +550,11 @@ const BuilderContextPanel = ({ context }) => {
 
   const comp = context.competencies || {};
   const skills = Object.entries(comp.skillLevels || {}).sort((a, b) => b[1] - a[1]);
+  // Operative Dreyfus proficiency (preferred display). The /100 bars are the
+  // legacy EMA and only shown for snapshots that predate skill_proficiency.
+  const proficiency = Object.entries(comp.skillProficiency || {})
+    .filter(([, v]) => Number.isInteger(v?.level))
+    .sort((a, b) => b[1].level - a[1].level);
   const method = comp.modalityPreferences?.preferred;
   const weaknesses = comp.interviewThemes?.recurring_weaknesses || [];
   const lp = context.learningProfile || {};
@@ -569,9 +582,28 @@ const BuilderContextPanel = ({ context }) => {
             {counts.total != null && <Chip>{counts.completed ?? 0}/{counts.total} tasks done</Chip>}
           </div>
 
-          {skills.length > 0 && (
+          {proficiency.length > 0 ? (
             <div>
-              <CtxLabel>Skill levels (/100)</CtxLabel>
+              <CtxLabel>Skill proficiency (Dreyfus)</CtxLabel>
+              <div className="space-y-1.5">
+                {proficiency.map(([slug, v]) => (
+                  <div key={slug} className="flex items-center gap-2">
+                    <span className="w-44 shrink-0 text-xs text-slate-600 truncate capitalize" title={slug}>
+                      {slug.replace(/-/g, ' ')}
+                    </span>
+                    <Chip tone={v.level >= 3 ? 'green' : v.level >= 1 ? 'blue' : 'red'}>
+                      {levelLabel(v.level)}
+                    </Chip>
+                    {v.observations === 0 && (
+                      <span className="text-[10px] text-slate-400" title="Seeded prior — not yet confirmed by a graded task">· seed</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : skills.length > 0 && (
+            <div>
+              <CtxLabel>Skill levels (/100 — legacy)</CtxLabel>
               <div className="space-y-1.5">
                 {skills.map(([slug, v]) => <SkillBar key={slug} label={slug.replace(/-/g, ' ')} value={v} />)}
               </div>
@@ -713,8 +745,13 @@ const StoryView = ({ run, onCopySummary, copied }) => {
             </h2>
             <p className="text-sm text-slate-500 truncate">{id.task_title}</p>
           </div>
-          <span className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold border ${status.tone}`}>
-            <span>{status.icon}</span> {status.text}{legacyScoreSuffix}
+          <span className="shrink-0 inline-flex items-center gap-2">
+            {topLevel(assessments) != null && (
+              <Chip tone="violet">🏅 {levelLabel(topLevel(assessments))}</Chip>
+            )}
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold border ${status.tone}`}>
+              <span>{status.icon}</span> {status.text}{legacyScoreSuffix}
+            </span>
           </span>
         </div>
 
@@ -1002,8 +1039,13 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
                     <span className="text-sm font-semibold text-slate-800 truncate">
                       {r.first_name} {r.last_name}
                     </span>
-                    {r.passed != null && (
-                      <Chip tone={r.passed ? 'green' : 'red'}>{r.passed ? '✓ passed' : '✗ not passed'}</Chip>
+                    {r.grade_error ? (
+                      <Chip tone="amber">⚠ grading error</Chip>
+                    ) : r.passed != null && (
+                      <Chip tone={r.passed ? 'green' : 'red'}>
+                        {r.passed ? '✓ passed' : '✗ not passed'}
+                        {topLevel(r.skill_assessments) != null ? ` · ${DREYFUS_LABELS[topLevel(r.skill_assessments)]}` : ''}
+                      </Chip>
                     )}
                   </div>
                   <div className="text-xs text-slate-500 truncate">{r.task_title}</div>
