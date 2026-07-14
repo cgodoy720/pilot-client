@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Award, Users, FileText, Brain, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Target, ClipboardList, Heart, Building2, Rocket, Shield, BarChart3, BookOpen } from 'lucide-react';
+import { LogOut, Settings, Award, Users, FileText, Brain, X, ArrowRight, Briefcase, Calendar as CalendarIcon, Target, ClipboardList, Heart, Building2, Rocket, Shield, BarChart3, BookOpen, Navigation } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import useNavStore from '../../stores/navStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -10,12 +10,16 @@ import NavDropdown from './NavDropdown';
 import { cn } from '../../lib/utils';
 import logo from '../../assets/logo.png';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7001';
+
 const Layout = ({ children, isLoading = false }) => {
   const [isNavbarHovered, setIsNavbarHovered] = useState(false);
   const [isMobileNavbarOpen, setIsMobileNavbarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null); // Track which dropdown is open
+  const [canViewCoaching, setCanViewCoaching] = useState(false);
   const logout = useAuthStore((s) => s.logout);
+  const token = useAuthStore((s) => s.token);
   const { canAccessPage, userRole } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -165,6 +169,16 @@ const Layout = ({ children, isLoading = false }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Check coaching access for builders
+  useEffect(() => {
+    if (!token || !userRole) return;
+    if (userRole !== 'builder') { setCanViewCoaching(true); return; }
+    fetch(`${API_URL}/api/coaching/check`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => setCanViewCoaching(!!d.hasCoaching))
+      .catch(() => setCanViewCoaching(false));
+  }, [token, userRole]);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -259,9 +273,9 @@ const Layout = ({ children, isLoading = false }) => {
     if (adminRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <Settings className="h-4 w-4 text-[#E3E3E3]" />;
     }
-    // Pathfinder routes (for fellows)
+    // Pathfinder/Jobs routes (for fellows)
     if (location.pathname.startsWith('/pathfinder') && !location.pathname.startsWith('/pathfinder/admin')) {
-      return <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />;
+      return <Navigation className="h-4 w-4 text-[#E3E3E3]" />;
     }
     // Workshop routes
     if (location.pathname.startsWith('/workshop')) {
@@ -401,11 +415,23 @@ const Layout = ({ children, isLoading = false }) => {
             </svg>
           ), 'Calendar', canViewCalendar)}
           
-          {/* Pathfinder - permission-based */}
-          {renderNavLink('/pathfinder/dashboard', <ArrowRight className="h-4 w-4 text-[#E3E3E3]" />, 'Pathfinder',
-            canViewPathfinder,
-            () => location.pathname.startsWith('/pathfinder') && !location.pathname.startsWith('/pathfinder/admin')
-          )}
+          {/* Jobs dropdown (Pathfinder, Compass, Coaching) - permission-based */}
+          <NavDropdown
+            id="jobs"
+            trigger={{ icon: Navigation, label: "Jobs" }}
+            items={[
+              { to: '/pathfinder/dashboard', label: 'Pathfinder', activeMatch: (p) => p.startsWith('/pathfinder') && !p.startsWith('/pathfinder/compass') && !p.startsWith('/pathfinder/coaching') && !p.startsWith('/pathfinder/admin') },
+              { to: '/pathfinder/compass', label: 'Compass' },
+              ...(canViewCoaching ? [{ to: '/pathfinder/coaching', label: 'Coaching' }] : []),
+            ]}
+            condition={canViewPathfinder}
+            isMobile={isMobile}
+            isNavbarHovered={isNavbarHovered}
+            isMobileNavbarOpen={isMobileNavbarOpen}
+            closeMobileNavbar={closeMobileNavbar}
+            isOpen={openDropdown === 'jobs'}
+            onToggle={(id) => setOpenDropdown(openDropdown === id ? null : id)}
+          />
           
           {/* My Performance - permission-based */}
           {renderNavLink('/performance', (
