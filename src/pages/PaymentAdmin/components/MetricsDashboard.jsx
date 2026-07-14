@@ -14,6 +14,70 @@ const fmt$ = (n) => n == null ? '—' : new Intl.NumberFormat('en-US', { style: 
 const fmtPct = (n) => n == null ? '—' : `${n}%`;
 const toInputDate = (d) => d.toISOString().slice(0, 10);
 
+// ─── Upcoming Bond Complete (curated V1) ───────────────────────────────────────
+// Fellows expected to reach Bond Complete within the next 3 months.
+const UPCOMING_BOND_COMPLETE = [
+  {
+    fellowName: 'Isaiah Collazo',
+    remainingAmount: 1240,
+    monthlyPayment: 1000,
+    planEstablished: '2025-02',
+    path: 'payment_plan',
+    detail: 'Payment plan · $1,000/mo · established Feb 2025',
+  },
+  {
+    fellowName: 'Joshuel Marte',
+    invoicesSent: 45,
+    invoicesToComplete: 48,
+    invoiceAmount: 1125,
+    path: 'invoice_count',
+    detail: '45 of 48 invoices · $1,125 each',
+  },
+];
+
+function monthsUntilBondComplete(entry, asOf = new Date()) {
+  if (entry.path === 'payment_plan') {
+    if (!entry.monthlyPayment || entry.monthlyPayment <= 0) return null;
+    return Math.ceil(entry.remainingAmount / entry.monthlyPayment);
+  }
+  if (entry.path === 'invoice_count') {
+    return Math.max(0, (entry.invoicesToComplete || 0) - (entry.invoicesSent || 0));
+  }
+  return null;
+}
+
+function remainingAmountForEntry(entry) {
+  if (entry.path === 'payment_plan') return entry.remainingAmount;
+  if (entry.path === 'invoice_count') {
+    const left = Math.max(0, (entry.invoicesToComplete || 0) - (entry.invoicesSent || 0));
+    return left * (entry.invoiceAmount || 0);
+  }
+  return null;
+}
+
+function getUpcomingBondComplete(asOf = new Date(), withinMonths = 3) {
+  return UPCOMING_BOND_COMPLETE
+    .map((entry) => {
+      const monthsRemaining = monthsUntilBondComplete(entry, asOf);
+      return {
+        ...entry,
+        monthsRemaining,
+        remainingAmount: remainingAmountForEntry(entry),
+      };
+    })
+    .filter((e) => e.monthsRemaining != null && e.monthsRemaining > 0 && e.monthsRemaining <= withinMonths)
+    .sort((a, b) => a.monthsRemaining - b.monthsRemaining);
+}
+
+function formatEtaLabel(monthsRemaining) {
+  if (monthsRemaining == null) return '—';
+  if (monthsRemaining === 1) return '~1 month';
+  return `~${monthsRemaining} months`;
+}
+
+// Curated V1: no one is currently on pause — ignore Sheet-driven list.
+const CURATED_PAUSE_WATCHLIST = [];
+
 // ─── Preset ranges ────────────────────────────────────────────────────────────
 function getPresetRange(preset) {
   const now = new Date();
@@ -679,18 +743,18 @@ const MetricsDashboard = () => {
                   </div>
                 </div>
 
-                {/* Pause Watchlist */}
+                {/* Pause Watchlist (curated V1 — empty until live filtering returns) */}
                 <div className="rounded-xl border border-violet-200 bg-violet-50 overflow-hidden">
                   <div className="px-4 py-3 border-b border-violet-100 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0" />
                     <span className="text-sm font-semibold text-gray-800">Pause Watchlist</span>
                     <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
-                      {metrics.pauseWatchlist?.length || 0}
+                      {CURATED_PAUSE_WATCHLIST.length}
                     </span>
                   </div>
-                  {metrics.pauseWatchlist?.length > 0 ? (
+                  {CURATED_PAUSE_WATCHLIST.length > 0 ? (
                     <div className="divide-y divide-violet-100">
-                      {metrics.pauseWatchlist.map((p, i) => (
+                      {CURATED_PAUSE_WATCHLIST.map((p, i) => (
                         <div key={i} className="px-4 py-3 bg-white/60 flex items-center justify-between gap-3">
                           <span className="font-medium text-gray-900 text-sm">{p.fellowName}</span>
                           <span className="text-xs text-gray-600 flex-shrink-0">
@@ -703,6 +767,50 @@ const MetricsDashboard = () => {
                     <p className="px-4 py-5 text-sm text-gray-400 text-center">No active pauses</p>
                   )}
                 </div>
+
+                {/* Upcoming Bond Complete (curated V1 · within 3 months) */}
+                {(() => {
+                  const upcomingBondComplete = getUpcomingBondComplete();
+                  return (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-emerald-100 flex items-center gap-2 flex-wrap">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-gray-800">Upcoming Bond Complete</span>
+                        <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                          {upcomingBondComplete.length}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-auto">Within next 3 months</span>
+                      </div>
+                      {upcomingBondComplete.length > 0 ? (
+                        <div className="divide-y divide-emerald-100">
+                          {upcomingBondComplete.map((entry) => (
+                            <div
+                              key={entry.fellowName}
+                              className="px-4 py-3 bg-white/60 flex items-start justify-between gap-3"
+                            >
+                              <div className="min-w-0">
+                                <span className="font-medium text-gray-900 text-sm">{entry.fellowName}</span>
+                                <p className="text-xs text-gray-600 mt-0.5">{entry.detail}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <div className="text-sm font-semibold text-emerald-800">
+                                  {fmt$(entry.remainingAmount)} left
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {formatEtaLabel(entry.monthsRemaining)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="px-4 py-5 text-sm text-gray-400 text-center">
+                          No Bond Completes expected in the next 3 months
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Payment performance by invoice month table */}
                 {metrics.byInvoiceMonth?.length > 0 && (
