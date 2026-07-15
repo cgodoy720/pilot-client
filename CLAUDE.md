@@ -176,6 +176,7 @@ Both `pages/GPT/GPT.jsx` and `pages/Learning/Learning.jsx` consume the SSE `done
 - `GPT.jsx`: `sendMessageToExistingThread(overrideContent)` accepts an optional content override; `handleContinueGeneration` calls it with the continuation prompt. The new-thread send path also sets `truncated` on the assistant message, though Continue itself only fires once a thread is active.
 - `Learning.jsx`: `handleSendMessage(messageContent, model)` already accepts content directly, so `handleContinueGeneration` just calls it with the continuation prompt + current `selectedModel`.
 - Both pages clear the `truncated` flag on prior messages when a new user message is sent, so stale Continue buttons disappear.
+- **Model picker (2026-07-09)**: the LLM dropdown list is duplicated in `components/AutoExpandTextarea.jsx` (`LLM_MODELS`, used by Learning) and `pages/GPT/GPT.jsx` — keep them in sync. `x-ai/grok-4` was replaced with `x-ai/grok-4.3` (xAI deprecated grok-4 on OpenRouter → 404); the server aliases the legacy slug for old threads. The truncation root cause for non-Claude models was hidden reasoning tokens counting against `max_tokens` — now bounded server-side with `reasoning: { effort: 'low' }` (see test-pilot-server CLAUDE.md → Reasoning bound).
 
 ## Platform Intake
 
