@@ -47,7 +47,7 @@ const MoveTaskDialog = ({
       toast.success(`Moved task to Day ${selectedTargetDay.day_number}`);
       onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to move task');
+      toast.error(error?.response?.data?.error || 'Failed to move task');
       console.error('Error moving task:', error);
     } finally {
       setIsMoving(false);

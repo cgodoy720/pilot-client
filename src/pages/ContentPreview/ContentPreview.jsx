@@ -64,6 +64,7 @@ function ContentPreview() {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [goalEditorOpen, setGoalEditorOpen] = useState(false);
   const [moveTaskDialogOpen, setMoveTaskDialogOpen] = useState(false);
+  const [cohortDays, setCohortDays] = useState([]);
   const [deleteTaskDialogOpen, setDeleteTaskDialogOpen] = useState(false);
   const [deleteDayDialogOpen, setDeleteDayDialogOpen] = useState(false);
   const [createTaskDialogOpen, setCreateTaskDialogOpen] = useState(false);
@@ -356,24 +357,38 @@ function ContentPreview() {
     }
   };
 
-  const handleMoveTask = async (taskId, targetDayId) => {
-    try {
-      const response = await axios.post(
-        `${API_URL}/api/curriculum/tasks/${taskId}/move?cohort=${encodeURIComponent(selectedCohort?.cohort_name || '')}`,
-        { targetDayId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      if (response.status === 200) {
-        toast.success('Task moved successfully');
-        // Refresh day content and sidebar (task moved between days)
-        await loadDayContent(selectedDay.id);
-        setSidebarRefreshKey(prev => prev + 1);
+  // Load the selected cohort's day list when the move dialog opens
+  useEffect(() => {
+    if (!moveTaskDialogOpen || !selectedCohort?.cohort_name) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await axios.get(
+          `${API_URL}/api/curriculum/calendar?cohort=${encodeURIComponent(selectedCohort.cohort_name)}&t=${Date.now()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const days = (response.data || []).flatMap(week => week.days || []);
+        if (!cancelled) setCohortDays(days);
+      } catch (error) {
+        console.error('Error loading cohort days:', error);
+        toast.error('Failed to load cohort days');
       }
-    } catch (error) {
-      console.error('Error moving task:', error);
-      toast.error('Failed to move task');
-      throw error;
+    })();
+    return () => { cancelled = true; };
+  }, [moveTaskDialogOpen, selectedCohort?.cohort_name]);
+
+  const handleMoveTask = async (taskId, targetDayId) => {
+    // Errors propagate to MoveTaskDialog, which surfaces them
+    const response = await axios.post(
+      `${API_URL}/api/curriculum/tasks/${taskId}/move?cohort=${encodeURIComponent(selectedCohort?.cohort_name || '')}`,
+      { targetDayId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (response.status === 200) {
+      // Refresh day content and sidebar (task moved between days)
+      await loadDayContent(selectedDay.id);
+      setSidebarRefreshKey(prev => prev + 1);
     }
   };
 
@@ -1358,7 +1373,7 @@ function ContentPreview() {
           onOpenChange={setMoveTaskDialogOpen}
           task={selectedTask}
           currentDay={selectedDay}
-          allDays={[]} // Would need to pass available days from cohort
+          allDays={cohortDays}
           onMove={handleMoveTask}
         />
 
