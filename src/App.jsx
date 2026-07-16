@@ -49,6 +49,7 @@ import MockInterviewHistory from './pages/MockInterview/MockInterviewHistory';
 import InterviewRubricAdmin from './pages/MockInterview/InterviewRubricAdmin';
 import PathfinderCompass from './pages/PathfinderCompass';
 import StaffNetworkDashboard from './pages/StaffNetworkDashboard';
+import PathfinderCoaching from './pages/PathfinderCoaching';
 
 import WorkshopAdminDashboard from './pages/WorkshopAdminDashboard/WorkshopAdminDashboard';
 import ExternalCohortsDashboard from './pages/ExternalCohortsDashboard/ExternalCohortsDashboard';
@@ -491,6 +492,7 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route path="coaching" element={<PathfinderCoaching />} />
           <Route path="mock-interview" element={<MockInterviewSetup />} />
           <Route path="mock-interview/session/:interviewId" element={<MockInterviewSession />} />
           <Route path="mock-interview/feedback/:interviewId" element={<MockInterviewFeedback />} />

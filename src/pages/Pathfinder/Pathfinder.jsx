@@ -12,6 +12,18 @@ function Pathfinder() {
     return <Navigate to="/pathfinder/dashboard" replace />;
   }
 
+  // Compass and Coaching are standalone sidebar items — render without the Pathfinder top nav
+  const isStandalonePage = location.pathname.startsWith('/pathfinder/compass') || location.pathname.startsWith('/pathfinder/coaching');
+
+  if (isStandalonePage) {
+    const isCoaching = location.pathname.startsWith('/pathfinder/coaching');
+    return (
+      <div className={`w-full max-w-full mx-auto overflow-x-hidden bg-[#f5f5f5] min-h-screen text-[#1a1a1a]${isCoaching ? '' : ' pt-6 px-4'}`}>
+        <Outlet />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-full mx-auto overflow-x-hidden bg-[#f5f5f5] min-h-screen text-[#1a1a1a]">
       {/* Secondary Navigation */}
@@ -20,25 +32,13 @@ function Pathfinder() {
           to="/pathfinder/dashboard"
           className={({ isActive }) =>
             `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
-              isActive 
-                ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]' 
-                : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
-            }`
-          }
-        >
-          Dashboard
-        </NavLink>
-        <NavLink
-          to="/pathfinder/compass"
-          className={({ isActive }) =>
-            `h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
               isActive
                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
             }`
           }
         >
-          Compass
+          Dashboard
         </NavLink>
         <NavLink
           to="/pathfinder/networking"
