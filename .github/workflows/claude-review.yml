@@ -23,10 +23,12 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          track_progress: true
           show_full_output: true
           prompt: |
             Do not use the Skill tool or any /review slash command — perform this review directly.
-            Run `git diff origin/main...HEAD` yourself to get the PR's changes, read the affected
-            files, and review for security issues, bugs, and breaking changes. Be concise. Post a
-            single summary comment with your findings. Skip minor style issues.
-          claude_args: "--model claude-sonnet-4-6 --max-turns 80 --allowedTools Bash,Read,Glob,Grep,WebSearch --disallowedTools Skill"
+            This PR targets `${{ github.base_ref }}`. Run `git diff origin/${{ github.base_ref }}...HEAD`
+            yourself to get the PR's changes, read the affected files, and review for security issues,
+            bugs, and breaking changes. Be concise. Skip minor style issues. Post your findings as a
+            single summary by updating the Claude tracking comment.
+          claude_args: "--model claude-sonnet-4-6 --max-turns 80 --allowedTools Bash,Read,Glob,Grep,WebSearch,mcp__github_comment__update_claude_comment --disallowedTools Skill"
