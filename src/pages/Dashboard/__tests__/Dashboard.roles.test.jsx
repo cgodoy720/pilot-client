@@ -149,7 +149,7 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).getByText('Learning')).toBeInTheDocument();
       expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
       expect(within(nav).getByText('Calendar')).toBeInTheDocument();
-      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Jobs')).toBeInTheDocument();
       expect(within(nav).getByText('Performance')).toBeInTheDocument();
 
       // Logout button should be present
@@ -220,7 +220,7 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).getByText('Learning')).toBeInTheDocument();
       expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
       expect(within(nav).getByText('Calendar')).toBeInTheDocument();
-      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Jobs')).toBeInTheDocument();
       expect(within(nav).getByText('Performance')).toBeInTheDocument();
 
       // No dropdown triggers
@@ -317,7 +317,7 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).getByText('Learning')).toBeInTheDocument();
       expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
       expect(within(nav).getByText('Calendar')).toBeInTheDocument();
-      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Jobs')).toBeInTheDocument();
       expect(within(nav).getByText('Performance')).toBeInTheDocument();
       // Enterprise Admin nav link removed in dev (16454ee); assertion disabled.
       // expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
@@ -388,7 +388,7 @@ describe('Dashboard - Role-Based Access Control', () => {
       expect(within(nav).getByText('Learning')).toBeInTheDocument();
       expect(within(nav).getByText('AI Chat')).toBeInTheDocument();
       expect(within(nav).getByText('Calendar')).toBeInTheDocument();
-      expect(within(nav).getByText('Pathfinder')).toBeInTheDocument();
+      expect(within(nav).getByText('Jobs')).toBeInTheDocument();
       expect(within(nav).getByText('Performance')).toBeInTheDocument();
       // Enterprise Admin nav link removed in dev (16454ee); assertion disabled.
       // expect(within(nav).getByText('Enterprise Admin')).toBeInTheDocument();
@@ -444,13 +444,13 @@ describe('Dashboard - Role-Based Access Control', () => {
     const roles = [
       {
         name: 'builder', // 'student' maps to 'builder' in the permission system
-        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance'],
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Jobs', 'Performance'],
         expectedDropdowns: [],
         hasVolunteersLink: false,
       },
       {
         name: 'builder',
-        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance'],
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Jobs', 'Performance'],
         expectedDropdowns: [],
         hasVolunteersLink: false,
       },
@@ -463,14 +463,14 @@ describe('Dashboard - Role-Based Access Control', () => {
       {
         name: 'staff',
         // 'Enterprise Admin' removed — nav link dropped in dev (16454ee).
-        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Admissions Dashboard'],
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Jobs', 'Performance', 'Admissions Dashboard'],
         expectedDropdowns: ['Program', 'Employment', 'Staff'],
         hasVolunteersLink: false,
       },
       {
         name: 'admin',
         // 'Enterprise Admin' removed — nav link dropped in dev (16454ee).
-        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Pathfinder', 'Performance', 'Admissions Dashboard'],
+        expectedLinks: ['Dashboard', 'Learning', 'AI Chat', 'Calendar', 'Jobs', 'Performance', 'Admissions Dashboard'],
         expectedDropdowns: ['Program', 'Employment', 'Staff', 'Admin'],
         hasVolunteersLink: false,
       },
