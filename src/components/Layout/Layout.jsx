@@ -420,9 +420,9 @@ const Layout = ({ children, isLoading = false }) => {
             id="jobs"
             trigger={{ icon: Navigation, label: "Jobs" }}
             items={[
-              { to: '/pathfinder/dashboard', label: 'Pathfinder', activeMatch: (p) => p.startsWith('/pathfinder') && !p.startsWith('/pathfinder/compass') && !p.startsWith('/pathfinder/coaching') && !p.startsWith('/pathfinder/admin') },
-              { to: '/pathfinder/compass', label: 'Compass' },
-              ...(canViewCoaching ? [{ to: '/pathfinder/coaching', label: 'Coaching' }] : []),
+              { to: '/pathfinder/dashboard', label: 'Pathfinder', activeMatch: (p) => p.startsWith('/pathfinder') && !p.startsWith('/pathfinder/admin') },
+              { to: '/compass', label: 'Compass' },
+              ...(canViewCoaching ? [{ to: isStaffOrAdminRole ? '/coaching/dashboard' : '/coaching', label: 'Coaching' }] : []),
             ]}
             condition={canViewPathfinder}
             isMobile={isMobile}
