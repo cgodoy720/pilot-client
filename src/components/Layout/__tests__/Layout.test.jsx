@@ -24,6 +24,7 @@ vi.mock('lucide-react', () => ({
   Shield: () => <div data-testid="shield-icon">Shield</div>,
   BarChart3: () => <div data-testid="barchart3-icon">BarChart3</div>,
   BookOpen: () => <div data-testid="bookopen-icon">BookOpen</div>,
+  Navigation: () => <div data-testid="navigation-icon">Navigation</div>,
   ChevronDown: () => <div data-testid="chevrondown-icon">ChevronDown</div>,
   ChevronRight: () => <div data-testid="chevronright-icon">ChevronRight</div>,
 }));
@@ -150,7 +151,8 @@ describe('Layout Component', () => {
       expect(screen.getByRole('link', { name: /Learning/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /AI Chat/i })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Calendar/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Pathfinder/i })).toBeInTheDocument();
+      // Pathfinder now lives inside the Jobs dropdown (trigger renders the Navigation icon)
+      expect(screen.getByTestId('navigation-icon')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Performance/i })).toBeInTheDocument();
     });
 

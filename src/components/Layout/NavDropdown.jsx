@@ -23,12 +23,16 @@ const NavDropdown = ({
   const isRouteActive = (to) =>
     location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'));
 
+  // Check if an item is active, using optional activeMatch override
+  const isItemActive = (item) =>
+    item.activeMatch ? item.activeMatch(location.pathname) : isRouteActive(item.to);
+
   // Check if any of the dropdown items is currently active
-  const isAnyItemActive = items.some(item => isRouteActive(item.to));
+  const isAnyItemActive = items.some(item => isItemActive(item));
 
   // Find the active item's label for collapsed title display
   const activeItemLabel = isAnyItemActive
-    ? items.find(item => isRouteActive(item.to))?.label
+    ? items.find(item => isItemActive(item))?.label
     : null;
 
   // Auto-expand when on an active route
@@ -182,6 +186,7 @@ NavDropdown.propTypes = {
       to: PropTypes.string.isRequired,
       icon: PropTypes.elementType,
       label: PropTypes.string.isRequired,
+      activeMatch: PropTypes.func,
     })
   ).isRequired,
   condition: PropTypes.bool,
