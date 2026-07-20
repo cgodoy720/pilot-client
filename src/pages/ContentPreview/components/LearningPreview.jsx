@@ -18,6 +18,7 @@ import BreakInterface from '../../../components/BreakInterface/BreakInterface';
 import OnboardingInterface from '../../Learning/components/OnboardingInterface';
 import DeliverablePanel from '../../Learning/components/DeliverablePanel/DeliverablePanel';
 import TaskCompletionBar from '../../../components/TaskCompletionBar/TaskCompletionBar';
+import { parseLinkedResources } from '../../../components/ResourcesPopover/ResourcesPopover';
 import LoadingCurtain from '../../../components/LoadingCurtain/LoadingCurtain';
 import { streamLearningMessage } from '../../../utils/api';
 import { createStreamBuffer } from '../../../utils/streamBufferUtils';
@@ -331,6 +332,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
                   persona: task.persona,
                   feedback_slot: task.feedback_slot,
                   assessment_id: task.assessment_id,
+                  linked_resources: task.linked_resources, // Include linked resources for the Resources popover
                   start_time: block.start_time,
                   end_time: block.end_time,
                   category: block.block_category
@@ -1198,6 +1200,10 @@ function LearningPreview({ dayId, cohort, onBack }) {
     return task?.task_title?.toLowerCase().includes('retro') || false;
   };
 
+  // Normalized linked resources for the current task — feeds the Resources
+  // popover in the chat tray and completion bars (empty array hides the button)
+  const currentTaskResources = parseLinkedResources(tasks[currentTaskIndex]?.linked_resources);
+
   // Daily Overview
   if (showDailyOverview) {
     return (
@@ -1282,6 +1288,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       isLastTask={currentTaskIndex === tasks.length - 1}
                       showViewSubmission={currentAssessmentType !== 'self'}
                       onViewSubmission={() => setIsAssessmentPanelOpen(true)}
+                      resources={currentTaskResources}
                     />
                   )}
                 </div>
@@ -1373,6 +1380,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       isLastTask={currentTaskIndex === tasks.length - 1}
                       showViewSubmission={['video', 'document', 'link', 'structured', 'image'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                       onViewSubmission={() => setIsDeliverableSidebarOpen(true)}
+                      resources={currentTaskResources}
                     />
                   ) : (
                     <AutoExpandTextarea
@@ -1384,6 +1392,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       showPeerFeedbackButton={isRetrospectiveTask()}
                       onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
                       showLlmDropdown={['conversation', 'personalized'].includes(tasks[currentTaskIndex]?.task_mode)}
+                      resources={currentTaskResources}
                       onHeightChange={handleInputTrayHeightChange}
                     />
                   )}
