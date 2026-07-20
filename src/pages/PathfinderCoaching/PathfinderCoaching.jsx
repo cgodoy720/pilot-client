@@ -1064,7 +1064,7 @@ function StaffCoachView({ token, user }) {
                                                     {/* Suggested Agenda */}
                                                     <div>
                                                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Suggested Agenda</h4>
-                                                        {!prep && <p className="text-xs text-gray-400 mb-3">Pulls from the Builder's pre-work, their Pathfinder and Compass activity since the last session, and notes from all prior sessions. Takes 1-2 minutes to generate.</p>}
+                                                        {!prep && <p className="text-xs text-gray-400 mb-3">Pulls from the Builder's pre-work, their Pathfinder and Compass activity since the last session, and notes from all prior sessions. Takes 30 seconds to generate.</p>}
                                                         {sessionDetail.id === nextSession?.id ? (
                                                             <Button
                                                                 onClick={() => handleGeneratePrep(sessionDetail.id)}
@@ -1232,7 +1232,7 @@ function StaffCoachView({ token, user }) {
                                                     {/* Meeting Transcript */}
                                                     <div>
                                                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Meeting Transcript</h4>
-                                                        <p className="text-xs text-gray-400 mt-1 mb-3 leading-relaxed">Paste the raw transcript from your meeting below. Transcripts are saved to our database and help inform future sessions. Reminder: Mute your audio when discussing personal matters.</p>
+                                                        <p className="text-xs text-gray-400 mt-1 mb-3 leading-relaxed">Paste the raw transcript from your meeting below. Transcripts are saved to our database and help inform future sessions. Reminder: Mute your audio when discussing personal matters so they don't appear in the transcript.</p>
                                                         {(() => {
                                                             const isNextSession = sessionDetail.id === nextSession?.id;
                                                             return sessionDetail.transcript ? (
@@ -1750,7 +1750,7 @@ function StaffCoachView({ token, user }) {
                     <DialogHeader>
                         <DialogTitle>Add meeting transcript</DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-gray-500 mt-1">Paste the raw transcript from your Fireflies recording. Transcripts are saved to our database. Reminder: Mute your audio when discussing personal matters.</p>
+                    <p className="text-sm text-gray-500 mt-1">Paste the raw transcript from your Fireflies recording. Transcripts are saved to our database. Reminder: Mute your audio when discussing personal matters so they don't appear in the transcript.</p>
                     <Textarea
                         value={transcriptText}
                         onChange={(e) => setTranscriptText(e.target.value)}
@@ -1901,6 +1901,85 @@ function BuilderView({ token, user }) {
     const [showActionItemsDialog, setShowActionItemsDialog] = useState(false);
     const [preInputs, setPreInputs] = useState({ job_search_updates: '', highlights: '', priorities: '', questions_blockers: '' });
     const [noteContent, setNoteContent] = useState('');
+    const noteTextareaRef = useRef(null);
+
+    // Bullet chars by indent level (0, 1, 2+)
+    const BULLET_CHARS = ['•', '◦', '▪'];
+    const getBulletChar = (indentSpaces) => BULLET_CHARS[Math.min(Math.floor(indentSpaces / 2), BULLET_CHARS.length - 1)];
+
+    const handleNotesKeyDown = (e) => {
+        const el = e.target;
+        const start = el.selectionStart;
+        const value = noteContent;
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        const lineContent = value.substring(lineStart, start);
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const bulletMatch = lineContent.match(/^( *)(•|◦|▪) /);
+            if (bulletMatch) {
+                const currentIndent = bulletMatch[1].length;
+                if (e.shiftKey) {
+                    // Unindent: remove 2 spaces
+                    if (currentIndent >= 2) {
+                        const newIndent = currentIndent - 2;
+                        const newBullet = getBulletChar(newIndent);
+                        const rest = lineContent.substring(bulletMatch[0].length);
+                        const newLine = ' '.repeat(newIndent) + newBullet + ' ' + rest;
+                        const newValue = value.substring(0, lineStart) + newLine + value.substring(start);
+                        setNoteContent(newValue);
+                        requestAnimationFrame(() => { el.focus(); el.selectionStart = el.selectionEnd = start - 2; });
+                    }
+                } else {
+                    // Indent: add 2 spaces, update bullet char
+                    const newIndent = currentIndent + 2;
+                    const newBullet = getBulletChar(newIndent);
+                    const rest = lineContent.substring(bulletMatch[0].length);
+                    const newLine = ' '.repeat(newIndent) + newBullet + ' ' + rest;
+                    const newValue = value.substring(0, lineStart) + newLine + value.substring(start);
+                    setNoteContent(newValue);
+                    requestAnimationFrame(() => { el.focus(); el.selectionStart = el.selectionEnd = start + 2; });
+                }
+            } else {
+                // Not a bullet line — insert 2 spaces
+                const newValue = value.substring(0, start) + '  ' + value.substring(start);
+                setNoteContent(newValue);
+                requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 2; });
+            }
+        } else if (e.key === 'Enter') {
+            const bulletMatch = lineContent.match(/^( *)(•|◦|▪) (.*)$/);
+            if (bulletMatch) {
+                const [, indent, , text] = bulletMatch;
+                e.preventDefault();
+                if (!text.trim()) {
+                    // Empty bullet → exit bullet mode (remove bullet, just newline)
+                    const newValue = value.substring(0, lineStart) + '\n' + value.substring(start);
+                    setNoteContent(newValue);
+                    requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = lineStart + 1; });
+                } else {
+                    // Continue bullet at same indent level
+                    const bullet = getBulletChar(indent.length);
+                    const continuation = '\n' + indent + bullet + ' ';
+                    const newValue = value.substring(0, start) + continuation + value.substring(start);
+                    setNoteContent(newValue);
+                    requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + continuation.length; });
+                }
+            }
+        } else if (e.key === ' ' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+            // Auto-convert "- " at line start to "• " (keydown fires before space is inserted)
+            const dashMatch = lineContent.match(/^( *)-$/);
+            if (dashMatch) {
+                e.preventDefault();
+                const indent = dashMatch[1];
+                const bullet = getBulletChar(indent.length);
+                const newLine = indent + bullet + ' ';
+                const newValue = value.substring(0, lineStart) + newLine + value.substring(start);
+                setNoteContent(newValue);
+                requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = lineStart + newLine.length; });
+            }
+        }
+    };
+
     const [actionItemLines, setActionItemLines] = useState([]);
     const [actionItemInput, setActionItemInput] = useState('');
     const [savingPreWork, setSavingPreWork] = useState(false);
@@ -1992,7 +2071,10 @@ function BuilderView({ token, user }) {
     };
 
     const openActionItemsDialog = () => {
-        setActionItemLines([]);
+        const existing = (sessionDetail?.notes || [])
+            .filter(n => n.note_type === 'shared_action_item')
+            .map(n => ({ id: n.id, content: n.content, deleted: false }));
+        setActionItemLines(existing);
         setActionItemInput('');
         setShowActionItemsDialog(true);
     };
@@ -2029,14 +2111,33 @@ function BuilderView({ token, user }) {
     };
 
     const handleSaveActionItems = async () => {
+        const existingNotes = (sessionDetail?.notes || [])
+            .filter(n => n.note_type === 'shared_action_item');
+        const kept = actionItemLines.filter(i => !i.deleted && i.content.trim());
+        const newItems = [
+            ...kept.filter(i => i.id === null),
+            ...(actionItemInput.trim() ? [{ content: actionItemInput.trim() }] : [])
+        ];
+        if (kept.length === 0 && newItems.length === 0 && existingNotes.length > 0) {
+            if (!confirm(`This will delete all ${existingNotes.length} action item${existingNotes.length === 1 ? '' : 's'}. Continue?`)) return;
+        }
         setSavingActionItems(true);
         try {
-            const items = actionItemInput.trim()
-                ? [...actionItemLines, actionItemInput.trim()]
-                : [...actionItemLines];
-            for (const item of items.filter(i => i.trim())) {
-                await api.createNote(token, sessionDetail.id, { note_type: 'shared_action_item', content: item.trim() });
+            // Diff against existing notes so each operation is independent —
+            // a mid-save network failure can't wipe items that weren't touched
+            const keptById = new Map(kept.filter(i => i.id !== null).map(i => [i.id, i]));
+            for (const note of existingNotes) {
+                const line = keptById.get(note.id);
+                if (!line) {
+                    await api.deleteNote(token, sessionDetail.id, note.id);
+                } else if (line.content.trim() !== note.content) {
+                    await api.updateNote(token, sessionDetail.id, note.id, { content: line.content.trim() });
+                }
             }
+            for (const item of newItems) {
+                await api.createNote(token, sessionDetail.id, { note_type: 'shared_action_item', content: item.content.trim() });
+            }
+
             setShowActionItemsDialog(false);
             fetchSessionDetail(sessionDetail.id);
         } catch (err) {
@@ -2066,7 +2167,7 @@ function BuilderView({ token, user }) {
     const handleActionItemKeyDown = (e) => {
         if (e.key === 'Enter' && actionItemInput.trim()) {
             e.preventDefault();
-            setActionItemLines(prev => [...prev, actionItemInput.trim()]);
+            setActionItemLines(prev => [...prev, { id: null, content: actionItemInput.trim(), deleted: false }]);
             setActionItemInput('');
         }
     };
@@ -2109,20 +2210,19 @@ function BuilderView({ token, user }) {
                         </h4>
                         <button
                             onClick={() => setSelectedSession(activeSession)}
-                            className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                            className={`w-full text-left px-3 py-2 rounded-lg transition-colors text-sm ${
                                 selectedSession?.id === activeSession.id
-                                    ? 'border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                    ? 'bg-[rgba(66,66,234,0.05)] text-[#4242ea] font-medium'
+                                    : 'text-gray-600 hover:bg-gray-50'
                             }`}
                         >
-                            <div className="text-sm font-medium text-[#1E1E1E]">
-                                {new Date(activeSession.session_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            <div className="flex items-center justify-between">
+                                <span>{new Date(activeSession.session_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                {activeSession.status === 'in_progress'
+                                    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">● Live</span>
+                                    : <span className="text-xs text-gray-400">Next</span>
+                                }
                             </div>
-                            {activeSession.status === 'in_progress' && (
-                                <div className="mt-1">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">● Live</span>
-                                </div>
-                            )}
                         </button>
                     </div>
                 )}
@@ -2289,7 +2389,7 @@ function BuilderView({ token, user }) {
                                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Action Items</h4>
                                         {isEditable && allActionItems.length > 0 && (
                                             <button onClick={openActionItemsDialog} className="text-xs text-[#4242ea] hover:text-[#3535c0] font-medium">
-                                                + Add items
+                                                Edit items
                                             </button>
                                         )}
                                     </div>
@@ -2479,8 +2579,9 @@ function BuilderView({ token, user }) {
                             <DialogTitle>Session Notes</DialogTitle>
                         </DialogHeader>
                         <div className="py-2">
-                            <p className="text-xs text-gray-500 mb-3">Take notes about recommendations and guidance from your Coach</p>
-                            <Textarea value={noteContent} onChange={(e) => setNoteContent(e.target.value)} placeholder="Write your notes here..." rows={8} className="text-sm" />
+                            <p className="text-xs text-gray-500 mb-1">Take notes about recommendations and guidance from your Coach</p>
+                            <p className="text-xs text-gray-300 mb-3">Type <span className="font-mono">- </span>then Space to start a bullet · Tab to indent · Shift+Tab to unindent</p>
+                            <Textarea ref={noteTextareaRef} value={noteContent} onChange={(e) => setNoteContent(e.target.value)} onKeyDown={handleNotesKeyDown} placeholder="Write your notes here..." rows={8} className="text-sm" />
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <Button variant="outline" onClick={() => setShowNotesDialog(false)}>Cancel</Button>
@@ -2495,26 +2596,34 @@ function BuilderView({ token, user }) {
                 <Dialog open={showActionItemsDialog} onOpenChange={setShowActionItemsDialog}>
                     <DialogContent className="max-w-lg">
                         <DialogHeader>
-                            <DialogTitle>Add Action Items</DialogTitle>
+                            <DialogTitle>Edit Action Items</DialogTitle>
                         </DialogHeader>
                         <div className="py-2">
-                            <p className="text-xs text-gray-500 mb-3">Enter action items from your session. Press Enter to add each item.</p>
-                            {actionItemLines.length > 0 && (
+                            <p className="text-xs text-gray-500 mb-3">Edit, delete, or add action items. Press Enter to add a new item.</p>
+                            {actionItemLines.filter(i => !i.deleted).length > 0 && (
                                 <div className="mb-3 space-y-1">
-                                    {actionItemLines.map((item, i) => (
-                                        <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-md text-sm">
-                                            <span className="text-gray-300">·</span>
-                                            <span className="flex-1 text-gray-800">{item}</span>
-                                            <button onClick={() => setActionItemLines(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-300 hover:text-gray-500 text-xs">✕</button>
+                                    {actionItemLines.map((item, i) => item.deleted ? null : (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <span className="text-gray-300 text-xs">·</span>
+                                            <input
+                                                value={item.content}
+                                                onChange={(e) => setActionItemLines(prev => prev.map((it, idx) => idx === i ? { ...it, content: e.target.value } : it))}
+                                                className="flex-1 text-sm border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-[#4242ea]"
+                                            />
+                                            <button
+                                                onClick={() => setActionItemLines(prev => prev.map((it, idx) => idx === i ? { ...it, deleted: true } : it))}
+                                                className="text-gray-300 hover:text-red-400 text-xs px-1"
+                                                title="Delete"
+                                            >✕</button>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                            <Input value={actionItemInput} onChange={(e) => setActionItemInput(e.target.value)} onKeyDown={handleActionItemKeyDown} placeholder="Type an action item and press Enter..." className="text-sm" />
+                            <Input value={actionItemInput} onChange={(e) => setActionItemInput(e.target.value)} onKeyDown={handleActionItemKeyDown} placeholder="Type a new action item and press Enter..." className="text-sm" />
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <Button variant="outline" onClick={() => setShowActionItemsDialog(false)}>Cancel</Button>
-                            <Button onClick={handleSaveActionItems} disabled={savingActionItems || (actionItemLines.length === 0 && !actionItemInput.trim())} className="bg-[#4242ea] hover:bg-[#3535c0] text-white">
+                            <Button onClick={handleSaveActionItems} disabled={savingActionItems} className="bg-[#4242ea] hover:bg-[#3535c0] text-white">
                                 {savingActionItems ? 'Saving...' : 'Save'}
                             </Button>
                         </div>

@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from './ui/select';
 import ArrowButton from './ArrowButton/ArrowButton';
+import ResourcesPopover from './ResourcesPopover/ResourcesPopover';
 import { Mic, MicOff } from 'lucide-react';
 
 // Available LLM models
@@ -35,6 +36,7 @@ const AutoExpandTextarea = forwardRef(({
   showPeerFeedbackButton = false,
   onPeerFeedbackClick,
   peerFeedbackButtonText = "Peer Feedback",
+  resources = [],
   showLlmDropdown = false,
   showMicButton = false,
   shouldFocus = false,
@@ -277,7 +279,7 @@ const AutoExpandTextarea = forwardRef(({
 
         {/* Bottom row with buttons */}
         <div className="flex justify-between items-center">
-          {/* Left side - Mic + Assignment + Instructions + Peer Feedback buttons */}
+          {/* Left side - Mic + Assignment + Instructions + Peer Feedback + Resources buttons */}
           <div className="flex gap-2 items-center">
             {showMicButton && speechSupported && (
               <Button
@@ -322,6 +324,7 @@ const AutoExpandTextarea = forwardRef(({
                 {peerFeedbackButtonText}
               </Button>
             )}
+            <ResourcesPopover resources={resources} />
           </div>
 
           {/* Right side - LLM dropdown and send button */}
