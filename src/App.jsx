@@ -509,7 +509,9 @@ function App() {
         {/* Coaching - top-level route */}
         <Route path="/coaching/*" element={
           <Layout>
-            <PathfinderCoaching />
+            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER}>
+              <PathfinderCoaching />
+            </PermissionRoute>
           </Layout>
         } />
 

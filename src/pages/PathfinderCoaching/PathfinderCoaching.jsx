@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import { Pencil, GraduationCap, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
@@ -76,8 +76,7 @@ export default function PathfinderCoaching() {
 
         // Redirect bare /coaching → /coaching/dashboard
         if (!location.pathname.endsWith('/dashboard') && !location.pathname.endsWith('/sessions')) {
-            navigate('/coaching/dashboard', { replace: true });
-            return null;
+            return <Navigate to="/coaching/dashboard" replace />;
         }
 
         return (
