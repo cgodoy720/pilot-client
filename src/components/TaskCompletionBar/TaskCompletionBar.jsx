@@ -1,9 +1,10 @@
 import React from 'react';
 import { FaFileAlt } from 'react-icons/fa';
 import ArrowButton from '../ArrowButton/ArrowButton';
+import ResourcesPopover from '../ResourcesPopover/ResourcesPopover';
 import './TaskCompletionBar.css';
 
-function TaskCompletionBar({ onNextExercise, isLastTask = false, showViewSubmission = false, onViewSubmission }) {
+function TaskCompletionBar({ onNextExercise, isLastTask = false, showViewSubmission = false, onViewSubmission, resources = [] }) {
   return (
     <div className="task-completion-bar">
       <div className="task-completion-bar__content">
@@ -18,6 +19,7 @@ function TaskCompletionBar({ onNextExercise, isLastTask = false, showViewSubmiss
               <span>View Submission</span>
             </button>
           )}
+          <ResourcesPopover resources={resources} variant="completion" />
         </div>
 
         {/* Right side - Next Exercise or Success Message */}
