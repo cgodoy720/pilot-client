@@ -173,10 +173,12 @@ const Layout = ({ children, isLoading = false }) => {
   useEffect(() => {
     if (!token || !userRole) return;
     if (userRole !== 'builder') { setCanViewCoaching(true); return; }
-    fetch(`${API_URL}/api/coaching/check`, { headers: { Authorization: `Bearer ${token}` } })
+    const controller = new AbortController();
+    fetch(`${API_URL}/api/coaching/check`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
       .then(r => r.json())
-      .then(d => setCanViewCoaching(!!d.hasCoaching))
-      .catch(() => setCanViewCoaching(false));
+      .then(d => { if (!controller.signal.aborted) setCanViewCoaching(!!d.hasCoaching); })
+      .catch(() => { if (!controller.signal.aborted) setCanViewCoaching(false); });
+    return () => controller.abort();
   }, [token, userRole]);
 
   const handleLogout = () => {
