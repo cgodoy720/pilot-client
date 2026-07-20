@@ -1904,7 +1904,7 @@ function BuilderView({ token, user }) {
     const noteTextareaRef = useRef(null);
 
     // Bullet chars by indent level (0, 1, 2+)
-    const BULLET_CHARS = ['▪', '▪', '▪'];
+    const BULLET_CHARS = ['•', '◦', '▪'];
     const getBulletChar = (indentSpaces) => BULLET_CHARS[Math.min(Math.floor(indentSpaces / 2), BULLET_CHARS.length - 1)];
 
     const handleNotesKeyDown = (e) => {
@@ -2111,20 +2111,30 @@ function BuilderView({ token, user }) {
     };
 
     const handleSaveActionItems = async () => {
+        const existingNotes = (sessionDetail?.notes || [])
+            .filter(n => n.note_type === 'shared_action_item');
+        const kept = actionItemLines.filter(i => !i.deleted && i.content.trim());
+        const newItems = [
+            ...kept.filter(i => i.id === null),
+            ...(actionItemInput.trim() ? [{ content: actionItemInput.trim() }] : [])
+        ];
+        if (kept.length === 0 && newItems.length === 0 && existingNotes.length > 0) {
+            if (!confirm(`This will delete all ${existingNotes.length} action item${existingNotes.length === 1 ? '' : 's'}. Continue?`)) return;
+        }
         setSavingActionItems(true);
         try {
-            // Delete all existing action items first
-            const existingIds = (sessionDetail?.notes || [])
-                .filter(n => n.note_type === 'shared_action_item')
-                .map(n => n.id);
-            await Promise.all(existingIds.map(id => api.deleteNote(token, sessionDetail.id, id)));
-
-            // Recreate in display order (skipping deleted ones), then append new input
-            const ordered = [
-                ...actionItemLines.filter(i => !i.deleted && i.content.trim()),
-                ...(actionItemInput.trim() ? [{ content: actionItemInput.trim() }] : [])
-            ];
-            for (const item of ordered) {
+            // Diff against existing notes so each operation is independent —
+            // a mid-save network failure can't wipe items that weren't touched
+            const keptById = new Map(kept.filter(i => i.id !== null).map(i => [i.id, i]));
+            for (const note of existingNotes) {
+                const line = keptById.get(note.id);
+                if (!line) {
+                    await api.deleteNote(token, sessionDetail.id, note.id);
+                } else if (line.content.trim() !== note.content) {
+                    await api.updateNote(token, sessionDetail.id, note.id, { content: line.content.trim() });
+                }
+            }
+            for (const item of newItems) {
                 await api.createNote(token, sessionDetail.id, { note_type: 'shared_action_item', content: item.content.trim() });
             }
 
