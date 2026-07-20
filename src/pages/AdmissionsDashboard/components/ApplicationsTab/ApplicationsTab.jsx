@@ -1399,7 +1399,7 @@ const ApplicationsTab = ({
         </Button>
 
         {/* Active Filters Indicator */}
-        {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.enrollment_status?.length > 0 || applicationFilters.source_bucket?.length > 0 || applicationFilters.account_age_bucket?.length > 0 || applicationFilters.application_age_bucket?.length > 0 || applicationFilters.last_activity_bucket?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
+        {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.enrollment_status?.length > 0 || applicationFilters.source_bucket?.length > 0 || applicationFilters.account_age_bucket?.length > 0 || applicationFilters.application_age_bucket?.length > 0 || applicationFilters.last_activity_bucket?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0 || applicationFilters.pledge_completed?.length > 0 || applicationFilters.gja_signed?.length > 0) && (
           <div className="flex items-center gap-2 ml-auto flex-wrap">
             <span className="text-sm text-gray-500 font-proxima">Active filters:</span>
             {applicationFilters.status?.length > 0 && (
@@ -1460,6 +1460,16 @@ const ApplicationsTab = ({
             {applicationFilters.deliberation?.length > 0 && (
               <Badge className="bg-orange-100 text-orange-700 font-proxima cursor-pointer hover:bg-orange-200" onClick={() => handleClearFilter('deliberation')}>
                 Deliberation: {applicationFilters.deliberation.map(formatStatus).join(', ')} ✕
+              </Badge>
+            )}
+            {applicationFilters.pledge_completed?.length > 0 && (
+              <Badge className="bg-lime-100 text-lime-700 font-proxima cursor-pointer hover:bg-lime-200" onClick={() => handleClearFilter('pledge_completed')}>
+                Pledge: {applicationFilters.pledge_completed.map(v => v === 'true' ? 'Signed' : 'Not Signed').join(', ')} ✕
+              </Badge>
+            )}
+            {applicationFilters.gja_signed?.length > 0 && (
+              <Badge className="bg-rose-100 text-rose-700 font-proxima cursor-pointer hover:bg-rose-200" onClick={() => handleClearFilter('gja_signed')}>
+                GJA: {applicationFilters.gja_signed.map(v => v === 'true' ? 'Signed' : 'Not Signed').join(', ')} ✕
               </Badge>
             )}
             <Button
@@ -1636,7 +1646,7 @@ const ApplicationsTab = ({
           <div className="text-center">
             <p className="text-gray-500 font-proxima text-lg">No applicants found</p>
             <p className="text-gray-400 font-proxima text-sm mt-1">Try adjusting your filters</p>
-            {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.enrollment_status?.length > 0 || applicationFilters.source_bucket?.length > 0 || applicationFilters.account_age_bucket?.length > 0 || applicationFilters.application_age_bucket?.length > 0 || applicationFilters.last_activity_bucket?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0) && (
+            {(applicationFilters.status?.length > 0 || applicationFilters.final_status?.length > 0 || applicationFilters.info_session_status?.length > 0 || applicationFilters.workshop_status?.length > 0 || applicationFilters.program_admission_status?.length > 0 || applicationFilters.enrollment_status?.length > 0 || applicationFilters.source_bucket?.length > 0 || applicationFilters.account_age_bucket?.length > 0 || applicationFilters.application_age_bucket?.length > 0 || applicationFilters.last_activity_bucket?.length > 0 || applicationFilters.structured_task_grade?.length > 0 || applicationFilters.deliberation?.length > 0 || applicationFilters.pledge_completed?.length > 0 || applicationFilters.gja_signed?.length > 0) && (
               <Button
                 variant="outline"
                 className="mt-4 font-proxima"

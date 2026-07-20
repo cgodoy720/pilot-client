@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import { Pencil, GraduationCap, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
@@ -67,16 +68,24 @@ export default function PathfinderCoaching() {
     const token = useAuthStore((s) => s.token);
     const isAdmin = user?.role === 'admin';
     const isStaff = user?.role === 'staff' || isAdmin;
-    const [adminView, setAdminView] = useState('dashboard');
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    if (isAdmin) {
+    if (isStaff) {
+        const isSessionsTab = location.pathname.endsWith('/sessions');
+
+        // Redirect bare /coaching → /coaching/dashboard
+        if (!location.pathname.endsWith('/dashboard') && !location.pathname.endsWith('/sessions')) {
+            return <Navigate to="/coaching/dashboard" replace />;
+        }
+
         return (
             <div>
                 <nav className="h-[45px] flex gap-0 border-b-2 border-[#e0e0e0] bg-[#f5f5f5]">
                     <button
-                        onClick={() => setAdminView('dashboard')}
+                        onClick={() => navigate('/coaching/dashboard')}
                         className={`h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
-                            adminView === 'dashboard'
+                            !isSessionsTab
                                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
                                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
                         }`}
@@ -84,9 +93,9 @@ export default function PathfinderCoaching() {
                         Dashboard
                     </button>
                     <button
-                        onClick={() => setAdminView('coaching')}
+                        onClick={() => navigate('/coaching/sessions')}
                         className={`h-full px-4 text-sm font-semibold transition-all duration-200 border-b-[3px] flex items-center whitespace-nowrap ${
-                            adminView === 'coaching'
+                            isSessionsTab
                                 ? 'text-[#4242ea] border-[#4242ea] bg-[rgba(66,66,234,0.05)]'
                                 : 'text-[#666666] border-transparent hover:text-[#1a1a1a] hover:bg-[rgba(66,66,234,0.05)]'
                         }`}
@@ -94,15 +103,14 @@ export default function PathfinderCoaching() {
                         My Sessions
                     </button>
                 </nav>
-                {adminView === 'dashboard'
-                    ? <AdminDashboard token={token} />
-                    : <StaffCoachView token={token} user={user} />
+                {isSessionsTab
+                    ? <StaffCoachView token={token} user={user} />
+                    : <AdminDashboard token={token} />
                 }
             </div>
         );
     }
 
-    if (isStaff) return <StaffCoachView token={token} user={user} />;
     return <BuilderView token={token} user={user} />;
 }
 

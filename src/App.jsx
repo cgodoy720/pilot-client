@@ -476,7 +476,6 @@ function App() {
           </Layout>
         }>
           <Route path="dashboard" element={<PathfinderPersonalDashboard />} />
-          <Route path="compass" element={<PathfinderCompass />} />
           <Route path="applications" element={<PathfinderApplications />} />
           <Route path="networking" element={<PathfinderNetworking />} />
           <Route path="projects" element={<PathfinderProjects />} />
@@ -492,13 +491,30 @@ function App() {
               </PermissionRoute>
             }
           />
-          <Route path="coaching" element={<PathfinderCoaching />} />
           <Route path="mock-interview" element={<MockInterviewSetup />} />
           <Route path="mock-interview/session/:interviewId" element={<MockInterviewSession />} />
           <Route path="mock-interview/feedback/:interviewId" element={<MockInterviewFeedback />} />
           <Route path="mock-interview/history" element={<MockInterviewHistory />} />
         </Route>
         
+        {/* Compass - top-level route */}
+        <Route path="/compass" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER}>
+              <PathfinderCompass />
+            </PermissionRoute>
+          </Layout>
+        } />
+
+        {/* Coaching - top-level route */}
+        <Route path="/coaching/*" element={
+          <Layout>
+            <PermissionRoute permission={PAGE_PERMISSIONS.PATHFINDER}>
+              <PathfinderCoaching />
+            </PermissionRoute>
+          </Layout>
+        } />
+
         {/* Pathfinder admin dashboard - separate route */}
         <Route path="/pathfinder-admin" element={
           <Layout>
