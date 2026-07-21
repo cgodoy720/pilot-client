@@ -1,6 +1,10 @@
-const MARKERS = ['[TASK_COMPLETE]', '[TASK COMPLETE]'];
-const MAX_MARKER_LEN = Math.max(...MARKERS.map(m => m.length)); // 15
-const MARKER_REGEX = /\[TASK(?:_| )COMPLETE\]/gi;
+// System markers the AI may embed in streamed text. [TASK_COMPLETE] signals
+// conversation conclusion; [OPEN_ASSIGNMENT] tells the client to render an
+// Open Assignment button under the message (the server sends the semantic
+// flag on the done event — here we only keep the raw text from flashing).
+const MARKERS = ['[TASK_COMPLETE]', '[TASK COMPLETE]', '[OPEN_ASSIGNMENT]', '[OPEN ASSIGNMENT]'];
+const MAX_MARKER_LEN = Math.max(...MARKERS.map(m => m.length)); // 17
+const MARKER_REGEX = /\[(?:TASK(?:_| )COMPLETE|OPEN(?:_| )ASSIGNMENT)\]/gi;
 
 // Check if `text` is a prefix of any marker
 function couldBeMarkerPrefix(text) {
