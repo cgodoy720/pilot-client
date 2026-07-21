@@ -58,17 +58,6 @@ const BadgePill = ({ label, subtitle, color = 'green' }) => {
   );
 };
 
-const MetricCard = ({ label, value }) => {
-  if (value == null) return null;
-  const displayValue = typeof value === 'number' ? `${Math.round(value)}%` : value;
-
-  return (
-    <div className="bg-white rounded-xl border border-[#E5E7EB] p-3 flex-1 min-w-0 text-center">
-      <p className="text-2xl font-bold text-[#7C3AED] font-proxima-bold">{displayValue}</p>
-      <p className="text-xs text-gray-500 font-proxima mt-0.5">{label}</p>
-    </div>
-  );
-};
 
 const WeeklyFeedbackReport = ({ userId, token }) => {
   const [weeks, setWeeks] = useState([]);
@@ -197,7 +186,6 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
   }
 
   const report = reportData?.report || {};
-  const { attendanceRate, taskCompletionRate, avgGradedScore } = reportData || {};
   const selectedWeekObj = weeks.find(w => w.week_number === selectedWeek);
 
   return (
@@ -233,23 +221,14 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
           </div>
         ) : (
           <>
-            {/* Summary */}
+            {/* 1. Summary */}
             {report.summary?.body && (
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
                 <p className="text-sm text-purple-900 font-proxima leading-relaxed">{report.summary.body}</p>
               </div>
             )}
 
-            {/* Metric cards */}
-            {(attendanceRate != null || taskCompletionRate != null || avgGradedScore != null) && (
-              <div className="flex gap-3">
-                <MetricCard label="Attendance Rate" value={attendanceRate} />
-                <MetricCard label="Task Completion" value={taskCompletionRate} />
-                <MetricCard label="Avg Grade" value={avgGradedScore} />
-              </div>
-            )}
-
-            {/* Attendance */}
+            {/* 2. Attendance */}
             {report.attendance && (
               <SectionCard
                 title="Attendance"
@@ -258,7 +237,7 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
               />
             )}
 
-            {/* Task Completion */}
+            {/* 3a. Task Completion (legacy field name) */}
             {report.task_completion && (
               <SectionCard
                 title="Task Completion"
@@ -267,7 +246,37 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
               />
             )}
 
-            {/* Graded Assignments */}
+            {/* 3. Incomplete Reminders */}
+            {report.incomplete_reminders && (
+              <SectionCard
+                title="Incomplete Work"
+                headline={report.incomplete_reminders.headline}
+                body={report.incomplete_reminders.body}
+              >
+                {report.incomplete_reminders.incomplete_tasks?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 font-proxima mb-1">Incomplete Tasks</p>
+                    <ul className="list-disc list-inside text-gray-700 text-sm space-y-0.5">
+                      {report.incomplete_reminders.incomplete_tasks.map((task, i) => (
+                        <li key={i}>{typeof task === 'string' ? task : task.title || task.name || JSON.stringify(task)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {report.incomplete_reminders.unsubmitted_deliverables?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 font-proxima mb-1">Unsubmitted Deliverables</p>
+                    <ul className="list-disc list-inside text-gray-700 text-sm space-y-0.5">
+                      {report.incomplete_reminders.unsubmitted_deliverables.map((item, i) => (
+                        <li key={i}>{typeof item === 'string' ? item : item.title || item.name || JSON.stringify(item)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </SectionCard>
+            )}
+
+            {/* 4a. Graded Assignments (legacy field name) */}
             {report.graded_assignments && (
               <SectionCard
                 title="Graded Assignments"
@@ -279,12 +288,7 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
                     <p className="text-xs text-gray-500 font-proxima mb-1">Strengths</p>
                     <div className="flex flex-wrap gap-1.5">
                       {report.graded_assignments.strengths.map((s, i) => (
-                        <BadgePill
-                          key={i}
-                          label={s.label}
-                          subtitle={s.explanation}
-                          color="green"
-                        />
+                        <BadgePill key={i} label={s.label} subtitle={s.explanation} color="green" />
                       ))}
                     </div>
                   </div>
@@ -294,12 +298,7 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
                     <p className="text-xs text-gray-500 font-proxima mb-1">Growth Areas</p>
                     <div className="flex flex-wrap gap-1.5">
                       {report.graded_assignments.growth_areas.map((g, i) => (
-                        <BadgePill
-                          key={i}
-                          label={g.label}
-                          subtitle={g.explanation}
-                          color="amber"
-                        />
+                        <BadgePill key={i} label={g.label} subtitle={g.explanation} color="amber" />
                       ))}
                     </div>
                   </div>
@@ -307,7 +306,65 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
               </SectionCard>
             )}
 
-            {/* Peer Feedback */}
+            {/* 4. Assignment Feedback */}
+            {report.assignment_feedback && (
+              <SectionCard
+                title="Assignment Feedback"
+                headline={report.assignment_feedback.headline}
+                body={report.assignment_feedback.body}
+              >
+                {report.assignment_feedback.strengths?.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 font-proxima mb-1">Strengths</p>
+                    <ol className="space-y-1.5">
+                      {report.assignment_feedback.strengths.map((s, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-gray-700 font-proxima">
+                          <span className="text-gray-400 font-medium shrink-0">{i + 1}.</span>
+                          <span><span className="font-semibold">{s.label}</span>{s.explanation && `: ${s.explanation}`}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                {report.assignment_feedback.growth_areas?.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 font-proxima mb-1">Growth Areas</p>
+                    <ol className="space-y-1.5">
+                      {report.assignment_feedback.growth_areas.map((g, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-gray-700 font-proxima">
+                          <span className="text-gray-400 font-medium shrink-0">{i + 1}.</span>
+                          <span><span className="font-semibold">{g.label}</span>{g.explanation && `: ${g.explanation}`}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                {report.assignment_feedback.superpower && (
+                  <div className="mt-3 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <p className="text-xs text-green-700 font-proxima font-semibold mb-0.5">Superpower of the Week</p>
+                    <p className="text-sm text-green-800 font-proxima font-medium">
+                      {report.assignment_feedback.superpower.label || report.assignment_feedback.superpower}
+                    </p>
+                    {report.assignment_feedback.superpower.explanation && (
+                      <p className="text-xs text-green-700 font-proxima mt-0.5">{report.assignment_feedback.superpower.explanation}</p>
+                    )}
+                  </div>
+                )}
+                {report.assignment_feedback.challenge && (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <p className="text-xs text-amber-700 font-proxima font-semibold mb-0.5">Challenge of the Week</p>
+                    <p className="text-sm text-amber-800 font-proxima font-medium">
+                      {report.assignment_feedback.challenge.label || report.assignment_feedback.challenge}
+                    </p>
+                    {report.assignment_feedback.challenge.explanation && (
+                      <p className="text-xs text-amber-700 font-proxima mt-0.5">{report.assignment_feedback.challenge.explanation}</p>
+                    )}
+                  </div>
+                )}
+              </SectionCard>
+            )}
+
+            {/* 5. Peer Feedback — strengths only, no growth areas */}
             {report.peer_feedback && (
               <SectionCard
                 title="Peer Feedback"
@@ -315,39 +372,54 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
                 body={report.peer_feedback.body}
               >
                 {report.peer_feedback.strengths?.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 font-proxima mb-1">Strengths</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {report.peer_feedback.strengths.map((s, i) => (
-                        <BadgePill
-                          key={i}
-                          label={s.label}
-                          subtitle={s.from_name ? `from ${s.from_name}` : undefined}
-                          color="purple"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {report.peer_feedback.growth_areas?.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 font-proxima mb-1">Growth Areas</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {report.peer_feedback.growth_areas.map((g, i) => (
-                        <BadgePill
-                          key={i}
-                          label={g.label}
-                          subtitle={g.explanation}
-                          color="amber"
-                        />
-                      ))}
-                    </div>
+                  <div className="mt-2 space-y-2">
+                    {report.peer_feedback.strengths.map((s, i) => (
+                      <div key={i} className="border-l-2 border-purple-300 pl-3">
+                        {(s.quote || s.label) && (
+                          <p className="text-sm text-gray-700 font-proxima italic">"{s.quote || s.label}"</p>
+                        )}
+                        {s.from_name && (
+                          <p className="text-xs text-gray-400 font-proxima mt-0.5">— {s.from_name}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </SectionCard>
             )}
 
-            {/* Personal Reflections */}
+            {/* 6. Late Submissions */}
+            {report.late_submissions?.items?.length > 0 && (
+              <SectionCard
+                title="Late Submissions"
+                headline={report.late_submissions.headline}
+                body={report.late_submissions.body}
+              >
+                <div className="mt-2 space-y-2">
+                  {report.late_submissions.items.map((item, i) => (
+                    <div key={i}>
+                      {typeof item === 'string' ? (
+                        <p className="text-sm text-gray-700 font-proxima">{item}</p>
+                      ) : (
+                        <>
+                          <p className="text-sm text-gray-700 font-proxima font-medium">
+                            {item.task_title}
+                            {item.original_week && (
+                              <span className="ml-1.5 text-xs text-gray-400 font-normal">Week {item.original_week}</span>
+                            )}
+                          </p>
+                          {item.feedback && (
+                            <p className="text-xs text-gray-500 font-proxima mt-0.5">{item.feedback}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* 7. Personal Reflections */}
             {report.personal_reflections && (
               <SectionCard
                 title="Personal Reflections"
@@ -356,7 +428,7 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
               />
             )}
 
-            {/* Recommendation — accent card */}
+            {/* 8. Recommendation */}
             {report.recommendation && (
               <SectionCard
                 title="Recommendation"

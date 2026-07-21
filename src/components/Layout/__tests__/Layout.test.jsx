@@ -83,6 +83,13 @@ describe('Layout Component', () => {
     mockWindowInnerWidth(1024);
     vi.spyOn(console, 'log').mockImplementation(() => {});
 
+    // Stub fetch so the builder coaching-access check (/api/coaching/check)
+    // resolves deterministically instead of leaking a real request that can
+    // settle after teardown and setState into a torn-down env ("window is not defined").
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ hasCoaching: false }) })
+    ));
+
     // Reset Zustand auth store
     useAuthStore.setState({
       user: null,
@@ -96,6 +103,7 @@ describe('Layout Component', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe('Responsive Design', () => {

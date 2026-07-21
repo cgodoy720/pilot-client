@@ -147,14 +147,6 @@ describe('WeeklyFeedbackReport', () => {
       screen.getByText('Carlos had a strong week with consistent attendance and solid task completion.')
     ).toBeInTheDocument();
 
-    // Metric cards — "Task Completion" and "Attendance" each appear twice
-    // (once as metric card label and once as section title)
-    expect(screen.getByText('100%')).toBeInTheDocument(); // attendance rate
-    expect(screen.getByText('80%')).toBeInTheDocument(); // task completion rate
-    expect(screen.getByText('89%')).toBeInTheDocument(); // avg grade (88.5 rounded)
-    expect(screen.getByText('Attendance Rate')).toBeInTheDocument();
-    expect(screen.getByText('Avg Grade')).toBeInTheDocument();
-
     // Section: Attendance
     expect(screen.getByText('Perfect attendance this week')).toBeInTheDocument();
     expect(screen.getByText('4 of 5 tasks completed')).toBeInTheDocument();
@@ -169,13 +161,13 @@ describe('WeeklyFeedbackReport', () => {
     expect(screen.getByText('Code Quality')).toBeInTheDocument();
     expect(screen.getByText('Testing')).toBeInTheDocument();
 
-    // Peer Feedback
+    // Peer Feedback — strengths render as attributed quotes; growth areas no longer shown
     expect(screen.getByText('Peer Feedback')).toBeInTheDocument();
-    expect(screen.getByText('Communication')).toBeInTheDocument();
-    expect(screen.getByText('from Jane S.')).toBeInTheDocument();
-    expect(screen.getByText('Collaboration')).toBeInTheDocument();
-    expect(screen.getByText('from Alex L.')).toBeInTheDocument();
-    expect(screen.getByText('Time Management')).toBeInTheDocument();
+    expect(screen.getByText('"Communication"')).toBeInTheDocument();
+    expect(screen.getByText('— Jane S.')).toBeInTheDocument();
+    expect(screen.getByText('"Collaboration"')).toBeInTheDocument();
+    expect(screen.getByText('— Alex L.')).toBeInTheDocument();
+    expect(screen.queryByText('Time Management')).not.toBeInTheDocument();
 
     // Personal Reflections
     expect(screen.getByText('Personal Reflections')).toBeInTheDocument();
@@ -198,7 +190,6 @@ describe('WeeklyFeedbackReport', () => {
 
     // Summary + Attendance are present
     expect(screen.getByText('Missed one day')).toBeInTheDocument();
-    expect(screen.getByText('80%')).toBeInTheDocument(); // attendance metric
 
     // These sections should NOT be in the document
     expect(screen.queryByText('Task Completion')).not.toBeInTheDocument();
@@ -206,9 +197,6 @@ describe('WeeklyFeedbackReport', () => {
     expect(screen.queryByText('Peer Feedback')).not.toBeInTheDocument();
     expect(screen.queryByText('Personal Reflections')).not.toBeInTheDocument();
     expect(screen.queryByText('Recommendation')).not.toBeInTheDocument();
-
-    // Null metrics should not render cards
-    expect(screen.queryByText('Avg Grade')).not.toBeInTheDocument();
   });
 
   it('calls fetchAvailableReportWeeks with the token on mount', async () => {
