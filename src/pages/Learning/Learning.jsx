@@ -1845,7 +1845,7 @@ function Learning() {
                 ref={textareaRef}
                 onSubmit={handleSendMessage}
                 disabled={isSending || isAiThinking || isStreaming || !isActive}
-                showAssignmentButton={['video', 'document', 'link', 'structured', 'image', 'file', 'url'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                showAssignmentButton={['video', 'document', 'link', 'structured', 'image', 'file', 'url', 'text', 'presentation'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                 showPeerFeedbackButton={isRetrospectiveTask()}
                 onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
