@@ -5,9 +5,30 @@ import {
   SheetContent,
 } from '../../../../components/ui/sheet';
 import StructuredSubmission from './StructuredSubmission';
-import FlexibleSubmission from './FlexibleSubmission';
+import SubmissionForm from './SubmissionForm';
 import ImageSubmission from './ImageSubmission';
 import FileSubmission from './FileSubmission';
+import NoDeliverableConfigured from './NoDeliverableConfigured';
+
+// Deliverable types that submit a URL through the shared SubmissionForm (link mode).
+const LINK_TYPES = ['link', 'document', 'url', 'presentation'];
+
+// Pure routing decision: given a task, which panel handles its deliverable.
+// Returns one of: 'structured' | 'video' | 'image' | 'file' | 'text' | 'link' | 'none'.
+// 'none' is the genuine fallback — only reached by an unknown/unconfigured type,
+// never as a silent catch-all for known types. Exported for unit testing.
+export function resolveDeliverablePanel(task) {
+  if (!task) return 'none';
+  // Schema-based custom forms (workshop-style) take precedence over type.
+  if (task.deliverable_schema) return 'structured';
+  const type = task.deliverable_type;
+  if (type === 'video') return 'video';
+  if (type === 'image') return 'image';
+  if (type === 'file') return 'file';
+  if (type === 'text') return 'text';
+  if (LINK_TYPES.includes(type)) return 'link';
+  return 'none';
+}
 
 function DeliverablePanel({
   task,
@@ -59,29 +80,28 @@ function DeliverablePanel({
       taskId
     };
 
-    // Check for structured deliverable first (workshop schema-based custom forms)
-    if (task.deliverable_schema) {
-      return <StructuredSubmission {...commonProps} schema={task.deliverable_schema} />;
+    // Explicit per-type routing. Every known deliverable type maps to a focused
+    // panel; only a genuinely unknown/unconfigured type reaches the terminal
+    // fallback (no silent generic selector).
+    switch (resolveDeliverablePanel(task)) {
+      case 'structured':
+        return <StructuredSubmission {...commonProps} schema={task.deliverable_schema} />;
+      // Video → dedicated Loom form (schema-based; keeps existing storage shape).
+      case 'video':
+        return <StructuredSubmission {...commonProps} schema={getVideoSchema()} />;
+      case 'image':
+        return <ImageSubmission {...commonProps} />;
+      case 'file':
+        return <FileSubmission {...commonProps} />;
+      case 'text':
+        return <SubmissionForm {...commonProps} mode="text" />;
+      case 'link':
+        return <SubmissionForm {...commonProps} mode="link" />;
+      // Genuinely no submittable deliverable configured (e.g. 'none', null,
+      // or an unrecognized type).
+      default:
+        return <NoDeliverableConfigured deliverableType={task.deliverable_type} />;
     }
-
-    // For video deliverable type, use StructuredSubmission with Loom schema
-    if (task.deliverable_type === 'video') {
-      return <StructuredSubmission {...commonProps} schema={getVideoSchema()} />;
-    }
-
-    // For image deliverable type, use ImageSubmission
-    if (task.deliverable_type === 'image') {
-      return <ImageSubmission {...commonProps} />;
-    }
-
-    // For file deliverable type, use FileSubmission
-    if (task.deliverable_type === 'file') {
-      return <FileSubmission {...commonProps} />;
-    }
-
-    // For all other standard deliverable types (text, link, document), use FlexibleSubmission
-    // This gives builders the 3-option selector (Text, Google Drive Link, Video)
-    return <FlexibleSubmission {...commonProps} />;
   };
 
   return (
