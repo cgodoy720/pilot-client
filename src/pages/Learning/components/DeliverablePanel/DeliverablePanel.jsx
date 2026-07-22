@@ -4,13 +4,16 @@ import {
   Sheet,
   SheetContent,
 } from '../../../../components/ui/sheet';
+import './DeliverablePanel.css';
 import StructuredSubmission from './StructuredSubmission';
-import SubmissionForm from './SubmissionForm';
+import LinkSubmission from './LinkSubmission';
+import TextSubmission from './TextSubmission';
+import VideoSubmission from './VideoSubmission';
 import ImageSubmission from './ImageSubmission';
 import FileSubmission from './FileSubmission';
 import NoDeliverableConfigured from './NoDeliverableConfigured';
 
-// Deliverable types that submit a URL through the shared SubmissionForm (link mode).
+// Link-style deliverables (paste a URL) share the dedicated LinkSubmission panel.
 const LINK_TYPES = ['link', 'document', 'url', 'presentation'];
 
 // Pure routing decision: given a task, which panel handles its deliverable.
@@ -54,21 +57,6 @@ function DeliverablePanel({
     }
   };
 
-  // Create video schema for Loom submissions
-  const getVideoSchema = () => ({
-    fields: [
-      {
-        name: 'loomUrl',
-        label: 'Loom Video URL',
-        type: 'loom_url',
-        required: true,
-        placeholder: 'https://www.loom.com/share/...',
-        instructions: task.deliverable || 'Record a video to share your work. Make sure your video is set to "Anyone with the link can view".',
-        help: 'Paste the share link from your Loom video.'
-      }
-    ]
-  });
-
   const getSubmissionComponent = () => {
     const commonProps = {
       task,
@@ -80,23 +68,22 @@ function DeliverablePanel({
       taskId
     };
 
-    // Explicit per-type routing. Every known deliverable type maps to a focused
-    // panel; only a genuinely unknown/unconfigured type reaches the terminal
-    // fallback (no silent generic selector).
+    // Explicit per-type routing to the dedicated panel for each deliverable
+    // type. Only a genuinely unknown/unconfigured type reaches the terminal
+    // fallback — no silent generic panel for real types.
     switch (resolveDeliverablePanel(task)) {
       case 'structured':
         return <StructuredSubmission {...commonProps} schema={task.deliverable_schema} />;
-      // Video → dedicated Loom form (schema-based; keeps existing storage shape).
       case 'video':
-        return <StructuredSubmission {...commonProps} schema={getVideoSchema()} />;
+        return <VideoSubmission {...commonProps} />;
       case 'image':
         return <ImageSubmission {...commonProps} />;
       case 'file':
         return <FileSubmission {...commonProps} />;
       case 'text':
-        return <SubmissionForm {...commonProps} mode="text" />;
+        return <TextSubmission {...commonProps} />;
       case 'link':
-        return <SubmissionForm {...commonProps} mode="link" />;
+        return <LinkSubmission {...commonProps} />;
       // Genuinely no submittable deliverable configured (e.g. 'none', null,
       // or an unrecognized type).
       default:
