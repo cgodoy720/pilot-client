@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import ArrowButton from './ArrowButton/ArrowButton';
 import logoFull from '../assets/logo-full.png';
 
-const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
+const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting, initialFormData = {}, skipStepIds = [], precedingSteps = 1, headerBanner = null }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [direction, setDirection] = useState('forward');
   const [formData, setFormData] = useState({
@@ -19,6 +19,7 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
     referralSource: '',
     referralDetail: '',
     nychaResident: '',
+    ...initialFormData, // e.g. a prefilled access code from an enterprise invite link
   });
   const [validationError, setValidationError] = useState('');
 
@@ -96,7 +97,11 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
     return [];
   };
 
-  const steps = getSteps();
+  // Callers can suppress steps whose value is already known (e.g. an access
+  // code prefilled from an enterprise invite link), so the invitee never has to
+  // type it. Skipping the accessCode step keeps it in formData (from
+  // initialFormData) so it still submits.
+  const steps = getSteps().filter((step) => !skipStepIds.includes(step.id));
   const currentQuestion = steps[currentStep];
   const totalSteps = steps.length;
 
@@ -276,11 +281,12 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-8">
+        {headerBanner}
         {/* Step Indicator and Question */}
         <div className="w-full max-w-2xl">
           <div className="mb-12">
             <p className="text-white text-sm font-bold font-proxima mb-6">
-              {String(currentStep + 2).padStart(2, '0')} of {String(totalSteps + 1).padStart(2, '0')}
+              {String(currentStep + 1 + precedingSteps).padStart(2, '0')} of {String(totalSteps + precedingSteps).padStart(2, '0')}
             </p>
             
             {/* Question with slide animation */}
