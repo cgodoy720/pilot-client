@@ -5,6 +5,20 @@ import { Input } from './ui/input';
 import ArrowButton from './ArrowButton/ArrowButton';
 import logoFull from '../assets/logo-full.png';
 
+// Signup "How did you hear about Pursuit?" → Community Based Organization branch.
+// Mirrors the applicant application form (question 1092): a specific-org dropdown + Other.
+const CBO_REFERRAL_VALUE = 'Community Based Organization';
+const CBO_ORG_OPTIONS = [
+  'Kode with Klossy (KWK)',
+  'Brooklyn Public Library',
+  'Queens Public Library',
+  'New York Public Library',
+  'Milagros Day Worldwide',
+  'LaGuardia College',
+  'Lower East Side Employment Network (LESEN)',
+  'Other',
+].map((label) => ({ value: label, label }));
+
 const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting, initialFormData = {}, skipStepIds = [], precedingSteps = 1, headerBanner = null }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [direction, setDirection] = useState('forward');
@@ -18,6 +32,7 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting, initia
     accessCode: '', // For enterprise participants (cohort or workshop)
     referralSource: '',
     referralDetail: '',
+    referralDetailOther: '', // free-text org name when CBO → "Other" is picked
     nychaResident: '',
     ...initialFormData, // e.g. a prefilled access code from an enterprise invite link
   });
@@ -26,21 +41,33 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting, initia
   // Define steps based on user type
   const getSteps = () => {
     if (userType === 'applicant') {
-      return [
+      const isCbo = formData.referralSource === CBO_REFERRAL_VALUE;
+      const nychaStep = {
+        id: 'nychaResident',
+        label: 'Are you a current New York City Housing Authority Resident? (Includes NYCHA sites or Section 8 assistance)',
+        type: 'select',
+        placeholder: 'Select an option...',
+        options: [
+          { value: 'Yes', label: 'Yes' },
+          { value: 'No', label: 'No' },
+          { value: 'I don\'t know', label: 'I don\'t know' },
+        ],
+      };
+      const steps = [
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'lastName', label: 'What is your last name?', type: 'text', placeholder: 'Type your answer here...' },
         { id: 'email', label: 'What is your email address?', type: 'email', placeholder: 'Type your answer here...' },
         { id: 'confirmEmail', label: 'Confirm your email address', type: 'email', placeholder: 'Type your answer here...' },
         { id: 'password', label: 'Create a password', type: 'password', placeholder: 'Type your answer here...' },
         { id: 'confirmPassword', label: 'Confirm your password', type: 'password', placeholder: 'Type your answer here...' },
-        { 
-          id: 'referralSource', 
-          label: 'How did you hear about Pursuit?', 
-          type: 'select', 
+        {
+          id: 'referralSource',
+          label: 'How did you hear about Pursuit?',
+          type: 'select',
           placeholder: 'Select an option...',
           options: [
             { value: 'Google Search', label: 'Google Search' },
-            { value: 'Community Based / Non-Profit Organization', label: 'Community Based / Non-Profit Organization' },
+            { value: CBO_REFERRAL_VALUE, label: CBO_REFERRAL_VALUE },
             { value: 'City / Government Agency', label: 'City / Government Agency' },
             { value: 'Personal Referral / Word of Mouth', label: 'Personal Referral / Word of Mouth' },
             { value: 'School or University', label: 'School or University' },
@@ -52,19 +79,18 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting, initia
             { value: 'Other', label: 'Other' },
           ]
         },
-        { id: 'referralDetail', label: 'Please provide more detail (Name of School, Organization, or Agency, Social Media Platform or What you searched to Find Us)', type: 'text', placeholder: 'Type your answer here...' },
-        { 
-          id: 'nychaResident', 
-          label: 'Are you a current New York City Housing Authority Resident? (Includes NYCHA sites or Section 8 assistance)', 
-          type: 'select', 
-          placeholder: 'Select an option...',
-          options: [
-            { value: 'Yes', label: 'Yes' },
-            { value: 'No', label: 'No' },
-            { value: 'I don\'t know', label: 'I don\'t know' },
-          ]
-        },
+        // For Community Based Organizations, offer the specific partner-org list;
+        // for every other source, keep the free-text "more detail" prompt.
+        isCbo
+          ? { id: 'referralDetail', label: 'Which organization?', type: 'select', placeholder: 'Select an option...', options: CBO_ORG_OPTIONS }
+          : { id: 'referralDetail', label: 'Please provide more detail (Name of School, Organization, or Agency, Social Media Platform or What you searched to Find Us)', type: 'text', placeholder: 'Type your answer here...' },
       ];
+      // "Other" org → free-text specify step, mirroring question 1119 on the application form.
+      if (isCbo && formData.referralDetail === 'Other') {
+        steps.push({ id: 'referralDetailOther', label: 'Please specify the organization', type: 'text', placeholder: 'Type your answer here...' });
+      }
+      steps.push(nychaStep);
+      return steps;
     } else if (userType === 'builder') {
       return [
         { id: 'firstName', label: 'What is your first name?', type: 'text', placeholder: 'Type your answer here...' },
@@ -227,9 +253,18 @@ const MultiStepForm = ({ userType, onSubmit, onBack, error, isSubmitting, initia
   };
 
   const handleInputChange = (value) => {
-    setFormData({
-      ...formData,
-      [currentQuestion.id]: value,
+    setFormData((prev) => {
+      const next = { ...prev, [currentQuestion.id]: value };
+      // Changing the referral source invalidates any org/detail follow-up answers.
+      if (currentQuestion.id === 'referralSource') {
+        next.referralDetail = '';
+        next.referralDetailOther = '';
+      }
+      // Changing the org selection away from "Other" clears the specify text.
+      if (currentQuestion.id === 'referralDetail') {
+        next.referralDetailOther = '';
+      }
+      return next;
     });
     // Clear validation error when user starts typing
     if (validationError) {

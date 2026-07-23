@@ -67,13 +67,19 @@ const Signup = () => {
       } else if (userType === 'applicant') {
         // Create applicant account in admissions app
         endpoint = `${import.meta.env.VITE_API_URL}/api/applications/signup`;
-        requestBody = { 
-          firstName: formData.firstName, 
-          lastName: formData.lastName, 
-          email: formData.email, 
+        // For Community Based Orgs, the org list captures the answer; when the applicant
+        // picked "Other", store the free-text org name they typed as the detail.
+        const isCbo = formData.referralSource === 'Community Based Organization';
+        const referralDetail = isCbo && formData.referralDetail === 'Other'
+          ? formData.referralDetailOther
+          : formData.referralDetail;
+        requestBody = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
           password: formData.password,
           referralSource: formData.referralSource,
-          referralDetail: formData.referralDetail,
+          referralDetail,
           nychaResident: formData.nychaResident
         };
         
