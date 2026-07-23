@@ -35,3 +35,28 @@ export const listCoachRuns = async (token, filters = {}) => {
 export const getCoachRun = async (token, threadId) => {
   return fetchWithAuth(`/api/admin/coach-runs/${threadId}`, { method: 'GET' }, token);
 };
+
+/**
+ * List cohorts that have coach-engine data (for the Cohort Insights picker).
+ * @param {string} token
+ * @returns {Promise<{ cohorts: Array<{ cohort_id, name, level, start_date, run_count }> }>}
+ */
+export const listCohortsWithRuns = async (token) => {
+  return fetchWithAuth('/api/admin/coach-runs/cohorts', { method: 'GET' }, token);
+};
+
+/**
+ * Cohort-level coach-engine aggregates for the Cohort Insights tab.
+ * @param {string} token
+ * @param {string} cohortId - cohort UUID
+ * @returns {Promise<{ cohortId, maxLearnTurns, summary, tasks, builders }>}
+ *   summary: headline KPI counts; tasks: per-task effectiveness rows;
+ *   builders: per-builder engine signals (the L1→L2 decision aid).
+ */
+export const getCohortInsights = async (token, cohortId) => {
+  return fetchWithAuth(
+    `/api/admin/coach-runs/cohort-insights?cohortId=${encodeURIComponent(cohortId)}`,
+    { method: 'GET' },
+    token,
+  );
+};
