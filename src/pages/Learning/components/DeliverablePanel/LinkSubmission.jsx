@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FaExternalLinkAlt } from 'react-icons/fa';
+import { Button } from '../../../../components/ui/button';
+import { Input } from '../../../../components/ui/input';
+import { Loader2, ExternalLink, AlertCircle } from 'lucide-react';
+import { cn } from '../../../../lib/utils';
 
-function LinkSubmission({ task, currentSubmission, isSubmitting, isLocked, onSubmit }) {
+function LinkSubmission({ currentSubmission, isSubmitting, isLocked, onSubmit }) {
   const [url, setUrl] = useState('');
-  const [isValidUrl, setIsValidUrl] = useState(true);
 
   useEffect(() => {
     if (currentSubmission?.content) {
@@ -11,91 +13,73 @@ function LinkSubmission({ task, currentSubmission, isSubmitting, isLocked, onSub
     }
   }, [currentSubmission]);
 
-  const validateUrl = (urlString) => {
-    if (!urlString.trim()) return true; // Empty is ok, just can't submit
-    
+  const isValidUrl = (value) => {
     try {
-      new URL(urlString);
+      new URL(value);
       return true;
     } catch {
       return false;
     }
   };
 
-  const handleUrlChange = (value) => {
-    setUrl(value);
-    setIsValidUrl(validateUrl(value));
-  };
-
   const handleSubmit = () => {
-    if (!url.trim() || !isValidUrl) {
-      return;
-    }
+    if (!url.trim() || !isValidUrl(url)) return;
     // Submit as plain URL string
     onSubmit(url.trim());
   };
 
   return (
-    <div className="submission-form">
-      <div className="submission-form__field">
-        <label className="submission-form__label submission-form__label--required">
-          Document Link
-        </label>
-        <input
-          type="url"
-          className="submission-form__input"
-          value={url}
-          onChange={(e) => handleUrlChange(e.target.value)}
-          placeholder="https://docs.google.com/document/d/..."
-          disabled={isLocked || isSubmitting}
-        />
-        {!isValidUrl && url.trim() && (
-          <div className="submission-form__validation-error">
-            Please enter a valid URL starting with http:// or https://
-          </div>
-        )}
-        <div className="submission-form__help">
-          Paste the link to your Google Doc or other shareable document
-        </div>
-      </div>
+    <div className="flex flex-col h-full bg-[#F1F1F1]">
+      <div className="flex-1 overflow-y-auto px-[25px] py-[20px]">
+        <div className="flex flex-col gap-[15px] w-full">
+          <Input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Copy and paste your link here..."
+            disabled={isLocked || isSubmitting}
+            className="w-full h-[35px] px-[11px] py-[4px] bg-white rounded-[10px] text-[18px] leading-[26px] font-proxima font-normal text-carbon-black placeholder:text-divider border-0 focus:outline-none focus:ring-2 focus:ring-pursuit-purple/20"
+          />
 
-      {url && isValidUrl && (
-        <div className="submission-form__field">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="submission-form__preview-link"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              color: 'var(--color-primary, #667eea)',
-              fontSize: '0.9rem',
-              textDecoration: 'none'
-            }}
-          >
-            <FaExternalLinkAlt />
-            Preview Link
-          </a>
-        </div>
-      )}
-
-      <div className="submission-form__actions">
-        <button
-          onClick={handleSubmit}
-          disabled={!url.trim() || !isValidUrl || isSubmitting || isLocked}
-          className="submission-form__btn submission-form__btn--primary"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="submission-form__spinner" />
-              Submitting...
-            </>
-          ) : (
-            `Submit ${task.deliverable || 'Link'}`
+          {url && !isValidUrl(url) && (
+            <div className="flex items-start gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <p className="text-xs font-proxima">Please enter a valid URL</p>
+            </div>
           )}
-        </button>
+          {url && isValidUrl(url) && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-pursuit-purple hover:text-pursuit-purple/80 font-proxima"
+            >
+              View shared document in new tab
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+
+          <Button
+            onClick={handleSubmit}
+            disabled={!url.trim() || !isValidUrl(url) || isSubmitting || isLocked}
+            className={cn(
+              'flex items-center justify-center px-[20px] py-[5px] h-[32px] bg-pursuit-purple rounded-[100px]',
+              'text-[16px] leading-[18px] font-proxima font-normal text-[#F1F1F1]',
+              'hover:bg-pursuit-purple/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : currentSubmission ? (
+              'Update Submission'
+            ) : (
+              'Submit'
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

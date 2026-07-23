@@ -4,7 +4,6 @@ import {
   Sheet,
   SheetContent,
 } from '../../../../components/ui/sheet';
-import './DeliverablePanel.css';
 import StructuredSubmission from './StructuredSubmission';
 import LinkSubmission from './LinkSubmission';
 import TextSubmission from './TextSubmission';
