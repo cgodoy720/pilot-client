@@ -807,9 +807,9 @@ const StoryView = ({ run, onViewSummary }) => {
 
 // ===========================================================================
 
-// Build the plain-text run summary (Slack/email recap). Pure — shared by the
-// Copy-to-clipboard action and the viewable summary sheet.
-const buildRunSummary = (run) => {
+// Structured run-summary model — pure. Shared by the readable summary sheet
+// (rendered as labelled sections) and the plain-text clipboard recap.
+const buildRunSummaryModel = (run) => {
   const id = run.identity || {};
   const steps = run.steps || [];
   const strat = steps.find((s) => s.node === 'init')?.structured_result || {};
@@ -821,34 +821,68 @@ const buildRunSummary = (run) => {
   const assessments = Array.isArray(gradeSr.skillAssessments) ? gradeSr.skillAssessments : [];
   const reason = gradeReason(gradeSr);
   const completed = steps.some((s) => s.node === 'complete');
-  const outcome = gradeError
+
+  const outcomeLabel = gradeError
     ? 'Grading error (system issue)'
     : completed && passed
       ? 'Passed'
       : (gradeSteps.length && passed === false ? 'Did not pass yet' : (completed ? 'Completed' : 'In progress'));
-  // Dreyfus runs report per-skill levels + the grader's rationale; the 0-100
-  // number is only meaningful for legacy runs without assessments.
-  const outcomeSuffix = assessments.length === 0 && !gradeError && score != null ? ` (${score}/100)` : reason ? ` — ${reason}` : '';
-  return [
-    `Coach run — ${`${id.first_name || ''} ${id.last_name || ''}`.trim()}`,
-    `Task: ${id.task_title || '—'}`,
-    id.v2_learning_goal ? `Goal: ${id.v2_learning_goal}` : null,
-    `Outcome: ${outcome}${outcomeSuffix}`,
-    ...assessments.map((a) => {
-      const vs = vsPriorLabel(a);
-      return `  • ${(a.skill_slug || '').replace(/-/g, ' ')}: ${levelLabel(a.level)}${vs ? ` (${vs.replace(/[↑↓] /, '')})` : ''}${a.rationale ? ` — ${a.rationale}` : ''}`;
-    }),
-    strat.teachingMethod ? `Teaching style: ${TEACHING_METHOD_LABEL[strat.teachingMethod] || strat.teachingMethod}` : null,
-    strat.difficultyLevel
-      ? `Difficulty: ${strat.difficultyLevel}${strat.avgLevel != null ? ` (avg skill ${Math.round(strat.avgLevel)})` : ''}${strat.difficultyModifier === '+20%' ? ' · +20% for interview weak area' : ''}`
-      : null,
-    `Attempts: ${gradeSteps.length || '—'}`,
-  ].filter(Boolean).join('\n');
+  const outcomeTone = gradeError ? 'amber' : passed ? 'green' : (gradeSteps.length && passed === false ? 'red' : 'slate');
+  // Dreyfus runs report per-skill levels; the 0-100 number is only meaningful
+  // for legacy runs without per-skill assessments.
+  const outcomeDetail = assessments.length === 0 && !gradeError && score != null ? `${score}/100` : (reason || '');
+
+  return {
+    builder: `${id.first_name || ''} ${id.last_name || ''}`.trim() || '—',
+    task: id.task_title || '—',
+    goal: id.v2_learning_goal || '',
+    outcomeLabel,
+    outcomeTone,
+    outcomeDetail,
+    skills: assessments.map((a) => ({
+      name: (a.skill_slug || '').replace(/-/g, ' '),
+      level: levelLabel(a.level),
+      vsPrior: (vsPriorLabel(a) || '').replace(/^[↑↓] /, ''),
+      rationale: a.rationale || '',
+    })),
+    teachingStyle: strat.teachingMethod ? (TEACHING_METHOD_LABEL[strat.teachingMethod] || strat.teachingMethod) : '',
+    difficulty: strat.difficultyLevel
+      ? `${strat.difficultyLevel}${strat.avgLevel != null ? ` (avg skill ${Math.round(strat.avgLevel)})` : ''}${strat.difficultyModifier === '+20%' ? ' · +20% for interview weak area' : ''}`
+      : '',
+    attempts: gradeSteps.length || 0,
+  };
 };
 
-// Right-slide sheet that displays the run summary so it can be read in-app
-// (not only copied to the clipboard), with its own copy button.
-const SummarySheet = ({ open, onOpenChange, text }) => {
+// Plain-text recap (Slack/email) derived from the model — blank lines between
+// sections so a paste reads cleanly instead of as one block.
+const runSummaryText = (m) => {
+  if (!m) return '';
+  const sections = [
+    [`Coach run — ${m.builder}`, `Task: ${m.task}`, m.goal ? `Goal: ${m.goal}` : null].filter(Boolean).join('\n'),
+    `Outcome: ${m.outcomeLabel}${m.outcomeDetail ? ` — ${m.outcomeDetail}` : ''}`,
+  ];
+  if (m.skills.length) {
+    sections.push(['Skills assessed:', ...m.skills.map((s) =>
+      `  • ${s.name}: ${s.level}${s.vsPrior ? ` (${s.vsPrior})` : ''}${s.rationale ? `\n      ${s.rationale}` : ''}`
+    )].join('\n'));
+  }
+  const pers = [
+    m.teachingStyle ? `  Teaching style: ${m.teachingStyle}` : null,
+    m.difficulty ? `  Difficulty: ${m.difficulty}` : null,
+  ].filter(Boolean);
+  if (pers.length) sections.push(['Personalization:', ...pers].join('\n'));
+  sections.push(`Attempts: ${m.attempts || '—'}`);
+  return sections.join('\n\n');
+};
+
+// Small uppercase section label for the summary sheet.
+const SummaryLabel = ({ children }) => (
+  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">{children}</div>
+);
+
+// Right-slide sheet that displays the run summary in-app as labelled sections
+// (not one block of text), with a plain-text copy button for Slack/email.
+const SummarySheet = ({ open, onOpenChange, model, text }) => {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     try {
@@ -862,14 +896,70 @@ const SummarySheet = ({ open, onOpenChange, text }) => {
       <SheetContent side="right" className="sm:max-w-lg flex flex-col font-proxima">
         <SheetHeader>
           <SheetTitle>Run summary</SheetTitle>
-          <SheetDescription>Plain-text recap for Slack or email.</SheetDescription>
+          <SheetDescription>A readable recap of this coach run.</SheetDescription>
         </SheetHeader>
-        <div className="mt-4 flex-1 min-h-0 overflow-y-auto">
-          <pre className="whitespace-pre-wrap break-words text-sm text-slate-700 bg-[#F7F7F9] border border-[#E3E3E3] rounded-lg p-4 font-proxima">
-            {text || 'No summary available.'}
-          </pre>
-        </div>
-        <div className="mt-4 shrink-0">
+
+        {!model ? (
+          <div className="mt-4 text-sm text-slate-400">No summary available.</div>
+        ) : (
+          <div className="mt-4 flex-1 min-h-0 overflow-y-auto pr-1 space-y-5">
+            {/* Builder + task */}
+            <div>
+              <div className="text-base font-bold text-[#1E1E1E]">{model.builder}</div>
+              <div className="text-sm text-slate-500">{model.task}</div>
+            </div>
+
+            {/* Outcome */}
+            <section>
+              <SummaryLabel>Outcome</SummaryLabel>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Chip tone={model.outcomeTone}>{model.outcomeLabel}</Chip>
+                {model.outcomeDetail && <span className="text-sm text-slate-600">{model.outcomeDetail}</span>}
+              </div>
+            </section>
+
+            {/* Skills assessed */}
+            {model.skills.length > 0 && (
+              <section>
+                <SummaryLabel>Skills assessed</SummaryLabel>
+                <div className="space-y-2">
+                  {model.skills.map((s, i) => (
+                    <div key={i} className="bg-[#F7F7F9] border border-[#E3E3E3] rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-slate-800 capitalize">{s.name}</span>
+                        <Chip tone="blue">{s.level}</Chip>
+                        {s.vsPrior && <span className="text-[11px] text-slate-500">{s.vsPrior}</span>}
+                      </div>
+                      {s.rationale && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{s.rationale}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Personalization */}
+            {(model.teachingStyle || model.difficulty) && (
+              <section>
+                <SummaryLabel>How it was personalized</SummaryLabel>
+                <dl className="text-sm text-slate-600 space-y-1">
+                  {model.teachingStyle && <div><span className="text-slate-400">Teaching style: </span>{model.teachingStyle}</div>}
+                  {model.difficulty && <div><span className="text-slate-400">Difficulty: </span>{model.difficulty}</div>}
+                </dl>
+              </section>
+            )}
+
+            {/* Details */}
+            <section>
+              <SummaryLabel>Details</SummaryLabel>
+              <dl className="text-sm text-slate-600 space-y-1">
+                {model.goal && <div><span className="text-slate-400">Goal: </span>{model.goal}</div>}
+                <div><span className="text-slate-400">Attempts: </span>{model.attempts || '—'}</div>
+              </dl>
+            </section>
+          </div>
+        )}
+
+        <div className="mt-4 shrink-0 border-t border-[#E3E3E3] pt-4">
           <button
             onClick={copy}
             className="text-sm px-4 py-2 rounded-md text-white font-medium"
@@ -905,7 +995,8 @@ const RunDetail = ({ token, threadId }) => {
   useEffect(() => { load(); }, [load]);
 
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const summaryText = useMemo(() => (run ? buildRunSummary(run) : ''), [run]);
+  const summaryModel = useMemo(() => (run ? buildRunSummaryModel(run) : null), [run]);
+  const summaryText = useMemo(() => runSummaryText(summaryModel), [summaryModel]);
 
   if (loading) return <div className="p-8 text-slate-400 text-sm">Loading run…</div>;
   if (error) return <div className="p-8 text-rose-600 text-sm">{error}</div>;
@@ -970,7 +1061,7 @@ const RunDetail = ({ token, threadId }) => {
         </>
       )}
 
-      <SummarySheet open={summaryOpen} onOpenChange={setSummaryOpen} text={summaryText} />
+      <SummarySheet open={summaryOpen} onOpenChange={setSummaryOpen} model={summaryModel} text={summaryText} />
     </div>
   );
 };
