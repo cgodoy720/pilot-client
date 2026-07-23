@@ -15,8 +15,8 @@ describe('resolveDeliverablePanel — deliverable_type routing', () => {
     expect(resolveDeliverablePanel({ deliverable_type: 'file' })).toBe('file');
   });
 
-  it('routes text to the text panel', () => {
-    expect(resolveDeliverablePanel({ deliverable_type: 'text' })).toBe('text');
+  it('does NOT treat text as a submission — text tasks are conversation-only', () => {
+    expect(resolveDeliverablePanel({ deliverable_type: 'text' })).toBe('none');
   });
 
   it('routes all URL-style types to the link panel', () => {
