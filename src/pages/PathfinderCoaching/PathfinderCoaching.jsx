@@ -858,9 +858,9 @@ function StaffCoachView({ token, user }) {
     const prep = enginePrep || sessionDetail?.engine_prep;
 
     return (
-        <div className="flex" style={{ minHeight: 'calc(100vh - 45px)' }}>
-            {/* Left: Builder list */}
-            <div className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col" style={{ minHeight: 'calc(100vh - 45px)' }}>
+        <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 45px)' }}>
+            {/* Left: Builder list — fixed to viewport, scrolls independently */}
+            <div className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-full overflow-y-auto">
                 <div className="p-3 pt-3 flex-1">
                     {/* Active Builders — currently assigned to this coach */}
                     {assignments.filter(a => a.status === 'active' && a.previous_coach_user_id !== user?.user_id).length > 0 && (
@@ -938,8 +938,8 @@ function StaffCoachView({ token, user }) {
                 </div>
             </div>
 
-            {/* Right: Main content */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Right: Main content — scrolls independently of the builder list */}
+            <div className="flex-1 h-full overflow-y-auto">
                 {selectedAssignment ? (
                     <div className="h-full flex flex-col">
                         {/* Header */}
@@ -976,7 +976,7 @@ function StaffCoachView({ token, user }) {
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 px-8 py-6 overflow-y-auto">
+                        <div className="flex-1 min-h-0 px-8 py-6 overflow-y-auto">
                             {selectedSession && sessionDetail ? (
                                 <div>
                                     {/* Session header bar */}
