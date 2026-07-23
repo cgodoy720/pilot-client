@@ -334,7 +334,7 @@ const CohortInsights = ({ embedded = false, onViewSnapshot = null }) => {
             </div>
 
             <p className="text-[11px] text-slate-400 mt-4">
-              Scoped to everyone ever enrolled in this cohort; dummy accounts excluded. Outcomes are the latest grade per session (Dreyfus level vs the builder's own prior) — there is no 0–100 pass bar. Reflects what the coach did, not separately-measured job outcomes.
+              Personalized-task runs only (the v2 engine); basic/conversation tasks are excluded. Scoped to everyone ever enrolled in this cohort; dummy accounts excluded. Outcomes are the latest grade per session (Dreyfus level vs the builder's own prior) — there is no 0–100 pass bar. Reflects what the coach did, not separately-measured job outcomes.
             </p>
           </>
         )}
