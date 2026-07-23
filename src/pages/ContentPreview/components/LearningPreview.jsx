@@ -485,6 +485,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
           sender: 'ai',
           timestamp: data.timestamp,
           shouldAnimate: true,
+          showAssignment: !!data.show_assignment,
         }]);
         setHasInitialMessage(true);
       } else {
@@ -725,6 +726,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
 
             // Finalize the active bubble — populate from finalMessage if empty
             const finalMessage = chunk.message;
+            const showAssignment = !!chunk.show_assignment;
             setMessages(prev => {
               const idx = findActiveBubbleIdx(prev);
               if (idx === -1) return prev;
@@ -737,7 +739,8 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       timestamp: finalMessage.timestamp,
                       isStreaming: false,
                       isThinking: false,
-                      thinkingLabel: null
+                      thinkingLabel: null,
+                      showAssignment
                     }
                   : m
               );
@@ -1352,10 +1355,25 @@ function LearningPreview({ dayId, cohort, onBack }) {
                           </div>
                         ) : (
                           // AI message - StreamingMarkdownMessage handles both streaming and static
-                          <StreamingMarkdownMessage
-                            content={message.content}
-                            animateOnMount={!!message.shouldAnimate}
-                          />
+                          <>
+                            <StreamingMarkdownMessage
+                              content={message.content}
+                              animateOnMount={!!message.shouldAnimate}
+                            />
+                            {/* [OPEN_ASSIGNMENT] marker → inline button opening the DeliverablePanel (mirrors Learning.jsx) */}
+                            {message.showAssignment && !message.isStreaming && (
+                              <div className="mt-2 font-proxima">
+                                <button
+                                  type="button"
+                                  onClick={() => setIsDeliverableSidebarOpen(true)}
+                                  className="inline-flex items-center gap-1.5 rounded-full bg-pursuit-purple px-4 py-1.5 text-sm text-stardust hover:bg-pursuit-purple/90 transition-colors"
+                                >
+                                  <span aria-hidden="true">📋</span>
+                                  Open Assignment
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );
@@ -1387,7 +1405,7 @@ function LearningPreview({ dayId, cohort, onBack }) {
                       ref={textareaRef}
                       onSubmit={handleSendMessage}
                       disabled={isSending || isAiThinking}
-                      showAssignmentButton={['video', 'document', 'link', 'structured', 'image', 'file', 'url'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                      showAssignmentButton={['video', 'document', 'link', 'structured', 'image', 'file', 'url', 'text', 'presentation'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                       onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                       showPeerFeedbackButton={isRetrospectiveTask()}
                       onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}

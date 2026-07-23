@@ -748,6 +748,7 @@ function Learning() {
             sender: 'ai',
             timestamp: data.timestamp,
             shouldAnimate: true,
+            showAssignment: !!data.show_assignment,
           };
           setMessages([firstMessage]);
           setHasInitialMessage(true);
@@ -1009,6 +1010,7 @@ function Learning() {
 
             const finalMessage = chunk.message;
             const truncated = chunk.finish_reason === 'length' || chunk.finish_reason === 'max_tokens';
+            const showAssignment = !!chunk.show_assignment;
             setMessages(prev => {
               const idx = findActiveBubbleIdx(prev);
               if (idx === -1) return prev;
@@ -1022,7 +1024,8 @@ function Learning() {
                       isStreaming: false,
                       isThinking: false,
                       thinkingLabel: null,
-                      truncated
+                      truncated,
+                      showAssignment
                     }
                   : m
               );
@@ -1794,6 +1797,19 @@ function Learning() {
                             </button>
                           </div>
                         )}
+                        {/* [OPEN_ASSIGNMENT] marker → inline button opening the DeliverablePanel */}
+                        {message.showAssignment && !message.isStreaming && (
+                          <div className="mt-2 font-proxima">
+                            <button
+                              type="button"
+                              onClick={() => setIsDeliverableSidebarOpen(true)}
+                              className="inline-flex items-center gap-1.5 rounded-full bg-pursuit-purple px-4 py-1.5 text-sm text-stardust hover:bg-pursuit-purple/90 transition-colors"
+                            >
+                              <span aria-hidden="true">📋</span>
+                              Open Assignment
+                            </button>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -1829,7 +1845,7 @@ function Learning() {
                 ref={textareaRef}
                 onSubmit={handleSendMessage}
                 disabled={isSending || isAiThinking || isStreaming || !isActive}
-                showAssignmentButton={['video', 'document', 'link', 'structured', 'image', 'file', 'url'].includes(tasks[currentTaskIndex]?.deliverable_type)}
+                showAssignmentButton={['video', 'document', 'link', 'structured', 'image', 'file', 'url', 'text', 'presentation'].includes(tasks[currentTaskIndex]?.deliverable_type)}
                 onAssignmentClick={() => setIsDeliverableSidebarOpen(true)}
                 showPeerFeedbackButton={isRetrospectiveTask()}
                 onPeerFeedbackClick={() => setIsPeerFeedbackSheetOpen(true)}
