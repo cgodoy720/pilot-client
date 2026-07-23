@@ -10,7 +10,9 @@ import { fetchWithAuth } from '../utils/api';
 /**
  * List recent coach runs.
  * @param {string} token
- * @param {Object} [filters] - { userId, taskId, cohort, limit }
+ * @param {Object} [filters] - { userId, taskId, cohort, search, limit }
+ *   `search` is free-text (builder name / email / task title) and scans ALL
+ *   runs on the server, not just the recent-limit window.
  * @returns {Promise<{ runs: Object[] }>}
  */
 export const listCoachRuns = async (token, filters = {}) => {
@@ -18,6 +20,7 @@ export const listCoachRuns = async (token, filters = {}) => {
   if (filters.userId) params.append('userId', filters.userId);
   if (filters.taskId) params.append('taskId', filters.taskId);
   if (filters.cohort) params.append('cohort', filters.cohort);
+  if (filters.search) params.append('search', filters.search);
   if (filters.limit) params.append('limit', filters.limit);
   const qs = params.toString();
   return fetchWithAuth(`/api/admin/coach-runs${qs ? `?${qs}` : ''}`, { method: 'GET' }, token);

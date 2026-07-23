@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import useAuthStore from '../../../stores/authStore';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { listCoachRuns, getCoachRun } from '../../../services/coachRunsApi';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../../../components/ui/sheet';
 
 const BRAND = '#4242EA';
 
@@ -664,7 +665,7 @@ const BuilderContextPanel = ({ context }) => {
   );
 };
 
-const StoryView = ({ run, onCopySummary, copied }) => {
+const StoryView = ({ run, onViewSummary }) => {
   const steps = run.steps || [];
   const id = run.identity || {};
 
@@ -787,10 +788,10 @@ const StoryView = ({ run, onCopySummary, copied }) => {
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-[#1E1E1E]">Conversation</h3>
           <button
-            onClick={onCopySummary}
+            onClick={onViewSummary}
             className="text-xs px-2.5 py-1 rounded-md border border-[#E3E3E3] hover:bg-[#F7F7F9] text-slate-600"
           >
-            {copied ? '✓ Copied' : '📋 Copy summary'}
+            📋 View summary
           </button>
         </div>
         {items.length === 0 && <p className="text-sm text-slate-400">No conversation recorded.</p>}
@@ -806,12 +807,87 @@ const StoryView = ({ run, onCopySummary, copied }) => {
 
 // ===========================================================================
 
+// Build the plain-text run summary (Slack/email recap). Pure — shared by the
+// Copy-to-clipboard action and the viewable summary sheet.
+const buildRunSummary = (run) => {
+  const id = run.identity || {};
+  const steps = run.steps || [];
+  const strat = steps.find((s) => s.node === 'init')?.structured_result || {};
+  const gradeSteps = steps.filter((s) => s.node === 'grade');
+  const gradeSr = gradeSteps[gradeSteps.length - 1]?.structured_result || {};
+  const score = typeof gradeSr.overallScore === 'number' ? gradeSr.overallScore : (run.outcomes?.[0]?.overall_score ?? null);
+  const passed = typeof gradeSr.passed === 'boolean' ? gradeSr.passed : (run.outcomes?.[0]?.passed ?? null);
+  const gradeError = !!gradeSr.gradeError;
+  const assessments = Array.isArray(gradeSr.skillAssessments) ? gradeSr.skillAssessments : [];
+  const reason = gradeReason(gradeSr);
+  const completed = steps.some((s) => s.node === 'complete');
+  const outcome = gradeError
+    ? 'Grading error (system issue)'
+    : completed && passed
+      ? 'Passed'
+      : (gradeSteps.length && passed === false ? 'Did not pass yet' : (completed ? 'Completed' : 'In progress'));
+  // Dreyfus runs report per-skill levels + the grader's rationale; the 0-100
+  // number is only meaningful for legacy runs without assessments.
+  const outcomeSuffix = assessments.length === 0 && !gradeError && score != null ? ` (${score}/100)` : reason ? ` — ${reason}` : '';
+  return [
+    `Coach run — ${`${id.first_name || ''} ${id.last_name || ''}`.trim()}`,
+    `Task: ${id.task_title || '—'}`,
+    id.v2_learning_goal ? `Goal: ${id.v2_learning_goal}` : null,
+    `Outcome: ${outcome}${outcomeSuffix}`,
+    ...assessments.map((a) => {
+      const vs = vsPriorLabel(a);
+      return `  • ${(a.skill_slug || '').replace(/-/g, ' ')}: ${levelLabel(a.level)}${vs ? ` (${vs.replace(/[↑↓] /, '')})` : ''}${a.rationale ? ` — ${a.rationale}` : ''}`;
+    }),
+    strat.teachingMethod ? `Teaching style: ${TEACHING_METHOD_LABEL[strat.teachingMethod] || strat.teachingMethod}` : null,
+    strat.difficultyLevel
+      ? `Difficulty: ${strat.difficultyLevel}${strat.avgLevel != null ? ` (avg skill ${Math.round(strat.avgLevel)})` : ''}${strat.difficultyModifier === '+20%' ? ' · +20% for interview weak area' : ''}`
+      : null,
+    `Attempts: ${gradeSteps.length || '—'}`,
+  ].filter(Boolean).join('\n');
+};
+
+// Right-slide sheet that displays the run summary so it can be read in-app
+// (not only copied to the clipboard), with its own copy button.
+const SummarySheet = ({ open, onOpenChange, text }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    try {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard unavailable — ignore */ }
+  };
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="sm:max-w-lg flex flex-col font-proxima">
+        <SheetHeader>
+          <SheetTitle>Run summary</SheetTitle>
+          <SheetDescription>Plain-text recap for Slack or email.</SheetDescription>
+        </SheetHeader>
+        <div className="mt-4 flex-1 min-h-0 overflow-y-auto">
+          <pre className="whitespace-pre-wrap break-words text-sm text-slate-700 bg-[#F7F7F9] border border-[#E3E3E3] rounded-lg p-4 font-proxima">
+            {text || 'No summary available.'}
+          </pre>
+        </div>
+        <div className="mt-4 shrink-0">
+          <button
+            onClick={copy}
+            className="text-sm px-4 py-2 rounded-md text-white font-medium"
+            style={{ backgroundColor: BRAND }}
+          >
+            {copied ? '✓ Copied to clipboard' : '📋 Copy to clipboard'}
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
 const RunDetail = ({ token, threadId }) => {
   const [run, setRun] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [view, setView] = useState('story'); // 'story' | 'developer'
-  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -828,48 +904,8 @@ const RunDetail = ({ token, threadId }) => {
 
   useEffect(() => { load(); }, [load]);
 
-  const copySummary = useCallback(() => {
-    if (!run) return;
-    const id = run.identity || {};
-    const steps = run.steps || [];
-    const strat = steps.find((s) => s.node === 'init')?.structured_result || {};
-    const gradeSteps = steps.filter((s) => s.node === 'grade');
-    const gradeSr = gradeSteps[gradeSteps.length - 1]?.structured_result || {};
-    const score = typeof gradeSr.overallScore === 'number' ? gradeSr.overallScore : (run.outcomes?.[0]?.overall_score ?? null);
-    const passed = typeof gradeSr.passed === 'boolean' ? gradeSr.passed : (run.outcomes?.[0]?.passed ?? null);
-    const gradeError = !!gradeSr.gradeError;
-    const assessments = Array.isArray(gradeSr.skillAssessments) ? gradeSr.skillAssessments : [];
-    const reason = gradeReason(gradeSr);
-    const completed = steps.some((s) => s.node === 'complete');
-    const outcome = gradeError
-      ? 'Grading error (system issue)'
-      : completed && passed
-        ? 'Passed'
-        : (gradeSteps.length && passed === false ? 'Did not pass yet' : (completed ? 'Completed' : 'In progress'));
-    // Dreyfus runs report per-skill levels + the grader's rationale; the 0-100
-    // number is only meaningful for legacy runs without assessments.
-    const outcomeSuffix = assessments.length === 0 && !gradeError && score != null ? ` (${score}/100)` : reason ? ` — ${reason}` : '';
-    const lines = [
-      `Coach run — ${`${id.first_name || ''} ${id.last_name || ''}`.trim()}`,
-      `Task: ${id.task_title || '—'}`,
-      id.v2_learning_goal ? `Goal: ${id.v2_learning_goal}` : null,
-      `Outcome: ${outcome}${outcomeSuffix}`,
-      ...assessments.map((a) => {
-        const vs = vsPriorLabel(a);
-        return `  • ${(a.skill_slug || '').replace(/-/g, ' ')}: ${levelLabel(a.level)}${vs ? ` (${vs.replace(/[↑↓] /, '')})` : ''}${a.rationale ? ` — ${a.rationale}` : ''}`;
-      }),
-      strat.teachingMethod ? `Teaching style: ${TEACHING_METHOD_LABEL[strat.teachingMethod] || strat.teachingMethod}` : null,
-      strat.difficultyLevel
-        ? `Difficulty: ${strat.difficultyLevel}${strat.avgLevel != null ? ` (avg skill ${Math.round(strat.avgLevel)})` : ''}${strat.difficultyModifier === '+20%' ? ' · +20% for interview weak area' : ''}`
-        : null,
-      `Attempts: ${gradeSteps.length || '—'}`,
-    ].filter(Boolean);
-    try {
-      navigator.clipboard.writeText(lines.join('\n'));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard unavailable — ignore */ }
-  }, [run]);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const summaryText = useMemo(() => (run ? buildRunSummary(run) : ''), [run]);
 
   if (loading) return <div className="p-8 text-slate-400 text-sm">Loading run…</div>;
   if (error) return <div className="p-8 text-rose-600 text-sm">{error}</div>;
@@ -915,7 +951,7 @@ const RunDetail = ({ token, threadId }) => {
       </div>
 
       {view === 'story' ? (
-        <StoryView run={run} onCopySummary={copySummary} copied={copied} />
+        <StoryView run={run} onViewSummary={() => setSummaryOpen(true)} />
       ) : (
         <>
           {/* run-level usage strip */}
@@ -933,6 +969,8 @@ const RunDetail = ({ token, threadId }) => {
           </div>
         </>
       )}
+
+      <SummarySheet open={summaryOpen} onOpenChange={setSummaryOpen} text={summaryText} />
     </div>
   );
 };
@@ -947,11 +985,16 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(openThreadId);
 
-  const loadRuns = useCallback(async () => {
+  // Search is server-side: with a term we scan ALL runs (name/email/task/cohort),
+  // not just the recent-window default, so a match outside the latest 100 is
+  // still found. A term raises the limit to the server cap so a broad match
+  // (e.g. a task title shared by many builders) isn't itself truncated.
+  const loadRuns = useCallback(async (searchTerm = '') => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listCoachRuns(token);
+      const term = (searchTerm || '').trim();
+      const data = await listCoachRuns(token, term ? { search: term, limit: 500 } : {});
       setRuns(data.runs || []);
     } catch (e) {
       setError(e.message || 'Failed to load runs');
@@ -960,7 +1003,12 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
     }
   }, [token]);
 
-  useEffect(() => { loadRuns(); }, [loadRuns]);
+  // Debounce the search box into the server query (also drives the initial
+  // load, with an empty term → default recent list).
+  useEffect(() => {
+    const t = setTimeout(() => { loadRuns(search); }, 300);
+    return () => clearTimeout(t);
+  }, [search, loadRuns]);
 
   // Open a specific run when requested (e.g. the Coach Evals tab passes the
   // eval case's thread). RunDetail loads by thread id independently of the
@@ -984,12 +1032,10 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
   // open via the ?thread= deep-link from Coach Evals). Golden Dataset runs ARE
   // shown so staff can inspect archetype runs alongside real ones — the Cohort
   // column ("Golden Dataset") distinguishes them and search can isolate them.
-  const realRuns = runs.filter((r) => r.cohort !== 'Eval Harness');
-  const q = search.trim().toLowerCase();
-  const filtered = q
-    ? realRuns.filter((r) =>
-        `${r.first_name} ${r.last_name} ${r.email} ${r.task_title} ${r.cohort}`.toLowerCase().includes(q))
-    : realRuns;
+  // Name/task/cohort search runs server-side (see loadRuns) so it reaches every
+  // run, not just the loaded window. The only client-side filter left is the
+  // eval-harness belt-and-suspenders (the server already excludes it).
+  const filtered = runs.filter((r) => r.cohort !== 'Eval Harness');
 
   return (
     <div className={`flex flex-col min-h-0 font-proxima ${embedded ? 'h-full' : 'h-screen bg-[#EFEFEF]'}`}>
@@ -1014,7 +1060,7 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
               style={{ '--tw-ring-color': BRAND }}
             />
             <button
-              onClick={loadRuns}
+              onClick={() => loadRuns(search)}
               className="text-xs px-3 py-1.5 rounded-md border border-[#E3E3E3] hover:bg-[#F7F7F9] text-slate-600"
             >
               ↻
@@ -1024,7 +1070,9 @@ const CoachRuns = ({ embedded = false, openThreadId = null }) => {
             {loading && <div className="p-4 text-slate-400 text-sm">Loading…</div>}
             {error && <div className="p-4 text-rose-600 text-sm">{error}</div>}
             {!loading && filtered.length === 0 && (
-              <div className="p-4 text-slate-400 text-sm">No coach runs recorded yet.</div>
+              <div className="p-4 text-slate-400 text-sm">
+                {search.trim() ? `No runs match “${search.trim()}”.` : 'No coach runs recorded yet.'}
+              </div>
             )}
             {filtered.map((r) => {
               const active = selected === r.thread_id;
