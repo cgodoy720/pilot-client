@@ -249,6 +249,22 @@ describe('WeeklyFeedbackReport', () => {
     expect(screen.getByText('Network error')).toBeInTheDocument();
   });
 
+  it('shows a no-report message when the report fetch returns success:false', async () => {
+    mockFetchWeeks.mockResolvedValue({ success: true, weeks: mockWeeks });
+    mockFetchReport.mockResolvedValue({ success: false, report: null });
+
+    render(<WeeklyFeedbackReport userId={279} token="test-token" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No report available for this week.')).toBeInTheDocument();
+    });
+
+    // Header still visible, but no report content
+    expect(screen.getByText('Weekly Report')).toBeInTheDocument();
+    expect(screen.queryByText('Attendance Rate')).not.toBeInTheDocument();
+    expect(screen.queryByText('Task Completion')).not.toBeInTheDocument();
+  });
+
   it('handles graded_assignments with no strengths or growth_areas', async () => {
     const reportWithMinimalGrades = {
       success: true,

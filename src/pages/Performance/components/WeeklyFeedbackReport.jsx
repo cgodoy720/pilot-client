@@ -219,6 +219,15 @@ const WeeklyFeedbackReport = ({ userId, token }) => {
               <p className="text-[#6B7280] text-sm font-proxima">Loading report...</p>
             </div>
           </div>
+        ) : reportData !== null && !reportData?.report ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <p className="text-[#6B7280] font-proxima">No report available for this week.</p>
+              <p className="text-xs text-[#9CA3AF] font-proxima mt-1">
+                Reports are generated after your weekly check-in.
+              </p>
+            </div>
+          </div>
         ) : (
           <>
             {/* 1. Summary */}
