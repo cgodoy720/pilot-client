@@ -81,7 +81,7 @@ const filterOptions = {
   enrollment_status: [
     { value: '', label: 'All' },
     { value: 'pending', label: 'Pending' },
-    { value: 'enrolled', label: 'Enrolled' },
+    { value: 'enrolled', label: 'Accepted' },
     { value: 'deferred', label: 'Deferred' },
     { value: 'withdrawn', label: 'Withdrawn' },
   ],
@@ -147,6 +147,12 @@ const filterOptions = {
   ],
 };
 
+// Display label for the Offer Accepted column: the derived server value stays
+// 'enrolled' (flipped when both the pledge AND the GJA are signed), but the
+// dashboard renders it as "Accepted".
+const formatEnrollmentStatus = (status) =>
+  status === 'enrolled' ? 'Accepted' : formatStatus(status);
+
 // Column labels for the table
 const columnLabels = {
   name: 'Name',
@@ -158,8 +164,8 @@ const columnLabels = {
   info_session: 'Info Session',
   workshop: 'Workshop',
   structured_task_grade: 'Workshop Grade',
-  admission: 'Admission',
-  enrollment: 'Enrollment',
+  admission: 'Offer Extended',
+  enrollment: 'Offer Accepted',
   cohort: 'Cohort',
   source_bucket: 'Source',
   account_age_bucket: 'Account Age',
@@ -321,7 +327,7 @@ const ApplicationRow = React.memo(({
         <TableCell>
           {app.enrollment_status ? (
             <Badge className={`${getStatusBadgeClasses(app.enrollment_status, 'enrollment')} font-proxima`}>
-              {formatStatus(app.enrollment_status)}
+              {formatEnrollmentStatus(app.enrollment_status)}
             </Badge>
           ) : '-'}
         </TableCell>
@@ -867,8 +873,8 @@ const ApplicationsTab = ({
     info_session: { label: 'Info Session', getValue: (app) => app.info_session_status || '' },
     workshop: { label: 'Workshop', getValue: (app) => app.workshop_status || '' },
     workshop_grade: { label: 'Workshop Grade', getValue: (app) => app.structured_task_grade || '' },
-    admission: { label: 'Admission', getValue: (app) => app.program_admission_status || '' },
-    enrollment: { label: 'Enrollment', getValue: (app) => app.enrollment_status || '' },
+    admission: { label: 'Offer Extended', getValue: (app) => app.program_admission_status || '' },
+    enrollment: { label: 'Offer Accepted', getValue: (app) => app.enrollment_status || '' },
     cohort: { label: 'Cohort', getValue: (app) => cohortNameMap[app.cohort_id] || app.cohort_name || '' },
     source_bucket: { label: 'Source Bucket', getValue: (app) => app.source_bucket || '' },
     account_age_bucket: { label: 'Account Age Bucket', getValue: (app) => app.account_age_bucket || '' },
@@ -1429,12 +1435,12 @@ const ApplicationsTab = ({
             )}
             {applicationFilters.program_admission_status?.length > 0 && (
               <Badge className="bg-yellow-100 text-yellow-700 font-proxima cursor-pointer hover:bg-yellow-200" onClick={() => handleClearFilter('program_admission_status')}>
-                Admission: {applicationFilters.program_admission_status.map(formatStatus).join(', ')} ✕
+                Offer Extended: {applicationFilters.program_admission_status.map(formatStatus).join(', ')} ✕
               </Badge>
             )}
             {applicationFilters.enrollment_status?.length > 0 && (
               <Badge className="bg-emerald-100 text-emerald-700 font-proxima cursor-pointer hover:bg-emerald-200" onClick={() => handleClearFilter('enrollment_status')}>
-                Enrollment: {applicationFilters.enrollment_status.map(formatStatus).join(', ')} ✕
+                Offer Accepted: {applicationFilters.enrollment_status.map(formatEnrollmentStatus).join(', ')} ✕
               </Badge>
             )}
             {applicationFilters.source_bucket?.length > 0 && (
@@ -1551,12 +1557,12 @@ const ApplicationsTab = ({
                   )}
                   {visibleColumns.admission && (
                     <TableHead>
-                      {renderSortableFilterableHeader('admission', 'program_admission_status', 'Admission', 'program_admission_status')}
+                      {renderSortableFilterableHeader('admission', 'program_admission_status', 'Offer Extended', 'program_admission_status')}
                     </TableHead>
                   )}
                   {visibleColumns.enrollment && (
                     <TableHead>
-                      {renderSortableFilterableHeader('enrollment', 'enrollment_status', 'Enrollment', 'enrollment_status')}
+                      {renderSortableFilterableHeader('enrollment', 'enrollment_status', 'Offer Accepted', 'enrollment_status')}
                     </TableHead>
                   )}
                   {visibleColumns.cohort && (
