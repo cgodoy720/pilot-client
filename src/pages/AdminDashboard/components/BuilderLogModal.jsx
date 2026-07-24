@@ -23,9 +23,11 @@ const SUPPORT_CATEGORIES = [
 ];
 
 const CURRICULUM_STATUSES = [
-  { value: 'thumbs_up',       label: 'Thumbs Up',   icon: ThumbsUp,   active: 'bg-emerald-50 border-emerald-400 text-emerald-700', hover: 'hover:border-emerald-300' },
-  { value: 'thumbs_sideways', label: 'Neutral',      icon: Minus,      active: 'bg-amber-50  border-amber-400  text-amber-700',   hover: 'hover:border-amber-300'   },
-  { value: 'thumbs_down',     label: 'Thumbs Down', icon: ThumbsDown, active: 'bg-red-50    border-red-400    text-red-700',     hover: 'hover:border-red-300'     },
+  { value: '1', icon: ThumbsDown, active: 'bg-red-50 border-red-400 text-red-600',       hover: 'hover:border-red-200 hover:text-red-400'       },
+  { value: '2', icon: null,       active: 'bg-orange-50 border-orange-400 text-orange-600', hover: 'hover:border-orange-200 hover:text-orange-400' },
+  { value: '3', icon: Minus,      active: 'bg-amber-50 border-amber-400 text-amber-600',  hover: 'hover:border-amber-200 hover:text-amber-400'   },
+  { value: '4', icon: null,       active: 'bg-lime-50 border-lime-400 text-lime-700',     hover: 'hover:border-lime-200 hover:text-lime-500'     },
+  { value: '5', icon: ThumbsUp,   active: 'bg-emerald-50 border-emerald-400 text-emerald-700', hover: 'hover:border-emerald-200 hover:text-emerald-400' },
 ];
 
 // ─── Reusable toggle-section ─────────────────────────────────────────────────
@@ -308,57 +310,187 @@ const BuilderTab = ({ builder, cohortId, onSaved, onClose }) => {
 
 // ─── Cohort Tab ───────────────────────────────────────────────────────────────
 
+const TODAY_ISO = new Date().toLocaleDateString('en-CA');
+
+const TASK_CHANGE_TYPES = [
+  { value: 'changed', label: 'Changed', active: 'bg-emerald-50 border-emerald-300 text-emerald-700' },
+  { value: 'removed', label: 'Removed', active: 'bg-red-50 border-red-300 text-red-700' },
+  { value: 'moved',   label: 'Moved',   active: 'bg-blue-50 border-blue-300 text-blue-700' },
+];
+
+const TaskChangeRow = ({ task, taskChange, onChangeType, onChangeNotes }) => (
+  <div className="py-2.5 border-b border-[#F0F0F0] last:border-0">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-1.5 flex-1 min-w-0">
+        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[#4242EA]/30 flex-shrink-0" />
+        <span className="text-xs text-slate-700 leading-snug">{task.task_title}</span>
+      </div>
+      <div className="flex gap-1 flex-shrink-0">
+        {TASK_CHANGE_TYPES.map(({ value, label, active }) => (
+          <button key={value} type="button"
+            onClick={() => onChangeType(task.id, taskChange?.type === value ? null : value)}
+            className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-all ${
+              taskChange?.type === value ? active : 'bg-white border-[#E3E3E3] text-slate-400 hover:border-slate-300 hover:text-slate-600'
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+    {taskChange?.type && (
+      <Textarea
+        value={taskChange.notes || ''}
+        onChange={e => onChangeNotes(task.id, e.target.value)}
+        placeholder={`Notes on what was ${taskChange.type}...`}
+        className="mt-2 ml-3 min-h-[52px] text-xs"
+      />
+    )}
+  </div>
+);
+
+const CurriculumCard = ({ date, items, loading }) => {
+  const label = date
+    ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : '';
+  return (
+    <div className="rounded-lg border border-[#4242EA]/20 bg-[#4242EA]/[0.02] px-4 py-3">
+      <p className="text-[10px] font-semibold text-[#4242EA]/70 uppercase tracking-wide mb-2">
+        Curriculum for {label}
+      </p>
+      {loading ? (
+        <p className="text-xs text-slate-400">Loading...</p>
+      ) : items.length === 0 ? (
+        <p className="text-xs text-slate-400 italic">No curriculum scheduled for this date.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {items.map(task => (
+            <li key={task.id} className="flex items-start gap-2">
+              <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[#4242EA]/30 flex-shrink-0" />
+              <span className="text-xs text-slate-600 leading-snug">
+                {task.task_title}
+                {task.duration_minutes ? <span className="text-slate-400 ml-1">({task.duration_minutes}m)</span> : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
   const token = useAuthStore((s) => s.token);
 
-  const [logCategory, setLogCategory]                       = useState('facilitator_feedback');
-  const [curriculumStatus, setCurriculumStatus]             = useState(null);
-  const [curriculumStatusNotes, setCurriculumStatusNotes]   = useState('');
-  const [todayEnabled, setTodayEnabled]                     = useState(false);
-  const [todayNotes, setTodayNotes]                         = useState('');
-  const [nextDayEnabled, setNextDayEnabled]                 = useState(false);
-  const [nextDayNotes, setNextDayNotes]                     = useState('');
-  const [flagsEnabled, setFlagsEnabled]                     = useState(false);
-  const [flags, setFlags]                                   = useState('');
-  const [actionRequired, setActionRequired]                 = useState(false);
-  const [saving, setSaving]                                 = useState(false);
+  const [logDate, setLogDate]                           = useState(TODAY_ISO);
+  const [facilitatorStatus, setFacilitatorStatus]         = useState(null);
+  const [cohortReceptionStatus, setCohortReceptionStatus] = useState(null);
+  const [overallCurriculumStatus, setOverallCurriculumStatus] = useState(null);
+  const [curriculumStatusNotes, setCurriculumStatusNotes] = useState('');
+  const [todayEnabled, setTodayEnabled]                 = useState(false);
+  const [todayTaskChanges, setTodayTaskChanges]         = useState({});
+  const [todayAddedNote, setTodayAddedNote]             = useState('');
+  const [nextDayEnabled, setNextDayEnabled]             = useState(false);
+  const [nextDayTaskChanges, setNextDayTaskChanges]     = useState({});
+  const [nextDayAddedNote, setNextDayAddedNote]         = useState('');
+  const [flagsEnabled, setFlagsEnabled]                 = useState(false);
+  const [flags, setFlags]                               = useState('');
+  const [actionRequired, setActionRequired]             = useState(false);
+  const [saving, setSaving]                             = useState(false);
 
-  const [cohortSearch, setCohortSearch]           = useState('');
-  const [selectedCohortId, setSelectedCohortId]   = useState(cohortId || '');
-  const [showCohortDropdown, setShowCohortDropdown] = useState(false);
+  const [curriculumItems, setCurriculumItems]           = useState([]);
+  const [curriculumLoading, setCurriculumLoading]       = useState(false);
+  const [nextDayItems, setNextDayItems]                 = useState([]);
+  const [nextDayLoading, setNextDayLoading]             = useState(false);
+  const [nextDayDate, setNextDayDate]                   = useState(null);
+
+  const [cohortSearch, setCohortSearch]                 = useState('');
+  const [selectedCohortId, setSelectedCohortId]         = useState(cohortId || '');
+  const [showCohortDropdown, setShowCohortDropdown]     = useState(false);
 
   const activeCohort   = cohorts?.find(c => c.cohort_id === cohortId);
   const selectedCohort = cohorts?.find(c => c.cohort_id === selectedCohortId);
 
   useEffect(() => {
-    if (cohortId)    setSelectedCohortId(cohortId);
+    if (cohortId)     setSelectedCohortId(cohortId);
     if (activeCohort) setCohortSearch(activeCohort.name || '');
   }, [cohortId, activeCohort]);
 
+  useEffect(() => {
+    if (!selectedCohortId || !logDate || !token) {
+      setCurriculumItems([]); setNextDayItems([]); setNextDayDate(null); return;
+    }
+    setCurriculumLoading(true);
+    fetch(`${API_URL}/api/admin/dashboard/cohort-curriculum?cohortId=${selectedCohortId}&date=${logDate}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => { if (d.success) setCurriculumItems(d.data.tasks || []); })
+      .catch(err => console.error('Cohort curriculum (today) fetch failed:', err))
+      .finally(() => setCurriculumLoading(false));
+
+    setNextDayLoading(true);
+    fetch(`${API_URL}/api/admin/dashboard/cohort-curriculum?cohortId=${selectedCohortId}&date=${logDate}&next=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setNextDayItems(d.data.tasks || []);
+          setNextDayDate(d.data.day?.day_date || null);
+        }
+      })
+      .catch(err => console.error('Cohort curriculum (next day) fetch failed:', err))
+      .finally(() => setNextDayLoading(false));
+  }, [selectedCohortId, logDate, token]);
+
   const filteredCohorts = (cohorts || []).filter(c => c.name?.toLowerCase().includes(cohortSearch.toLowerCase()));
 
+  const setTaskChange = (id, field, val, isToday) => {
+    const setter = isToday ? setTodayTaskChanges : setNextDayTaskChanges;
+    setter(prev => ({ ...prev, [id]: { ...(prev[id] || { type: null, notes: '' }), [field]: val } }));
+  };
+
+  const serializeTaskChanges = (items, changes, addedNote) => {
+    const taskEntries = items
+      .filter(t => changes[t.id]?.type)
+      .map(t => ({ task_id: t.id, task_title: t.task_title, change_type: changes[t.id].type, notes: changes[t.id].notes || '' }));
+    if (addedNote?.trim()) {
+      taskEntries.push({ task_id: null, task_title: addedNote.trim(), change_type: 'added', notes: '' });
+    }
+    return JSON.stringify(taskEntries);
+  };
+
+  const hasTaskContent = (changes, addedNote) =>
+    Object.values(changes || {}).some(c => c?.type) || !!(addedNote || '').trim();
+
   const canSave = selectedCohortId && (
-    curriculumStatus ||
+    facilitatorStatus ||
+    cohortReceptionStatus ||
+    overallCurriculumStatus ||
     curriculumStatusNotes.trim() ||
-    (todayEnabled   && todayNotes.trim()) ||
-    (nextDayEnabled && nextDayNotes.trim()) ||
-    (flagsEnabled   && flags.trim())
+    (todayEnabled   && hasTaskContent(todayTaskChanges, todayAddedNote)) ||
+    (nextDayEnabled && hasTaskContent(nextDayTaskChanges, nextDayAddedNote)) ||
+    (flagsEnabled && flags.trim())
   );
 
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true);
     try {
-      const res  = await fetch(`${API_URL}/api/admin/dashboard/cohort-logs`, {
+      const res = await fetch(`${API_URL}/api/admin/dashboard/cohort-logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           cohort_id: selectedCohortId,
-          log_category: logCategory,
-          curriculum_status: curriculumStatus || null,
+          log_date: logDate || null,
+          curriculum_status: facilitatorStatus || null,
+          cohort_reception_status: cohortReceptionStatus || null,
+          overall_curriculum_status: overallCurriculumStatus || null,
           curriculum_status_notes: curriculumStatusNotes.trim() || null,
-          curriculum_changes_today: todayEnabled   ? todayNotes.trim()   || null : null,
-          curriculum_changes_next:  nextDayEnabled ? nextDayNotes.trim() || null : null,
+          curriculum_changes_today: todayEnabled ? serializeTaskChanges(curriculumItems, todayTaskChanges, todayAddedNote) : null,
+          today_change_types: null,
+          curriculum_changes_next: nextDayEnabled ? serializeTaskChanges(nextDayItems, nextDayTaskChanges, nextDayAddedNote) : null,
+          next_day_change_types: null,
           flags: flagsEnabled ? flags.trim() || null : null,
           action_required: flagsEnabled ? actionRequired : false,
         }),
@@ -373,7 +505,7 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
   return (
     <div className="space-y-4 px-6 py-5 overflow-y-auto flex-1">
 
-      {/* Cohort search — auto-populated */}
+      {/* Cohort search */}
       <div>
         <Label className="text-xs font-medium text-slate-500">Cohort <span className="text-red-400">*</span></Label>
         <div className="relative mt-1.5">
@@ -401,35 +533,63 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
         </div>
       </div>
 
-      {/* Category pills */}
+      {/* Date */}
       <div>
-        <Label className="text-xs font-medium text-slate-500">Category <span className="text-red-400">*</span></Label>
-        <div className="flex gap-2 mt-1.5">
-          {[
-            { value: 'facilitator_feedback', label: 'Facilitator Feedback', active: 'bg-violet-50 border-violet-300 text-violet-700', hover: 'hover:border-violet-200' },
-            { value: 'cohort_feedback',       label: 'Cohort Feedback',      active: 'bg-teal-50   border-teal-300   text-teal-700',   hover: 'hover:border-teal-200'   },
-          ].map(({ value, label, active, hover }) => (
-            <button key={value} type="button" onClick={() => setLogCategory(value)}
-              className={`flex-1 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${logCategory === value ? active : `bg-white border-[#E3E3E3] text-slate-500 ${hover}`}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <Label className="text-xs font-medium text-slate-500">Date</Label>
+        <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
+          className="mt-1.5 w-full px-3 py-2 text-sm border border-[#E3E3E3] rounded-md bg-white focus:border-[#4242EA] focus:outline-none" />
       </div>
 
       {/* Curriculum Status */}
-      <div className="rounded-lg border border-[#E3E3E3] p-4 space-y-3">
+      <div className="rounded-lg border border-[#E3E3E3] p-4 space-y-4">
         <Label className="text-xs font-medium text-slate-500">Curriculum Status</Label>
-        <div className="flex gap-2">
-          {CURRICULUM_STATUSES.map(({ value, label, icon: Icon, active, hover }) => (
-            <button key={value} type="button"
-              onClick={() => setCurriculumStatus(curriculumStatus === value ? null : value)}
-              className={`flex-1 flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg border text-xs font-medium transition-all ${curriculumStatus === value ? active : `bg-white border-[#E3E3E3] text-slate-400 ${hover}`}`}>
-              <Icon size={18} />
-              <span className="text-[10px] text-center leading-tight">{label}</span>
-            </button>
-          ))}
+
+        {/* Facilitator Delivery Feedback */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-slate-600">Facilitator Delivery Feedback</p>
+          <div className="flex gap-1.5">
+            {CURRICULUM_STATUSES.map(({ value, icon: Icon, active, hover }) => (
+              <button key={value} type="button"
+                onClick={() => setFacilitatorStatus(facilitatorStatus === value ? null : value)}
+                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg border font-semibold text-sm transition-all ${facilitatorStatus === value ? active : `bg-white border-[#E3E3E3] text-slate-400 ${hover}`}`}>
+                {Icon && <Icon size={12} />}
+                <span>{value}</span>
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Cohort Reception Feedback */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-slate-600">Cohort Reception Feedback</p>
+          <div className="flex gap-1.5">
+            {CURRICULUM_STATUSES.map(({ value, icon: Icon, active, hover }) => (
+              <button key={value} type="button"
+                onClick={() => setCohortReceptionStatus(cohortReceptionStatus === value ? null : value)}
+                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg border font-semibold text-sm transition-all ${cohortReceptionStatus === value ? active : `bg-white border-[#E3E3E3] text-slate-400 ${hover}`}`}>
+                {Icon && <Icon size={12} />}
+                <span>{value}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Overall Curriculum Feedback */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-slate-600">Overall Curriculum Feedback</p>
+          <div className="flex gap-1.5">
+            {CURRICULUM_STATUSES.map(({ value, icon: Icon, active, hover }) => (
+              <button key={value} type="button"
+                onClick={() => setOverallCurriculumStatus(overallCurriculumStatus === value ? null : value)}
+                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg border font-semibold text-sm transition-all ${overallCurriculumStatus === value ? active : `bg-white border-[#E3E3E3] text-slate-400 ${hover}`}`}>
+                {Icon && <Icon size={12} />}
+                <span>{value}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Notes */}
         <div>
           <Label className="text-xs font-medium text-slate-500">Curriculum Status Notes</Label>
           <Textarea value={curriculumStatusNotes} onChange={e => setCurriculumStatusNotes(e.target.value)}
@@ -438,41 +598,97 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
         </div>
       </div>
 
+      {/* Curriculum card — below status box */}
+      {selectedCohortId && logDate && (
+        <CurriculumCard date={logDate} items={curriculumItems} loading={curriculumLoading} />
+      )}
+
       {/* Changes/Updates to Day's Curriculum */}
-      <ToggleSection label="Changes/Updates to Day's Curriculum" icon={ChevronDown} iconColor="text-[#4242EA]" enabled={todayEnabled} onToggle={() => setTodayEnabled(v => !v)}>
-        <Textarea value={todayNotes} onChange={e => setTodayNotes(e.target.value)}
-          placeholder="Describe any changes or updates made to today's curriculum..."
-          className="min-h-[90px] text-sm" autoFocus />
+      <ToggleSection label="Changes/Updates to Day's Curriculum" icon={ChevronDown} iconColor="text-[#4242EA]"
+        enabled={todayEnabled} onToggle={() => { setTodayEnabled(v => !v); if (todayEnabled) { setTodayTaskChanges({}); setTodayAddedNote(''); } }}>
+        {curriculumItems.length === 0 ? (
+          <p className="text-xs text-slate-400 italic py-1">No curriculum found for this date.</p>
+        ) : (
+          <div className="divide-y divide-[#F0F0F0]">
+            {curriculumItems.map(task => (
+              <TaskChangeRow key={task.id} task={task}
+                taskChange={todayTaskChanges[task.id]}
+                onChangeType={(id, type) => setTaskChange(id, 'type', type, true)}
+                onChangeNotes={(id, notes) => setTaskChange(id, 'notes', notes, true)}
+              />
+            ))}
+            {/* Free-form added curriculum row */}
+            <div className="pt-3 pb-1">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold border bg-emerald-50 border-emerald-300 text-emerald-700">Added</span>
+                <span className="text-xs text-slate-500">Additional curriculum added to today</span>
+              </div>
+              <Textarea
+                value={todayAddedNote}
+                onChange={e => setTodayAddedNote(e.target.value)}
+                placeholder="Describe any curriculum added to today's schedule..."
+                className="min-h-[60px] text-xs"
+              />
+            </div>
+          </div>
+        )}
       </ToggleSection>
 
       {/* Changes/Updates for Next Day's Curriculum */}
-      <ToggleSection label="Changes/Updates for Next Day's Curriculum" icon={ChevronDown} iconColor="text-[#4242EA]" enabled={nextDayEnabled} onToggle={() => setNextDayEnabled(v => !v)}>
-        <Textarea value={nextDayNotes} onChange={e => setNextDayNotes(e.target.value)}
-          placeholder="Describe planned changes or updates for tomorrow's curriculum..."
-          className="min-h-[90px] text-sm" autoFocus />
+      <ToggleSection label="Changes/Updates for Next Day's Curriculum" icon={ChevronDown} iconColor="text-[#4242EA]"
+        enabled={nextDayEnabled} onToggle={() => { setNextDayEnabled(v => !v); if (nextDayEnabled) { setNextDayTaskChanges({}); setNextDayAddedNote(''); } }}>
+        {nextDayLoading ? (
+          <p className="text-xs text-slate-400 py-1">Loading next class day...</p>
+        ) : nextDayItems.length === 0 ? (
+          <p className="text-xs text-slate-400 italic py-1">No curriculum found for the next class day.</p>
+        ) : (
+          <>
+            {nextDayDate && (
+              <p className="text-[10px] font-semibold text-[#4242EA]/60 uppercase tracking-wide mb-2">
+                {new Date(nextDayDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </p>
+            )}
+            <div className="divide-y divide-[#F0F0F0]">
+              {nextDayItems.map(task => (
+                <TaskChangeRow key={task.id} task={task}
+                  taskChange={nextDayTaskChanges[task.id]}
+                  onChangeType={(id, type) => setTaskChange(id, 'type', type, false)}
+                  onChangeNotes={(id, notes) => setTaskChange(id, 'notes', notes, false)}
+                />
+              ))}
+              {/* Free-form added curriculum row */}
+              <div className="pt-3 pb-1">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold border bg-emerald-50 border-emerald-300 text-emerald-700">Added</span>
+                  <span className="text-xs text-slate-500">Additional curriculum added to next day</span>
+                </div>
+                <Textarea
+                  value={nextDayAddedNote}
+                  onChange={e => setNextDayAddedNote(e.target.value)}
+                  placeholder="Describe any curriculum added to next day's schedule..."
+                  className="min-h-[60px] text-xs"
+                />
+              </div>
+            </div>
+          </>
+        )}
       </ToggleSection>
 
       {/* Flags */}
-      <ToggleSection label="Flags" icon={Flag} iconColor="text-amber-500" enabled={flagsEnabled} onToggle={() => { setFlagsEnabled(v => !v); if (flagsEnabled) setActionRequired(false); }}>
+      <ToggleSection label="Flags" icon={Flag} iconColor="text-amber-500"
+        enabled={flagsEnabled} onToggle={() => { setFlagsEnabled(v => !v); if (flagsEnabled) setActionRequired(false); }}>
         <div className="space-y-3">
-          {/* Icon + Action Required checkbox */}
           <div className="flex items-center gap-3 px-1 py-2 rounded-lg bg-amber-50 border border-amber-200">
             <AlertTriangle size={16} className="text-amber-500 flex-shrink-0" />
             <label className="flex items-center gap-2 cursor-pointer select-none flex-1">
-              <input
-                type="checkbox"
-                checked={actionRequired}
-                onChange={e => setActionRequired(e.target.checked)}
-                className="w-4 h-4 rounded border-amber-300 accent-amber-500 cursor-pointer"
-              />
-              <span className={`text-sm font-medium ${actionRequired ? 'text-amber-700' : 'text-amber-600'}`}>
-                Action Required
-              </span>
+              <input type="checkbox" checked={actionRequired} onChange={e => setActionRequired(e.target.checked)}
+                className="w-4 h-4 rounded border-amber-300 accent-amber-500 cursor-pointer" />
+              <span className={`text-sm font-medium ${actionRequired ? 'text-amber-700' : 'text-amber-600'}`}>Action Required</span>
             </label>
           </div>
           <Textarea value={flags} onChange={e => setFlags(e.target.value)}
             placeholder="Describe concerns or issues requiring follow-up action..."
-            className="min-h-[80px] text-sm border-amber-200 focus:border-amber-400" autoFocus />
+            className="min-h-[80px] text-sm border-amber-200 focus:border-amber-400" />
         </div>
       </ToggleSection>
 

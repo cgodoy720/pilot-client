@@ -240,8 +240,8 @@ function LearnerProfiles() {
           <div className="bg-white border border-[#E3E3E3] rounded-lg p-4 mb-4">
             <div className="flex flex-wrap gap-x-8 gap-y-2 mb-3 text-sm">
               <span><strong className="text-[#1E1E1E]">{summary.total}</strong> <span className="text-[#666]">builders</span></span>
-              <span><strong className="text-[#15803D]">{summary.onboarded}</strong> <span className="text-[#666]">onboarded</span></span>
-              <span><strong className="text-[#64748B]">{summary.notOnboarded}</strong> <span className="text-[#666]">no profile yet</span></span>
+              <span><strong className="text-[#15803D]">{summary.onboarded}</strong> <span className="text-[#666]">completed onboarding</span></span>
+              <span><strong className="text-[#64748B]">{summary.notOnboarded}</strong> <span className="text-[#666]">not completed</span></span>
             </div>
             <div className="flex flex-wrap gap-2">
               {Object.entries(summary.byMethod)

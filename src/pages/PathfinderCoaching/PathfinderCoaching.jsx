@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import useAuthStore from '../../stores/authStore';
 import { Pencil, GraduationCap, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
@@ -818,6 +819,7 @@ function StaffCoachView({ token, user }) {
             fetchSessionDetail(sessionId);
         } catch (err) {
             console.error('Error saving log:', err);
+            toast.error(err?.message || "Couldn't save your log — please try again.");
         }
     };
 
@@ -833,6 +835,7 @@ function StaffCoachView({ token, user }) {
             fetchSessionDetail(sessionId);
         } catch (err) {
             console.error('Error uploading transcript:', err);
+            toast.error(err?.message || "Couldn't save the transcript — please try again.");
         }
     };
 
@@ -855,12 +858,25 @@ function StaffCoachView({ token, user }) {
     const pastSessions = sessions.filter(s => s.status === 'completed').sort((a, b) => new Date(b.session_date) - new Date(a.session_date));
     const nextSession = upcomingSessions[0];
 
+    // Read-only when the current user is NOT the builder's active coach — i.e. a
+    // previous coach viewing a builder who was reassigned away from them. In this
+    // "My Sessions" view a coach only ever sees builders they currently coach or
+    // previously coached (getAssignmentsByCoach), so coach_user_id !== me means
+    // "I'm the previous coach." The server grants previous coaches read access to
+    // shared session history but 403s every write — and its notes endpoints block
+    // previous coaches BEFORE the admin bypass, so admins are NOT exempt here
+    // (an admin who is a previous coach still gets "Previous coaches cannot add
+    // notes"). Mirror that exactly so write actions are hidden rather than shown
+    // and then failing.
+    const isReadOnly = !!selectedAssignment
+        && selectedAssignment.coach_user_id !== user?.user_id;
+
     const prep = enginePrep || sessionDetail?.engine_prep;
 
     return (
-        <div className="flex" style={{ minHeight: 'calc(100vh - 45px)' }}>
-            {/* Left: Builder list */}
-            <div className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col" style={{ minHeight: 'calc(100vh - 45px)' }}>
+        <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 45px)' }}>
+            {/* Left: Builder list — fixed to viewport, scrolls independently */}
+            <div className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-full overflow-y-auto">
                 <div className="p-3 pt-3 flex-1">
                     {/* Active Builders — currently assigned to this coach */}
                     {assignments.filter(a => a.status === 'active' && a.previous_coach_user_id !== user?.user_id).length > 0 && (
@@ -938,8 +954,8 @@ function StaffCoachView({ token, user }) {
                 </div>
             </div>
 
-            {/* Right: Main content */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Right: Main content — scrolls independently of the builder list */}
+            <div className="flex-1 h-full overflow-y-auto">
                 {selectedAssignment ? (
                     <div className="h-full flex flex-col">
                         {/* Header */}
@@ -952,6 +968,14 @@ function StaffCoachView({ token, user }) {
                                     <h3 className="text-base font-semibold text-[#1E1E1E]">
                                         {selectedAssignment.builder_first_name} {selectedAssignment.builder_last_name}
                                     </h3>
+                                    {isReadOnly && (
+                                        <span
+                                            title="This builder was reassigned to another coach. You can view your past sessions together, but can't schedule sessions or add logs/transcripts."
+                                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200"
+                                        >
+                                            View only · reassigned
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button
@@ -962,7 +986,7 @@ function StaffCoachView({ token, user }) {
                                     >
                                         All Sessions
                                     </Button>
-                                    {selectedAssignment.status === 'active' && (
+                                    {selectedAssignment.status === 'active' && !isReadOnly && (
                                         <Button
                                             onClick={() => { setShowScheduleDialog(true); setScheduleDate(''); }}
                                             size="sm"
@@ -976,7 +1000,7 @@ function StaffCoachView({ token, user }) {
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 px-8 py-6 overflow-y-auto">
+                        <div className="flex-1 min-h-0 px-8 py-6 overflow-y-auto">
                             {selectedSession && sessionDetail ? (
                                 <div>
                                     {/* Session header bar */}
@@ -993,7 +1017,7 @@ function StaffCoachView({ token, user }) {
                                             )}
                                         </div>
                                         <div className="flex gap-2">
-                                            {['pre_session', 'in_progress'].includes(sessionDetail.status) && (
+                                            {!isReadOnly && ['pre_session', 'in_progress'].includes(sessionDetail.status) && (
                                                 sessionDetail.id === nextSession?.id ? (
                                                     <Button
                                                         size="sm"
@@ -1065,7 +1089,7 @@ function StaffCoachView({ token, user }) {
                                                     <div>
                                                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Suggested Agenda</h4>
                                                         {!prep && <p className="text-xs text-gray-400 mb-3">Pulls from the Builder's pre-work, their Pathfinder and Compass activity since the last session, and notes from all prior sessions. Takes 30 seconds to generate.</p>}
-                                                        {sessionDetail.id === nextSession?.id ? (
+                                                        {sessionDetail.id === nextSession?.id && !isReadOnly ? (
                                                             <Button
                                                                 onClick={() => handleGeneratePrep(sessionDetail.id)}
                                                                 disabled={generatingPrep}
@@ -1075,7 +1099,7 @@ function StaffCoachView({ token, user }) {
                                                                 {generatingPrep ? 'Generating Suggested Agenda...' : prep ? '↻ Regenerate Suggested Agenda' : 'Generate Suggested Agenda'}
                                                             </Button>
                                                         ) : (
-                                                            <div title="You can only generate an agenda for the next upcoming session">
+                                                            <div title={isReadOnly ? "This builder was reassigned — agenda generation is disabled" : "You can only generate an agenda for the next upcoming session"}>
                                                                 <Button
                                                                     variant="outline"
                                                                     disabled
@@ -1196,18 +1220,19 @@ function StaffCoachView({ token, user }) {
                                                             const logNotes = sessionDetail.notes?.filter(n => n.note_type === 'facilitator_log') || [];
                                                             const existingLogText = logNotes.map(n => n.content).join('\n\n');
                                                             const isNextSession = sessionDetail.id === nextSession?.id;
+                                                            const canEdit = isNextSession && !isReadOnly;
                                                             return logNotes.length > 0 ? (
                                                                 <div>
                                                                     <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 text-sm text-gray-700 leading-[1.6] mb-2 overflow-hidden" style={{ maxHeight: '122px' }}>
                                                                         {existingLogText}
                                                                     </div>
-                                                                    {isNextSession ? (
+                                                                    {canEdit ? (
                                                                         <button onClick={() => { setLogText(existingLogText); setEditingLogNoteIds(logNotes.map(n => n.id)); setShowLogDialog(true); }} className="text-xs text-[#4242ea] hover:text-[#3535c0] font-medium">Edit</button>
                                                                     ) : (
-                                                                        <span title="You can only edit logs for the next upcoming session" className="text-xs text-gray-300 font-medium cursor-not-allowed">Edit</span>
+                                                                        <span title={isReadOnly ? "This builder was reassigned — logs are view only" : "You can only edit logs for the next upcoming session"} className="text-xs text-gray-300 font-medium cursor-not-allowed">Edit</span>
                                                                     )}
                                                                 </div>
-                                                            ) : isNextSession ? (
+                                                            ) : canEdit ? (
                                                                 <Button
                                                                     onClick={() => { setLogText(''); setEditingLogNoteIds([]); setShowLogDialog(true); }}
                                                                     variant="outline"
@@ -1215,6 +1240,8 @@ function StaffCoachView({ token, user }) {
                                                                 >
                                                                     <span className="text-xl mr-0.5 leading-none">+</span> Add Logs
                                                                 </Button>
+                                                            ) : isReadOnly ? (
+                                                                <p className="text-sm text-gray-300 italic">No logs from your sessions with this builder.</p>
                                                             ) : (
                                                                 <div title="You can only add logs for the next upcoming session">
                                                                     <Button
@@ -1235,18 +1262,19 @@ function StaffCoachView({ token, user }) {
                                                         <p className="text-xs text-gray-400 mt-1 mb-3 leading-relaxed">Paste the raw transcript from your meeting below. Transcripts are saved to our database and help inform future sessions. Reminder: Mute your audio when discussing personal matters so they don't appear in the transcript.</p>
                                                         {(() => {
                                                             const isNextSession = sessionDetail.id === nextSession?.id;
+                                                            const canEdit = isNextSession && !isReadOnly;
                                                             return sessionDetail.transcript ? (
                                                                 <div>
                                                                     <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 text-sm text-gray-600 leading-[1.6] mb-2 overflow-hidden" style={{ maxHeight: '122px' }}>
                                                                         {sessionDetail.transcript.transcript_text}
                                                                     </div>
-                                                                    {isNextSession ? (
+                                                                    {canEdit ? (
                                                                         <button onClick={() => { setTranscriptText(sessionDetail.transcript.transcript_text); setShowTranscriptDialog(true); }} className="text-xs text-[#4242ea] hover:text-[#3535c0] font-medium">Edit</button>
                                                                     ) : (
-                                                                        <span title="You can only edit the transcript for the next upcoming session" className="text-xs text-gray-300 font-medium cursor-not-allowed">Edit</span>
+                                                                        <span title={isReadOnly ? "This builder was reassigned — the transcript is view only" : "You can only edit the transcript for the next upcoming session"} className="text-xs text-gray-300 font-medium cursor-not-allowed">Edit</span>
                                                                     )}
                                                                 </div>
-                                                            ) : isNextSession ? (
+                                                            ) : canEdit ? (
                                                                 <Button
                                                                     onClick={() => { setTranscriptText(''); setShowTranscriptDialog(true); }}
                                                                     variant="outline"
@@ -1254,6 +1282,8 @@ function StaffCoachView({ token, user }) {
                                                                 >
                                                                     <span className="text-xl mr-0.5 leading-none">+</span> Add Transcript
                                                                 </Button>
+                                                            ) : isReadOnly ? (
+                                                                <p className="text-sm text-gray-300 italic">No transcript from your sessions with this builder.</p>
                                                             ) : (
                                                                 <div title="You can only add a transcript for the next upcoming session">
                                                                     <Button
@@ -1598,22 +1628,26 @@ function StaffCoachView({ token, user }) {
                                                                             </button>
                                                                         </td>
                                                                         <td className="py-3 text-right">
-                                                                            <div className="flex items-center justify-end gap-1">
-                                                                                <button
-                                                                                    onClick={() => { setEditSessionDialog(s); setEditSessionDate(s.session_date?.split('T')[0] || ''); }}
-                                                                                    className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                                                                                    title="Reschedule"
-                                                                                >
-                                                                                    <Pencil className="h-3.5 w-3.5" />
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => setDeleteSessionDialog(s)}
-                                                                                    className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                                                                                    title="Delete session"
-                                                                                >
-                                                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                                                </button>
-                                                                            </div>
+                                                                            {isReadOnly ? (
+                                                                                <span className="text-xs text-gray-300">—</span>
+                                                                            ) : (
+                                                                                <div className="flex items-center justify-end gap-1">
+                                                                                    <button
+                                                                                        onClick={() => { setEditSessionDialog(s); setEditSessionDate(s.session_date?.split('T')[0] || ''); }}
+                                                                                        className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                                                                        title="Reschedule"
+                                                                                    >
+                                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => setDeleteSessionDialog(s)}
+                                                                                        className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                                                                                        title="Delete session"
+                                                                                    >
+                                                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
                                                                         </td>
                                                                     </tr>
                                                                 ));

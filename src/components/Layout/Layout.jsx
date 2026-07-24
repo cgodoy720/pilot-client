@@ -64,6 +64,7 @@ const Layout = ({ children, isLoading = false }) => {
   const programDropdownItems = isStaffOrAdminRole ? [
     canViewAdminDashboard && { to: '/admin-dashboard', label: 'Cohort Hub' },
     canViewAdminDashboard && { to: '/program-analytics', label: 'Program Analytics' },
+    canViewAdminDashboard && { to: '/attendance-viz-lab', label: 'Attendance Viz (Temp)' },
     canViewContentPreview && { to: '/content-preview', label: 'Content Mgmt' },
   ].filter(Boolean) : [];
 
@@ -243,7 +244,7 @@ const Layout = ({ children, isLoading = false }) => {
     };
 
     // Program section routes → BookOpen
-    const programRoutes = ['/admin/assessment-grades', '/admin-attendance-dashboard', '/admin-dashboard', '/content-preview', '/external-cohorts'];
+    const programRoutes = ['/admin/assessment-grades', '/admin-attendance-dashboard', '/admin-dashboard', '/attendance-viz-lab', '/content-preview', '/external-cohorts'];
     if (programRoutes.some(route => location.pathname === route || location.pathname.startsWith(route))) {
       return <BookOpen className="h-4 w-4 text-[#E3E3E3]" />;
     }

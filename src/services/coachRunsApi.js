@@ -10,7 +10,9 @@ import { fetchWithAuth } from '../utils/api';
 /**
  * List recent coach runs.
  * @param {string} token
- * @param {Object} [filters] - { userId, taskId, cohort, limit }
+ * @param {Object} [filters] - { userId, taskId, cohort, search, limit }
+ *   `search` is free-text (builder name / email / task title) and scans ALL
+ *   runs on the server, not just the recent-limit window.
  * @returns {Promise<{ runs: Object[] }>}
  */
 export const listCoachRuns = async (token, filters = {}) => {
@@ -18,6 +20,7 @@ export const listCoachRuns = async (token, filters = {}) => {
   if (filters.userId) params.append('userId', filters.userId);
   if (filters.taskId) params.append('taskId', filters.taskId);
   if (filters.cohort) params.append('cohort', filters.cohort);
+  if (filters.search) params.append('search', filters.search);
   if (filters.limit) params.append('limit', filters.limit);
   const qs = params.toString();
   return fetchWithAuth(`/api/admin/coach-runs${qs ? `?${qs}` : ''}`, { method: 'GET' }, token);
@@ -31,4 +34,29 @@ export const listCoachRuns = async (token, filters = {}) => {
  */
 export const getCoachRun = async (token, threadId) => {
   return fetchWithAuth(`/api/admin/coach-runs/${threadId}`, { method: 'GET' }, token);
+};
+
+/**
+ * List cohorts that have coach-engine data (for the Cohort Insights picker).
+ * @param {string} token
+ * @returns {Promise<{ cohorts: Array<{ cohort_id, name, level, start_date, run_count }> }>}
+ */
+export const listCohortsWithRuns = async (token) => {
+  return fetchWithAuth('/api/admin/coach-runs/cohorts', { method: 'GET' }, token);
+};
+
+/**
+ * Cohort-level coach-engine aggregates for the Cohort Insights tab.
+ * @param {string} token
+ * @param {string} cohortId - cohort UUID
+ * @returns {Promise<{ cohortId, maxLearnTurns, summary, tasks, builders }>}
+ *   summary: headline KPI counts; tasks: per-task effectiveness rows;
+ *   builders: per-builder engine signals (the L1→L2 decision aid).
+ */
+export const getCohortInsights = async (token, cohortId) => {
+  return fetchWithAuth(
+    `/api/admin/coach-runs/cohort-insights?cohortId=${encodeURIComponent(cohortId)}`,
+    { method: 'GET' },
+    token,
+  );
 };

@@ -57,6 +57,16 @@ const enhancedFetch = async (...args) => {
           console.log('🔒 Permissions API access denied, letting component handle it...');
           return response;
         }
+
+        // Skip global handling for coaching API 403s (authorization, not authentication).
+        // A coach who was reassigned away from a builder keeps read-only access to
+        // their shared session history, but every write (schedule/log/transcript)
+        // 403s server-side. That's an authorization boundary — surface it to the
+        // component, don't treat it as an expired session and log the user out.
+        if (response.status === 403 && typeof url === 'string' && url.includes('/api/coaching/')) {
+          console.log('🔒 Coaching API access denied (not the assigned coach), letting component handle it...');
+          return response;
+        }
       } catch (parseError) {
         // If we can't parse the error, continue with normal global handling
         console.log('⚠️ Could not parse error data for verification check');

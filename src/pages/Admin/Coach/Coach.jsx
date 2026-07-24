@@ -10,6 +10,7 @@ import BuilderSnapshot from '../BuilderSnapshot/BuilderSnapshot';
 import GoldenDataset from '../GoldenDataset/GoldenDataset';
 import TeachingLab from '../TeachingLab/TeachingLab';
 import LearnerProfiles from '../LearnerProfiles/LearnerProfiles';
+import CohortInsights from '../CohortInsights/CohortInsights';
 
 const TAB_TRIGGER_CLASS =
   'data-[state=active]:bg-[#4242EA] data-[state=active]:text-white text-slate-700 font-medium font-proxima px-4 py-1.5 text-sm rounded-md transition-all';
@@ -19,8 +20,9 @@ const TAB_TRIGGER_CLASS =
  * observability (Coach Runs) and automated quality evaluation (Coach Evals).
  * Mirrors the Organization Management tabbed layout.
  *
- * Tabs sync to ?tab=runs|evals|profiles. The Evals tab's "View agent timeline"
- * switches to the Runs tab with that run preselected (no full navigation).
+ * Tabs sync to ?tab=runs|evals|insights|profiles. The Evals tab's "View agent
+ * timeline" switches to the Runs tab with that run preselected, and the Cohort
+ * Insights tab's builder rows switch to the Snapshot tab (no full navigation).
  */
 const Coach = () => {
   const isSecondaryNavPage = useNavStore((s) => s.isSecondaryNavPage);
@@ -32,6 +34,7 @@ const Coach = () => {
   const canCoach = canAccessPage('coach');
   const canRuns = canCoach;
   const canEvals = canCoach;
+  const canInsights = canCoach;
   const canProfiles = canCoach;
   const canSnapshot = canCoach;
   const canGolden = canCoach;
@@ -43,6 +46,7 @@ const Coach = () => {
   // otherwise pick the first tab they can access.
   const resolveInitialTab = () => {
     if (initialTabParam === 'evals' && canEvals) return 'evals';
+    if (initialTabParam === 'insights' && canInsights) return 'insights';
     if (initialTabParam === 'profiles' && canProfiles) return 'profiles';
     if (initialTabParam === 'snapshot' && canSnapshot) return 'snapshot';
     if (initialTabParam === 'golden' && canGolden) return 'golden';
@@ -84,6 +88,16 @@ const Coach = () => {
     setSearchParams(next, { replace: true });
   };
 
+  // From a Cohort Insights builder → open their Builder Snapshot tab in place.
+  const openBuilderSnapshot = (userId) => {
+    setActiveTab('snapshot');
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', 'snapshot');
+    next.set('userId', String(userId));
+    next.delete('thread');
+    setSearchParams(next, { replace: true });
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#EFEFEF] font-proxima">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
@@ -94,6 +108,7 @@ const Coach = () => {
           <TabsList className="bg-slate-50 border border-[#E3E3E3] p-1 rounded-lg inline-flex gap-0.5 h-auto">
             {canRuns && <TabsTrigger value="runs" className={TAB_TRIGGER_CLASS}>Coach Runs</TabsTrigger>}
             {canEvals && <TabsTrigger value="evals" className={TAB_TRIGGER_CLASS}>Coach Evals</TabsTrigger>}
+            {canInsights && <TabsTrigger value="insights" className={TAB_TRIGGER_CLASS}>Cohort Insights</TabsTrigger>}
             {/* Profiles tab hidden for now (component kept, see TabsContent below) */}
             {canSnapshot && <TabsTrigger value="snapshot" className={TAB_TRIGGER_CLASS}>Builder Snapshot</TabsTrigger>}
             {canGolden && <TabsTrigger value="golden" className={TAB_TRIGGER_CLASS}>Golden Dataset</TabsTrigger>}
@@ -110,6 +125,11 @@ const Coach = () => {
         {canEvals && (
           <TabsContent value="evals" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
             <CoachEvals embedded onViewTimeline={openRunTimeline} />
+          </TabsContent>
+        )}
+        {canInsights && (
+          <TabsContent value="insights" className="flex-1 min-h-0 mt-0 focus-visible:outline-none">
+            <CohortInsights embedded onViewSnapshot={openBuilderSnapshot} />
           </TabsContent>
         )}
         {canProfiles && (
