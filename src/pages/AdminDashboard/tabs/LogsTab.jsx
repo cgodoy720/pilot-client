@@ -65,6 +65,115 @@ const TaskChangeList = ({ raw }) => {
   );
 };
 
+// Legacy rows stored a thumbs_* enum before the 1-5 scale; map them so their badge still renders.
+const LEGACY_STATUS_SCORE = { thumbs_up: 5, thumbs_sideways: 3, thumbs_down: 1 };
+
+const getScoreMeta = (val) => {
+  if (val == null || val === '') return null;
+  const n = LEGACY_STATUS_SCORE[val] ?? Number(val);
+  if (isNaN(n)) return null;
+  const icon = n === 5 ? ThumbsUp : n === 1 ? ThumbsDown : n === 3 ? Minus : null;
+  const cls = n >= 4 ? 'bg-emerald-50 text-emerald-700' : n === 3 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600';
+  return { icon, cls, label: String(n) };
+};
+
+// Module-level so it isn't recreated on every LogsTab render (which remounted the whole
+// subtree on unrelated state changes). Expand state is threaded through as props.
+const CohortLogRow = ({ log, itemKey, expandedItemId, setExpandedItemId, borderHover = 'hover:bg-[#FAFAFA]', expandedBg = 'bg-[#FAFAFA]' }) => {
+  const isExpanded = expandedItemId === itemKey;
+  const createdAt = log.created_at ? new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+  const statusMeta = getScoreMeta(log.curriculum_status);
+  const hasUpdatedCurriculum = log.curriculum_changes_today || log.curriculum_changes_next;
+
+  return (
+    <div key={log.log_id}>
+      <button type="button" onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
+        className={`w-full flex items-center gap-4 px-4 py-3 text-left ${borderHover} transition-colors`}>
+        <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+          <ChevronRight size={12} className="text-slate-400" />
+        </span>
+        {statusMeta && (
+          <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 flex items-center gap-0.5 ${statusMeta.cls}`}>
+            {statusMeta.icon && <statusMeta.icon size={10} />}
+            <span>{statusMeta.label}</span>
+          </Badge>
+        )}
+        {log.action_required && (
+          <Badge className="text-[10px] px-1.5 py-0 flex-shrink-0 bg-red-50 text-red-600">Action Required</Badge>
+        )}
+        {hasUpdatedCurriculum && (
+          <Badge className="text-[10px] px-1.5 py-0 flex-shrink-0 bg-indigo-50 text-indigo-600">Updated Curriculum</Badge>
+        )}
+        <span className="text-[10px] text-slate-500 flex-1 min-w-0 truncate">
+          {log.flags || log.curriculum_status_notes || log.curriculum_changes_today || log.curriculum_changes_next || '—'}
+        </span>
+        <span className="text-[10px] text-slate-400 flex-shrink-0">{createdAt}</span>
+      </button>
+      {isExpanded && (
+        <div className={`px-8 pb-3 space-y-2 ${expandedBg}`}>
+          {log.log_date && (
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Date</p>
+              <p className="text-xs text-slate-600">
+                {new Date(log.log_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
+          )}
+          {(log.curriculum_status || log.cohort_reception_status || log.overall_curriculum_status) && (
+            <div className="flex flex-wrap gap-3">
+              {[
+                { label: 'Facilitator', val: log.curriculum_status },
+                { label: 'Cohort Reception', val: log.cohort_reception_status },
+                { label: 'Overall', val: log.overall_curriculum_status },
+              ].filter(r => r.val).map(({ label, val }) => {
+                const m = getScoreMeta(val);
+                return m ? (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400">{label}</span>
+                    <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${m.cls}`}>
+                      {m.icon && <m.icon size={10} />}
+                      <span>{m.label}</span>
+                    </span>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
+          {log.curriculum_status_notes && (
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Curriculum Status Notes</p>
+              <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_status_notes}</p>
+            </div>
+          )}
+          {log.curriculum_changes_today && (
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Today's Changes</p>
+              <TaskChangeList raw={log.curriculum_changes_today} />
+            </div>
+          )}
+          {log.curriculum_changes_next && (
+            <div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Next Day's Changes</p>
+              <TaskChangeList raw={log.curriculum_changes_next} />
+            </div>
+          )}
+          {log.flags && (
+            <div>
+              <p className="text-[10px] font-semibold text-amber-600 uppercase mb-0.5">Flag Details</p>
+              <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.flags}</p>
+            </div>
+          )}
+          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+            <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+            <span>·</span>
+            <span>by {log.created_by_name}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const LogsTab = ({ selectedCohortId, cohorts }) => {
   const token = useAuthStore((s) => s.token);
   const [supportTickets, setSupportTickets] = useState([]);
@@ -233,112 +342,6 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
     'laptop_hardware': 'Laptop/Hardware',
     'time_off_personal': 'Time Off/Personal',
     'other': 'Other',
-  };
-
-  const getScoreMeta = (val) => {
-    const n = Number(val);
-    if (!val || isNaN(n)) return null;
-    const icon = n === 5 ? ThumbsUp : n === 1 ? ThumbsDown : n === 3 ? Minus : null;
-    const cls = n >= 4 ? 'bg-emerald-50 text-emerald-700' : n === 3 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600';
-    return { icon, cls, label: String(n) };
-  };
-
-  const CohortLogRow = ({ log, itemKey, borderHover = 'hover:bg-[#FAFAFA]', expandedBg = 'bg-[#FAFAFA]' }) => {
-    const isExpanded = expandedItemId === itemKey;
-    const createdAt = log.created_at ? new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-    const statusMeta = getScoreMeta(log.curriculum_status);
-    const categoryLabel = log.log_category === 'facilitator_feedback' ? 'Facilitator Feedback' : 'Cohort Feedback';
-    const categoryClass = log.log_category === 'facilitator_feedback' ? 'bg-violet-100 text-violet-700' : 'bg-teal-100 text-teal-700';
-    const hasUpdatedCurriculum = log.curriculum_changes_today || log.curriculum_changes_next;
-
-    return (
-      <div key={log.log_id}>
-        <button type="button" onClick={() => setExpandedItemId(isExpanded ? null : itemKey)}
-          className={`w-full flex items-center gap-4 px-4 py-3 text-left ${borderHover} transition-colors`}>
-          <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-            <ChevronRight size={12} className="text-slate-400" />
-          </span>
-          <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 ${categoryClass}`}>{categoryLabel}</Badge>
-          {statusMeta && (
-            <Badge className={`text-[10px] px-1.5 py-0 flex-shrink-0 flex items-center gap-0.5 ${statusMeta.cls}`}>
-              {statusMeta.icon && <statusMeta.icon size={10} />}
-              <span>{statusMeta.label}</span>
-            </Badge>
-          )}
-          {log.action_required && (
-            <Badge className="text-[10px] px-1.5 py-0 flex-shrink-0 bg-red-50 text-red-600">Action Required</Badge>
-          )}
-          {hasUpdatedCurriculum && (
-            <Badge className="text-[10px] px-1.5 py-0 flex-shrink-0 bg-indigo-50 text-indigo-600">Updated Curriculum</Badge>
-          )}
-          <span className="text-[10px] text-slate-500 flex-1 min-w-0 truncate">
-            {log.flags || log.curriculum_status_notes || log.curriculum_changes_today || log.curriculum_changes_next || '—'}
-          </span>
-          <span className="text-[10px] text-slate-400 flex-shrink-0">{createdAt}</span>
-        </button>
-        {isExpanded && (
-          <div className={`px-8 pb-3 space-y-2 ${expandedBg}`}>
-            {log.log_date && (
-              <div>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Date</p>
-                <p className="text-xs text-slate-600">
-                  {new Date(log.log_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                </p>
-              </div>
-            )}
-            {(log.curriculum_status || log.cohort_reception_status || log.overall_curriculum_status) && (
-              <div className="flex flex-wrap gap-3">
-                {[
-                  { label: 'Facilitator', val: log.curriculum_status },
-                  { label: 'Cohort Reception', val: log.cohort_reception_status },
-                  { label: 'Overall', val: log.overall_curriculum_status },
-                ].filter(r => r.val).map(({ label, val }) => {
-                  const m = getScoreMeta(val);
-                  return m ? (
-                    <div key={label} className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-400">{label}</span>
-                      <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${m.cls}`}>
-                        {m.icon && <m.icon size={10} />}
-                        <span>{m.label}</span>
-                      </span>
-                    </div>
-                  ) : null;
-                })}
-              </div>
-            )}
-            {log.curriculum_status_notes && (
-              <div>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Curriculum Status Notes</p>
-                <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.curriculum_status_notes}</p>
-              </div>
-            )}
-            {log.curriculum_changes_today && (
-              <div>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Today's Changes</p>
-                <TaskChangeList raw={log.curriculum_changes_today} />
-              </div>
-            )}
-            {log.curriculum_changes_next && (
-              <div>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Next Day's Changes</p>
-                <TaskChangeList raw={log.curriculum_changes_next} />
-              </div>
-            )}
-            {log.flags && (
-              <div>
-                <p className="text-[10px] font-semibold text-amber-600 uppercase mb-0.5">Flag Details</p>
-                <p className="text-xs text-slate-600 whitespace-pre-wrap">{log.flags}</p>
-              </div>
-            )}
-            <div className="flex items-center gap-1 text-[10px] text-slate-400">
-              <span>Created {new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-              <span>·</span>
-              <span>by {log.created_by_name}</span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
   };
 
   const builderLogCount = filteredNextSteps.length + filteredTickets.length + filteredAllLogs.length;
@@ -677,7 +680,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
               ) : (
                 <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
                   {filtered.map(log => (
-                    <CohortLogRow key={log.log_id} log={log} itemKey={`filtered-${cohortTagFilter}-${log.log_id}`} />
+                    <CohortLogRow key={log.log_id} log={log} itemKey={`filtered-${cohortTagFilter}-${log.log_id}`} expandedItemId={expandedItemId} setExpandedItemId={setExpandedItemId} />
                   ))}
                 </div>
               );
@@ -700,6 +703,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                     <div className="space-y-0 divide-y divide-red-100 border border-red-100 rounded-md overflow-hidden">
                       {actionRequiredLogs.map(log => (
                         <CohortLogRow key={log.log_id} log={log} itemKey={`action-${log.log_id}`}
+                          expandedItemId={expandedItemId} setExpandedItemId={setExpandedItemId}
                           borderHover="hover:bg-red-50/30" expandedBg="bg-red-50/20" />
                       ))}
                     </div>
@@ -721,6 +725,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                     <div className="space-y-0 divide-y divide-amber-100 border border-amber-100 rounded-md overflow-hidden">
                       {cohortFlagsLogs.map(log => (
                         <CohortLogRow key={log.log_id} log={log} itemKey={`cohortflag-${log.log_id}`}
+                          expandedItemId={expandedItemId} setExpandedItemId={setExpandedItemId}
                           borderHover="hover:bg-amber-50/40" expandedBg="bg-amber-50/30" />
                       ))}
                     </div>
@@ -742,6 +747,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                     <div className="space-y-0 divide-y divide-indigo-100 border border-indigo-100 rounded-md overflow-hidden">
                       {updatedCurriculumLogs.map(log => (
                         <CohortLogRow key={log.log_id} log={log} itemKey={`currupdate-${log.log_id}`}
+                          expandedItemId={expandedItemId} setExpandedItemId={setExpandedItemId}
                           borderHover="hover:bg-indigo-50/30" expandedBg="bg-indigo-50/20" />
                       ))}
                     </div>
@@ -762,7 +768,7 @@ const LogsTab = ({ selectedCohortId, cohorts }) => {
                   {!collapsed.cohortLogs && (
                     <div className="space-y-0 divide-y divide-[#EFEFEF] border border-[#E3E3E3] rounded-md overflow-hidden">
                       {regularCohortLogs.map(log => (
-                        <CohortLogRow key={log.log_id} log={log} itemKey={`cohortlog-${log.log_id}`} />
+                        <CohortLogRow key={log.log_id} log={log} itemKey={`cohortlog-${log.log_id}`} expandedItemId={expandedItemId} setExpandedItemId={setExpandedItemId} />
                       ))}
                     </div>
                   )}

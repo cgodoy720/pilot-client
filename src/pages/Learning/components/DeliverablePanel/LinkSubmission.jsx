@@ -4,14 +4,30 @@ import { Input } from '../../../../components/ui/input';
 import { Loader2, ExternalLink, AlertCircle } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 
-function LinkSubmission({ currentSubmission, isSubmitting, isLocked, onSubmit }) {
+function LinkSubmission({ currentSubmission, isSubmitting, isLocked, onSubmit, userId, taskId }) {
   const [url, setUrl] = useState('');
 
+  const draftKey = userId && taskId ? `deliverable_draft_${userId}_${taskId}` : null;
+
+  // Pre-fill from an existing submission; otherwise restore a typed-but-unsubmitted draft.
   useEffect(() => {
     if (currentSubmission?.content) {
       setUrl(currentSubmission.content);
+      return;
     }
-  }, [currentSubmission]);
+    if (draftKey) {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) setUrl(saved);
+    }
+  }, [currentSubmission, draftKey]);
+
+  const handleUrlChange = (value) => {
+    setUrl(value);
+    if (draftKey) {
+      if (value.trim()) localStorage.setItem(draftKey, value);
+      else localStorage.removeItem(draftKey);
+    }
+  };
 
   const isValidUrl = (value) => {
     try {
@@ -26,6 +42,7 @@ function LinkSubmission({ currentSubmission, isSubmitting, isLocked, onSubmit })
     if (!url.trim() || !isValidUrl(url)) return;
     // Submit as plain URL string
     onSubmit(url.trim());
+    if (draftKey) localStorage.removeItem(draftKey);
   };
 
   return (
@@ -35,7 +52,7 @@ function LinkSubmission({ currentSubmission, isSubmitting, isLocked, onSubmit })
           <Input
             type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => handleUrlChange(e.target.value)}
             placeholder="Copy and paste your link here..."
             disabled={isLocked || isSubmitting}
             className="w-full h-[35px] px-[11px] py-[4px] bg-white rounded-[10px] text-[18px] leading-[26px] font-proxima font-normal text-carbon-black placeholder:text-divider border-0 focus:outline-none focus:ring-2 focus:ring-pursuit-purple/20"
