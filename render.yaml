@@ -1,0 +1,24 @@
+# Render Blueprint for the pilot-client static site.
+# Frontend was migrated off Netlify -> Render. This file version-controls the
+# static-site config. It only takes effect if this repo is connected in Render
+# as a Blueprint (New + -> Blueprint). If your existing Render static site was
+# created manually via the dashboard, keep this in sync with those settings.
+services:
+  - type: web
+    name: pilot-client
+    runtime: static
+    # Mirrors the previous Netlify build: the lockfile is removed first because
+    # Vite's platform-specific native deps (rollup/esbuild) can break a clean
+    # install on CI. Bump old-space so Vite's bundler doesn't OOM.
+    buildCommand: rm -rf node_modules package-lock.json && npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=4096"
+    # SPA fallback so client-side routes resolve to index.html.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
