@@ -425,7 +425,7 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
     })
       .then(r => r.json())
       .then(d => { if (d.success) setCurriculumItems(d.data.tasks || []); })
-      .catch(() => {})
+      .catch(err => console.error('Cohort curriculum (today) fetch failed:', err))
       .finally(() => setCurriculumLoading(false));
 
     setNextDayLoading(true);
@@ -439,7 +439,7 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
           setNextDayDate(d.data.day?.day_date || null);
         }
       })
-      .catch(() => {})
+      .catch(err => console.error('Cohort curriculum (next day) fetch failed:', err))
       .finally(() => setNextDayLoading(false));
   }, [selectedCohortId, logDate, token]);
 
@@ -460,13 +460,16 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
     return JSON.stringify(taskEntries);
   };
 
+  const hasTaskContent = (changes, addedNote) =>
+    Object.values(changes || {}).some(c => c?.type) || !!(addedNote || '').trim();
+
   const canSave = selectedCohortId && (
     facilitatorStatus ||
     cohortReceptionStatus ||
     overallCurriculumStatus ||
     curriculumStatusNotes.trim() ||
-    todayEnabled ||
-    nextDayEnabled ||
+    (todayEnabled   && hasTaskContent(todayTaskChanges, todayAddedNote)) ||
+    (nextDayEnabled && hasTaskContent(nextDayTaskChanges, nextDayAddedNote)) ||
     (flagsEnabled && flags.trim())
   );
 
@@ -487,7 +490,7 @@ const CohortTab = ({ cohortId, cohorts, onSaved, onClose }) => {
           curriculum_changes_today: todayEnabled ? serializeTaskChanges(curriculumItems, todayTaskChanges, todayAddedNote) : null,
           today_change_types: null,
           curriculum_changes_next: nextDayEnabled ? serializeTaskChanges(nextDayItems, nextDayTaskChanges, nextDayAddedNote) : null,
-          next_day_change_types: nextDayDate || null,
+          next_day_change_types: null,
           flags: flagsEnabled ? flags.trim() || null : null,
           action_required: flagsEnabled ? actionRequired : false,
         }),
